@@ -1,3 +1,5 @@
+import { seed_of } from "../rng";
+
 export type Drive = "rwd" | "fwd" | "awd";
 export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula" | "fujin" | "sturm" | "raijin" | "bus" | "tsumuji" | "sajin";
 export type Triple = [number, number, number];
@@ -112,7 +114,19 @@ export interface CarSpec {
   tcs_lateral?: number;
   /** Traction control's road slip limit at full key, blended from the straight-ahead limit by the key (`car.ts`); absent keeps the straight limit at every key. */
   tcs_turn_slip?: number;
+  /** The AI's speed plan for this car over what it measures (`ai/capability.ts`), found per car by `scripts/ai-ml/car-fit.ts`; absent plans on the measured numbers. Not physics. */
+  ai?: CarAi;
+  ai_field?: boolean;
 }
+
+export interface CarAi {
+  slow: number;
+  fast: number;
+  brake: number;
+}
+
+// Over the physics alone: a lab result or a measured build keeps its key when only the AI fields move.
+export const spec_hash = (spec: CarSpec): string => seed_of(JSON.stringify({ ...spec, ai: undefined, ai_field: undefined })).toString(16).padStart(8, "0");
 
 export type CarId = BodyStyle;
 
@@ -640,6 +654,7 @@ export const BUS: CarSpec = {
   ...COUPE,
   id: "bus",
   name: "Bus",
+  ai_field: false,
   mass: 11500,
   inertia: [140000, 145000, 15000],
   wheel: { radius: 0.5, rest: 0.32, mounts: mounts(1.05, -0.49, 3.24, 2.66) },

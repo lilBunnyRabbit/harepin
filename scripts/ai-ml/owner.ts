@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { OFF_ROAD } from "../../src/ai/driver";
 import { build_spec, parse_build } from "../../src/car/build";
-import { spec_hash } from "../../src/lab/pack";
+import { spec_hash } from "../../src/car/cars";
 import { World } from "../../src/world/world";
 import { is_plain } from "../../src/worldgen/kinds/kinds";
 import { parse_map_code } from "../../src/worldgen/kinds/map-code";

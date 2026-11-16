@@ -1,5 +1,8 @@
 import { Car, drop_height, type Controls, type Ground } from "../car/car";
-import { COUPE, type CarSpec } from "../car/cars";
+import { build_spec, parse_build } from "../car/build";
+import { CARS, COUPE, spec_hash, type CarAi, type CarSpec } from "../car/cars";
+import { PRESETS } from "../car/presets";
+import { MEASURED } from "./capability-table";
 import { hypot } from "../sim-math";
 
 /** What a car does on flat tarmac with every aid on, as the AI drives it: measured on the real physics, once per build. */
@@ -18,6 +21,7 @@ export interface Capability {
 export type PlanScale = Capability;
 
 export const UNIT_SCALE: PlanScale = { slow: 1, fast: 1, brake: 1, drive: 1, power: 1 };
+const NO_TRIM: CarAi = { slow: 1, fast: 1, brake: 1 };
 
 const DT = 1 / 360;
 const SLOW_AT = 13;
@@ -107,11 +111,11 @@ export function measure(spec: CarSpec): Capability {
   return { slow: skidpad(SLOW_AT), fast: skidpad(FAST_AT), brake, drive, power };
 }
 
-// Keyed by the whole spec, so any parts that change a number measure anew and the same build never twice.
-const measured = new Map<string, Capability>();
+// Every stock car and preset comes from the table; any other build measures once, at its first field.
+const measured = new Map<string, Capability>(Object.entries(MEASURED));
 
 export function capability(spec: CarSpec): Capability {
-  const key = JSON.stringify(spec);
+  const key = spec_hash(spec);
   let c = measured.get(key);
   if (!c) {
     c = measure(spec);
@@ -123,5 +127,16 @@ export function capability(spec: CarSpec): Capability {
 export function plan_scale(spec: CarSpec): PlanScale {
   const car = capability(spec);
   const ref = capability(COUPE);
-  return { slow: car.slow / ref.slow, fast: car.fast / ref.fast, brake: car.brake / ref.brake, drive: car.drive / ref.drive, power: car.power / ref.power };
+  const ai = spec.ai ?? NO_TRIM;
+  return { slow: (car.slow / ref.slow) * ai.slow, fast: (car.fast / ref.fast) * ai.fast, brake: (car.brake / ref.brake) * ai.brake, drive: car.drive / ref.drive, power: car.power / ref.power };
+}
+
+/** Every build a field draws on, by name: what `capability-table.ts` holds. */
+export function tabled_specs(): { name: string; spec: CarSpec }[] {
+  const stock = Object.values(CARS).map((spec) => ({ name: spec.id, spec }));
+  const presets = PRESETS.flatMap((preset) => {
+    const build = parse_build(preset.code);
+    return build ? [{ name: preset.code, spec: build_spec(build) }] : [];
+  });
+  return [...stock, ...presets];
 }

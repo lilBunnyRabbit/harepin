@@ -23,4 +23,11 @@ describe("AI field cars", () => {
     const gaps = builds.slice(0, 2).map((b) => Math.abs(rating(b).pi - rating(rally).pi));
     expect(gaps).toEqual([...gaps].sort((a, b) => a - b));
   });
+
+  test("a car flagged out of AI fields never races in one: a bus player, alone in class D, races alone", () => {
+    const bus = parse_build(PRESETS.find((p) => p.code.startsWith("bus."))?.code ?? "");
+    if (!bus) throw new Error("no bus preset");
+    const builds = field_builds(bus, rating(bus), 6);
+    expect(builds).toEqual([]);
+  });
 });

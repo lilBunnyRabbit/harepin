@@ -1,6 +1,6 @@
 import { apply_mods, build_mods } from "../../src/car/build";
-import { CARS, type CarSpec } from "../../src/car/cars";
-import { LAB_CAR, resolve_trial, spec_hash, type Pack } from "../../src/lab/pack";
+import { CARS, spec_hash, type CarSpec } from "../../src/car/cars";
+import { LAB_CAR, resolve_trial, type Pack } from "../../src/lab/pack";
 
 /** Printed values keep this many significant digits: a folded scale prints 206.99999999999997 otherwise. */
 const DIGITS = 6;

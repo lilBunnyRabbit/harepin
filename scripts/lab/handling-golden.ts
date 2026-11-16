@@ -1,7 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import type { CarSpec } from "../../src/car/cars";
+import { spec_hash, type CarSpec } from "../../src/car/cars";
 import { CLASS_LABELS, class_of, spec_pi } from "../../src/car/pi";
-import { spec_hash } from "../../src/lab/pack";
 import type { GroundName } from "../grounds";
 import type { Setup } from "./setups";
 import type { Traits } from "./sims";

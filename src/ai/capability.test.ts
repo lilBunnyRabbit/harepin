@@ -1,8 +1,9 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
 import { build_spec, parse_build } from "../car/build";
-import { COUPE, CARS } from "../car/cars";
-import { capability, plan_scale } from "./capability";
+import { COUPE, CARS, spec_hash } from "../car/cars";
+import { capability, measure, plan_scale, tabled_specs } from "./capability";
+import { MEASURED } from "./capability-table";
 
 const preset = (code: string) => {
   const build = parse_build(code);
@@ -31,5 +32,15 @@ describe("car capability", () => {
     const stock = capability(CARS.coupe);
     const slicks = capability(preset("coupe.4.0.0.1.0.0.0.6"));
     expect(slicks.slow).toBeGreaterThan(stock.slow);
+  });
+
+  test("the table holds every stock car and preset as it measures today: rerun scripts/ai-capability.ts when it fails", () => {
+    for (const { name, spec } of tabled_specs()) expect([name, MEASURED[spec_hash(spec)]]).toEqual([name, measure(spec)]);
+  });
+
+  test("a car's ai block scales its measured grip and braking, never its drive", () => {
+    const trimmed = plan_scale({ ...CARS.hatch, ai: { slow: 0.5, fast: 2, brake: 0.8 } });
+    const stock = plan_scale(CARS.hatch);
+    expect(trimmed).toEqual({ ...stock, slow: stock.slow * 0.5, fast: stock.fast * 2, brake: stock.brake * 0.8 });
   });
 });

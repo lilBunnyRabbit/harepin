@@ -1,10 +1,10 @@
 import { build_spec, parse_build } from "../src/car/build";
 import { SteerMode } from "../src/car/car";
-import { is_car, type CarSpec } from "../src/car/cars";
+import { is_car, spec_hash, type CarSpec } from "../src/car/cars";
 import { CLASS_LABELS, class_of, spec_pi } from "../src/car/pi";
 import { budget, drive_seconds, MAX_SECONDS, MAX_TRIALS, minutes, over_budget } from "../src/lab/budget";
 import { goal_text, mods_text, short } from "../src/lab/export";
-import { place_of, resolve_pack, spec_hash, type StationResolved } from "../src/lab/pack";
+import { place_of, resolve_pack, type StationResolved } from "../src/lab/pack";
 import { PACKS } from "../src/lab/packs";
 import { pool_size, run_pool } from "./proof/pool";
 import type { GroundName } from "./grounds";

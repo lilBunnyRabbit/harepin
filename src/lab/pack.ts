@@ -2,10 +2,9 @@ import type { Difficulty } from "../ai/difficulty";
 import { OFF_ROAD } from "../ai/driver";
 import type { FieldCar } from "../ai/field";
 import { apply_mods, build_mods, DEFAULT_BUILD, DEFAULT_PARTS, parse_build, type Build, type Mod, type Slot } from "../car/build";
-import { CARS, type BodyStyle, type CarSpec } from "../car/cars";
+import { CARS, spec_hash, type BodyStyle, type CarSpec } from "../car/cars";
 import { class_of, spec_pi, type CarClass } from "../car/pi";
 import type { SettingsState } from "../menu/prefs";
-import { seed_of } from "../rng";
 import { LAB_STATIONS, LabSurface, type LabLane, type LabStation, type StationId } from "../worldgen/lab";
 
 /** Trial cars that are not in `CARS` start with this, so they can never be read as a build code or a garage car. */
@@ -154,7 +153,6 @@ export const route_resolved = (r: Resolved): r is RouteResolved => is_route(r.tr
 /** Where a trial runs: its station, or its race world's map code. */
 export const place_of = (trial: Trial): string => ("map" in trial ? trial.map : trial.station);
 
-export const spec_hash = (spec: CarSpec): string => seed_of(JSON.stringify(spec)).toString(16).padStart(8, "0");
 
 export function station_of(id: string): LabStation {
   const station = LAB_STATIONS.find((s) => s.id === id);

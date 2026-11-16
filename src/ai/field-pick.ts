@@ -1,4 +1,5 @@
 import { MAX_PAINT, parse_build, type Build } from "../car/build";
+import { CARS } from "../car/cars";
 import { within } from "../car/car-pick";
 import { PRESETS } from "../car/presets";
 import { rating, type Rating } from "../car/pi";
@@ -14,7 +15,7 @@ const FIRST_NUMBER = 2;
 export function field_builds(player: Build, own: Rating, count: number, excludes: readonly string[] = []): Build[] {
   const presets = PRESETS.flatMap((preset) => {
     const build = parse_build(preset.code);
-    if (!build || excludes.includes(build.car)) return [];
+    if (!build || excludes.includes(build.car) || CARS[build.car].ai_field === false) return [];
     const rated = rating(build);
     return within(rated.class, own.class) ? [{ build, same: rated.class === own.class, gap: Math.abs(rated.pi - own.pi) }] : [];
   }).sort((a, b) => a.gap - b.gap);
