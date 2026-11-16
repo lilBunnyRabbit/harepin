@@ -1,6 +1,6 @@
 /* An idle free lap shows no card: roaming keeps the top clear. */
 @media (pointer: fine) {
-  :root[data-hud="classic"] #mode-status,
+  :root[data-hud="classic"] #mode-status:not([hidden]),
   :root[data-hud="classic"] body:not(:has(#mode-status:not([hidden]))) #strip {
     position: fixed;
     inset: calc(var(--corner-top) / var(--hud-scale, 1)) auto auto 50%;
@@ -112,6 +112,11 @@
     font-size: var(--text-2xl);
     font-weight: 700;
     color: var(--foreground);
+  }
+
+  /* A blank cell (no gap yet) folds away, so the card hugs the cells it shows. */
+  :root[data-hud="classic"] #mode-status-more > :empty {
+    display: none;
   }
 
   :root[data-hud="classic"] #mode-status-more > ::after {
