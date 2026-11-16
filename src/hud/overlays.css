@@ -1,7 +1,7 @@
 #toast {
   /* The event card at a start flag hangs under it, so a toast never covers its Start. */
   anchor-name: --toast;
-  top: calc(var(--inset-top) + var(--bar-h) + var(--space-4));
+  top: calc(var(--inset-top) + var(--space-4));
   left: 50%;
   translate: -50% 0;
   padding: var(--space-2) var(--space-4);
@@ -116,6 +116,7 @@ body:has(> .settings:not([hidden])) #toast[data-road] {
   top: anchor(bottom, var(--corner-top));
   left: anchor(center, 50%);
   margin-top: var(--space-2);
+  position-visibility: always;
 }
 
 /* On touch the pedals and map crowd the sides, so a long note wraps to the title's width instead. */

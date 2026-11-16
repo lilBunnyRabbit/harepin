@@ -344,7 +344,6 @@
 :root[data-hud="classic"] .bottom-right {
   bottom: calc(var(--corner-bottom) / var(--hud-scale, 1));
   right: calc(var(--corner-right) / var(--hud-scale, 1));
-  zoom: var(--hud-scale, 1);
   display: grid;
   grid-template-columns: var(--dial);
   grid-template-rows: var(--dial) auto;
@@ -504,6 +503,13 @@
 
   :root[data-hud="classic"] #speed {
     font-size: 40px;
+  }
+}
+
+/* Touch keeps its docks at one size: the pedal zone is placed from the speed card's height. */
+@media (pointer: fine) {
+  :root[data-hud="classic"] .bottom-right {
+    zoom: var(--hud-scale, 1);
   }
 }
 

@@ -3,7 +3,7 @@
 }
 
 .event-card {
-  top: calc(var(--inset-top) + var(--bar-h) + var(--space-4));
+  top: calc(var(--inset-top) + var(--inset));
   right: var(--inset-right);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
