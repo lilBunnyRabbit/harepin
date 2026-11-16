@@ -59,6 +59,9 @@ const T_HALF = 0.005;
 const T_ROUND = 0.02;
 const SLACK = 1.2;
 const JUMP_M = 1;
+/** Route points the recorder searches behind and ahead of the last one (`route-trace.ts`). */
+const BEHIND = 5;
+const AHEAD = 40;
 
 function fail(line: number, why: string): never {
   throw new Error(`export line ${line + 1}: ${why}`);
@@ -111,34 +114,60 @@ interface Timeline {
   t: number[];
 }
 
+/** The route point nearest (x, z): over the whole route, or `from - BEHIND` to `from + AHEAD` as the recorder searches. */
+function nearest(road: readonly RoadPoint[], x: number, z: number, from = -1): number {
+  const n = road.length;
+  let best = 0;
+  let best_d = Infinity;
+  for (let k = from < 0 ? 0 : from - BEHIND, to = from < 0 ? n - 1 : from + AHEAD; k <= to; k++) {
+    const i = ((k % n) + n) % n;
+    const d = (road[i].x - x) ** 2 + (road[i].z - z) ** 2;
+    if (d < best_d) [best, best_d] = [i, d];
+  }
+  return best;
+}
+
 /**
  * A rewind leaves no ` r`: the recorder does not step while it runs, so the next sample lands where the car was seconds
- * ago, farther than its speed carries it (and the trace searches the whole route for it, as after a placement). The
- * time it threw away is the time since the car was last there.
+ * ago, farther than its speed carries it. The time it threw away is the time since the car was last there. Traces
+ * recorded before the recorder searched the whole route after such a jump walked back a few points a step, or locked
+ * onto another stretch of road: their route points are found again here until they agree with the recorder's.
  */
-function timeline(trial: TracedTrial, n: number): Timeline {
+function timeline(trial: TracedTrial, road: readonly RoadPoint[]): Timeline {
   const { samples, resets } = trial;
-  const progress: number[] = [];
-  const placed: boolean[] = [];
-  let wraps = 0;
+  const n = road.length;
   let r = 0;
-  samples.forEach((s, k) => {
-    const was = k === 0 ? 0 : progress[k - 1];
+  const placed = samples.map((s) => {
     const now = r < resets.length && resets[r] <= s.t + T_HALF;
     while (r < resets.length && resets[r] <= s.t + T_HALF) r++;
-    if (now) wraps = Math.round((was - s.rp) / n);
-    else if (k > 0 && s.rp < samples[k - 1].rp - n / 2) wraps++;
-    else if (k > 0 && s.rp > samples[k - 1].rp + n / 2) wraps--;
-    placed.push(now);
-    progress.push(wraps * n + s.rp);
+    return now;
+  });
+  const jumped = samples.map((s, k) => {
+    const a = samples[k - 1];
+    return !!a && !placed[k] && Math.hypot(s.x - a.x, s.z - a.z) > Math.max(a.v, s.v) * (s.t - a.t + T_ROUND) * SLACK + JUMP_M;
+  });
+  const rp: number[] = [];
+  let found = false;
+  samples.forEach((s, k) => {
+    if (jumped[k]) found = true;
+    if (!found) return rp.push(s.rp);
+    const i = nearest(road, s.x, s.z, jumped[k] ? -1 : rp[k - 1]);
+    found = i !== s.rp;
+    rp.push(i);
+  });
+  const progress: number[] = [];
+  let wraps = 0;
+  rp.forEach((i, k) => {
+    if (placed[k]) wraps = Math.round(((k === 0 ? 0 : progress[k - 1]) - i) / n);
+    else if (k > 0 && i < rp[k - 1] - n / 2) wraps++;
+    else if (k > 0 && i > rp[k - 1] + n / 2) wraps--;
+    progress.push(wraps * n + i);
   });
   const landed: boolean[] = samples.map(() => false);
   const t: number[] = [];
   let shift = 0;
   samples.forEach((s, k) => {
-    const a = samples[k - 1];
-    const jumped = a && !placed[k] && Math.hypot(s.x - a.x, s.z - a.z) > Math.max(a.v, s.v) * (s.t - a.t + T_ROUND) * SLACK + JUMP_M;
-    if (jumped && progress[k] < progress[k - 1]) {
+    if (jumped[k] && progress[k] < progress[k - 1]) {
       landed[k] = true;
       let m = k - 1;
       while (m > 0 && progress[m] > progress[k]) m--;
@@ -162,7 +191,7 @@ export function owner_laps(trial: TracedTrial, road: readonly RoadPoint[], off: 
   const n = road.length;
   if (n !== trial.points) throw new Error(`trace taken on ${trial.points} route points, the route has ${n}: another world or route`);
   const { samples } = trial;
-  const { progress, placed, landed, t } = timeline(trial, n);
+  const { progress, placed, landed, t } = timeline(trial, road);
   const first: number[] = [0];
   let best = -Infinity;
   progress.forEach((p, k) => {
@@ -229,4 +258,12 @@ export function owner_laps(trial: TracedTrial, road: readonly RoadPoint[], off: 
     laps.push({ lap, start: samples[a].t, t: t[b] - t[a], clean: !flaws.length, flaws, trace, offset, spoilt });
   }
   return laps;
+}
+
+/** The fastest lap with no off, spin or reset (a rewind is fine); `flagged` when every lap has one and the fastest stands in. */
+export function best_lap(laps: readonly OwnerLap[]): { lap: OwnerLap; flagged: boolean } | null {
+  const fastest = (of: readonly OwnerLap[]) => of.reduce((a, b) => (b.t < a.t ? b : a));
+  const honest = laps.filter((l) => l.flaws.every((f) => f === Flaw.REWIND));
+  if (honest.length) return { lap: fastest(honest), flagged: false };
+  return laps.length ? { lap: fastest(laps), flagged: true } : null;
 }

@@ -11,7 +11,7 @@ import { autolaps } from "../ai-tune/race";
 import { AI_HASH, DIR, write_json } from "./cache";
 import { ai_lap, track_of } from "./drive";
 import { lifts, lifts_table, owner_table } from "./owner-gap";
-import { Flaw, owner_laps, read_export, type OwnerLap, type TracedTrial } from "./owner-read";
+import { best_lap, Flaw, owner_laps, read_export, type OwnerLap, type TracedTrial } from "./owner-read";
 
 // bun scripts/ai-ml/owner.ts <file>...: the owner's reference laps (`?lab=ai-ref-*`, src/lab/packs/ai-ref.ts) from
 // the lab's Download files (`<pack>-<date>.txt`) as saved, or pasted Copy blocks. Per traced trial: every lap and what
@@ -31,9 +31,10 @@ export interface OwnerResult {
   car: string;
   hash: string;
   laps: { lap: number; t: number; flaws: Flaw[] }[];
-  /** Fastest lap, flying or standing, flaws or not: its flaws are in `laps`. `standing` is lap 1. */
+  /** Fastest lap, flying or standing, with no off, spin or reset; `best_flagged` when none was and the fastest flagged lap stands in. `standing` is lap 1. */
   best: number;
   best_lap: number;
+  best_flagged: boolean;
   standing: number | null;
   ai: { t: number; clean: boolean };
   auto: number;
@@ -82,7 +83,9 @@ function report(trial: TracedTrial): OwnerResult | null {
     unplace();
     return null;
   }
-  const best = laps.reduce((a, b) => (b.t < a.t ? b : a));
+  const pick = best_lap(laps);
+  if (!pick) throw new Error("no lap");
+  const best = pick.lap;
   const standing = laps[0] ?? null;
   const tk = track_of(world, route, spec);
   const ai = ai_lap(tk, SOLO_LIMIT);
@@ -99,6 +102,7 @@ function report(trial: TracedTrial): OwnerResult | null {
     laps: laps.map(({ lap, t, flaws }) => ({ lap, t, flaws })),
     best: best.t,
     best_lap: best.lap,
+    best_flagged: pick.flagged,
     standing: standing?.t ?? null,
     ai: { t: ai.t, clean: ai.clean },
     auto,
@@ -108,7 +112,7 @@ function report(trial: TracedTrial): OwnerResult | null {
   const under = result.gain === null ? "" : ` is ${(result.gain * 100).toFixed(1)}% under it,`;
   const pace = standing && result.ratio !== null ? `your standing lap ${standing.t.toFixed(2)} s ${held(standing)}${under} ${result.ratio.toFixed(3)} of the autolap (${auto.toFixed(2)} s)` : "no standing lap to set against it";
   const table_note = best.lap === 0 ? "" : " The corner table reads your flying lap against the AI's standing one: the corners near the start favour you.";
-  const summary = `AI ${ai.t.toFixed(2)} s ${ai.clean ? "clean" : `NOT CLEAN (${ai.why})`} from a standing start; ${pace}. Your best lap ${best.t.toFixed(2)} s ${held(best)} (lap ${best.lap + 1}).${table_note}`;
+  const summary = `AI ${ai.t.toFixed(2)} s ${ai.clean ? "clean" : `NOT CLEAN (${ai.why})`} from a standing start; ${pace}. ${pick.flagged ? "No lap without an off, spin or reset: your fastest flagged lap" : "Your best lap"} ${best.t.toFixed(2)} s ${held(best)} (lap ${best.lap + 1}).${table_note}`;
   const body = [...warn, ...lap_lines, "", summary, "", owner_table(tk.line, ai.trace, best), "", lifts_table(lifts(tk.line, ai.trace, best))].join("\n");
   writeFileSync(`${dir}/${name}.gap.md`, `${head}${body}\n`);
   write_json(`${dir}/${name}.result.json`, result);
@@ -122,7 +126,7 @@ if (import.meta.main) {
   if (!trials.length) throw new Error("no traced trial in the paste: drive a ?lab=ai-ref-* pack and Download");
   const rows = trials.map((trial) => {
     const r = report(trial);
-    return r ? `| ${trial.pack} | ${trial.id} | ${r.laps.filter((l) => !l.flaws.length).length}/${r.laps.length} | ${r.best.toFixed(2)}${r.laps[r.best_lap].flaws.length ? ` (${r.laps[r.best_lap].flaws.join(", ")})` : ""} | ${r.standing?.toFixed(2) ?? "-"} | ${r.ai.t.toFixed(2)} | ${r.gain === null ? "-" : `${(r.gain * 100).toFixed(1)}%`} | ${r.ratio?.toFixed(3) ?? "-"} |` : `| ${trial.pack} | ${trial.id} | 0 laps | - | - | - | - | - |`;
+    return r ? `| ${trial.pack} | ${trial.id} | ${r.laps.filter((l) => !l.flaws.length).length}/${r.laps.length} | ${r.best.toFixed(2)}${r.laps[r.best_lap].flaws.length ? ` (${r.laps[r.best_lap].flaws.join(", ")}${r.best_flagged ? "; flagged" : ""})` : ""} | ${r.standing?.toFixed(2) ?? "-"} | ${r.ai.t.toFixed(2)} | ${r.gain === null ? "-" : `${(r.gain * 100).toFixed(1)}%`} | ${r.ratio?.toFixed(3) ?? "-"} |` : `| ${trial.pack} | ${trial.id} | 0 laps | - | - | - | - | - |`;
   });
   console.log(["| pack | trial | clean laps | best s | standing s | AI s | standing under AI | standing over autolap |", "|---|---|---|---|---|---|---|---|", ...rows].join("\n"));
   console.log(`gap reports in ${DIR}/owner`);

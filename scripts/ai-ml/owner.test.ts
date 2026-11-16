@@ -14,7 +14,7 @@ import { circuits } from "../ai-race";
 import { DT } from "../autolap";
 import { ai_lap, track_of } from "./drive";
 import { lifts, owner_table } from "./owner-gap";
-import { owner_laps, read_export } from "./owner-read";
+import { best_lap, owner_laps, read_export } from "./owner-read";
 
 const COUPE = "coupe.4.0.0.1.0";
 const pack = (map: string, route: string): Pack => ({
@@ -147,6 +147,11 @@ describe("owner reference laps", () => {
     expect(lap.t).toBeCloseTo(clean.t, 2);
     expect(owner_table(line, clean.trace, lap)).toMatch(/^corners 1 \(1 dropped: \d off\), AI loses/);
     expect(owner_table(line, clean.trace, clean)).toMatch(/^corners 2, AI loses/);
+    const cut = { ...lap, t: clean.t - 1 };
+    expect(best_lap([first, cut])).toEqual({ lap: first, flagged: false });
+    expect(best_lap([cut, { ...first, flaws: ["reset"] }])).toEqual({ lap: cut, flagged: true });
+    expect(best_lap([{ ...first, flaws: ["rewind"] }, cut])?.flagged).toBe(false);
+    expect(best_lap([])).toBeNull();
   });
 
   test("a rewind is no reset: its retry replaces the rewound stretch, offs and all, and its lost time comes out", () => {
@@ -166,6 +171,12 @@ describe("owner reference laps", () => {
     const total = (l: typeof lap) => Number(/AI loses (-?\d+\.\d) s/.exec(owner_table(line, clean.trace, l))?.[1]);
     expect(owner_table(line, clean.trace, lap)).toMatch(/^corners 2, AI loses/);
     expect(Math.abs(total(lap))).toBeLessThan(0.15);
+    // Recorded before the trace searched the whole route after a jump: it walked back 5 points a sample from where it was.
+    const land = rewound.samples.findIndex((q, k) => k > 0 && Math.hypot(q.x - rewound.samples[k - 1].x, q.z - rewound.samples[k - 1].z) > 20);
+    const walked = { ...rewound, samples: rewound.samples.map((q, k) => (k >= land && k < land + 8 ? { ...q, rp: rewound.samples[land - 1].rp - 5 * (k - land + 1) } : q)) };
+    const [, old] = owner_laps(walked, road, off_stadium(road));
+    expect(old.flaws).toEqual(["rewind"]);
+    expect(Math.abs(old.t - clean.t)).toBeLessThan(0.1);
     const [, short] = owner_laps(traced(road, { rewind: [25, 0.2] }), road, off_stadium(road));
     expect(short.flaws).toEqual(["rewind"]);
     expect(Math.abs(short.t - clean.t)).toBeLessThan(0.1);
