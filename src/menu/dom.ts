@@ -1,4 +1,6 @@
 export const ADJUST_EVENT = "adjust";
+/** Press (`detail` true) or release (false) of a hold button by something other than its own pointer or key: the pad, a road key. */
+export const HOLD_EVENT = "hold";
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, class_name = "", text = ""): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);

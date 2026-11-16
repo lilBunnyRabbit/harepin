@@ -1,7 +1,7 @@
 import type { Chat } from "../net/chat";
 import { $ } from "../hud/hud";
 import type { Nav } from "../hud/input";
-import { ADJUST_EVENT } from "./dom";
+import { ADJUST_EVENT, HOLD_EVENT } from "./dom";
 import type { Settings } from "./settings";
 
 // Controls inside a menu row carry tabindex -1: the row holds focus and they stay click targets only.
@@ -13,6 +13,8 @@ const SIDE_WEIGHT = 2;
 const SCROLL_STEP = 0.4;
 // Mirrors the query that shows #rotate in overlays.css, so the check needs no style read.
 const ROTATE_QUERY = "(orientation: portrait) and (pointer: coarse)";
+/** The pad button behind `accept` in `PAD_NAV` (`hud/input.ts`): a hold button stays pressed while it is down. */
+const ACCEPT_BUTTON = 0;
 
 type Direction = "up" | "down" | "left" | "right";
 
@@ -30,6 +32,7 @@ export interface PadMenuHost {
   chat: Chat;
   garage_open(): boolean;
   notice(text: string): void;
+  pad(): Gamepad | null;
 }
 
 function candidates(roots: Element[]): HTMLElement[] {
@@ -123,6 +126,8 @@ function settle(el: Element | null) {
 export class PadMenu {
   private hud_open = false;
   private last: HTMLElement | null = null;
+  /** The hold button A pressed, released when A comes up. */
+  private holding: HTMLElement | null = null;
   private readonly rotate = matchMedia(ROTATE_QUERY);
   private readonly chat_panel = $("chat-panel");
   /** Dialogs seen opening, newest last; one closed or taken out of the page drops off on the next `is_open`. */
@@ -178,6 +183,7 @@ export class PadMenu {
   }
 
   navigate(presses: readonly Nav[]) {
+    this.release();
     if (presses.length === 0 && !this.hud_open) return;
     if (this.rotated()) return;
     this.keep_hud();
@@ -223,6 +229,7 @@ export class PadMenu {
     if (target instanceof HTMLInputElement && target.type !== "submit" && target.type !== "button") return;
     // A pad press is not user activation, so a new-tab link would be popup-blocked; the ring stays for a tap or click.
     if (target instanceof HTMLAnchorElement && target.target === "_blank") return this.host.notice("Tap or click the link to open it");
+    if (target.dataset.hold !== undefined) return this.press(target);
     const play = layer.roots[0] === this.host.settings.panel || !this.overlay();
     target.click();
     const opened = target instanceof HTMLButtonElement ? (target.popoverTargetElement ?? document.getElementById(target.getAttribute("aria-controls") ?? "")) : null;
@@ -240,6 +247,18 @@ export class PadMenu {
     if (target.isConnected && target.checkVisibility()) {
       if (document.activeElement === document.body) focus(target);
     } else if (play) this.close_hud();
+  }
+
+  private press(target: HTMLElement) {
+    this.holding = target;
+    target.dispatchEvent(new CustomEvent(HOLD_EVENT, { detail: true }));
+  }
+
+  private release() {
+    const { holding } = this;
+    if (!holding || this.host.pad()?.buttons[ACCEPT_BUTTON]?.pressed) return;
+    this.holding = null;
+    holding.dispatchEvent(new CustomEvent(HOLD_EVENT, { detail: false }));
   }
 
   private hud(): Layer {

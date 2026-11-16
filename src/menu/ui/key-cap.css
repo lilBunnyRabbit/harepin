@@ -43,6 +43,8 @@
 :root .ui-key-btn {
   --key-fill: var(--primary);
   --key-ink: var(--on-primary);
+  --key-pad: var(--space-6);
+  --key-pad-cap: var(--space-4);
   position: relative;
   display: inline-flex;
   flex: none;
@@ -50,7 +52,7 @@
   justify-content: center;
   gap: var(--space-3);
   height: var(--control-h-lg);
-  padding: 0 var(--space-6);
+  padding: 0 var(--key-pad) 0 var(--key-pad-start, var(--key-pad));
   overflow: hidden;
   border: 0;
   border-radius: var(--radius-full);
@@ -80,8 +82,11 @@
   outline-offset: var(--space-1);
 }
 
-.ui-key-btn:has(.ui-glyph) {
-  padding-left: var(--space-4);
+/* Only a cap the current input shows pulls the label in: a Glyph with no cap for it renders nothing. */
+:root:not([data-input="pad"], [data-input="touch"]) .ui-key-btn:has(> .ui-glyph [data-glyph="key"]),
+:root[data-input="pad"] .ui-key-btn:has(> .ui-glyph [data-glyph="pad"]),
+:root[data-input="touch"] .ui-key-btn:has(> .ui-glyph [data-glyph="touch"]) {
+  --key-pad-start: var(--key-pad-cap);
 }
 
 .ui-key-btn:disabled {
@@ -90,14 +95,11 @@
 }
 
 .ui-key-btn[data-size="lg"] {
+  --key-pad: var(--space-8);
+  --key-pad-cap: var(--space-5);
   height: calc(var(--control-h-lg) + var(--space-3));
-  padding: 0 var(--space-8);
   font-size: var(--text-2xl);
   font-weight: 800;
-}
-
-.ui-key-btn[data-size="lg"]:has(.ui-glyph) {
-  padding-left: var(--space-5);
 }
 
 .ui-key-btn .ui-glyph-cap {
@@ -125,11 +127,9 @@
 }
 
 .ui-key-btn[data-variant="quiet"] {
-  background: var(--background-light);
+  background: none;
   color: var(--foreground);
-  box-shadow:
-    inset 0 0 0 1px var(--line-strong),
-    0 0 0 var(--space-0) var(--background-darkest);
+  box-shadow: inset 0 0 0 var(--space-0) var(--line-strong);
 }
 
 .ui-key-btn > * {
@@ -160,8 +160,9 @@
 
 @media (max-height: 500px) {
   .ui-key-btn[data-size="lg"] {
+    --key-pad: var(--space-6);
+    --key-pad-cap: var(--space-4);
     height: var(--control-h-lg);
-    padding: 0 var(--space-6);
     font-size: var(--text-xl);
   }
 }

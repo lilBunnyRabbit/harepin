@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import type { Attachment } from "svelte/attachments";
   import type { HTMLButtonAttributes } from "svelte/elements";
+  import { HOLD_EVENT } from "../dom";
   import Glyph from "./Glyph.svelte";
   import type { GlyphKeys } from "./types";
   import "./key-cap.css";
@@ -51,10 +53,17 @@
     if (disabled) stop();
   });
 
+  const held: Attachment<HTMLButtonElement> = (node) => {
+    const on = (event: Event) => ((event as CustomEvent<boolean>).detail ? start() : stop());
+    node.addEventListener(HOLD_EVENT, on);
+    return () => node.removeEventListener(HOLD_EVENT, on);
+  };
+
   $effect(() => stop);
 </script>
 
 <button
+  {@attach held}
   {...rest}
   {type}
   {disabled}
