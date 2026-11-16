@@ -21,7 +21,7 @@ export interface Pass {
   radius: number | null;
   you: PassCar;
   ai: PassCar;
-  /** The player's metres ahead of the AI car before the cars drew level and after one was clear; NaN when a placement cut the reading. */
+  /** The player's metres ahead of the AI car before the cars drew level and after one was clear; NaN when a placement or the trial's end cut the reading. */
   before: number;
   after: number;
   /** Seconds from level to clear. */

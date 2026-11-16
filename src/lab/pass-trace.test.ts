@@ -70,6 +70,15 @@ describe("pass trace", () => {
     expect(pass_lines_of(trace.lines())).toEqual(trace.lines());
   });
 
+  test("a placement inside the two seconds after a pass leaves its gap after unread", () => {
+    const { trace, drive } = grid(runner(40, 20), runner(20, 25));
+    drive(5);
+    trace.placed();
+    drive(3);
+    expect(pass_lines(trace)).toHaveLength(1);
+    expect(pass_lines(trace)[0]).toContain("/- side=");
+  });
+
   test("a pass the player loses reads the other way", () => {
     const { trace, drive } = grid(runner(20, 25), runner(40, 20));
     drive(8);

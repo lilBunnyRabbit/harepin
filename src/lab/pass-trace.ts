@@ -256,7 +256,7 @@ export class PassTrace implements TraceLines {
       const to = k * PASS_FIELDS;
       for (let f = 0; f < PASS_FIELDS; f++) this.passes[to + f] = d[o + f];
       this.passes[to + P.SIDE] = t - d[o + P.T];
-      this.passes[to + P.AFTER] = gap;
+      this.passes[to + P.AFTER] = NaN;
       this.after_at[k] = t + GAP_SPAN;
     }
     d[o + P.T] = NaN;

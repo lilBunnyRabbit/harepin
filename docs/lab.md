@@ -152,7 +152,7 @@ A race trial with `passes: true` records how the player and the field get by eac
 | phase | where the point lies on the AI's plan: `braking` (the planned speed falls), `apex` (a bend under 120 m radius, within 70% of its tightest), `exit` (the planned speed rises within 50 m of a bend), `straight` |
 | `r` | radius of the line's tightest point from 50 m behind to 150 m ahead: the bend being braked for, taken or left. Negative bends right; 999 is none |
 | `you`, `ai` | each car as they drew level: speed, metres right of the AI's racing line (not the road centre), throttle and brake |
-| `gap` | the player's metres ahead of that AI car (negative: behind) 2 s before they drew level, and 2 s after one was clear; `-` when a placement cut it |
+| `gap` | the player's metres ahead of that AI car (negative: behind) 2 s before they drew level, and 2 s after one was clear; `-` when a placement or the trial's end cut the reading |
 | `side` | s from level to clear: how long the two ran side by side |
 | ` ft` | the grid twice a second: every AI car pole first, then the player. Metres raced from the start line (negative on the grid), metres right of the line, speed, then throttle and brake as means since the last sample |
 
