@@ -140,7 +140,7 @@ async function fit(car: string) {
   const box = (k: (typeof KEYS)[number]) => [start[k] * (1 - SPAN), start[k] * (1 + SPAN)] as const;
   const to_ai = (x: readonly number[]): CarAi => from_list(KEYS.map((k, i) => Number((box(k)[0] + (box(k)[1] - box(k)[0]) * x[i]).toFixed(4))));
   let st = read_json<State>(path);
-  if (st && (st.car !== car || st.train !== train)) throw new Error(`${path} was started on ${st.car} ${st.train}`);
+  if (st && (st.car !== car || st.train !== train || ai_key(st.start) !== ai_key(start))) throw new Error(`${path} was started on ${st.car} ${st.train} from ${ai_key(st.start)}`);
   st ??= { car, train, start, cma: cma_init([0.5, 0.5, 0.5], sigma), done: {}, gens: [] };
   const state = st;
   const save = () => write_json(path, state);

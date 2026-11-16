@@ -5,6 +5,9 @@ import { COUPE, CARS, spec_hash } from "../car/cars";
 import { capability, measure, plan_scale, tabled_specs } from "./capability";
 import { MEASURED } from "./capability-table";
 
+/** It measures every stock car and preset: seconds idle, several times that beside a heavy run. */
+const TABLE_TIMEOUT = 60_000;
+
 const preset = (code: string) => {
   const build = parse_build(code);
   if (!build) throw new Error(`${code} no longer parses`);
@@ -36,7 +39,7 @@ describe("car capability", () => {
 
   test("the table holds every stock car and preset as it measures today: rerun scripts/ai-capability.ts when it fails", () => {
     for (const { name, spec } of tabled_specs()) expect([name, MEASURED[spec_hash(spec)]]).toEqual([name, measure(spec)]);
-  });
+  }, TABLE_TIMEOUT);
 
   test("no car inherits another car's ai block through a spread", () => {
     const blocks = Object.values(CARS).flatMap((spec) => (spec.ai ? [spec.ai] : []));
