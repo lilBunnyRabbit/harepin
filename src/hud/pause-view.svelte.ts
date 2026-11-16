@@ -5,7 +5,7 @@ import type { Bindings } from "./bindings";
 import { pause_keys, type PauseKeys } from "./pause-keys";
 import Pause from "./Pause.svelte";
 
-export type PauseAct = "reset" | "restart" | "leave" | "camera" | "chat" | "settings" | "showroom" | "map" | "events" | "garage" | "online";
+export type PauseAct = "reset" | "leave" | "camera" | "chat" | "settings" | "showroom" | "map" | "events" | "garage" | "online";
 export type PauseAid = "tcs" | "abs" | "assist" | "stability" | "auto" | "lights";
 export type PauseAids = Record<PauseAid, boolean>;
 
@@ -57,7 +57,7 @@ export class PauseView {
   open() {
     this.card = this.host.card();
     this.aids = this.host.aids();
-    this.keys = pause_keys(this.host.bindings());
+    this.keys = pause_keys(this.host.bindings(), this.card.kind);
     this.solo = this.host.solo();
     this.shown = true;
   }

@@ -74,6 +74,7 @@
           {#if door.badge}<span class="roam-badge">{door.badge}</span>{/if}
         </span>
         <span class="roam-label">
+          <Glyph key={caps[door.act]} />
           <Icon name={door.icon} />
           <b>{door.label}</b>
           {#if door.note}<span>{door.note}</span>{/if}
@@ -86,7 +87,6 @@
     <span><Glyph key="← →" pad="✥" />Choose</span>
     <span><Glyph key="Enter" pad="A" />Open</span>
     {#if caps.reset}<span><Glyph key={caps.reset} />Reset car</span>{/if}
-    {#if caps.showroom}<span><Glyph key={caps.showroom} />Showroom</span>{/if}
     <span><Glyph key="Esc" pad="B" />Resume</span>
   </footer>
 </div>

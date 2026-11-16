@@ -58,7 +58,7 @@
   </div>
 
   <!-- svelte-ignore a11y_autofocus -->
-  <KeyButton class="run-resume" size="lg" keys={{ key: "Enter", pad: "B", touch: "icon-play" }} onclick={onresume} autofocus>Resume</KeyButton>
+  <KeyButton class="run-resume" size="lg" keys={{ key: "Esc", pad: "B", touch: "icon-play" }} onclick={onresume} autofocus>Resume</KeyButton>
 </div>
 
 <style>

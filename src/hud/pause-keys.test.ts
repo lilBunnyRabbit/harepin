@@ -2,31 +2,24 @@ import { expect, test } from "bun:test";
 import { DEFAULT_BINDINGS, rebind_key } from "./bindings";
 import { pause_keys } from "./pause-keys";
 
-test("reset, restart, garage, camera and map answer to the player's keys", () => {
-  const { acts, caps } = pause_keys(DEFAULT_BINDINGS);
-  expect(acts).toMatchObject({ KeyR: "reset", KeyL: "restart", KeyV: "garage", KeyC: "camera", KeyM: "map", Home: "showroom", KeyO: "settings", KeyT: "chat", End: "leave" });
-  expect(acts.KeyG).toBeUndefined();
-  expect(caps).toEqual({ reset: "R", restart: "L", garage: "V", camera: "C", map: "M", showroom: "Home", settings: "O", chat: "T", leave: "End" });
+test("free roam: the doors take 1-4 in tile order, reset the player's key", () => {
+  const { acts, caps } = pause_keys(DEFAULT_BINDINGS, "roam");
+  expect(acts).toMatchObject({ KeyR: "reset", Digit1: "map", Digit2: "events", Digit3: "garage", Digit4: "online", KeyQ: "leave", KeyT: "chat", KeyO: "settings", KeyC: "camera" });
+  expect(caps).toMatchObject({ reset: "R", map: "1", events: "2", garage: "3", online: "4" });
 });
 
-test("no fixed pause key is a default driving key, so a habit press never leaves the run", () => {
-  const driving = new Set(Object.values(DEFAULT_BINDINGS).flatMap((binding) => binding.keys));
-  const { acts } = pause_keys(DEFAULT_BINDINGS);
-  for (const [code, act] of Object.entries(acts)) if (driving.has(code)) expect(["reset", "restart", "garage", "camera", "map"]).toContain(act);
+test("in an event: the rows after Restart take the digits, Leave takes Q", () => {
+  const { acts, caps } = pause_keys(DEFAULT_BINDINGS, "event");
+  expect(acts).toMatchObject({ KeyR: "reset", Digit1: "garage", Digit2: "showroom", Digit3: "settings", KeyQ: "leave" });
+  expect(acts.Digit4).toBeUndefined();
+  expect(caps).toMatchObject({ garage: "1", showroom: "2", settings: "3", leave: "Q" });
 });
 
-test("a fixed key the player bound to any action drops out of the pause", () => {
-  const { bindings } = rebind_key(DEFAULT_BINDINGS, "ghost", "End");
-  const { acts, caps } = pause_keys(bindings);
-  expect(acts.End).toBeUndefined();
+test("a rebound Reset moves with the player and wins a clash", () => {
+  const { bindings } = rebind_key(DEFAULT_BINDINGS, "reset", "KeyQ");
+  const { acts, caps } = pause_keys(bindings, "event");
+  expect(acts.KeyQ).toBe("reset");
+  expect(acts.KeyR).toBeUndefined();
+  expect(caps.reset).toBe("Q");
   expect(caps.leave).toBeUndefined();
-});
-
-test("a rebound key moves with its action, and a player key beats a fixed one", () => {
-  const { bindings } = rebind_key(DEFAULT_BINDINGS, "garage", "KeyO");
-  const { acts, caps } = pause_keys(bindings);
-  expect(acts.KeyO).toBe("garage");
-  expect(acts.KeyV).toBeUndefined();
-  expect(caps.garage).toBe("O");
-  expect(caps.settings).toBeUndefined();
 });

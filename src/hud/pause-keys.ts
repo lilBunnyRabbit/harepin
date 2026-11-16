@@ -1,20 +1,17 @@
-import { BINDABLE, key_label, type Bindable, type Bindings } from "./bindings";
-import type { PauseAct } from "./pause-view.svelte";
+import { key_label, type Bindings } from "./bindings";
+import type { PauseAct, PauseCard } from "./pause-view.svelte";
 
-/** Pause acts that are also driving actions answer to the player's keys for them. */
-const BOUND: readonly (readonly [PauseAct, Bindable])[] = [
-  ["reset", "reset"],
-  ["restart", "restart"],
-  ["garage", "garage"],
-  ["camera", "camera"],
-  ["map", "map"],
-];
-/** The rest have no binding, so they sit on keys no action has by default; any key the player bound wins a clash. */
+/** Each pause's doors in tile order; the digits 1-4 open them. */
+export const DOORS: Readonly<Record<PauseCard["kind"], readonly PauseAct[]>> = {
+  roam: ["map", "events", "garage", "online"],
+  event: ["garage", "showroom", "settings"],
+};
+const DIGITS = ["Digit1", "Digit2", "Digit3", "Digit4"];
+/** The pause is modal, so its keys never reach the car and need not dodge the driving ones. */
 const FIXED: readonly (readonly [PauseAct, string])[] = [
-  ["showroom", "Home"],
-  ["settings", "KeyO"],
+  ["leave", "KeyQ"],
   ["chat", "KeyT"],
-  ["leave", "End"],
+  ["settings", "KeyO"],
 ];
 
 export interface PauseKeys {
@@ -24,17 +21,19 @@ export interface PauseKeys {
   caps: Readonly<Partial<Record<PauseAct, string>>>;
 }
 
-export function pause_keys(bindings: Bindings): PauseKeys {
+/** Reset keeps the player's Reset keys and claims first; camera keeps theirs too. */
+export function pause_keys(bindings: Bindings, kind: PauseCard["kind"]): PauseKeys {
   const acts: Record<string, PauseAct> = {};
   const caps: Partial<Record<PauseAct, string>> = {};
-  const taken = new Set(BINDABLE.flatMap((action) => bindings[action].keys));
   const claim = (act: PauseAct, codes: readonly string[]) => {
     const free = codes.filter((code) => acts[code] === undefined);
     for (const code of free) acts[code] = act;
-    if (free.length) caps[act] = key_label(free[0]);
+    if (free.length && caps[act] === undefined) caps[act] = key_label(free[0]);
   };
-  for (const [act, action] of BOUND) claim(act, bindings[action].keys);
-  for (const [act, code] of FIXED) if (!taken.has(code)) claim(act, [code]);
+  claim("reset", bindings.reset.keys);
+  DOORS[kind].forEach((act, i) => claim(act, [DIGITS[i]]));
+  for (const [act, code] of FIXED) claim(act, [code]);
+  claim("camera", bindings.camera.keys);
   return { acts, caps };
 }
 
