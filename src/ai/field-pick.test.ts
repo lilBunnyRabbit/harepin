@@ -24,10 +24,12 @@ describe("AI field cars", () => {
     expect(gaps).toEqual([...gaps].sort((a, b) => a - b));
   });
 
-  test("a car flagged out of AI fields never races in one: a bus player, alone in class D, races alone", () => {
+  test("a car flagged out of AI fields never races in one: a bus player, alone in class D, races class C presets", () => {
     const bus = parse_build(PRESETS.find((p) => p.code.startsWith("bus."))?.code ?? "");
     if (!bus) throw new Error("no bus preset");
+    expect(rating(bus).class).toBe("d");
     const builds = field_builds(bus, rating(bus), 6);
-    expect(builds).toEqual([]);
+    expect(builds).toHaveLength(6);
+    for (const build of builds) expect([build.car, rating(build).class]).toEqual([build.car, "c"]);
   });
 });
