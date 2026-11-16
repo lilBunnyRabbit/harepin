@@ -7,6 +7,8 @@ export class ResultNextView {
   shown = $state(false);
   disabled = $state(false);
   ticket = $state<NextTicket | null>(null);
+  /** Counts shows, so a card shown again takes focus again. */
+  opened = $state(0);
 
   constructor(
     readonly go: () => void,
@@ -18,6 +20,7 @@ export class ResultNextView {
     this.disabled = disabled;
     this.ticket = ticket;
     this.shown = true;
+    this.opened++;
   }
 
   hide() {

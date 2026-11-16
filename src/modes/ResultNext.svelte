@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Attachment } from "svelte/attachments";
   import KeyButton from "../menu/ui/KeyButton.svelte";
   import PlaceChip from "../menu/ui/PlaceChip.svelte";
   import Ticket from "../menu/ui/Ticket.svelte";
@@ -14,22 +15,21 @@
 
   const picture = $derived(next.ticket ? `${import.meta.env.BASE_URL}menu/${next.ticket.kind}.webp` : null);
 
-  // Capture, ahead of the chat's Enter and the menu's Escape: while the card waits, both answer it.
+  // Enter reaches Next as a focused button: the chat's Enter skips one.
+  const take_focus: Attachment<HTMLElement> = (node) => {
+    if (next.disabled || document.activeElement !== document.body || document.documentElement.dataset.input === "touch") return;
+    node.querySelector<HTMLElement>(".result-next-go")?.focus({ preventScroll: true, focusVisible: false });
+  };
+
+  // Capture, ahead of the menu's Escape: while the card waits, Escape keeps driving.
   function key(event: KeyboardEvent) {
     const card = root?.closest<HTMLElement>("#mode-result");
-    if (event.repeat || !card || card.hidden) return;
+    if (event.code !== "Escape" || event.repeat || !card || card.hidden) return;
     const at = document.activeElement;
-    const free = !at || at === document.body;
-    if (!free && !card.contains(at)) return;
-    if (event.code === "Escape") {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      next.leave();
-    } else if ((event.code === "Enter" || event.code === "NumpadEnter") && free && next.shown && !next.disabled) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      next.go();
-    }
+    if (at && at !== document.body && !card.contains(at)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    next.leave();
   }
 </script>
 
@@ -37,13 +37,15 @@
 
 <div class="result-next" bind:this={root}>
   {#if next.shown}
-    <div class="result-next-card" data-ticket={next.ticket ? "" : undefined}>
+    {#key next.opened}
+    <div class="result-next-card" data-ticket={next.ticket ? "" : undefined} {@attach take_focus}>
       {#if next.ticket}
         <img class="result-next-pic" src={picture} alt="" />
         <Ticket tier={next.ticket.tier} eyebrow={next.ticket.eyebrow} title={next.ticket.title} reasons={[{ text: next.ticket.mode }]} place={place_chip} />
       {/if}
       <KeyButton class="result-next-go" keys={{ key: "Enter", touch: "icon-play" }} size="lg" disabled={next.disabled} onclick={() => next.go()}>{next.label}</KeyButton>
     </div>
+    {/key}
   {/if}
   <KeyButton class="result-leave" variant="quiet" keys={{ key: "Esc" }} onclick={() => next.leave()}>Keep driving here</KeyButton>
 </div>
