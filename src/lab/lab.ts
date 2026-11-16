@@ -93,7 +93,7 @@ export class Lab {
   private readonly ran: (Aids | null)[];
   private recorder: Recorder | null = null;
   private race: FieldRace | null = null;
-  /** Built on the first step the race's field is up: the grid forms a frame after the race does. */
+  /** Built on the first step the race's field is up, and again when a restart builds a new one. */
   private passes: PassTrace | null = null;
   /** A race trial holds its grid until the cards close: the lights run on the wall clock, under a card too. */
   private waiting: RaceResolved | null = null;
@@ -216,11 +216,10 @@ export class Lab {
   private step_passes(car: Car, input: Controls) {
     const r = this.current;
     if (!r || !race_resolved(r) || !r.trial.passes) return;
-    if (!this.passes) {
-      const field = this.host.field();
-      if (!field) return;
-      this.passes = new PassTrace(field);
-    }
+    const field = this.host.field();
+    if (!field) return;
+    // A race restarted (the reset key) builds a new field without a new trial: the trace follows it.
+    if (this.passes?.field !== field) this.passes = new PassTrace(field);
     this.passes.step(car, input);
   }
 

@@ -127,7 +127,7 @@ export class PassTrace implements TraceLines {
   private last_x = NaN;
   private last_z = NaN;
 
-  constructor(private readonly field: PassField) {
+  constructor(readonly field: PassField) {
     const { line } = field;
     const n = line.road.length;
     this.count = field.racers.length;

@@ -136,7 +136,7 @@ The race is the game's own (`modes/ai-race.ts`: lights, position and gap on the 
 
 #### Passes
 
-A race trial with `passes: true` records how the player and the field get by each other (`src/lab/pass-trace.ts`), for teaching the AI where a person is faster. A pass counts as the field counts its own: one car 3 m clear ahead of a car that was 3 m clear ahead of it. The line is written for the moment the two drew level. Drawing level and dropping back is no pass; neither is an order moved by a reset, a rewind or an AI car put back on the road. The export carries, after the trial's ` f` lines:
+A race trial with `passes: true` records how the player and the field get by each other (`src/lab/pass-trace.ts`), for teaching the AI where a person is faster. A pass counts as the field counts its own: one car 3 m clear ahead of a car that was 3 m clear ahead of it. The line is written for the moment the two drew level. Drawing level and dropping back is no pass; neither is an order moved by a reset, a rewind or an AI car put back on the road. A race restarted with the reset key starts the passes and the grid trace again with it. The export carries, after the trial's ` f` lines:
 
 ```
  passes <passes> <samples> <AI cars> <lap m> <sample Hz> [full]
@@ -156,7 +156,7 @@ A race trial with `passes: true` records how the player and the field get by eac
 | `side` | s from level to clear: how long the two ran side by side |
 | ` ft` | the grid twice a second: every AI car pole first, then the player. Metres raced from the start line (negative on the grid), metres right of the line, speed, then throttle and brake as means since the last sample |
 
-Two one-lap races make about 150 KB, so the pack card and results card show Download. `bun scripts/ai-ml/passes.ts <file>...` prints one row a pass (with the side the player ran: inside or outside of the bend) and the passes per phase. Before the owner drives, `hq lock run -- bun scripts/ai-ml/pass-self.ts [pack] [out]` runs every such trial headless with the field's own driver in the player's car and writes the same export (`.ai-ml/pass-self/<pack>.txt`): it proves the maps race and the file reads.
+Two one-lap races make about 150 KB, so the pack card and results card show Download. `bun scripts/ai-ml/passes.ts <file>...` prints one row a pass (with the side the player ran: inside or outside of the bend) and the passes per phase. Before the owner drives, `hq lock run -- bun scripts/ai-ml/pass-self.ts [pack] [out]` runs every such trial headless with the field's own driver in the player's car and writes the same export, less the ` f` lines (`.ai-ml/pass-self/<pack>.txt`): it proves the maps race and the file reads.
 
 An island circuit races one lap (`race_laps`: about four minutes), so `ai-pass` is two races, seed 1 (eight hairpins of r14-17) and seed 0 (two), rather than laps of one.
 
