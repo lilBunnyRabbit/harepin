@@ -21,25 +21,37 @@
 
 <div class="pause-aids" role="group" aria-label="Driving aids">
   <span class="pause-aids-label">Assists</span>
-  {#each CHIPS as chip (chip.aid)}
-    <Chip variant="toggle" pressed={aids[chip.aid]} title={chip.title} onclick={() => onflip(chip.aid)}>{chip.label}</Chip>
-  {/each}
+  <div class="pause-aids-chips">
+    {#each CHIPS as chip (chip.aid)}
+      <Chip variant="toggle" pressed={aids[chip.aid]} title={chip.title} onclick={() => onflip(chip.aid)}>{chip.label}</Chip>
+    {/each}
+  </div>
 </div>
 
 <style>
   .pause-aids {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .pause-aids-chips {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
     gap: var(--space-2);
   }
 
   .pause-aids-label {
-    margin-right: var(--space-1);
     color: var(--dim);
     font-size: var(--text-xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+
+  @media (max-height: 500px) {
+    .pause-aids-chips {
+      flex-wrap: nowrap;
+      gap: var(--space-1);
+    }
   }
 </style>
