@@ -110,6 +110,7 @@ class Duel implements ModeRun {
     this.result = {
       title: result_title(level.name, recorded),
       stars,
+      place: against === null ? undefined : ms <= against ? 1 : 2,
       lines: [...time_lines(time, this.hits), line("vs ghost", versus), line("par", format(par.three)), best_line(track.runs[level.id])],
     };
   }

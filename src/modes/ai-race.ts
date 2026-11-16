@@ -258,6 +258,7 @@ export class AiRace implements ModeRun, FieldRace {
     this.result = {
       title: `${how} · ${this.name}`,
       stars: place === 1 ? 3 : place <= PODIUM ? 2 : 1,
+      place,
       lines: [line("time", format(ms)), laps, ...extra],
       standings: this.rows.map((r) => r.el),
     };

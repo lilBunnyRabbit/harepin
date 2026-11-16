@@ -39,6 +39,8 @@ export interface Finish {
   title: string;
   stars: number;
   lines: HTMLElement[];
+  /** Where the player finished against other cars, 1 for a win; absent where nothing races them. */
+  place?: number;
   /** Gymkhana and parking show their card without the chime. */
   quiet?: boolean;
   /** Rows of a finish order, kept current by the run while the card shows. */
