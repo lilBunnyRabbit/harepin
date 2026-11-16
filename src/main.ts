@@ -693,7 +693,10 @@ for (const chip of document.querySelectorAll<HTMLButtonElement>("button[data-aid
     toggle_aid(chip.dataset.aid as Aid);
   });
 const gear = $("gear");
-gear.addEventListener("click", () => toggle_aid("auto"));
+gear.addEventListener("click", () => {
+  gear.blur();
+  toggle_aid("auto");
+});
 gear.addEventListener("keydown", (event) => {
   if (event.repeat || (event.code !== "Enter" && event.code !== "Space")) return;
   event.preventDefault();
