@@ -613,7 +613,7 @@ const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), {
   shelves: (limit) => shelves_for(limit),
   pick: (title, limit, signal) => pick_in(title, limit, shelves_for(limit), signal),
 });
-const next_ticket = show_next_up({ stars: () => career.stars, here: built, flag: (id) => markers.map_markers.find((m) => m.label === id) ?? null, travel: (id) => start_event(id), blocked: () => input.blocked() });
+const next_ticket = show_next_up({ stars: () => career.stars, here: built, flags: () => markers.map_markers, travel: (id) => start_event(id), blocked: () => input.blocked() });
 $("toast").after(markers.card.el);
 markers.on_map = (list) => hud.set_markers(list);
 // A lab trial on a race world keeps the career out of it, as the lab world does.
@@ -746,9 +746,9 @@ const PAUSE_ACTS: Record<PauseAct, () => void> = {
   garage: open_car,
   online: () => settings.open(MenuTab.ONLINE),
 };
+$("hud-menu-btn").addEventListener("click", open_pause);
 if (params.has("feel")) void import("./hud/feel-panel").then(({ feel_panel }) => feel_panel({
   set: (key, value) => settings.set(key, value),
-$("hud-menu-btn").addEventListener("click", open_pause);
   use_car: (code) => garage.use_code(code),
   respawn: ACTIONS.reset,
   drift_full_lock: (on) => {
@@ -960,9 +960,9 @@ function frame(time: number) {
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
   markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy);
+  next_ticket.update(car.pos.x, car.pos.z, car.heading, !modes.active && !lobby.busy && !settings.is_open);
   // With peers the sim steps every frame, so the heartbeat sends a fresh pose; the draw side waits for the frame that
   // draws and advances by the time it skipped.
-  next_ticket.update(car.pos.x, car.pos.z, car.heading, !modes.active && !lobby.busy && !settings.is_open);
   draw_dt = Math.min(0.1, draw_dt + dt);
   if (skips) {
     requestAnimationFrame(frame);

@@ -2,6 +2,7 @@ import { mount } from "svelte";
 import { MAX_EVENT_STARS, TIERS, tier_of, type Stars } from "../career/career";
 import { mode_name } from "../menu/career-text";
 import type { TierBadge } from "../net/net";
+import type { MapMarker } from "../career/markers";
 import type { Place } from "../career/place";
 import type { MapSpec } from "../worldgen/kinds/kinds";
 import { arrow_turn, next_up } from "./next-up";
@@ -22,7 +23,7 @@ export interface NextUpTicket {
 export interface NextUpHost {
   stars(): Stars;
   here: MapSpec;
-  flag(id: string): { x: number; z: number } | null;
+  flags(): readonly MapMarker[];
   travel(id: string): void;
   /** A menu or card covers the road: the travel key belongs to it. */
   blocked(): boolean;
@@ -48,13 +49,18 @@ export class NextUpView {
     const shown = roaming && this.ticket !== null;
     if (shown !== this.shown) this.shown = shown;
     if (!shown || !this.ticket || !this.ticket.place.here) return;
-    const flag = this.host.flag(this.ticket.id);
+    const flag = flag_of(this.host.flags(), this.ticket.id);
     const distance = flag ? Math.round(Math.hypot(flag.x - x, flag.z - z) / DISTANCE_STEP) * DISTANCE_STEP : null;
     if (distance !== this.distance) this.distance = distance;
     if (!flag) return;
     const turn = Math.round(arrow_turn(heading, flag.x - x, flag.z - z) / TURN_STEP) * TURN_STEP;
     if (turn !== this.turn) this.turn = turn;
   }
+}
+
+function flag_of(flags: readonly MapMarker[], id: string): MapMarker | null {
+  for (const flag of flags) if (flag.label === id) return flag;
+  return null;
 }
 
 function ticket_of(stars: Stars, here: MapSpec): NextUpTicket | null {
