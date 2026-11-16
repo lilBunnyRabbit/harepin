@@ -51,6 +51,16 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.53.0",
+    date: "2026-11-16",
+    title: "Faster rivals",
+    changes: [
+      { kind: IMPROVED, text: "Rival drivers brake later and carry more speed through corners, about 3% quicker a lap" },
+      { kind: FIXED, text: "Rivals no longer pile up on ramps or stop side by side giving way to each other" },
+      { kind: IMPROVED, text: "New menu buttons show the key to press" },
+    ],
+  },
+  {
     version: "0.52.0",
     date: "2026-11-16",
     title: "Seasons",
