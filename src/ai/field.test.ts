@@ -7,6 +7,7 @@ import { Awareness } from "./awareness";
 import { World } from "../world/world";
 import { RouteKind } from "../worldgen/types";
 import { Field, grid_spot, grip_pace, personalities } from "./field";
+import { race_line } from "./line";
 
 describe("AI field personalities", () => {
   test("level 3 is the default field, and the levels move aggression and mistakes apart", () => {
@@ -22,6 +23,21 @@ describe("AI field personalities", () => {
       expect(p.mistakes).toBeGreaterThanOrEqual(0.2);
     }
     expect(personalities(7, 6, 9, 0)).toEqual(personalities(7, 6, 5, 1));
+  });
+});
+
+describe("AI field line", () => {
+  test("reads the road's steps and solids only off whole ground: a chunk still missing is no step", () => {
+    const world = new World(9);
+    const route = world.routes.find((r) => r.kind === RouteKind.CIRCUIT);
+    if (!route) throw new Error("island seed 9 has no circuit");
+    world.place(route.closure);
+    const whole = new Field(world, route, [COUPE], personalities(9, 1), 9).line;
+    expect(Array.from(whole.offset)).toEqual(Array.from(race_line(route.points, world.ramps, COUPE.radius, world).offset));
+    world.tiles.drop(0);
+    const partial = new Field(world, route, [COUPE], personalities(9, 1), 9).line;
+    expect(Array.from(partial.offset)).toEqual(Array.from(race_line(route.points, world.ramps, COUPE.radius).offset));
+    expect(Array.from(partial.offset)).not.toEqual(Array.from(whole.offset));
   });
 });
 
@@ -178,5 +194,33 @@ describe("AI field series options", () => {
       expect(field.progress[i]).toBeGreaterThan(kept);
       expect(field.racers[i].stats.overtakes).toBe(passes[i]);
     }
+  });
+});
+
+describe("AI field recovery", () => {
+  const DT = 1 / 360;
+
+  test("a pile of stuck cars is put back together, in file, not one at a time into the cars still wedged", () => {
+    const world = new World(0);
+    const route = world.routes.find((r) => r.kind === RouteKind.CIRCUIT);
+    if (!route) throw new Error("island seed 0 has no circuit");
+    world.place(route.closure);
+    const field = new Field(world, route, Array.from({ length: 4 }, () => COUPE), personalities(0, 4), 0);
+    const wedged = [600, 603, 606];
+    const pin = () =>
+      wedged.forEach((at, k) => {
+        const p = route.points[at];
+        field.racers[k].car.park(p.x, p.z, Math.atan2(p.tx, p.tz), world);
+      });
+    wedged.forEach((at, k) => field.racers[k].driver.place(at, 0));
+    const resets = () => wedged.map((_, k) => field.racers[k].stats.resets);
+    for (let s = 0; s < 360 * 12 && resets().every((r) => r === 0); s++) {
+      pin();
+      field.step(DT, 1);
+    }
+    expect(resets()).toEqual([1, 1, 1]);
+    const at = wedged.map((_, k) => field.racers[k].driver.index).sort((a, b) => b - a);
+    expect(at[0] - at[1]).toBeGreaterThan(3);
+    expect(at[1] - at[2]).toBeGreaterThan(3);
   });
 });

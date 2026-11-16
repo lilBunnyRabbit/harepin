@@ -1,0 +1,19 @@
+{
+  "kind": "tune",
+  "train": "0-7",
+  "check": "20-35,44",
+  "solo": "0-19",
+  "cars": 6,
+  "laps": 2,
+  "sigma": 0.2,
+  "name": "s-brake",
+  "group": "core",
+  "note": "3 brake pedal limits, default weights",
+  "params": [
+    "brake_max",
+    "brake_per",
+    "brake_slack"
+  ],
+  "pop": 8,
+  "gens": 8
+}

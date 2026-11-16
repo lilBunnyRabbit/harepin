@@ -1,0 +1,23 @@
+{
+  "kind": "tune",
+  "train": "0-7",
+  "check": "20-35,44",
+  "solo": "0-19",
+  "cars": 6,
+  "laps": 2,
+  "sigma": 0.2,
+  "name": "m-corner",
+  "group": "core",
+  "note": "7 corner params (grip, line braking, pedal, grip band), default weights",
+  "params": [
+    "line_grip",
+    "fast_grip",
+    "line_brake",
+    "brake_max",
+    "brake_per",
+    "hairpin_radius",
+    "fast_radius"
+  ],
+  "pop": 10,
+  "gens": 10
+}

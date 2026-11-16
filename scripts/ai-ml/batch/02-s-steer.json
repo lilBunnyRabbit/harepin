@@ -1,0 +1,20 @@
+{
+  "kind": "tune",
+  "train": "0-7",
+  "check": "20-35,44",
+  "solo": "0-19",
+  "cars": 6,
+  "laps": 2,
+  "sigma": 0.2,
+  "name": "s-steer",
+  "group": "core",
+  "note": "4 steering and aim params, default weights",
+  "params": [
+    "steer_gain",
+    "steer_damp",
+    "aim_base",
+    "aim_per"
+  ],
+  "pop": 8,
+  "gens": 8
+}

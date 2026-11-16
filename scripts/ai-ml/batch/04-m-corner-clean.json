@@ -1,0 +1,27 @@
+{
+  "kind": "tune",
+  "train": "0-7",
+  "check": "20-35,44",
+  "solo": "0-19",
+  "cars": 6,
+  "laps": 2,
+  "sigma": 0.2,
+  "name": "m-corner-clean",
+  "group": "core",
+  "note": "same 7, spins and resets 5x dearer, hard hits 4x",
+  "params": [
+    "line_grip",
+    "fast_grip",
+    "line_brake",
+    "brake_max",
+    "brake_per",
+    "hairpin_radius",
+    "fast_radius"
+  ],
+  "pop": 10,
+  "gens": 10,
+  "weights": {
+    "trouble": 40,
+    "worst": 2
+  }
+}

@@ -1,7 +1,7 @@
 import type { TrialStatus } from "./lab";
 import type { StationId } from "../worldgen/lab";
 import { Difficulty } from "../ai/difficulty";
-import { place_of, type Goal, type Resolved, type TrialField } from "./pack";
+import { is_race, is_route, place_of, type Goal, type Resolved, type TrialField } from "./pack";
 
 export const STATUS_LABEL: Record<TrialStatus, string> = { new: "To do", running: "Running", done: "Done", stopped: "Stopped" };
 
@@ -27,8 +27,8 @@ export function field_label(field: TrialField): string {
   return `${field.cars.length} AI, aggression/mistakes ${field_levels(field)}${difficulty === Difficulty.NORMAL ? "" : `, ${difficulty}`}`;
 }
 
-/** Station and lane, or a race's map and route with its field. */
-export const where_text = (r: Resolved): string => `${place_of(r.trial)}/${r.lane.name}${r.station ? "" : ` · ${field_label(r.trial.field)}`}`;
+/** Station and lane, or a race's map and route with its field, or a route trial's map and route alone. */
+export const where_text = (r: Resolved): string => `${place_of(r.trial)}/${r.lane.name}${is_race(r.trial) ? ` · ${field_label(r.trial.field)}` : is_route(r.trial) ? " · alone" : ""}`;
 
 /**
  * What the strip's goal reading shows, as one whole number: the text is only rebuilt when it moves. Laps done, whole

@@ -79,6 +79,7 @@
     <div class="lab-actions">
       <Button icon="icon-close" onclick={() => view.leave()}>Leave lab</Button>
       <Button icon="icon-share" onclick={() => view.copy()}>Copy results</Button>
+      {#if lab.traced}<Button icon="icon-share" onclick={() => lab.download()}>Download</Button>{/if}
       <Button variant="primary" icon="icon-play" onclick={resume}>{resume_label}</Button>
     </div>
   {/snippet}
@@ -103,6 +104,7 @@
       <div class="lab-actions">
         <Button icon="icon-menu" onclick={() => (view.screen = { kind: "list" })}>Trials</Button>
         <Button icon="icon-share" onclick={() => view.copy()}>Copy</Button>
+        {#if lab.traced}<Button icon="icon-share" onclick={() => lab.download()}>Download</Button>{/if}
         <Button icon="icon-back" disabled={result === 0} onclick={() => go(result - 1)}>Previous</Button>
         <Button icon="icon-restart" onclick={() => go(result, false)}>Retry</Button>
         <Button variant="primary" icon="icon-play" disabled={result + 1 >= count} onclick={() => go(result + 1)}>Next</Button>

@@ -3,6 +3,7 @@ import type { Car, Controls } from "../car/car";
 import { MAX_ANGLE, MIN_ANGLE, MIN_SPEED, SPIN_ANGLE } from "../modes/drift";
 import type { LabGate, LabLane } from "../worldgen/lab";
 import type { Goal } from "./pack";
+import type { RouteTrace } from "./route-trace";
 import { TraitFold, type TraitMetrics } from "./traits";
 
 const G = 9.81;
@@ -129,6 +130,8 @@ export class Recorder {
   constructor(
     private readonly lane: LabLane,
     private readonly goal: Goal,
+    /** A route trial's trace: its laps are the route's, not a ring's. */
+    readonly route: RouteTrace | null = null,
   ) {
     this.traits = new TraitFold(lane);
   }
@@ -136,6 +139,7 @@ export class Recorder {
   /** The car was put back (reset, rewind, lava): counted, and the gates and winding start over from where it stands. */
   placed(car: Car) {
     if (this.moving) this.resets++;
+    this.route?.placed(this.t, this.moving);
     this.traits.placed();
     this.prev_x = car.pos.x;
     this.prev_z = car.pos.z;
@@ -215,6 +219,7 @@ export class Recorder {
       this.chain_best = Math.max(this.chain_best, this.chain);
     } else this.chain = 0;
     this.traits.step(t, dt, car, input, speed, slip);
+    if (this.route?.step(t, car, input, slip)) this.lap(t);
     if (slip > SPIN_ANGLE && !this.spun) this.spins++;
     this.spun = slip > SPIN_ANGLE;
     if (slip > CATCH_FROM && Number.isNaN(this.slide_at)) this.slide_at = t;
@@ -303,9 +308,7 @@ export class Recorder {
     this.wind += d;
     if (Math.abs(this.wind) >= 2 * Math.PI) {
       this.wind -= Math.sign(this.wind) * 2 * Math.PI;
-      if (this.lap_count < MAX_LAPS) this.lap_times[this.lap_count] = t - this.lap_start;
-      this.lap_count++;
-      this.lap_start = t;
+      this.lap(t);
     }
     const off = Math.abs(Math.hypot(x - ring.x, z - ring.z) - ring.radius);
     if (off > ring.band || speed < RING_MIN_SPEED) return;
@@ -314,6 +317,12 @@ export class Recorder {
     this.lat_sum += lateral;
     this.ring_speed += speed;
     this.ring_t++;
+  }
+
+  private lap(t: number) {
+    if (this.lap_count < MAX_LAPS) this.lap_times[this.lap_count] = t - this.lap_start;
+    this.lap_count++;
+    this.lap_start = t;
   }
 
   private cross(t: number, x: number, z: number) {

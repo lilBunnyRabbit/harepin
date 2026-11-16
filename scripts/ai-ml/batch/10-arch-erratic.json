@@ -1,0 +1,31 @@
+{
+  "kind": "tune",
+  "train": "0-7",
+  "check": "20-35,44",
+  "solo": "0-19",
+  "cars": 6,
+  "laps": 2,
+  "sigma": 0.2,
+  "name": "arch-erratic",
+  "group": "archetype",
+  "note": "level 5 mistakes field, driver limits searched to recover: trouble 5x",
+  "params": [
+    "slide_let_go",
+    "brake_max",
+    "brake_turn",
+    "steer_gain",
+    "steer_damp",
+    "line_grip",
+    "fast_grip"
+  ],
+  "pop": 8,
+  "gens": 8,
+  "field": {
+    "aggression": 3,
+    "mistakes": 5,
+    "difficulty": "normal"
+  },
+  "weights": {
+    "trouble": 40
+  }
+}

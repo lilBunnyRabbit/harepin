@@ -5,21 +5,10 @@ import { CURVE_SPAN, grip_at, inverse_radius, type RaceLine } from "./line";
 import { AI_TUNING } from "./tuning";
 import { atan2, axis_angle, cos, hypot, sin } from "../sim-math";
 
-/** Under this pace (m/s) a bend is a hairpin and the aim stays short, or it cuts across the inside. */
-const HAIRPIN_PACE = 15;
-const AIM_HAIRPIN = 5;
 const TRACK_BACK = 5;
 const TRACK_AHEAD = 40;
-/** m/s over the plan before the brake comes on, and m/s of overspeed per unit of pedal (capped at BRAKE_MAX). */
-const BRAKE_SLACK = 1;
-const BRAKE_PER = 10;
-const BRAKE_MAX = 0.5;
-/** Most pedal a late braker diving down the inside uses: it brakes harder than the line, short of locking up. */
-const LATE_PEDAL = 0.8;
 /** Behind a car, m/s over its cap per unit of pedal, up to full: the cap is a gap to keep, not a plan to ease into. */
 const CAP_BRAKE_PER = 10;
-/** Slip angle (rad) at which the driver is fully off the brake. */
-const SLIDE_LET_GO = 0.15;
 /** Metres the car's body keeps off the road edge when it leaves the line to pass or defend. */
 const PASS_EDGE = 1;
 const RAMP_SIDE = 0.5;
@@ -44,6 +33,17 @@ const HOLD_LOOK = 60;
 const HOLD_STRIDE = 3;
 /** m/s sideways a driver moves its aim off or back onto the line: a jump in aim at speed throws the car wide. */
 const LATERAL_RATE = 1.5;
+/** Road points ahead the plan's drop is read over for the brake's feed-forward, and the m/s² a car slows at off both pedals. */
+const SLOPE_SPAN = 3;
+const COAST_DECEL = 1;
+/**
+ * m/s a car keeps over a kicker's toe and run under a car ahead: under it, it falls short into the frame. A car ahead
+ * making under KICK_YIELD along the road is stopped or wedged there, and the floor gives way to it rather than run into it.
+ */
+const KICK_MIN = 20;
+const KICK_YIELD = 8;
+/** Metres off the path it drives (the line, `aside` off it, or its grid lane) past which it slows for the arc back to its aim. */
+const AIM_OFF = 2;
 
 export interface Personality {
   /** Share of the line's planned speed it drives at: 0.96-1.02 drawn, times the difficulty and the car's grip. */
@@ -54,6 +54,8 @@ export interface Personality {
   aggression: number;
   /** Chance every SECTOR road points of a mistake: a late brake that runs wide, or a hesitation that costs time. */
   mistakes: number;
+  /** Share of the stock coupe's cornering speed its car holds (`grip_pace`): the most it takes a bend at, whatever its pace. 1 when absent. */
+  grip?: number;
 }
 
 /** Metres off the centre past which a car is off the road: a hazard to the field, and on the clock toward a reset. */
@@ -63,6 +65,12 @@ export const STEADY: Personality = { pace: 1, brake_margin: 0, aggression: 0, mi
 
 /** How far off the centre (m) a car may go to pass or defend at road point `index`; over a kicker's run, only RAMP_SIDE: posts flank its lip. */
 export const pass_room = (car: Car, line: RaceLine, index: number) => (line.room[index] === 0 ? RAMP_SIDE : ROAD_HALF - car.spec.radius - PASS_EDGE);
+
+/** `lateral` (m off the centre) held inside the pass room at road point `index` and off the steps and solids there (`RaceLine.lo` / `hi`). */
+export function pass_clamp(car: Car, line: RaceLine, index: number, lateral: number): number {
+  const room = pass_room(car, line, index);
+  return Math.max(Math.max(-room, line.lo[index]), Math.min(Math.min(room, line.hi[index]), lateral));
+}
 
 const wrap_angle = (a: number) => atan2(sin(a), cos(a));
 const never = () => 1;
@@ -82,6 +90,8 @@ export class Driver {
   late = false;
   /** Speed (m/s) it may not pass, set by the awareness behind a car it cannot get by. */
   cap = Infinity;
+  /** m/s along the road of the slowest car that sets `cap`; Infinity with none. */
+  ahead_speed = Infinity;
   /** m/s it aims at this step, cap included: what a follower reads as the speed this car is about to hold. */
   target = 0;
   /** Metres along the road's right normal the aim moves at once, past `aside`'s easing: set by the awareness to pull off a car overlapping alongside. */
@@ -213,8 +223,7 @@ export class Driver {
 
   /** Metres off the centre it drives at road point `j`, `aside` off the line or in its grid lane: the road's edge clamps it. */
   private lateral_at(car: Car, j: number): number {
-    const room = pass_room(car, this.line, j);
-    return Math.max(-room, Math.min(room, Number.isNaN(this.launch) ? this.line.offset[j] + this.aside : this.launch));
+    return pass_clamp(car, this.line, j, Number.isNaN(this.launch) ? this.line.offset[j] + this.aside : this.launch);
   }
 
   // Off the line it plans on the bend of the path it drives, the line shifted and clamped to the road: where the line
@@ -252,28 +261,48 @@ export class Driver {
     const vz = car.vel.z;
     const speed = hypot(vx, vz);
     const slip = this.mistake_at >= 0 && (((this.index - this.mistake_at) % n) + n) % n < MISTAKE_SPAN;
-    const here = pass_room(car, line, this.index);
-    const want = Number.isNaN(this.hold) ? 0 : Math.max(-here, Math.min(here, line.offset[this.index] + this.hold)) - line.offset[this.index];
+    const want = Number.isNaN(this.hold) ? 0 : pass_clamp(car, line, this.index, line.offset[this.index] + this.hold) - line.offset[this.index];
     const move = LATERAL_RATE * dt;
     // A grid lane is a fixed spot on the road: held at the easing rate, the car would drift after the line as it swings.
     if (Number.isNaN(this.launch)) this.aside += Math.max(-move, Math.min(move, want - this.aside));
     else this.aside = want;
     const plan = this.aside !== 0 ? this.aside_pace(car) : this.late ? line.late[this.index] : line.speed[this.index];
     const free = slip && !this.mistake_late ? plan * personality.pace * (1 - MISTAKE_LIFT) : plan * personality.pace * this.push + personality.brake_margin + (slip ? Math.min(MISTAKE_SPEED, MISTAKE_OVER * plan) : 0);
-    const target = Math.min(this.cap, free);
-    this.target = target;
-    const look = target < HAIRPIN_PACE ? AIM_HAIRPIN : AI_TUNING.aim_base + Math.floor(speed / AI_TUNING.aim_per);
+    // A kicker is taken at the line's own pace, never over: pace, a pass's push or a late brake over it launched a car into the frame by the toe, and the field piled up behind it.
+    // Pace, a pass's push and a brake margin carry speed down the straights and into the braking, never through a bend
+    // faster than its grip: the corner speeds braked for at late_brake are the most a car holds. Over them, cars ran
+    // 2-4 m wide out of hairpins into the posts at the road's edge. A mistake is the one way over.
+    const held = slip ? free : Math.min(free, line.late[this.index] * (personality.grip ?? 1));
+    const kicker = line.ramp[this.index] >= 0;
+    // Pinned onto a kicker's run, a car keeps KICK_MIN under any car ahead: held to a follower's gap, a car met the lip at
+    // 16 m/s, fell into the frame and the field piled up behind it (seed 28, 90 m off the grid).
+    const floor = kicker && line.room[this.index] === 0 && this.ahead_speed >= KICK_YIELD ? Math.min(KICK_MIN, line.speed[this.index]) : 0;
+    const want_speed = Math.max(floor, Math.min(this.cap, kicker ? Math.min(held, line.speed[this.index]) : held));
+    const look = want_speed < AI_TUNING.hairpin_pace ? AI_TUNING.aim_hairpin : AI_TUNING.aim_base + Math.floor(speed / AI_TUNING.aim_per);
     const at = (this.index + look) % n;
     let ax = line.x[at];
     let az = line.z[at];
-    if (this.aside !== 0 || this.nudge !== 0) {
+    const here = line.road[this.index];
+    const me = (car.pos.x - here.x) * here.tz - (car.pos.z - here.z) * here.tx;
+    const over = Math.abs(me) - pass_room(car, line, this.index);
+    // Aimed at the edge of its room through a bend, pure pursuit cuts the chord: a car held to the inside after a pass
+    // ran 2 m past it into the posts (seeds 12, 30). Held off the line past its room, it aims as far back inside as it
+    // is over; on the line it runs past the room out of hairpins clear of the posts, and pulling it in only cost pace.
+    const back = over > 0 && this.aside !== 0 && line.room[at] > 0 ? Math.sign(me) * over : 0;
+    if (this.aside !== 0 || this.nudge !== 0 || back !== 0) {
       const p = line.road[at];
-      const room = pass_room(car, line, at);
-      const lateral = Math.max(-room, Math.min(room, (Number.isNaN(this.launch) ? line.offset[at] + this.aside : this.launch) + this.nudge));
+      const lateral = pass_clamp(car, line, at, pass_clamp(car, line, at, (Number.isNaN(this.launch) ? line.offset[at] + this.aside : this.launch) + this.nudge) - back);
       ax = p.x + p.tz * lateral;
       az = p.z - p.tx * lateral;
     }
     const err = wrap_angle(atan2(ax - car.pos.x, az - car.pos.z) - car.heading);
+    // Wide of its path, the arc back to the aim is far tighter than the plan's bend: on full lock and full throttle
+    // over it, cars ran off the far side of the road (seeds 9, 40). The aim's arc (pure pursuit) caps the speed there;
+    // on its path the plan already holds the bend, and the cap only cost pace.
+    const off = Math.abs(me - this.lateral_at(car, this.index)) > AIM_OFF;
+    const arc = off ? (2 * Math.abs(sin(err))) / Math.max(1, hypot(ax - car.pos.x, az - car.pos.z)) : 0;
+    const target = Math.max(floor, Math.min(want_speed, Math.sqrt(AI_TUNING.pass_max / Math.max(1e-9, arc))));
+    this.target = target;
     const c = this.controls;
     if (this.reversing > 0) {
       this.reversing -= dt;
@@ -286,7 +315,7 @@ export class Driver {
     let airborne = true;
     for (let w = 0; w < car.wheels.length; w++) if (car.wheels[w].contact) airborne = false;
     const slide = speed > 5 ? Math.abs(wrap_angle(atan2(vx, vz) - car.heading)) : 0;
-    const ease = Math.max(0, 1 - slide / SLIDE_LET_GO);
+    const ease = Math.max(0, 1 - slide / AI_TUNING.slide_let_go);
     // The aim steps a road point at a time: its jump read as a rate would kick the wheel to full lock for one step.
     const swing = Number.isNaN(this.last_err) ? 0 : at === this.last_at ? wrap_angle(err - this.last_err) / dt : this.last_swing;
     this.last_err = err;
@@ -296,9 +325,25 @@ export class Driver {
     c.throttle = speed < target ? 1 : 0;
     // Behind a car the brake is not eased for the turn: running into it costs more than a wide line.
     const capped = this.cap < free;
-    const turn = capped ? 1 : Math.max(0.2, 1 - Math.abs(err) * 4);
-    const pedal = capped ? Math.min(1, (speed - target) / CAP_BRAKE_PER) : Math.min(this.late ? LATE_PEDAL : BRAKE_MAX, (speed - target) / BRAKE_PER);
-    c.brake = speed > target + BRAKE_SLACK ? pedal * turn * ease : 0;
+    const turn = capped ? 1 : Math.max(0.2, 1 - Math.abs(err) * AI_TUNING.brake_turn);
+    // In a braking zone the pedal follows the profile's slope from its first metre: waiting for the slack over it, then
+    // feeding back on the overspeed alone, was the long light trail that started braking 250 m early.
+    const decel = this.plan_decel(personality.pace * this.push);
+    const feed = Math.max(0, decel - COAST_DECEL) / AI_TUNING.brake_gain;
+    const pedal = capped ? Math.min(1, feed + (speed - target) / CAP_BRAKE_PER) : Math.min(this.late ? AI_TUNING.late_pedal : AI_TUNING.brake_max, feed + (speed - target) / AI_TUNING.brake_per);
+    c.brake = speed > target + (decel > 0 ? 0 : AI_TUNING.brake_slack) ? pedal * turn * ease : 0;
     return c;
+  }
+
+  /** Deceleration (m/s²) the plan asks for here, its speeds times `scale`: their drop over the next SLOPE_SPAN road points. */
+  private plan_decel(scale: number): number {
+    const { line } = this;
+    const plan = this.late ? line.late : line.speed;
+    const n = plan.length;
+    let run = 0;
+    for (let k = 0; k < SLOPE_SPAN; k++) run += line.step[(this.index + k) % n];
+    const a = plan[this.index] * scale;
+    const b = plan[(this.index + SLOPE_SPAN) % n] * scale;
+    return run > 0 ? Math.max(0, (a * a - b * b) / (2 * run)) : 0;
   }
 }

@@ -1,0 +1,36 @@
+{
+  "kind": "tune",
+  "train": "0-7",
+  "check": "20-35,44",
+  "solo": "0-19",
+  "cars": 6,
+  "laps": 2,
+  "sigma": 0.2,
+  "name": "level-hard",
+  "group": "level",
+  "note": "field lap at 97% of oracle ceiling pace, mistakes level 1 fixed",
+  "params": [
+    "pace_lo",
+    "pace_hi",
+    "brake_margin_hi",
+    "line_grip",
+    "fast_grip",
+    "line_brake"
+  ],
+  "pop": 8,
+  "gens": 8,
+  "level": {
+    "name": "hard",
+    "fraction": 0.97
+  },
+  "weights": {
+    "pace": 0,
+    "target_pace": 10,
+    "trouble": 30
+  },
+  "field": {
+    "aggression": 3,
+    "mistakes": 1,
+    "difficulty": "normal"
+  }
+}

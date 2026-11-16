@@ -1,0 +1,16 @@
+{
+  "kind": "tune",
+  "train": "0",
+  "check": "20-35,44",
+  "solo": "0-19",
+  "cars": 6,
+  "laps": 2,
+  "sigma": 0.1,
+  "name": "t328-noassist",
+  "group": "core",
+  "note": "planner at its defaults with steering assist and stability off: held-out trouble and solo, against the same run with them on",
+  "params": ["line_grip"],
+  "pop": 2,
+  "gens": 0,
+  "field": { "aggression": 3, "mistakes": 3, "difficulty": "normal", "assists": false }
+}

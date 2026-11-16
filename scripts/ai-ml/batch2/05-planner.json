@@ -1,0 +1,16 @@
+{
+  "kind": "tune",
+  "train": "0-7",
+  "check": "20-35,44",
+  "solo": "0-19",
+  "cars": 6,
+  "laps": 2,
+  "sigma": 0.15,
+  "name": "planner",
+  "group": "core",
+  "note": "forward-backward speed profile: corner grip, profile braking, brake feed-forward and steering, spins and resets 30 a race",
+  "params": ["line_grip", "fast_grip", "line_brake", "late_brake", "brake_per", "brake_turn", "slide_let_go", "brake_gain", "brake_max", "steer_gain", "steer_damp", "crest_light"],
+  "pop": 10,
+  "gens": 8,
+  "weights": { "trouble": 30 }
+}

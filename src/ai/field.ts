@@ -28,6 +28,12 @@ const STALL_TIME = 8;
 const RESET_AHEAD = 15;
 const RESET_BEHIND = 80;
 /**
+ * Metres either side of a car being put back within which every stuck car goes back with it, in file this many road
+ * points apart: put back one by one, each drove into the cars still wedged on a kicker and stuck there again (seed 44).
+ */
+const PILE = 20;
+const PILE_FILE = 6;
+/**
  * Metres before a kicker's run a reset puts a car back: put back on the run, it reaches the lip slow, falls short into
  * the frame and is put back there again.
  */
@@ -148,6 +154,7 @@ export class Field {
   private readonly launch_end: number;
   /** Car i (the rival as the field's size) is off the track for good: `retire`. */
   private readonly retired: Uint8Array;
+  private readonly piled: Uint8Array;
   private steps = 0;
 
   constructor(
@@ -160,10 +167,11 @@ export class Field {
     grid = specs.length,
   ) {
     const radius = Math.max(...specs.map((s) => s.radius));
-    this.line = race_line(route.points, world.ramps, radius);
+    // A chunk not in yet reads as flat ground with no solids: half a row at height 0 is a step that is not there.
+    this.line = race_line(route.points, world.ramps, radius, world.tiles.complete ? world : undefined);
     this.racers = specs.map((spec, k) => {
       const car = new Car(spec);
-      const driver = new Driver(this.line, { ...traits[k], pace: traits[k].pace * grip_pace(spec) }, mulberry32(sub(seed, `ai-driver-${k}`)));
+      const driver = new Driver(this.line, { ...traits[k], pace: traits[k].pace * grip_pace(spec), grip: grip_pace(spec) }, mulberry32(sub(seed, `ai-driver-${k}`)));
       const spot = grid_spot(route, k < grid ? k : k + 1);
       car.park(spot.x, spot.z, spot.heading, world);
       driver.place(spot.index, -1);
@@ -179,6 +187,7 @@ export class Field {
     const count = this.racers.length;
     this.impacts = new Float64Array(count + 1).fill(-1);
     this.retired = new Uint8Array(count + 1);
+    this.piled = new Uint8Array(count);
     this.awareness = new Awareness(this.cars, this.racers.map((r) => r.driver), mulberry32(sub(seed, "ai-awareness")), count, this.retired);
     this.slow = new Float64Array(count);
     this.lost = new Float64Array(count);
@@ -349,32 +358,60 @@ export class Field {
       if (this.lost[i] > RESET_TIME || this.stall[i] > STALL_TIME) {
         const at = this.reset_point(driver.index);
         const laps = at > driver.index ? driver.laps - 1 : driver.laps;
-        if (!this.clear(i, laps * this.route.points.length + at)) continue;
-        const p = this.route.points[at];
-        car.park(p.x, p.z, atan2(p.tx, p.tz), this.world);
-        driver.place(at, laps);
-        driver.recovered();
-        stats.resets++;
-        this.lost[i] = 0;
-        this.stall[i] = 0;
-        this.best[i] = driver.progress;
+        const back = laps * this.route.points.length + at;
+        const file = this.pile(i);
+        if (!this.clear(i, back) || !this.clear(i, back - file * PILE_FILE)) continue;
+        this.put_back(i, back);
+        for (let j = 0, k = 1; j < this.racers.length; j++) if (this.piled[j]) this.put_back(j, back - k++ * PILE_FILE);
       }
     }
   }
 
-  /**
-   * No other car on the road within RESET_AHEAD metres ahead of progress `me` or RESET_BEHIND behind: a reset never
-   * drops a car into another's path. A car itself lost or stalled is no one's path: two cars wedged together would hold each other there.
-   */
-  private clear(i: number, me: number): boolean {
-    const spacing = this.route.length / this.route.points.length;
+  private pile(i: number): number {
+    const me = this.racers[i].driver.progress;
+    let count = 0;
+    for (let j = 0; j < this.racers.length; j++) {
+      this.piled[j] = j !== i && !this.retired[j] && !this.coasting[j] && this.stuck(j) && Math.abs(this.road_gap(me, this.racers[j].driver.progress)) < PILE ? 1 : 0;
+      count += this.piled[j];
+    }
+    return count;
+  }
+
+  /** Parks car i on the road's centre at `progress` (road points from the start, laps included). */
+  private put_back(i: number, progress: number) {
+    const { car, driver, stats } = this.racers[i];
     const n = this.route.points.length;
+    const laps = Math.floor(progress / n);
+    const at = progress - laps * n;
+    const p = this.route.points[at];
+    car.park(p.x, p.z, atan2(p.tx, p.tz), this.world);
+    driver.place(at, laps);
+    driver.recovered();
+    stats.resets++;
+    this.slow[i] = 0;
+    this.lost[i] = 0;
+    this.stall[i] = 0;
+    this.best[i] = driver.progress;
+  }
+
+  /** Lost or stalled: no one's path, as two cars wedged together would otherwise hold each other there. */
+  private stuck(j: number): boolean {
+    return this.lost[j] > 0 || this.stall[j] > STUCK_TIME;
+  }
+
+  private road_gap(me: number, progress: number): number {
+    const n = this.route.points.length;
+    return (((((progress - me) % n) + n + n / 2) % n) - n / 2) * (this.route.length / n);
+  }
+
+  /** No other car on the road within RESET_AHEAD metres ahead of progress `me` or RESET_BEHIND behind, stuck cars aside: a reset never drops a car into another's path. */
+  private clear(i: number, me: number): boolean {
     const near = (progress: number) => {
-      const gap = (((((progress - me) % n) + n + n / 2) % n) - n / 2) * spacing;
+      const gap = this.road_gap(me, progress);
       return gap > -RESET_BEHIND && gap < RESET_AHEAD;
     };
     for (let j = 0; j < this.racers.length; j++) {
-      if (j === i || this.retired[j] || this.lost[j] > 0 || this.stall[j] > STUCK_TIME) continue;
+      if (j === i || this.retired[j] || this.stuck(j)) continue;
       if (near(this.racers[j].driver.progress)) return false;
     }
     return !this.rival_car || !near(this.rival_driver.progress);
