@@ -133,11 +133,11 @@ Facts: "on this map" is a closure in `main.ts:514`, built from `event_map` (`car
 
 Build these before any screen. Each comes with a `components.test.ts` render test and its `check:svelte` run.
 
-**`KeyButton.svelte`** (the house button). Its look comes from `10-lobby-v1.html:93-105` and `shared.css:134-146,193-205,645-671`, in the room's colours:
+**`KeyButton.svelte`** (the house button, built in t335 `0ff68b2`/`5fe94d6`). Owner's pick: round 2 B's showroom pill ("Enter Drive", "Enter Start Town sprint"), polished. NOT the room's filled dark cap, NOT round 4's cap:
 
-- Fill: `--primary`. Label: `--on-primary` (`theme.ts:275`), so Brand Light keeps light text on brown. The mockup's `--background-darkest` is replaced by `--on-primary`.
-- Cap: an inset key glyph in `--background-darkest` with `--primary` text and a 2 px bottom edge.
-- Layers: the "multi layered" depth is stacked `box-shadow` rings in the same hue (`color-mix` of `--primary` toward `--background-darkest`). No other hue and no halo of another token.
+- Full pill. Fill: `--primary`. Label: `--on-primary` (`theme.ts:275`).
+- Cap: the key glyph OUTLINED in the label colour, no fill; the pad's round cap and the touch play mark use the same outline.
+- A `--background-darkest` ring around the pill plus a soft drop shadow separate it from the scene. No same-hue stacked rings.
 - Props: `keys` (key, pad and touch glyph), `hold?: number` (ms; a `--held` fill in `--cottontail` as in `shared.css:651-666`), `tone?: "primary" | "online"` (the online meet colour), `size`.
 - Second action: the same shape with no fill (`.btn.quiet`, `shared.css:147-151`).
 - One CSS file, `ui/key-cap.css`. It is imported by the component and by any vanilla road module that still renders a button, so the look has one source.
