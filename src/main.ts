@@ -636,7 +636,7 @@ if (guide_step !== null) {
   window.history.replaceState(window.history.state, "", clean);
   settings.open_guide("look", guide_step === ROLLED_VISIT);
 } else if (!take_drive() && !event && !run && !review && lab_id === null && !ai_level && !series_on) {
-  if (prefs.guide_seen) settings.open();
+  if (prefs.guide_seen) settings.open_title();
   else settings.open_guide();
 }
 // Typing a name on a phone would raise the keyboard over the menu, so only a mouse and keyboard get the cursor.

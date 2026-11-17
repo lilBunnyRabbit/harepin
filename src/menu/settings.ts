@@ -18,6 +18,10 @@ import { picture } from "./widgets";
 import { SettingsNav } from "./settings-tab/nav.svelte";
 import { CHANGES } from "./settings-tab/sections";
 import WorldPage from "./WorldPage.svelte";
+import HomePage from "./HomePage.svelte";
+import MapsPage from "./MapsPage.svelte";
+import { MAKE_PAGE, MAPS_PAGE } from "./maps";
+import TitlePage from "./showroom/TitlePage.svelte";
 import { el, icon } from "./dom";
 import { WorldKind } from "../worldgen/types";
 import { GoTo, GoalId } from "../goals/goals";
@@ -97,8 +101,10 @@ export class Settings {
       () => this.current,
     );
     this.page_list = [
-      ...STATIONS.map(({ id, label }) => svelte_page(this.menu, { id, label }, EmptyPage, { id })),
-      svelte_page(this.menu, { id: "world", label: "Create world", parent: MenuTab.PLAY, layout: "fill-panel" }, WorldPage),
+      ...STATIONS.map(({ id, label }) => (id === MenuTab.PLAY ? svelte_page(this.menu, { id, label }, HomePage) : svelte_page(this.menu, { id, label }, EmptyPage, { id }))),
+      svelte_page(this.menu, { id: TITLE, label: "Harepin" }, TitlePage),
+      svelte_page(this.menu, { id: MAPS_PAGE, label: "Maps", parent: MenuTab.PLAY, layout: "frame" }, MapsPage),
+      svelte_page(this.menu, { id: MAKE_PAGE, label: "Make a map", parent: MenuTab.PLAY, layout: "frame" }, WorldPage),
       svelte_page(this.menu, { id: "runs", label: "Runs", parent: MenuTab.PLAY, layout: "wide" }, RunsPage),
       svelte_page(this.menu, { id: "modes", label: "Modes", parent: MenuTab.EVENTS, layout: "fill" }, ModesPage),
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.EVENTS }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
@@ -206,6 +212,11 @@ export class Settings {
     addEventListener("keydown", this.key);
     this.timer = window.setInterval(() => this.refresh(), STATUS_MS);
     this.refresh();
+  }
+
+  /** The boot screen: the wordmark, the car and one Continue card. */
+  open_title() {
+    this.open(TITLE);
   }
 
   /** The key list: the help key lands here. */

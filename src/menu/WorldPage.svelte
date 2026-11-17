@@ -4,38 +4,32 @@
   import type { MapData } from "../worldgen/map";
   import { KINDS, plain_map, type MapSpec } from "../worldgen/kinds/kinds";
   import { custom_code, map_code, parse_map_code } from "../worldgen/kinds/map-code";
-  import type { OptionDef } from "../worldgen/kinds/options";
-  import type { WorldKind } from "../worldgen/types";
+  import { map_name } from "../worlds/map-name";
   import { LISTED, WORLDS } from "../worlds/worlds";
-  import MapLegend, { type LegendItem } from "./MapLegend.svelte";
-  import WorldMap from "./WorldMap.svelte";
+  import { bare_enter, link_key } from "./drive-picks";
   import { FALLBACK } from "./map-note";
-  import { keep_thumb, thumb_url } from "./map-thumb";
+  import { MAKE_PAGE } from "./maps";
+  import MenuFrame from "./MenuFrame.svelte";
   import { invite_link } from "./page";
-  import { MAP_NAME_LENGTH, SAVED_MAPS_MAX } from "./prefs";
   import Button from "./ui/Button.svelte";
-  import IconButton from "./ui/IconButton.svelte";
-  import Row from "./ui/Row.svelte";
-  import ScrollArea from "./ui/ScrollArea.svelte";
-  import SectionHead from "./ui/SectionHead.svelte";
-  import Segmented from "./ui/Segmented.svelte";
+  import Card from "./ui/Card.svelte";
+  import Icon from "./ui/Icon.svelte";
+  import Kbd from "./ui/Kbd.svelte";
+  import KeyLink from "./ui/KeyLink.svelte";
+  import PrimaryAction from "./ui/PrimaryAction.svelte";
   import Slider from "./ui/Slider.svelte";
   import TextField from "./ui/TextField.svelte";
-  import Tile from "./ui/Tile.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
   import { COPIED_MS, preview, random_seed } from "./widgets";
+  import WorldMap from "./WorldMap.svelte";
   import { WorldMap as MapView } from "./world-map.svelte";
 
-  let { menu, live, shown }: PageProps = $props();
+  let { menu, shown }: PageProps = $props();
 
-  const PLAYERS_MS = 250;
   const NEWER = "Made in a newer Harepin: update to drive it";
   const BAD = "Not a map code";
-  const HINT = "Got a code from a friend? Type it in.";
-  const COPIES = [
-    { label: "Copy code", icon: "icon-edit" },
-    { label: "Copy link", icon: "icon-share" },
-  ] as const;
+  const COPY = { code: "Copy", link: "Copy link" } as const;
+  type CopyKind = keyof typeof COPY;
 
   const host = $derived(menu.host);
   const map = new MapView();
@@ -50,61 +44,32 @@
   let typing = false;
   let bad = $state<string | null>(null);
   let note = $state(untrack(() => menu.host.map_note));
-  let advanced = $state(false);
-  let name = $state("");
-  let copied = $state<Record<string, string>>({});
-  let thumbs = $state<Record<string, string>>({});
+  let copied = $state<Partial<Record<CopyKind, string>>>({});
 
   map.on_ready = (data) => (ready = data);
 
   const here = $derived(chosen.seed === host.seed && chosen.kind === host.kind && custom_code(chosen) === host.code);
   const world = $derived(WORLDS[chosen.kind]);
   const code = $derived(map_code(chosen));
+  const custom = $derived(custom_code(chosen) !== null);
   const fallback = $derived(ready?.fallback === true);
-  const title = $derived(`${world.name} · ${fallback ? map_code(plain_map(chosen.kind, chosen.seed)) : code}`);
-  const facts = $derived(world.facts(ready ? ready.facts : null).filter(([value]) => value !== "0"));
-  const hint = $derived(bad ?? (fallback ? FALLBACK : (note ?? HINT)));
+  const title = $derived(map_name(fallback ? plain_map(chosen.kind, chosen.seed) : chosen, ready?.towns ?? []));
+  const facts = $derived(
+    world
+      .facts(ready ? ready.facts : null)
+      .filter(([value]) => value !== "0")
+      .map(([value, label]) => `${value} ${label}`)
+      .join(" · "),
+  );
+  const warn = $derived(bad ?? (fallback ? FALLBACK : note));
   const knobs = $derived(KINDS[chosen.kind].options.map((option, at) => ({ option, at })));
-  const saved = $derived(live.prefs.saved_maps.map((entry) => ({ ...entry, read: parse_map_code(entry.code) })));
-  const steps = $derived(knobs.length ? ["Pick a world", "Pick a map", "Tune it", "Save it"] : ["Pick a world", "Pick a map", "Save it"]);
-
-  const legend: LegendItem[] = $derived([
-    { label: "Circuit", swatch: "var(--accent)" },
-    { label: "Start", swatch: "var(--primary)" },
-    { label: "Checkpoints", swatch: "var(--foreground)" },
-    { label: "Jumps", swatch: "var(--secondary)" },
-    // The map's pad tone, tones.pad: the accent a step lighter, never mixed with another brand colour.
-    ...(world.pads ? [{ label: "Boost", swatch: "oklch(from var(--accent) calc(l + 0.14) c h)" }] : []),
-  ]);
 
   $effect(() => {
     if (!shown) return;
     host.goals.done(GoalId.MAP);
     const { seed, kind, levels } = untrack(() => chosen);
     map.show(seed, kind, true, levels);
-    const players = () => {
-      if (document.hidden) return;
-      const on = untrack(() => here);
-      map.show_players(on ? host.map_players() : []);
-      map.show_markers(on ? host.map_markers() : []);
-    };
-    const timer = window.setInterval(players, PLAYERS_MS);
-    players();
-    return () => {
-      clearInterval(timer);
-      map.stop();
-    };
-  });
-
-  $effect(() => {
-    if (!shown) return;
-    for (const entry of saved) {
-      if (!entry.read.ok || untrack(() => thumbs[entry.code])) continue;
-      thumb_url(entry.read.map).then(
-        (url) => (thumbs[entry.code] = url),
-        (error: unknown) => console.warn("map thumb: generation failed", error),
-      );
-    }
+    return () => map.stop();
   });
 
   function choose(next: MapSpec, now: boolean) {
@@ -128,473 +93,316 @@
     bad = read.why === "newer" ? NEWER : BAD;
   }
 
+  const roll = () => choose({ ...chosen, seed: random_seed() }, true);
+
   function drive() {
-    if (here || bad) return;
+    if (bad) return;
     menu.drive(chosen.seed, chosen.kind, chosen.levels);
   }
 
-  async function copy(label: string) {
-    const text = label === "Copy code" ? code : invite_link(host.room, chosen.seed, chosen.kind, custom_code(chosen));
+  async function copy(what: CopyKind) {
+    const text = what === "code" ? code : invite_link(host.room, chosen.seed, chosen.kind, custom_code(chosen));
     try {
       await navigator.clipboard.writeText(text);
-      copied[label] = "Copied";
+      copied[what] = "Copied";
     } catch (error) {
-      console.warn("settings: clipboard refused", error);
-      copied[label] = "Copy failed";
+      console.warn("make a map: clipboard refused", error);
+      copied[what] = "Copy failed";
     }
-    setTimeout(() => delete copied[label], COPIED_MS);
+    setTimeout(() => delete copied[what], COPIED_MS);
   }
 
-  function save() {
-    const label = [...name.replace(/\p{C}/gu, "").trim()].slice(0, MAP_NAME_LENGTH).join("").trim();
-    if (!label) return;
-    if (ready) keep_thumb(chosen, ready);
-    const others = live.prefs.saved_maps.filter((m) => m.name !== label);
-    live.set("saved_maps", [{ name: label, code }, ...others].slice(0, SAVED_MAPS_MAX));
-    name = "";
+  function key(event: KeyboardEvent) {
+    if (!shown) return;
+    if (bare_enter(event)) {
+      event.preventDefault();
+      return drive();
+    }
+    if (link_key(event) === "r") roll();
   }
-
-  function remove(index: number) {
-    live.set(
-      "saved_maps",
-      live.prefs.saved_maps.filter((_, i) => i !== index),
-    );
-  }
-
-  const step = (text: string) => `${steps.indexOf(text) + 1}`;
-  const level_of = (kind: WorldKind, at: number) => (chosen.kind === kind ? chosen.levels[at] : KINDS[kind].options[at].normal);
 </script>
 
-{#snippet head(text: string)}
-  <h3 class="step"><i>{step(text)}</i><span>{text}</span></h3>
-{/snippet}
+<svelte:window onkeydown={key} />
 
-<div class="world">
-  <div class="side">
-    <ScrollArea label="Map settings">
-      <div class="picks">
-        <ScrollArea>
-          <div class="steps">
-            {@render head("Pick a world")}
-            <div class="worlds" role="radiogroup" aria-label="World">
-              {#each LISTED as { kind, name, pick } (kind)}
-                <Tile title={name} meta={pick} clamp={2} thumb={preview(kind)} selected={kind === chosen.kind} onclick={() => choose(plain_map(kind, chosen.seed), true)} />
+<MenuFrame {menu} id={MAKE_PAGE} eyebrow="Home · Maps" title="Make a map" veil={0.55} note={here ? "You are on this map" : `Loads the map in room ${host.room}`}>
+  <div class="make">
+    <Card pad="none" class="make-big" label={title}>
+      <div class="make-shot">
+        <WorldMap {map} label={`Map of ${title}`} />
+      </div>
+      <div class="make-side">
+        <header>
+          <span class="make-eyebrow">{world.name} · {custom ? "custom" : "rolled"}</span>
+          <h2>{title}</h2>
+          {#if facts}<span class="make-sub">{facts}</span>{/if}
+        </header>
+
+        <div class="make-group">
+          <span class="make-eyebrow">Map code</span>
+          <div class="make-code">
+            <TextField
+              bind:value={code_text}
+              mono
+              maxlength={64}
+              autocapitalize="characters"
+              spellcheck={false}
+              enterkeyhint="go"
+              aria-label="Map code"
+              aria-invalid={bad !== null}
+              oninput={read_code}
+              onfocus={() => (typing = true)}
+              onblur={() => {
+                typing = false;
+                if (!bad) code_text = code;
+              }}
+              onkeydown={(event) => {
+                if (event.key === "Enter") drive();
+              }}
+            />
+            <Button variant="quiet" onclick={() => copy("code")}>{copied.code ?? COPY.code}</Button>
+          </div>
+          {#if warn}<span class="make-sub make-warn">{warn}</span>{/if}
+        </div>
+
+        {#if knobs.length}
+          <div class="make-group">
+            <span class="make-eyebrow">Custom map</span>
+            <div class="make-knobs">
+              {#each knobs as { option, at } (`${chosen.kind}:${option.field}`)}
+                <b title={option.help}>{option.name}</b>
+                <Slider value={chosen.levels[at]} min={0} max={option.labels.length - 1} label={option.name} format={(level) => option.labels[level] ?? ""} onchange={(level) => set_level(at, level)} />
               {/each}
             </div>
-
-            {@render head("Pick a map")}
-            <div class="code">
-              <TextField
-                bind:value={code_text}
-                mono
-                class="code-field"
-                maxlength={64}
-                autocapitalize="characters"
-                spellcheck={false}
-                enterkeyhint="go"
-                aria-label="Map code"
-                aria-invalid={bad !== null}
-                oninput={read_code}
-                onfocus={() => (typing = true)}
-                onblur={() => {
-                  typing = false;
-                  if (!bad) code_text = code;
-                }}
-                onkeydown={(event) => {
-                  if (event.key === "Enter") drive();
-                }}
-              />
-              <Button icon="icon-dice" class="dice" onclick={() => choose({ ...chosen, seed: random_seed() }, true)}><span class="dice-label">New random map</span></Button>
-            </div>
-            <p class="hint" class:error={bad !== null || fallback || note !== null}>{hint}</p>
+            <span class="make-sub make-hint">Change a value and the map rolls again.</span>
           </div>
-        </ScrollArea>
+        {:else}
+          <span class="make-sub">{world.name} has no values to change. Roll for another one.</span>
+        {/if}
       </div>
+    </Card>
 
-      <div class="tune">
-        <ScrollArea>
-          <div class="steps">
-            {#if knobs.length}
-              <div class="step-head">
-                {@render head("Tune it")}
-                <Button variant="quiet" size="sm" onclick={() => choose(plain_map(chosen.kind, chosen.seed), true)}>Reset</Button>
-              </div>
-              <div class="knobs">
-                {#each knobs.filter((k) => !k.option.more) as { option, at } (`${chosen.kind}:${option.field}`)}
-                  {@render knob(option, at)}
-                {/each}
-                {#if knobs.some((k) => k.option.more)}
-                  <Row label={advanced ? "Fewer settings" : "Advanced"} help="Ridges, water, town size and the rest of this world's settings." onclick={() => (advanced = !advanced)} />
-                  {#if advanced}
-                    {#each knobs.filter((k) => k.option.more) as { option, at } (`${chosen.kind}:${option.field}`)}
-                      {@render knob(option, at)}
-                    {/each}
-                  {/if}
-                {/if}
-              </div>
-            {/if}
-
-            {@render head("Save it")}
-            <div class="code">
-              <TextField
-                bind:value={name}
-                class="name-field"
-                maxlength={MAP_NAME_LENGTH}
-                placeholder="Name this map"
-                aria-label="Map name"
-                onkeydown={(event) => {
-                  if (event.key === "Enter") save();
-                }}
-              />
-              <Button onclick={save} disabled={!name.trim()}>Save</Button>
-            </div>
-            {#if saved.length}
-              <ul class="saved">
-                {#each saved as entry, index (entry.name)}
-                  <li>
-                    <Tile size="sm" title={entry.name} meta={entry.code} thumb={thumbs[entry.code]} onclick={() => entry.read.ok && choose(entry.read.map, true)} />
-                    <IconButton icon="icon-close" label={`Delete ${entry.name}`} onclick={() => remove(index)} />
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-          </div>
-        </ScrollArea>
-      </div>
-    </ScrollArea>
-  </div>
-
-  <div class="preview">
-    <WorldMap {map} label={`Map of ${world.map_label} ${chosen.seed}`} />
-  </div>
-
-  <div class="about">
-    <b class="map-name">{title}</b>
-    {#if facts.length}
-      <dl class="facts">
-        {#each facts as [value, label] (label)}
-          <div><dt>{label}</dt><dd>{value}</dd></div>
+    <div class="make-pick">
+      <Card pad="sm" class="make-roll" label="Roll: a new map of this type" onclick={roll}>
+        <span class="make-die"><Icon name="icon-dice" /></span>
+        <span class="make-roll-text"><b>Roll</b><span class="make-sub">A new map of this type</span></span>
+        <Kbd keys={["R"]} />
+      </Card>
+      <div class="make-kinds" role="radiogroup" aria-label="Map type">
+        {#each LISTED as { kind, name } (kind)}
+          {@const on = kind === chosen.kind}
+          <Card pad="sm" flat class="make-kind" label={name} selected={on} onclick={() => choose(plain_map(kind, chosen.seed), true)}>
+            {#snippet picture()}
+              <img src={preview(kind)} alt="" decoding="async" />
+            {/snippet}
+            <span class="make-kind-name" data-on={on ? "" : undefined}>{#if on}<Icon name="icon-check" />{/if}{name}</span>
+          </Card>
         {/each}
-      </dl>
-    {/if}
-    <div class="legend"><MapLegend items={legend} /></div>
-  </div>
-
-  <div class="drive-bar">
-    <Button variant="primary" size="lg" disabled={here || bad !== null} title={here ? "" : `Reloads room ${host.room} on ${world.name} ${code}`} onclick={drive}>
-      {here ? "You're on this map" : "Drive this map"}
-    </Button>
-    <div class="shares">
-      {#each COPIES as { label, icon } (label)}
-        <Button variant="quiet" {icon} aria-label={label} title={label} onclick={() => copy(label)}><span class="share-label">{copied[label] ?? label}</span></Button>
-      {/each}
+      </div>
     </div>
   </div>
-</div>
 
-{#snippet knob(option: OptionDef, at: number)}
-  <div class="knob">
-    <span class="knob-text">
-      <span class="knob-name">{option.name}</span>
-      <small>{option.help}</small>
-    </span>
-    {#if option.slider}
-      <Slider
-        value={level_of(chosen.kind, at)}
-        min={0}
-        max={option.labels.length - 1}
-        label={option.name}
-        format={(level) => option.labels[level] ?? ""}
-        onchange={(level) => set_level(at, level)}
-      />
-    {:else}
-      <Segmented
-        value={level_of(chosen.kind, at)}
-        label={option.name}
-        options={option.labels.map((label, value) => ({ value, label }))}
-        onchange={(level) => set_level(at, level)}
-      />
-    {/if}
-  </div>
-{/snippet}
+  {#snippet links()}
+    {#if custom}<KeyLink onclick={() => choose(plain_map(chosen.kind, chosen.seed), true)}>Reset values</KeyLink>{/if}
+    <KeyLink onclick={() => copy("link")}>{copied.link ?? COPY.link}</KeyLink>
+  {/snippet}
+  {#snippet primary()}
+    <PrimaryAction disabled={bad !== null} onclick={drive}>{here ? "Keep driving this map" : "Drive this map"}</PrimaryAction>
+  {/snippet}
+</MenuFrame>
 
 <style>
-  .world {
+  .make {
+    --pick-w: calc(var(--top-h) * 8.5);
     display: grid;
-    grid-template:
-      "picks map tune" minmax(0, 1fr)
-      "actions about tune" auto
-      / minmax(280px, 340px) minmax(0, 1fr) minmax(320px, 400px);
-    gap: var(--space-5) var(--space-6);
+    grid-template-columns: minmax(0, 1fr) var(--pick-w);
+    gap: var(--gap);
     height: 100%;
     min-height: 0;
   }
 
-  /* --scroll-display inherits, so the inner scrollers set it back to block. */
-  .side {
-    --scroll-display: contents;
-    display: contents;
+  .make > :global(.make-big) {
+    flex-direction: row;
+    gap: 0;
+    overflow: hidden;
   }
 
-  .picks,
-  .tune {
-    --scroll-display: block;
-    display: grid;
-    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  .make-shot {
+    flex: none;
+    height: 100%;
+    max-width: 55%;
+    aspect-ratio: 1;
+  }
+
+  .make-side {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--gap);
     min-width: 0;
     min-height: 0;
+    padding: var(--pad);
+    overflow-y: auto;
+    scrollbar-width: none;
   }
 
-  .picks {
-    grid-area: picks;
+  header,
+  .make-group {
+    display: grid;
+    gap: var(--gap-sm);
+    min-width: 0;
   }
 
-  .tune {
-    grid-area: tune;
+  header {
+    gap: var(--gap-xs);
   }
 
-  .steps {
+  .make-eyebrow {
+    color: var(--dim);
+    font-size: var(--type-eyebrow);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: var(--type-h1);
+    font-weight: 800;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+
+  .make-sub {
+    color: var(--dim);
+    font-size: var(--type-small);
+  }
+
+  .make-warn {
+    color: var(--error);
+  }
+
+  .make-code {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    min-width: 0;
+  }
+
+  .make-code > :global(:first-child) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .make-knobs {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--gap-sm) var(--gap-md);
+    font-size: var(--type-small);
+  }
+
+  .make-knobs b {
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .make-knobs :global(.ui-value) {
+    min-width: 8em;
+    color: var(--dim);
+    font-size: var(--type-small);
+    text-align: right;
+  }
+
+  .make-pick {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
-  }
-
-  .step {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    margin: 0;
-    font-size: var(--text-lg);
-    font-weight: 700;
-  }
-
-  .steps > .step:not(:first-child),
-  .steps > .step-head:not(:first-child) {
-    margin-top: var(--space-4);
-  }
-
-  .step i {
-    display: grid;
-    place-items: center;
-    width: var(--space-6);
-    height: var(--space-6);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-full);
-    font-size: var(--text-sm);
-    font-style: normal;
-  }
-
-  .step-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-  }
-
-  .worlds {
-    display: grid;
-    gap: var(--space-2);
-  }
-
-  .code {
-    display: flex;
-    gap: var(--space-2);
-  }
-
-  .code > :global(.code-field),
-  .code > :global(.name-field) {
-    flex: 1;
-  }
-
-  .hint {
-    margin: 0;
-    color: var(--set-dim);
-    font-size: var(--text-sm);
-  }
-
-  .hint.error {
-    color: var(--foreground);
-    font-weight: 600;
-  }
-
-  .knobs {
-    display: grid;
-    gap: var(--space-4);
-  }
-
-  .knob {
-    display: grid;
-    gap: var(--space-2);
-  }
-
-  .knob-text {
-    display: grid;
-    gap: var(--space-0);
-  }
-
-  .knob-name {
-    font-size: var(--text-lg);
-    font-weight: 600;
-    line-height: 1.3;
-  }
-
-  .knob small {
-    color: var(--set-dim);
-    font-size: var(--text-sm);
-    line-height: 1.4;
-  }
-
-  .saved {
-    display: grid;
-    gap: var(--space-2);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .saved li {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .preview {
-    grid-area: map;
+    gap: var(--gap);
     min-width: 0;
     min-height: 0;
   }
 
-  .about {
-    grid-area: about;
+  .make-pick > :global(.make-roll) {
+    flex: none;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--gap);
+  }
+
+  .make-die {
+    --icon-size: calc(var(--top-h) * 0.6);
     display: grid;
-    justify-items: center;
-    gap: var(--space-3);
+    flex: none;
+    place-items: center;
+    width: var(--top-h);
+    height: var(--top-h);
+    border-radius: var(--radius-sm);
+    background: var(--primary);
+    color: var(--background-darkest);
+  }
+
+  .make-roll-text {
+    display: grid;
+    flex: 1;
     min-width: 0;
   }
 
-  .map-name {
-    font-size: var(--text-lg);
+  .make-roll-text b {
+    font-size: var(--type-h2);
+    font-weight: 800;
+    line-height: 1.1;
   }
 
-  .facts {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: var(--space-1) var(--space-5);
-    margin: 0;
-  }
-
-  .facts div {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-1);
-  }
-
-  .facts dd {
-    margin: 0;
-    font-size: var(--text-xl);
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .facts dt {
-    color: var(--set-dim);
-    font-size: var(--text-md);
-  }
-
-  .drive-bar {
-    grid-area: actions;
+  .make-kinds {
     display: grid;
-    gap: var(--space-2);
+    flex: 1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+    gap: var(--gap-sm);
+    min-height: 0;
   }
 
-  .shares {
+  .make-kinds > :global(.make-kind) {
+    border-radius: var(--radius-sm);
+  }
+
+  .make-kinds > :global(.make-kind > .ui-card-cap) {
+    padding: var(--gap-xs) var(--gap-sm);
+  }
+
+  .make-kind-name {
+    --icon-size: 1.15em;
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: var(--space-1);
+    align-items: center;
+    gap: var(--gap-xs);
+    overflow: hidden;
+    font-size: var(--type-small);
+    font-weight: 700;
+    white-space: nowrap;
   }
 
-  @media (max-width: 1100px) {
-    .world {
-      grid-template:
-        "side map" minmax(0, 1fr)
-        "actions about" auto
-        / minmax(280px, 340px) minmax(0, 1fr);
-      gap: var(--space-4) var(--space-5);
-    }
-
-    .side {
-      --scroll-display: block;
-      display: grid;
-      grid-area: side;
-      grid-template: minmax(0, 1fr) / minmax(0, 1fr);
-      min-width: 0;
-      min-height: 0;
-    }
-
-    .picks,
-    .tune {
-      display: block;
-    }
-
-    .steps {
-      padding-bottom: var(--space-5);
-    }
-
-    .map-name,
-    .legend {
-      display: none;
-    }
-
-    .facts dd {
-      font-size: var(--text-lg);
-    }
-  }
-
-  @media (max-width: 600px) {
-    .world {
-      grid-template: "map" auto "about" auto "side" auto "actions" auto / minmax(0, 1fr);
-      gap: var(--space-5);
-      height: auto;
-    }
-
-    .side {
-      display: block;
-    }
-
-    .preview {
-      aspect-ratio: 1;
-    }
-
-    /* Down over the scroller's focus-ring padding, so no strip of the page shows under the bar. */
-    .drive-bar {
-      position: sticky;
-      bottom: calc(-1 * var(--focus-room, 0px));
-      padding-block: var(--space-4);
-      border-top: 1px solid var(--set-line);
-      background: var(--set-panel);
-    }
+  .make-kind-name[data-on] {
+    color: var(--cottontail);
   }
 
   @media (max-height: 500px) {
-    .world {
-      gap: var(--space-3) var(--space-4);
+    .make {
+      --pick-w: calc(var(--top-h) * 9);
     }
 
-    .dice-label,
-    .share-label {
+    h2 {
+      font-size: var(--type-h2);
+    }
+
+    .make-hint {
       display: none;
     }
 
-    .drive-bar {
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-    }
-
-    .shares {
-      flex-wrap: nowrap;
+    .make-kinds {
+      grid-auto-rows: calc(var(--top-h) * 2);
+      padding: var(--mark-w);
+      overflow-y: auto;
+      scrollbar-width: none;
     }
   }
 </style>

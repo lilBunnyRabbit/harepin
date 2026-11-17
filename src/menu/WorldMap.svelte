@@ -36,10 +36,7 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    border: 1px solid var(--set-line);
-    border-radius: var(--radius-lg);
-    background: var(--map-edge, var(--set-well));
-    font-family: var(--font-sans);
+    background: var(--map-edge, var(--row));
   }
 
   .paint {
@@ -73,10 +70,10 @@
 
   .note {
     position: absolute;
-    inset: 50% var(--space-4) auto;
+    inset: 50% var(--gap) auto;
     translate: 0 -50%;
     color: var(--foreground);
-    font-size: var(--text-md);
+    font-size: var(--type-body);
     font-weight: 600;
     text-align: center;
   }
