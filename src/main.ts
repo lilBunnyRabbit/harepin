@@ -73,6 +73,7 @@ import { MenuTab, invite_link } from "./menu/page";
 import { Settings } from "./menu/settings";
 import { BUILD, Updater, show_version } from "./menu/update";
 import { card_closed_now, show_updated } from "./menu/updated-card";
+import { when_idle } from "./menu/when-idle";
 import { LAB_PARAM, names_world, pick_world } from "./world/world-pick";
 import { briefed_car, travel_query } from "./world/travel";
 import { Brief } from "./world/travel-brief.svelte";
@@ -119,6 +120,7 @@ const ai_level = ai_race ? params.get(AI_RACE_PARAM) : null;
 // `?series`: the Harepin Series page; `?series=<event>` starts that event on its map.
 const series_on = params.has(SERIES_PARAM);
 const series_pick = series_on ? series_event(params.get(SERIES_PARAM)) : null;
+let series_starting = series_on;
 // Any peer on the map can call a lobby race, and that ends a mode run: an event link without a room of its own runs
 // alone in an unlisted room, as does a review shot, which no peer should drive into. The menu still names `room`, so
 // the next world picked lands back in it.
@@ -355,7 +357,8 @@ lobby.on_sit_out = () => {
 lobby.car = () => driver.car.spec.id;
 race.on_start = () => ghost.start();
 
-const updater = new Updater({ busy: () => lobby.busy || modes.active || lab_id !== null, menu_open: () => settings.is_open, show_notes: () => settings.open_changes() });
+const run_busy = () => lobby.busy || modes.active || lab_id !== null;
+const updater = new Updater({ busy: run_busy, menu_open: () => settings.is_open, show_notes: () => settings.open_changes() });
 // A lobby race on a route runs as a mode: quitting it leaves the lobby race too, as Leave race does.
 function quit_mode() {
   if (lobby.busy) lobby.leave();
@@ -696,6 +699,7 @@ if (ai_level) modes.play(ai_level);
 // A link without its map reloads onto it; one that names a map which fell back would reload onto itself forever.
 // An event's opening rule reads saved progress, so a link starts once it has loaded.
 void Promise.all(series.map((one) => one.load())).then(() => {
+  series_starting = false;
   if (!series_on) return;
   const one = series.find((each) => each.base === series_pick?.season);
   const pick = series_pick && one?.event(series_pick.event.id);
@@ -1144,7 +1148,8 @@ if (brief) {
   await brief.started;
 }
 $("loading").remove();
-show_updated(updater.open_notes);
+// The Updated card waits out a run as the update's reload does, and a series link's start, which loads its progress first.
+when_idle(() => run_busy() || modes.engaged || series_starting, () => show_updated(updater.open_notes));
 performance.mark("world:first");
 requestAnimationFrame(frame);
 settings.warm();

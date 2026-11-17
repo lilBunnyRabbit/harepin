@@ -5,6 +5,7 @@ import { UpdateState, compare_versions, parse_version_file, type RemoteVersion, 
 import Changelog from "./Changelog.svelte";
 import UpdateToast from "./UpdateToast.svelte";
 import { UpdateView } from "./update-view.svelte";
+import { when_idle } from "./when-idle";
 import "./update.css";
 
 declare const __HAREPIN_VERSION__: VersionInfo;
@@ -12,7 +13,6 @@ export const BUILD: VersionInfo = __HAREPIN_VERSION__;
 
 const CHECK_EVERY_MS = 15 * 60 * 1000;
 const VISIBLE_CHECK_GAP_MS = 60 * 1000;
-const BUSY_POLL_MS = 1500;
 const TOAST_MS = 4000;
 // updateSW(true) reloads once the new worker takes control; past this, clear this app's worker and caches instead.
 const RELOAD_TIMEOUT_MS = 6000;
@@ -177,16 +177,7 @@ export class Updater {
   }
 
   private when_idle(run: () => void): number {
-    if (!this.host.busy()) {
-      run();
-      return 0;
-    }
-    const timer = window.setInterval(() => {
-      if (this.host.busy()) return;
-      clearInterval(timer);
-      run();
-    }, BUSY_POLL_MS);
-    return timer;
+    return when_idle(() => this.host.busy(), run);
   }
 
   private show_toast(): void {
