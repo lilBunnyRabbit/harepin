@@ -26,6 +26,8 @@ import { own_country } from "./net/country";
 import { Chat } from "./net/chat";
 import { Skids, Smoke } from "./render/effects";
 import { Sparks } from "./render/sparks";
+import { Mirror } from "./render/mirror";
+import { MirrorFrame } from "./hud/mirror-frame";
 import { build_code, build_spec, parse_build } from "./car/build";
 import { load_builds } from "./car/builds";
 import { car_shelves, limit_text, type CarLimit, type CarShelf } from "./car/car-pick";
@@ -270,6 +272,10 @@ const smoke = new Smoke(look.ground_puff);
 const skids = new Skids();
 const sparks = new Sparks();
 scene.add(smoke.mesh, skids.mesh, sparks.mesh);
+const mirror = new Mirror();
+mirror.skip = [smoke.mesh, sparks.mesh, ...world_view.tree_meshes];
+const mirror_frame = new MirrorFrame($("mirror"), app, (left, top, width, height, radius) => mirror.place(left, top, width, height, radius));
+if (!quality.mobile) mirror_frame.start();
 
 const garage = new Garage(build);
 garage.rewards = () => unlocks(career.stars);
@@ -1145,6 +1151,7 @@ function frame(time: number) {
   if (input.touch.nitro && car.nitro.fill <= 0) input.touch.tank_empty();
   // The menu covers the HUD, so its writes and the minimap wait for the frame the menu closes on.
   if (!settings.is_open) hud.update(car, now, rewinding);
+  mirror_frame.show(settings.state.mirror && !quality.mobile && !settings.is_open && !replay.is_open);
   lab?.frame();
   // Behind the menu each frame carries the redraw gap, which would read as a slow frame.
   if (!draw_ms && quality.adapt(dt)) render.apply_quality();
@@ -1157,6 +1164,7 @@ function frame(time: number) {
   if (!draw_ms || now - last_draw >= draw_ms) {
     last_draw = now;
     render.draw();
+    mirror.draw(render.renderer, scene, driver.drawn, chase.size);
   }
   review?.drawn(stream);
   render.check_size(now);

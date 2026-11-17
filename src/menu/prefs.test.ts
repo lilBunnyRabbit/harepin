@@ -51,6 +51,7 @@ describe("parse_settings", () => {
       hud_size: "large",
       speedo: "dial",
       minimap: "line",
+      mirror: false,
       show_country: false,
       last_world: "sky",
       last_seed: 4294967295,
