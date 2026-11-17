@@ -14,6 +14,8 @@ import ChangesPage from "./settings-tab/ChangesPage.svelte";
 import { GUIDE_PAGE } from "./guide-topics";
 import ModesPage from "./ModesPage.svelte";
 import RunsPage from "./runs/RunsPage.svelte";
+import ReplaysPage from "../replay/ReplaysPage.svelte";
+import { REPLAYS_PAGE } from "../replay/saved";
 import RunBuilder from "./runs/RunBuilder.svelte";
 import CareerPage from "./CareerPage.svelte";
 import EventsPage from "./EventsPage.svelte";
@@ -32,6 +34,7 @@ import { svelte_page } from "./ui/svelte-page.svelte";
 import { MenuTab, ROAD, STATIONS, type Menu, type MenuPage, type SettingsHost } from "./page";
 import type { SettingKey, SettingsState } from "./prefs";
 import type { CarShelf } from "../car/car-pick";
+import type { SavedReplay } from "../replay/saved";
 import { mark_drive, read_saved, write_saved } from "./prefs-store";
 import { SettingsNav } from "./settings-tab/nav.svelte";
 import { CHANGES, LIST } from "./settings-tab/sections";
@@ -135,6 +138,7 @@ export class Settings {
       svelte_page(this.menu, { id: MAKE_PAGE, label: "Make a map", parent: MenuTab.PLAY, layout: "frame" }, WorldPage),
       svelte_page(this.menu, { id: CAREER_PAGE, label: "Career", parent: MenuTab.EVENTS, layout: "frame" }, CareerPage, { picker: this.picker, tune: new URLSearchParams(location.search).has(TUNE_PARAM) }),
       svelte_page(this.menu, { id: RUNS_PAGE, label: "Runs", parent: MenuTab.EVENTS, layout: "frame" }, RunsPage, { picker: this.picker }),
+      svelte_page(this.menu, { id: REPLAYS_PAGE, label: "Replays", parent: MenuTab.EVENTS, layout: "frame" }, ReplaysPage, { watch: (replay: SavedReplay) => host.watch_replay(replay) }),
       svelte_page(this.menu, { id: RUN_BUILD_PAGE, label: "Build a run", parent: MenuTab.EVENTS, layout: "frame" }, RunBuilder, { picker: this.picker }),
       svelte_page(this.menu, { id: MODES_PAGE, label: "Free modes", parent: MenuTab.EVENTS, layout: "frame" }, ModesPage),
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.EVENTS, layout: "frame" }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),

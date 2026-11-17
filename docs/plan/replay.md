@@ -18,7 +18,7 @@ So only the ghost lap format is a replay source, and outside the duel a finished
 ## Slice 1 (built): your own run
 
 - `replay/run-tape.ts`: `RunTape` records the player's car on every mode run in the ghost lap layout (8 numbers, 10 Hz, same `lap_pose` reader), at the car's own height. `Modes` starts it when a run goes, feeds it stepped time, closes it on the finish. In memory only, until the next run starts. Cap: ten minutes (`lap_cap_ms`).
-- The results card gets a Watch replay button (hidden while the tape has no length).
+- The results page gets a Watch replay link beside Restart (absent while the tape has no length).
 - `replay/playback.ts`: the clock (pause, seek, speeds 0.25 / 0.5 / 1 / 2 / 4).
 - `replay/replay.ts`: each frame it advances the clock, reads the pose from the tape and hands it to `Driver.draw_at`.
 - `replay/free-camera.ts`: drag turns, the driving controls fly (throttle / brake along the view, steer sideways), the wheel sets the pace. The camera key swaps chase and free; Escape closes; Space pauses.
@@ -41,6 +41,24 @@ No per-frame allocation: `lap_pose` now writes its span into one object instead 
 
 A reset or a fall put back mid-run is a cut, not a slide: the tape takes a second frame at the last one's time (two poses farther apart than 150 m/s allows), `lap_pose` has nothing to blend across it, and the chase camera snaps as on a seek. Same layout, still a valid lap.
 
+## Slice 2 (built): the AI field
+
+Option A of the gate below: no new format.
+
+- `RunTape.field` holds one more ghost-layout lap per AI car, taken at the same moments as the player's frame, so every lap is on one clock. `FieldView.taped(i)` is the reader: the sim's car once the field has stepped, the grid car before, null for a car knocked out. A knocked-out car's lap stops short, and the replay hides it from one take after its last frame.
+- `FieldView.draw_tape(camera, poses, world)` draws each car at the replay's pose in place of the sim's, with the same far and mid views; `update` does nothing until `end_tape`, which puts every car back where the held sim has it. The replay calls it right after `Driver.draw_at`, so the field and the player's car are drawn at the same clock.
+- Cars stand as they did on the grid: wheels straight, no brake lamps, neon lit but still. As ghosts do.
+- `FieldView` takes its route and the rival's slot on `start`, not in the constructor, so a view can be built with no grid: a saved replay builds its own.
+- A dev `?field=` free-drive field is not taped.
+
+## Saved replays (built)
+
+- Save on the replay's bar writes the tape to IndexedDB, store `replays` (`HAREPIN_DB` version 5), through `replay/replay-store.ts`. `replay/saved.ts` is the pure side: `pack_replay` (laps rounded to 3 decimals, as ghosts are), `parse_replay` (any part out of shape: none), `capped`.
+- A saved replay holds its name, mode, the map's code and name, the player's build code, the player's lap and each AI car's build code and lap.
+- Caps: the newest `MAX_REPLAYS` (6) keep, and together they hold at most `MAX_SAVED_NUMBERS` (1 000 000 numbers, about 8 MB); the oldest go with the save that passes either. One replay over `MAX_REPLAY_NUMBERS` (400 000; a ten minute run with six AI cars is 336 000) does not load.
+- Events > Runs > Replays lists them. Watch closes the menu and plays over the open road; a run under way refuses it, a results page is left first. A replay plays only on the map it was driven on: elsewhere its row says so.
+- Not built: travelling to a replay's map to watch it, and drawing the car that drove. The player's car in a saved replay is the one fitted now; the saved build code is there for when it is drawn.
+
 ## Memory per minute
 
 A frame is 8 doubles = 64 B.
@@ -55,7 +73,9 @@ A frame is 8 doubles = 64 B.
 
 The ten minute cap makes the worst case 0.4 MB for the player and 2.7 MB with a full field at 10 Hz. Saved as JSON rounded to 3 decimals (as ghosts are) a car is about 42 KB a minute.
 
-## What is missing to replay the AI field
+## What was missing to replay the AI field
+
+Points 1, 2 and 4 are slice 2. Point 3 holds for the field (one clock); a duel ghost is still not in the replay.
 
 1. A recording. Nothing keeps the field's poses. Re-running the field from its seed is not an option: it reacts to the player's car, and which cars coast depends on what was on screen (`Field.seen`), so a re-run does not repeat the race.
 2. A draw path. `FieldView.update` reads `sim.field_cars`; playback needs it to take a pose per car instead, as `Driver.draw_at` does for the player, with its far-view and retired handling kept.
@@ -64,7 +84,7 @@ The ten minute cap makes the worst case 0.4 MB for the player and 2.7 MB with a 
 
 ## Decisions for the owner (the gate)
 
-Slice 1 reuses the ghost lap layout and adds no saved format, so it was built. The next slices need a call:
+Slice 1 reuses the ghost lap layout and adds no saved format, so it was built. Decided since: field tapes are option A (slice 2), and replays are kept on request (the Save button), not per event.
 
 1. **Field and ghost tapes**
    - A, lightest: one more ghost-layout tape per AI car (10 Hz, pose only), recorded in `SimHost` or by `FieldView`'s reader, and the ghost's lap read as is. No new format. Cars slide with fixed front wheels, as ghosts do today. Recommended for slice 2.

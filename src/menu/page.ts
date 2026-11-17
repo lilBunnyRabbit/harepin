@@ -18,6 +18,7 @@ import type { WorldKind } from "../worldgen/types";
 import type { MapPlayer } from "./world-map.svelte";
 import type { Laps, QualityTier, SettingKey, SettingsState } from "./prefs";
 import type { Tab } from "./ui/types";
+import type { SavedReplay } from "../replay/saved";
 
 export const MenuTab = {
   PLAY: "play",
@@ -80,6 +81,8 @@ export interface SettingsHost {
   readonly runs: Runs;
   /** Starts a `?run=` pick now on this map, or reloads onto its map, in the `car` taken on the start sheet. */
   start_run(id: string, car?: string | null): void;
+  /** Plays a saved replay over the road and closes the menu, or says why it can't now. */
+  watch_replay(replay: SavedReplay): string;
   name(): string;
   quality_status(): QualityStatus;
   race_busy(): boolean;

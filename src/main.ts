@@ -26,7 +26,7 @@ import { own_country } from "./net/country";
 import { Chat } from "./net/chat";
 import { Skids, Smoke } from "./render/effects";
 import { Sparks } from "./render/sparks";
-import { build_spec, parse_build } from "./car/build";
+import { build_code, build_spec, parse_build } from "./car/build";
 import { load_builds } from "./car/builds";
 import { car_shelves, limit_text, type CarLimit, type CarShelf } from "./car/car-pick";
 import { Garage } from "./menu/garage.svelte";
@@ -92,6 +92,8 @@ import { map_note } from "./menu/map-note";
 import { MAPS_PAGE } from "./menu/maps";
 import { plain_map } from "./worldgen/kinds/kinds";
 import { Replay } from "./replay/replay";
+import { save_replay } from "./replay/replay-store";
+import { pack_replay, type SavedReplay } from "./replay/saved";
 import { REVIEW_BUILD, review_wanted } from "./review/params";
 import { show_map_overlay } from "./hud/map-overlay.svelte";
 import { show_next_up } from "./hud/next-up-view.svelte";
@@ -380,6 +382,7 @@ const settings = new Settings(document.body, {
   start_series: (id, car) => start_series(id, car),
   runs,
   start_run: (id, car) => start_run(id, car),
+  watch_replay: (saved) => watch_saved(saved),
   name: () => net.name,
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
   race_busy: () => lobby.busy,
@@ -542,14 +545,25 @@ modes.start();
 modes.result_next.mount($("mode-result"));
 chat.enter_taken = () => modes.result_up;
 modes.covered = () => menu_over() || pad_menu.is_open;
-const replay = new Replay(chase, world);
+const replay = new Replay(chase, world, scene, sim);
 replay.view.mount(document.body);
 replay.on_open = () => modes.cover_result(true);
 replay.on_close = () => {
   modes.cover_result(false);
   chase.snap(driver.car);
 };
-modes.watch = (tape, field) => replay.open(tape, field);
+modes.watch = (tape, field) =>
+  replay.open(tape, field, () => {
+    const at = Date.now();
+    return save_replay(pack_replay(tape, { id: at.toString(36), at, name: tape.name, mode: tape.mode, map: map_code(built), place: map_name(built, world.towns), car: garage.code, cars: field?.builds.map(build_code) ?? [] }));
+  });
+function watch_saved(saved: SavedReplay): string {
+  if (lobby.busy || (modes.engaged && !modes.result_done)) return "Finish the run first.";
+  if (modes.engaged) quit_mode();
+  settings.close();
+  replay.open_saved(saved);
+  return "";
+}
 updater.start();
 const system_back = new SystemBack(
   {
@@ -949,8 +963,8 @@ function frame(time: number) {
   if (garage.is_open && !modal_open()) garage.navigate(input.nav);
   else pad_menu.navigate(input.nav);
   for (const action of actions) (replay.is_open ? REPLAY_ACTIONS[action] : ACTIONS[action])?.();
-  // A retry, a next run or a lobby start takes the result away, and its replay with it.
-  if (replay.is_open && !modes.result_done) replay.close();
+  // A retry, a next run or a lobby start takes the result away, and its replay with it; a saved one plays over the open road.
+  if (replay.is_open && modes.engaged && !modes.result_done) replay.close();
   const car = driver.car;
 
   lobby.update(now);
@@ -1042,8 +1056,8 @@ function frame(time: number) {
   update_gates(world_time);
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
-  markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy);
-  next_ticket.update(car.pos.x, car.pos.z, car.heading, !modes.engaged && !lobby.busy && !settings.is_open, input.pad?.buttons[TRAVEL_BUTTON]?.pressed === true);
+  markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy && !replay.is_open);
+  next_ticket.update(car.pos.x, car.pos.z, car.heading, !modes.engaged && !lobby.busy && !settings.is_open && !replay.is_open, input.pad?.buttons[TRAVEL_BUTTON]?.pressed === true);
   first_run.update(car.vel.length(), car.heading, next_ticket.shown && !input.blocked() && !review && lab_id === null);
   // With peers the sim steps every frame, so the heartbeat sends a fresh pose; the draw side waits for the frame that
   // draws and advances by the time it skipped.

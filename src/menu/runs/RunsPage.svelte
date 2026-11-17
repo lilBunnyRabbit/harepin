@@ -3,6 +3,7 @@
   import { WEEK_STARS } from "../../modes/championship";
   import { FREE_CAP } from "../../runs/runs-store";
   import { daily, iso_week, new_seed, random, type_of, weekly, type RunPick } from "../../runs/runs";
+  import { REPLAYS_PAGE } from "../../replay/saved";
   import { plain_map } from "../../worldgen/kinds/kinds";
   import type { CarPicker } from "../car-pick.svelte";
   import { aim_or_go, bare_enter } from "../drive-picks";
@@ -11,6 +12,7 @@
   import StartSheet from "../StartSheet.svelte";
   import Card from "../ui/Card.svelte";
   import Icon from "../ui/Icon.svelte";
+  import KeyLink from "../ui/KeyLink.svelte";
   import PlaceLine from "../ui/PlaceLine.svelte";
   import PrimaryAction from "../ui/PrimaryAction.svelte";
   import type { PageProps } from "../ui/svelte-page.svelte";
@@ -77,6 +79,10 @@
 
 <svelte:window onkeydown={key} />
 
+{#snippet links()}
+  <KeyLink keys={{ touch: "icon-play" }} onclick={() => menu.show(REPLAYS_PAGE)}>Replays</KeyLink>
+{/snippet}
+
 {#snippet primary()}
   <PrimaryAction onclick={() => open(card)}>{card.verb}</PrimaryAction>
 {/snippet}
@@ -84,7 +90,7 @@
 {#if target}
   <StartSheet {menu} {picker} {target} eyebrow="Events" title="Runs" {shown} onclose={() => (target = null)} />
 {:else}
-  <MenuFrame {menu} id={RUNS_PAGE} eyebrow="Events" title="Runs" season={false} veil={0.55} note={`Random and built runs earn up to ${FREE_CAP} ★ a day: ${free_left} left today.`} {primary}>
+  <MenuFrame {menu} id={RUNS_PAGE} eyebrow="Events" title="Runs" season={false} veil={0.55} note={`Random and built runs earn up to ${FREE_CAP} ★ a day: ${free_left} left today.`} {links} {primary}>
     <div class="runs">
       <SeasonBar stars={live.live(() => runs.stars)} season={live.live(() => runs.season)} {today} />
       <div class="runs-cards">

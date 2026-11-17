@@ -1,15 +1,18 @@
 import * as THREE from "three";
-import type { FieldPoses, FieldView } from "../ai/field-view";
+import { FieldView, type FieldPoses } from "../ai/field-view";
+import { parse_build } from "../car/build";
 import type { Driver } from "../car/driver";
 import { lap_pose } from "../car/ghost";
 import { STRIDE } from "../car/ghost-cap";
 import type { Look } from "../hud/input";
 import type { ChaseCamera } from "../render/camera";
+import type { Sim } from "../sim/sim-client";
 import type { World } from "../world/world";
 import { FreeCamera } from "./free-camera";
 import { Playback } from "./playback";
-import { ReplayView } from "./replay-view.svelte";
+import { ReplayView, Save } from "./replay-view.svelte";
 import { TELEPORT_MPS, on_tape, type Watched } from "./run-tape";
+import { watched, type SavedReplay } from "./saved";
 
 const VEL_MS = 50;
 const TURN = Math.PI * 2;
@@ -20,6 +23,9 @@ export class Replay {
   on_close = () => {};
   private tape: Watched | null = null;
   private field: FieldView | null = null;
+  private own: FieldView | null = null;
+  private keep: (() => Promise<boolean>) | null = null;
+  private opened = 0;
   private readonly poses: FieldPoses = { pose: (i, pos, quat) => this.rival_pose(i, pos, quat) };
   private free = false;
   private roll = 0;
@@ -33,6 +39,8 @@ export class Replay {
   constructor(
     private readonly chase: ChaseCamera,
     private readonly world: World,
+    private readonly scene: THREE.Scene,
+    private readonly sim: Sim,
   ) {
     this.fly = new FreeCamera(chase.camera);
     this.view = new ReplayView({
@@ -41,6 +49,7 @@ export class Replay {
       next_speed: () => this.clock.next_speed(),
       swap_camera: () => this.swap_camera(),
       close: () => this.close(),
+      save: () => this.save(),
     });
   }
 
@@ -57,12 +66,28 @@ export class Replay {
     return this.tape !== null && this.free;
   }
 
-  /** `field`: the run's AI cars, drawn off the tape while it plays. */
-  open(tape: Watched, field: FieldView | null) {
+  /** `field`: the run's AI cars, drawn off the tape while it plays. `keep` saves the tape, resolving false when refused. */
+  open(tape: Watched, field: FieldView | null, keep: (() => Promise<boolean>) | null) {
     if (tape.end_ms <= 0) return;
     this.close();
+    this.begin(tape, field, keep);
+  }
+
+  /** A saved replay brings its own AI cars, built for it and gone when it closes. */
+  open_saved(replay: SavedReplay) {
+    const builds = replay.field.flatMap((car) => parse_build(car.car) ?? []);
+    if (builds.length !== replay.field.length) return;
+    this.close();
+    this.own = builds.length ? new FieldView(this.scene, this.sim, builds) : null;
+    this.begin(watched(replay), this.own, null);
+  }
+
+  private begin(tape: Watched, field: FieldView | null, keep: (() => Promise<boolean>) | null) {
     this.tape = tape;
     this.field = tape.field.length ? field : null;
+    this.keep = keep;
+    this.opened++;
+    this.view.save = keep ? Save.READY : Save.NONE;
     this.clock.open(tape.end_ms);
     this.free = false;
     this.roll = 0;
@@ -71,11 +96,23 @@ export class Replay {
     this.on_open();
   }
 
+  private save() {
+    const { keep, view, opened } = this;
+    if (!keep || (view.save !== Save.READY && view.save !== Save.FAILED)) return;
+    view.save = Save.SAVING;
+    void keep().then((saved) => {
+      if (this.opened === opened && this.tape) view.save = saved ? Save.SAVED : Save.FAILED;
+    });
+  }
+
   close() {
     if (!this.tape) return;
     this.tape = null;
+    this.keep = null;
     this.field?.end_tape();
     this.field = null;
+    this.own?.dispose();
+    this.own = null;
     this.view.shown = false;
     this.on_close();
   }

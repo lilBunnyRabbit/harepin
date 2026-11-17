@@ -4,7 +4,7 @@
   import Button from "../menu/ui/Button.svelte";
   import IconButton from "../menu/ui/IconButton.svelte";
   import Slider from "../menu/ui/Slider.svelte";
-  import type { ReplayView } from "./replay-view.svelte";
+  import { Save, type ReplayView } from "./replay-view.svelte";
 
   interface Props {
     view: ReplayView;
@@ -13,6 +13,7 @@
   let { view }: Props = $props();
 
   const SCRUB_STEP_MS = 100;
+  const SAVE_LABEL: Record<Save, string> = { [Save.NONE]: "", [Save.READY]: "Save", [Save.SAVING]: "Saving", [Save.SAVED]: "Saved", [Save.FAILED]: "Not saved" };
 
   function key(event: KeyboardEvent) {
     if (!view.shown || event.code !== "Space" || event.repeat || typing(event.target)) return;
@@ -36,6 +37,9 @@
     </div>
     <Button size="sm" variant="quiet" aria-label="Playback speed" onclick={() => view.acts.next_speed()}><span data-mono>{view.speed}×</span></Button>
     <Button size="sm" variant="quiet" icon="icon-camera" aria-label="Camera" onclick={() => view.acts.swap_camera()}>{view.free ? "Free" : "Chase"}</Button>
+    {#if view.save !== Save.NONE}
+      <Button size="sm" variant="quiet" icon={view.save === Save.SAVED ? "icon-check" : undefined} aria-label="Save replay" disabled={view.save === Save.SAVING || view.save === Save.SAVED} onclick={() => view.acts.save()}>{SAVE_LABEL[view.save]}</Button>
+    {/if}
     <IconButton icon="icon-close" label="Close replay" title="Esc" onclick={() => view.acts.close()} />
   </div>
 {/if}
