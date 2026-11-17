@@ -51,7 +51,7 @@
         />
         <IconButton icon="icon-dice" label="Another name" title="Another name" shape="round" onclick={roll} />
       </div>
-      <span class="wel-help">Others see it above your car. Change it any time from the name chip in the menu.</span>
+      <span class="wel-help">Others see it above your car. Change it any time in Settings, under Online.</span>
     </div>
   </Card>
   <Card pad="none" class="wel-shot" label="How others see you">

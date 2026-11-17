@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import BackPill from "./BackPill.svelte";
+  import ScrollArea from "./ScrollArea.svelte";
 
   interface Back {
     to: string;
@@ -39,7 +40,7 @@
       <div class="ui-frame-stations">{@render stations?.()}</div>
       <div class="ui-frame-chips">{@render chips?.()}</div>
     </header>
-    <main class="ui-frame-body">{@render children()}</main>
+    <ScrollArea class="ui-frame-body">{@render children()}</ScrollArea>
     <footer class="ui-frame-bottom">
       <div class="ui-frame-links">
         {#if back}<BackPill to={back.to} onclick={back.go} />{/if}
@@ -153,9 +154,13 @@
     gap: var(--gap-sm);
   }
 
-  .ui-frame-body {
-    min-width: 0;
-    min-height: 0;
+  /* A phone body that runs long scrolls as one, fading at the edge it is cut on; the rows around it stay put. A taller
+     screen's body never scrolls, and a mask would cut the focus rings that stand outside its box. */
+  @media (min-height: 501px) {
+    .ui-frame-rows > :global(.ui-frame-body) {
+      overflow: visible;
+      mask-image: none;
+    }
   }
 
   .ui-frame-bottom {
@@ -172,7 +177,7 @@
   }
 
   .ui-frame-top > *,
-  .ui-frame-body > :global(*),
+  .ui-frame-rows > :global(.ui-frame-body > *),
   .ui-frame-links > :global(*),
   .ui-frame-action > :global(*) {
     pointer-events: auto;
@@ -187,13 +192,7 @@
     text-wrap: balance;
   }
 
-  /* A phone body that runs long scrolls as one; the rows around it stay put. */
   @media (max-height: 500px) {
-    .ui-frame-body {
-      overflow-y: auto;
-      scrollbar-width: none;
-    }
-
     .ui-frame-links {
       gap: var(--gap-sm);
     }

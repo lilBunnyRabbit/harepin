@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { THEMES, apply_theme, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../../theme/theme";
+  import { show_theme } from "../../theme/palette";
+  import { THEMES, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../../theme/theme";
   import { HudSize, MapView, SpeedoStyle } from "../prefs";
   import Button from "../ui/Button.svelte";
   import type { MenuState } from "../ui/menu-state.svelte";
@@ -37,13 +38,13 @@
 
   function preview(name: string) {
     pick = name;
-    if (previewing) apply_theme(name);
+    if (previewing) show_theme(name);
   }
 
   function enter() {
     if (previewing) return;
     previewing = true;
-    apply_theme(pick);
+    show_theme(pick);
   }
 
   function leave(event: FocusEvent) {
@@ -55,7 +56,7 @@
     if (!previewing) return;
     previewing = false;
     pick = in_use;
-    apply_theme(in_use);
+    show_theme(in_use);
   }
 
   $effect(() => restore);

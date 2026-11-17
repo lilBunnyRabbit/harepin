@@ -1,6 +1,7 @@
 <script lang="ts">
   import { SteerMode } from "../../car/car";
-  import { apply_theme, choose_theme, current_theme, find_theme } from "../../theme/theme";
+  import { show_theme } from "../../theme/palette";
+  import { choose_theme, current_theme, find_theme } from "../../theme/theme";
   import { DEVICES, Device, detect_device } from "../device";
   import { AidPreset, preset_aids, preset_of } from "../guide-rules";
   import { TouchSteer } from "../prefs";
@@ -35,7 +36,7 @@
   function look(name: string) {
     theme = name;
     choose_theme(name);
-    apply_theme(name);
+    show_theme(name);
   }
 
   function help(next: AidPreset) {
