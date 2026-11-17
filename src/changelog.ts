@@ -51,6 +51,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.59.0",
+    date: "2026-11-17",
+    title: "Sharper rivals",
+    changes: [
+      { kind: IMPROVED, text: "AI rivals drive a tighter line, brake later and take hairpins faster: about 3% quicker on every car" },
+      { kind: IMPROVED, text: "Rivals race cleaner in a pack: fewer first-lap pile-ups and no squeezing two abreast at the road edge" },
+    ],
+  },
+  {
     version: "0.58.0",
     date: "2026-11-17",
     title: "Lit roads",
