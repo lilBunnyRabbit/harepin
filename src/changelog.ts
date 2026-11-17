@@ -51,6 +51,16 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.64.1",
+    date: "2026-11-17",
+    title: "Steady glow",
+    changes: [
+      { kind: FIXED, text: "Neon no longer blinks while paused, and your glow follows your car in replays" },
+      { kind: FIXED, text: "Menus show again when an update is ready" },
+      { kind: FIXED, text: "Turning the car on Home is smoother, and the first online connection after starting the browser no longer freezes the game" },
+    ],
+  },
+  {
     version: "0.64.0",
     date: "2026-11-17",
     title: "Mirror and a smoother Garage",
