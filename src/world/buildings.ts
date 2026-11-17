@@ -224,8 +224,10 @@ export class TownChunks {
   /**
    * One of each object a town chunk brings, never drawn. The link pass at boot reads every mesh in the scene, shown or
    * not, so the first town to stream in finds its programs linked; linking one in a frame holds that frame 30-90 ms.
+   * None on a map with no town on it.
    */
   primer(): THREE.Object3D[] {
+    if (!this.world.towns.length && !this.world.buildings.length && !this.cars.size && !this.lights.size) return [];
     const soup = soup_geometry({ positions: new Float32Array(9), colors: new Float32Array(9), sphere: [0, 0, 0, 0] });
     const spot = { x: 0, y: 0, z: 0 };
     const objects = [
