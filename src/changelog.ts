@@ -51,6 +51,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.64.2",
+    date: "2026-11-17",
+    title: "No hitch on Home",
+    changes: [
+      { kind: FIXED, text: "No freeze right after Home shows or on the first drive: shaders now get ready behind the loading screen" },
+      { kind: FIXED, text: "The Garage no longer stalls while it gets its parts ready" },
+    ],
+  },
+  {
     version: "0.64.1",
     date: "2026-11-17",
     title: "Steady glow",
