@@ -1,5 +1,4 @@
 import { extent } from "./chunk-grid";
-import { near_solids, near_stops, road_lamps } from "./lamps";
 import { mainland_lots } from "./mainland-lots";
 import { mainland_network } from "./mainland-network";
 import { plan_grid, type PlanGrid } from "./plan-grid";
@@ -9,12 +8,10 @@ import { circuit_route, circuit_sprint, heading, town_route, trip_route } from "
 import type { GroundOp } from "./stamp";
 import { land_height } from "./terrain";
 import { town_level } from "./towns";
-import { plan_water, water_index } from "./water";
+import { plan_water } from "./water";
 import { CELL, WorldKind, type Checkpoint, type RoadPoint, type WorldData } from "./types";
 
 const CHECKPOINTS = 16;
-const LAMP_PAD = 2.5;
-const LAMP_DRY = 0.5;
 /** Autopilot-model seconds the circuit sprint aims for: about four minutes at the owner's pace, near 1.75x faster than the model. */
 const SPRINT_S = 420;
 /** Metres a gate keeps from every road node: clear of junction patches and the kink where a link meets a town's street. */
@@ -64,12 +61,6 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
   ];
   const { patched } = road_junctions({ road, graph, circuit });
   const town = mainland_lots(seed, recipe, graph, towns, circuit, patched, ops, water);
-  const level = water && water_index(water);
-  const taken = near_solids(town.solids, LAMP_PAD);
-  // The plan holds no grids: a mast stands at its road's height, on the shoulder the road was blended into.
-  const masts = road_lamps(graph, near_stops(towns, graph.nodes), (_x, _z, beside) => beside.y, (x, z, beside) => taken(x, z) || (level !== null && level.level(x, z) > beside.y - LAMP_DRY));
-  town.props.push(...masts.props);
-  town.solids.push(...masts.solids);
   lap("lots");
   const clear = (p: RoadPoint) => graph.nodes.every((node) => (node.x - p.x) ** 2 + (node.z - p.z) ** 2 >= GATE_CLEAR * GATE_CLEAR);
   // The first gate is the start line at road[0]; each other one takes the clear sample nearest its even slot, after the gate before.

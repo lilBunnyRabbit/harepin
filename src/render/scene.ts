@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { by_chunk, soup_geometry, TownChunks, type TownChunk } from "../world/buildings";
-import { pool_tones } from "../world/road-lights";
 import { JumpsView } from "../world/jumps";
 import { LandmarksView } from "../world/landmarks";
 import { color, lighten, linear, mix, tones } from "../theme/palette";
@@ -95,7 +94,6 @@ export function mesh_tones(snowy = false, upland: Lab = tones.grass_dry, deck: D
       timber: linear(tones.trunk),
     },
     landmark: { pale: linear(tones.check_light), band: linear(tones.roof), cap: linear(tones.trim), stone: linear(tones.rock), stone_shade: linear(lighten(tones.rock, -STONE_SHADE)), plant: linear(tones.leaf), plant_shade: linear(tones.leaf_dark) },
-    pools: pool_tones(),
     deck: { deck: linear(deck.deck), side: linear(deck.side), rail: linear(deck.rail), joint: linear(deck.joint), pad: linear(deck.pad), chevron: linear(deck.chevron) },
   };
 }

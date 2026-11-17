@@ -3,7 +3,6 @@ import { CHUNK, chunk_corner, chunk_of, chunk_vertex, type Extent } from "./chun
 import { paint, soup, terrain_mesh, town_builders, town_meshes, type ChunkBuffers, type MeshTones } from "./chunks";
 import { build_tile } from "./ground";
 import { KINDS } from "./kinds/kinds";
-import { lamp_pools } from "./lamps";
 import { PLAN_CELL } from "./mainland";
 import { plan_grid } from "./plan-grid";
 import { ISLAND } from "./recipe";
@@ -109,8 +108,6 @@ export class TileMesher {
     }
     const water = this.water && !this.frozen && this.surface(tile, x0, z0);
     if (water) chunk.water = water;
-    const pools = here && this.tones.pools && lamp_pools(here.props, this.tones.pools, (x, z) => this.store.height(x, z));
-    if (pools) chunk.pools = pools;
     return { tile: { heights: tile.heights.slice(), road_dist: tile.road_dist.slice(), surface: tile.surface.slice() }, chunk, planted };
   }
 

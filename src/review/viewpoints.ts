@@ -1,5 +1,5 @@
 import { SPAWN_INDEX, type World } from "../world/world";
-import { DECK_STRIDE, PropKind, type RoadPoint } from "../worldgen/types";
+import { DECK_STRIDE, type RoadPoint } from "../worldgen/types";
 import type { RiverPoint } from "../worldgen/water";
 import { VIEWS, type ViewName } from "./catalog";
 
@@ -24,7 +24,7 @@ const CREST_DROP = 15;
 const CREST_REACH = 480;
 const CREST_STEP = 4;
 
-type Plan = Pick<World, "lots" | "props" | "road" | "towns" | "water_level" | "nearest_road" | "clear_spawn" | "ice">;
+type Plan = Pick<World, "lots" | "road" | "towns" | "water_level" | "nearest_road" | "clear_spawn" | "ice">;
 
 interface Frame {
   centre: V3;
@@ -59,18 +59,6 @@ function along(world: Plan, start: number, share: number): View {
   return { at, from: [p.x - p.tz * 28 - p.tx * 10, p.y + 10, p.z + p.tx * 28 - p.tz * 10], to: [p.x + p.tx * 6, p.y + 1, p.z + p.tz * 6] };
 }
 
-// Driver height, looking along the road: what stands beside it, and at dusk what lights it. Starts at the lit stretch
-// nearest `share` of the lap, or at `share` on a circuit with no lamp.
-function down_road(world: Plan, start: number, share: number): View {
-  const n = world.road.length;
-  const want = (start + Math.round(n * share)) % n;
-  const lit = world.props.filter((prop) => prop.kind === PropKind.ROAD_LAMP).map((prop) => index_of(world, prop.x, prop.z));
-  const gap = (s: number) => Math.min((s - want + n) % n, (want - s + n) % n);
-  const at = lit.reduce((best, s) => (gap(s) < gap(best) ? s : best), lit[0] ?? want);
-  const p = world.road[at];
-  return { at, from: [p.x - p.tx * 14 + p.tz * 1.5, p.y + 3.2, p.z - p.tz * 14 - p.tx * 1.5], to: [p.x + p.tx * 50, p.y + 1, p.z + p.tz * 50] };
-}
-
 const index_of = (world: Plan, x: number, z: number) => world.road.indexOf(world.nearest_road(x, z));
 
 // Heights here are over the road; `view_of` lifts the camera clear of the ground once that has streamed in.
@@ -85,7 +73,6 @@ export function plan_views(world: Plan): Partial<Record<ViewName, View>> {
   if (road.length < 2) return { start: start_view };
   const views: Partial<Record<ViewName, View>> = {
     start: start_view,
-    road: down_road(world, spawn, 0.25),
     q1: along(world, spawn, 0.25),
     q2: along(world, spawn, 0.5),
     q3: along(world, spawn, 0.75),

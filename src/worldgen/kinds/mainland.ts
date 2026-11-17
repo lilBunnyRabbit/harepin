@@ -12,7 +12,7 @@ export const mainland = kind_def({
   kind: WorldKind.MAINLAND,
   base: 3000,
   tag: "m",
-  version: 12,
+  version: 13,
   size: MAINLAND_SIZE,
   generate: (seed, levels) => generate_mainland(seed, tuned(levels)),
   options: MAINLAND_KNOBS,

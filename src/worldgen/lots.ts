@@ -1,6 +1,5 @@
 import { TreeKind } from "./biomes";
 import { at, sample_on, span_i, span_j, WHOLE, type Grid } from "./field";
-import { put_lamp } from "./lamps";
 import { hash, length } from "./noise";
 import type { TownRecipe } from "./recipe";
 import { heading, prop_solids } from "./scatter";
@@ -54,6 +53,7 @@ const PARKING_MIN_D = 14;
 const ENTRY_W = 6;
 const PARKED = { w: 1.9, l: 4.5, h: 1.4 };
 const LIGHT_EVERY = 30;
+const LIGHT_HEIGHT = 6;
 // Phones pay for every town tree: at one a side every 12 m and two a garden a town frame cost a third more.
 const STREET_TREE_EVERY = 15;
 /** A cottage garden holds two trees this often, else one. */
@@ -528,14 +528,15 @@ export class Lots {
     const b = edge.points[edge.points.length - 1];
     const len = length(b.x - a.x, b.z - a.z);
     const { tx, tz } = a;
-    // A row a side, the far one half a pitch on, so the pools overlap down the street instead of pairing up.
-    for (const side of [-1, 1])
-      for (let u = CORNER_CLEAR + (side > 0 ? LIGHT_EVERY / 2 : 0); u < len - CORNER_CLEAR; u += LIGHT_EVERY) {
-        const off = side * (half + 1);
-        const x = a.x + tx * u - tz * off;
-        const z = a.z + tz * u + tx * off;
-        if (this.occupied[this.vertex_at(x, z)] || (this.shape.exact && this.sample(this.terrain.road_dist, x, z) < ROAD_HALF + 0.5)) continue;
-        put_lamp(this.out, PropKind.STREET_LIGHT, x, this.sample(this.terrain.heights, x, z), z, tz * side, -tx * side);
-      }
+    for (let u = CORNER_CLEAR, n = 0; u < len - CORNER_CLEAR; u += LIGHT_EVERY, n++) {
+      const side = n % 2 ? 1 : -1;
+      const off = side * (half + 1);
+      const x = a.x + tx * u - tz * off;
+      const z = a.z + tz * u + tx * off;
+      if (this.occupied[this.vertex_at(x, z)] || (this.shape.exact && this.sample(this.terrain.road_dist, x, z) < ROAD_HALF + 0.5)) continue;
+      const y = this.sample(this.terrain.heights, x, z);
+      this.out.props.push({ x, y, z, angle: atan2(tz * side, -tx * side), kind: PropKind.STREET_LIGHT, scale: 1 });
+      this.out.solids.push({ kind: "circle", x, y, z, radius: 0.18, height: LIGHT_HEIGHT });
+    }
   }
 }

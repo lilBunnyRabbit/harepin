@@ -2,7 +2,6 @@ import { biome_cuts, item_kind, plant } from "./biomes";
 import { sample, vertex } from "./field";
 import { ITEMS, JumpPlanner, mark_steep_runups } from "./jumps";
 import { LandmarkPlanner } from "./landmarks";
-import { near_solids, near_stops, road_lamps } from "./lamps";
 import { length } from "./noise";
 import { Lots } from "./lots";
 import { plan_canyon } from "./canyon";
@@ -28,9 +27,6 @@ import { ISLAND, type Landmark, type Recipe } from "./recipe";
 import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, WorldKind, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Tree, type WorldData } from "./types";
 
 const CHECKPOINTS = 12;
-/** A road mast keeps this far from every solid, item and jump, and stands on ground at least `LAMP_DRY` over the sea. */
-const LAMP_PAD = 2.5;
-const LAMP_DRY = 0.5;
 const STACK_GATE = 5;
 /** Spurs try joins at least this far outside the switchback first; one on its legs only when nothing else fits the grade. */
 const STACK_JOIN = 20;
@@ -277,15 +273,6 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const strewn = scatter(cuts, land, recipe.scatter, free, [...trails.trails.flatMap((t) => t.points), ...trails.ramp_out, ...bed_line]);
   props.push(...strewn.props);
   solids.push(...strewn.solids);
-  const taken = near_solids(solids, LAMP_PAD);
-  const masts = road_lamps(
-    graph,
-    near_stops(towns, nodes),
-    (x, z) => sample(heights, x, z),
-    (x, z) => taken(x, z) || jumps.blocks(x, z, LAMP_PAD) || marks.blocks(x, z, LAMP_PAD) || jumps.items.some((item) => length(item.x - x, item.z - z) < LAMP_PAD) || on_ice(lakes, x, z) || on_bed(x, z) || sample(heights, x, z) < LAMP_DRY || (lava.length > 0 && in_lava(lava, x, z, sample(heights, x, z))),
-  );
-  props.push(...masts.props);
-  solids.push(...masts.solids);
   stamp.harden(cuts, pan_floor(seed, shape));
   if (recipe.snow) {
     const bare = heights.slice();
