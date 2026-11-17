@@ -222,7 +222,19 @@
     color: var(--accent);
   }
 
+  /* A big screen's ticket would stretch into a slab: it stops at 60% of the body (ui-flows 1.4). */
+  @media (min-width: 1600px) {
+    .home-picks > :global(.ui-pictured) {
+      max-height: 60%;
+    }
+  }
+
   @media (max-height: 500px) {
+    /* The phone body scrolls, so it clips: the focus ring needs its room inside. */
+    .home {
+      padding: calc(var(--mark-w) + var(--space-0));
+    }
+
     .home-title {
       font-size: var(--type-h2);
     }
