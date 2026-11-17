@@ -1009,7 +1009,7 @@ function frame(time: number) {
   // The dome is 2.4 km across and the mainland is wider, so it rides with the camera instead of the world origin.
   dome.position.copy(camera.position);
   world_view.update(camera, quality.tier.fog_far, world_time);
-  driver.view.root.visible = !settings.staged;
+  driver.view.root.visible = driver.shadow.mesh.visible = !settings.staged;
   // The garage covers the screen and draws the car with its own renderer; the next frame after it closes draws the world.
   if (!garage.is_open && (!draw_ms || now - last_draw >= draw_ms)) {
     last_draw = now;
