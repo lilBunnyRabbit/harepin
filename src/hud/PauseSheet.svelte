@@ -26,7 +26,7 @@
   const [lead, ...rest] = $derived(card.facts);
 </script>
 
-<PageFrame eyebrow={card.context} title={solo ? "Paused" : "Menu"} veil={VEIL} back={{ to: "Resume", go: onresume }}>
+<PageFrame eyebrow={card.context} title={solo ? "Paused" : "Menu"} veil={VEIL}>
   <div class="pause-body">
     <section class="pause-panel" aria-label={card.kind === "roam" ? "Free roam" : "This run"}>
       <div class="pause-run">

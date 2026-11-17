@@ -25,11 +25,11 @@ function rows_in_order(html: string, rows: readonly (readonly [string, string])[
   }
 }
 
-test("free roam: on the frame, the map card, Reset car, the aids, six doors with their keys and Resume", () => {
+test("free roam: on the frame, the map card, Reset car, the aids, six doors with their keys and one Resume", () => {
   const html = sheet({ kind: "roam", context: "Free roam", title: "Island · Harwar", facts: ["Rookie 0/21 ★", "4 flags here"] }, true);
   for (const text of ["ui-frame", "Free roam", "Paused", "Island · Harwar", "Rookie 0/21 ★", "4 flags here", "Assists", "TC", "Lights", "Go to", "Camera", "Chat"]) expect(html).toContain(text);
   rows_in_order(html, [["Reset car", "R"], ["Home", "H"], ["Events", "E"], ["Garage", "G"], ["Online", "O"], ["Settings", "S"], ["Road map", "M"]]);
-  expect(html.match(/>Resume</g)).toHaveLength(2);
+  expect(html.match(/>Resume</g)).toHaveLength(1);
   expect(html).not.toContain(">Leave</span>");
 });
 
