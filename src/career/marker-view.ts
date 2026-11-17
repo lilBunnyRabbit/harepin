@@ -46,6 +46,16 @@ function paint(canvas: HTMLCanvasElement, id: string, metal: Lab, font: string) 
   ctx.fillText(id, width / 2, size + (height - size) / 2);
 }
 
+/**
+ * A banner that is never drawn. A streamed map raises its flags as their ground arrives, and the banner is the only
+ * textured Lambert there: the link pass at boot reads this one, so the first flag links nothing in the frame it shows in.
+ */
+export function banner_primer(): THREE.Mesh {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(FLAG.width, FLAG.height, FLAG.depth), new THREE.MeshLambertMaterial({ map: new THREE.Texture() }));
+  mesh.visible = false;
+  return mesh;
+}
+
 export class MarkerView {
   readonly root = new THREE.Group();
   private readonly flags: Flag[] = [];

@@ -7,7 +7,7 @@ import { KINDS } from "../worldgen/kinds/kinds";
 import type { CareerEvent } from "./career";
 import type { Career } from "./career-store";
 import { GateCard, type GateHost } from "./gate-card.svelte";
-import { MarkerView, marker_tone } from "./marker-view";
+import { MarkerView, banner_primer, marker_tone } from "./marker-view";
 import { arrival, event_markers, marker_at, marker_open, MARKER_REACH, type MapMarker, type Marker, type Pose } from "./markers";
 
 const NONE: readonly MapMarker[] = [];
@@ -29,6 +29,7 @@ export class EventMarkers {
   /** The flag Go last put the car before, and where: its card opens there until the car, once there, drives off. */
   private arrived: { marker: Marker; x: number; z: number; reached: boolean } | null = null;
   private readonly open = (marker: Marker) => marker_open(marker, this.career.stars, this.tune);
+  private readonly primer = banner_primer();
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -37,6 +38,7 @@ export class EventMarkers {
     gate: GateHost,
   ) {
     this.card = new GateCard(gate);
+    scene.add(this.primer);
   }
 
   /** The restart action at a flag: starts its event when the card offers it. */
@@ -122,6 +124,8 @@ export class EventMarkers {
   dispose() {
     for (const view of this.views) view?.dispose();
     this.views = [];
+    this.primer.removeFromParent();
+    this.primer.geometry.dispose();
     this.card.dispose();
   }
 }
