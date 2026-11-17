@@ -18,6 +18,7 @@
   import Chip from "./ui/Chip.svelte";
   import PrimaryAction from "./ui/PrimaryAction.svelte";
   import Row from "./ui/Row.svelte";
+  import ScrollArea from "./ui/ScrollArea.svelte";
   import RowList from "./ui/RowList.svelte";
   import SectionHead from "./ui/SectionHead.svelte";
   import Segmented from "./ui/Segmented.svelte";
@@ -154,74 +155,78 @@
   <MenuFrame {menu} id={CUSTOM_PAGE} eyebrow="Events · Free modes" title="Custom race" veil={0.55} note={`${summary}. Nothing is recorded, and it is kept for next time.`} {primary}>
     <div class="custom">
       <Card list label="The race">
-        <div class="custom-head"><SectionHead eyebrow={away ? `Loads ${name_of(away)}` : host.map_name()} title="The race" /></div>
-        <RowList divided label="Race options">
-          <Row label="Map" help={away ? "Travels there when the race starts" : "Starts here, no loading"} stack>
-            {#snippet control()}<Segmented options={MAPS} value={setup.map === null ? HERE : CODE} label="Map" onchange={pick_map} />{/snippet}
-          </Row>
-          {#if setup.map !== null}
+        <ScrollArea class="custom-scroll">
+          <div class="custom-head"><SectionHead eyebrow={away ? `Loads ${name_of(away)}` : host.map_name()} title="The race" /></div>
+          <RowList divided label="Race options">
+            <Row label="Map" help={away ? "Travels there when the race starts" : "Starts here, no loading"} stack>
+              {#snippet control()}<Segmented options={MAPS} value={setup.map === null ? HERE : CODE} label="Map" onchange={pick_map} />{/snippet}
+            </Row>
+            {#if setup.map !== null}
+              <div class="custom-extra">
+                <TextField bind:value={() => (typing ? code_text : (setup.map ?? "")), read_code} mono maxlength={64} autocapitalize="characters" spellcheck={false} aria-label="Map code" aria-invalid={bad} onfocus={() => ((code_text = setup.map ?? ""), (typing = true))} onblur={() => ((typing = false), (bad = false))} />
+                <span class="custom-hint" data-bad={bad ? "" : undefined}>{bad ? BAD : "Copy a code from Make a map"}</span>
+              </div>
+            {/if}
+            <Row label="Route" help={route_help} stack>
+              {#snippet control()}
+                {#if route}<Select options={route_options} value={route.id} label="Route" onchange={(id) => patch({ route: id })} />{/if}
+              {/snippet}
+            </Row>
+            <Row label="Format" help={FORMAT_HELP[setup.format]} stack>
+              {#snippet control()}<Segmented options={FORMATS} value={setup.format} label="Format" onchange={(format) => patch({ format })} />{/snippet}
+            </Row>
+            {#if timed}
+              <Row label="Time" help="The clock the race ends on" stack>
+                {#snippet control()}<Segmented options={MINUTES} value={setup.minutes} label="Time" onchange={(minutes) => patch({ minutes })} />{/snippet}
+              </Row>
+            {:else}
+              <Row label="Laps" help={setup.laps ? "Run to the line" : "Auto: about four minutes of racing"} stack>
+                {#snippet control()}<Slider value={setup.laps} min={0} max={MAX_LAPS} label="Laps" format={(laps) => (laps ? String(laps) : "Auto")} onchange={(laps) => patch({ laps })} />{/snippet}
+              </Row>
+            {/if}
+            <Row label="Your grid slot" help={slot === setup.rivals ? "From the back" : slot === 0 ? "On pole" : `${slot} ahead of you`} stack>
+              {#snippet control()}<Slider value={slot + 1} min={1} max={setup.rivals + 1} label="Your grid slot" format={(n) => `P${n}`} onchange={(n) => patch({ grid: n > setup.rivals ? MAX_RIVALS : n - 1 })} />{/snippet}
+            </Row>
             <div class="custom-extra">
-              <TextField bind:value={() => (typing ? code_text : (setup.map ?? "")), read_code} mono maxlength={64} autocapitalize="characters" spellcheck={false} aria-label="Map code" aria-invalid={bad} onfocus={() => ((code_text = setup.map ?? ""), (typing = true))} onblur={() => ((typing = false), (bad = false))} />
-              <span class="custom-hint" data-bad={bad ? "" : undefined}>{bad ? BAD : "Copy a code from Make a map"}</span>
+              <div class="custom-grid" role="img" aria-label={`Starting grid: you start P${slot + 1} of ${slots.length}`}>
+                <span class="custom-line"></span>
+                {#each slots as i (i)}
+                  <span class="custom-slot" data-you={i === slot ? "" : undefined} data-low={i % 2 ? "" : undefined} style:grid-column={i + 2}>{i === slot ? "You" : i + 1}</span>
+                {/each}
+              </div>
             </div>
-          {/if}
-          <Row label="Route" help={route_help} stack>
-            {#snippet control()}
-              {#if route}<Select options={route_options} value={route.id} label="Route" onchange={(id) => patch({ route: id })} />{/if}
-            {/snippet}
-          </Row>
-          <Row label="Format" help={FORMAT_HELP[setup.format]} stack>
-            {#snippet control()}<Segmented options={FORMATS} value={setup.format} label="Format" onchange={(format) => patch({ format })} />{/snippet}
-          </Row>
-          {#if timed}
-            <Row label="Time" help="The clock the race ends on" stack>
-              {#snippet control()}<Segmented options={MINUTES} value={setup.minutes} label="Time" onchange={(minutes) => patch({ minutes })} />{/snippet}
-            </Row>
-          {:else}
-            <Row label="Laps" help={setup.laps ? "Run to the line" : "Auto: about four minutes of racing"} stack>
-              {#snippet control()}<Slider value={setup.laps} min={0} max={MAX_LAPS} label="Laps" format={(laps) => (laps ? String(laps) : "Auto")} onchange={(laps) => patch({ laps })} />{/snippet}
-            </Row>
-          {/if}
-          <Row label="Your grid slot" help={slot === setup.rivals ? "From the back" : slot === 0 ? "On pole" : `${slot} ahead of you`} stack>
-            {#snippet control()}<Slider value={slot + 1} min={1} max={setup.rivals + 1} label="Your grid slot" format={(n) => `P${n}`} onchange={(n) => patch({ grid: n > setup.rivals ? MAX_RIVALS : n - 1 })} />{/snippet}
-          </Row>
-          <div class="custom-extra">
-            <div class="custom-grid" role="img" aria-label={`Starting grid: you start P${slot + 1} of ${slots.length}`}>
-              <span class="custom-line"></span>
-              {#each slots as i (i)}
-                <span class="custom-slot" data-you={i === slot ? "" : undefined} data-low={i % 2 ? "" : undefined} style:grid-column={i + 2}>{i === slot ? "You" : i + 1}</span>
-              {/each}
-            </div>
-          </div>
-        </RowList>
+          </RowList>
+        </ScrollArea>
       </Card>
 
       <Card list label="The rivals">
-        <div class="custom-head"><SectionHead eyebrow="AI drivers" title="The rivals" /></div>
-        <RowList divided label="Rival options">
-          <Row label="Rivals" help={`${setup.rivals + 1} cars on the grid`} stack>
-            {#snippet control()}<Slider value={setup.rivals} min={1} max={MAX_RIVALS} label="Rivals" onchange={(rivals) => patch({ rivals })} />{/snippet}
-          </Row>
-          <Row label="Their cars" help={picked_help} stack>
-            {#snippet control()}<Segmented options={CAR_PICKS} value={setup.cars} label="Their cars" onchange={(cars) => patch({ cars })} />{/snippet}
-          </Row>
-          {#if setup.cars === RivalPick.PICKED}
-            <div class="custom-extra custom-cars" role="group" aria-label="Cars to race">
-              {#each PRESETS as preset (preset.name)}
-                <Chip variant="toggle" bind:pressed={() => setup.picked.includes(preset.name), () => toggle_preset(preset.name)}>{preset.name}<span class="custom-class">{preset.class}</span></Chip>
-              {/each}
-            </div>
-          {/if}
-          <Row label="Difficulty" help={DIFFICULTY_HELP[setup.difficulty]} stack>
-            {#snippet control()}<Segmented options={DIFFICULTIES} value={setup.difficulty} label="Difficulty" onchange={(difficulty) => patch({ difficulty })} />{/snippet}
-          </Row>
-          <Row label="Aggression" help="How hard they fight for a place" stack>
-            {#snippet control()}<Slider value={setup.aggression} min={LEVEL_MIN} max={LEVEL_MAX} label="Aggression" format={(level) => AGGRESSION[level - 1]} onchange={(aggression) => patch({ aggression })} />{/snippet}
-          </Row>
-          <Row label="Mistakes" help="How often they miss a braking point" stack>
-            {#snippet control()}<Slider value={setup.mistakes} min={LEVEL_MIN} max={LEVEL_MAX} label="Mistakes" format={(level) => MISTAKES[level - 1]} onchange={(mistakes) => patch({ mistakes })} />{/snippet}
-          </Row>
-        </RowList>
+        <ScrollArea class="custom-scroll">
+          <div class="custom-head"><SectionHead eyebrow="AI drivers" title="The rivals" /></div>
+          <RowList divided label="Rival options">
+            <Row label="Rivals" help={`${setup.rivals + 1} cars on the grid`} stack>
+              {#snippet control()}<Slider value={setup.rivals} min={1} max={MAX_RIVALS} label="Rivals" onchange={(rivals) => patch({ rivals })} />{/snippet}
+            </Row>
+            <Row label="Their cars" help={picked_help} stack>
+              {#snippet control()}<Segmented options={CAR_PICKS} value={setup.cars} label="Their cars" onchange={(cars) => patch({ cars })} />{/snippet}
+            </Row>
+            {#if setup.cars === RivalPick.PICKED}
+              <div class="custom-extra custom-cars" role="group" aria-label="Cars to race">
+                {#each PRESETS as preset (preset.name)}
+                  <Chip variant="toggle" bind:pressed={() => setup.picked.includes(preset.name), () => toggle_preset(preset.name)}>{preset.name}<span class="custom-class">{preset.class}</span></Chip>
+                {/each}
+              </div>
+            {/if}
+            <Row label="Difficulty" help={DIFFICULTY_HELP[setup.difficulty]} stack>
+              {#snippet control()}<Segmented options={DIFFICULTIES} value={setup.difficulty} label="Difficulty" onchange={(difficulty) => patch({ difficulty })} />{/snippet}
+            </Row>
+            <Row label="Aggression" help="How hard they fight for a place" stack>
+              {#snippet control()}<Slider value={setup.aggression} min={LEVEL_MIN} max={LEVEL_MAX} label="Aggression" format={(level) => AGGRESSION[level - 1]} onchange={(aggression) => patch({ aggression })} />{/snippet}
+            </Row>
+            <Row label="Mistakes" help="How often they miss a braking point" stack>
+              {#snippet control()}<Slider value={setup.mistakes} min={LEVEL_MIN} max={LEVEL_MAX} label="Mistakes" format={(level) => MISTAKES[level - 1]} onchange={(mistakes) => patch({ mistakes })} />{/snippet}
+            </Row>
+          </RowList>
+        </ScrollArea>
       </Card>
     </div>
   </MenuFrame>
@@ -239,8 +244,10 @@
 
   .custom > :global(.ui-card) {
     max-height: 100%;
-    overflow-y: auto;
-    scrollbar-width: none;
+  }
+
+  .custom > :global(.ui-card > .custom-scroll) {
+    min-height: 0;
   }
 
   .custom-head {

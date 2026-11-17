@@ -18,6 +18,7 @@
   import KeyLink from "../ui/KeyLink.svelte";
   import PrimaryAction from "../ui/PrimaryAction.svelte";
   import Row from "../ui/Row.svelte";
+  import ScrollArea from "../ui/ScrollArea.svelte";
   import RowList from "../ui/RowList.svelte";
   import SectionHead from "../ui/SectionHead.svelte";
   import Segmented from "../ui/Segmented.svelte";
@@ -161,31 +162,33 @@
   <MenuFrame {menu} id={RUN_BUILD_PAGE} eyebrow="Events · Runs" title="Build a run" veil={0.55} {links} note="Pick what matters; the dice fill in the rest." {primary}>
   <div class="builder">
     <Card list label="Build a run">
-      <div class="head"><SectionHead title="What to run" /></div>
-      <RowList divided label="Event options">
-        <Row label="Type" help={def ? `Runs on ${kinds.length} worlds` : "Any mode the dice pick"} stack>
-          {#snippet control()}<Select options={TYPES} value={type} label="Type" onchange={pick_type} />{/snippet}
-        </Row>
-        <Row label="World" help="A new map of it on every roll" stack>
-          {#snippet control()}<Select options={worlds} bind:value={kind} label="World" onchange={changed} />{/snippet}
-        </Row>
-        {#if def?.choice}
-          <Row label={def.choice.label} help={def.id === "race" ? "Routes differ per map: the nearest one stands in" : "Narrows the levels it picks from"} stack>
-            {#snippet control()}<Segmented options={choices} bind:value={choice} label={def.choice?.label ?? ""} onchange={changed} />{/snippet}
+      <ScrollArea class="builder-scroll">
+        <div class="head"><SectionHead title="What to run" /></div>
+        <RowList divided label="Event options">
+          <Row label="Type" help={def ? `Runs on ${kinds.length} worlds` : "Any mode the dice pick"} stack>
+            {#snippet control()}<Select options={TYPES} value={type} label="Type" onchange={pick_type} />{/snippet}
           </Row>
-        {/if}
-        {#if def?.id === RunType.RACE}
-          <Row label="Laps" help={laps > 1 ? "Circuits only, star marks for the whole run" : "One run of any route"} stack>
-            {#snippet control()}<Segmented options={LAP_OPTIONS} bind:value={laps} label="Laps" onchange={changed} />{/snippet}
+          <Row label="World" help="A new map of it on every roll" stack>
+            {#snippet control()}<Select options={worlds} bind:value={kind} label="World" onchange={changed} />{/snippet}
           </Row>
-        {/if}
-        <Row label="Difficulty" help={DIFFICULTY_HELP[difficulty]} stack>
-          {#snippet control()}<Segmented options={DIFFICULTIES} bind:value={difficulty} label="Difficulty" onchange={changed} />{/snippet}
-        </Row>
-        <Row label="Car" help="A class limit lets you pick your car; a preset car is lent; Random class rolls a limit" stack>
-          {#snippet control()}<Select options={CARS} bind:value={car} label="Car" onchange={changed} />{/snippet}
-        </Row>
-      </RowList>
+          {#if def?.choice}
+            <Row label={def.choice.label} help={def.id === "race" ? "Routes differ per map: the nearest one stands in" : "Narrows the levels it picks from"} stack>
+              {#snippet control()}<Segmented options={choices} bind:value={choice} label={def.choice?.label ?? ""} onchange={changed} />{/snippet}
+            </Row>
+          {/if}
+          {#if def?.id === RunType.RACE}
+            <Row label="Laps" help={laps > 1 ? "Circuits only, star marks for the whole run" : "One run of any route"} stack>
+              {#snippet control()}<Segmented options={LAP_OPTIONS} bind:value={laps} label="Laps" onchange={changed} />{/snippet}
+            </Row>
+          {/if}
+          <Row label="Difficulty" help={DIFFICULTY_HELP[difficulty]} stack>
+            {#snippet control()}<Segmented options={DIFFICULTIES} bind:value={difficulty} label="Difficulty" onchange={changed} />{/snippet}
+          </Row>
+          <Row label="Car" help="A class limit lets you pick your car; a preset car is lent; Random class rolls a limit" stack>
+            {#snippet control()}<Select options={CARS} bind:value={car} label="Car" onchange={changed} />{/snippet}
+          </Row>
+        </RowList>
+      </ScrollArea>
     </Card>
   
     {#snippet shot()}
@@ -228,8 +231,10 @@
 
   .builder > :global(.ui-card) {
     max-height: 100%;
-    overflow-y: auto;
-    scrollbar-width: none;
+  }
+
+  .builder > :global(.ui-card > .builder-scroll) {
+    min-height: 0;
   }
 
   .event {

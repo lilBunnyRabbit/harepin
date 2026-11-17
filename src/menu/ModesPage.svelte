@@ -9,6 +9,7 @@
   import KeyLink from "./ui/KeyLink.svelte";
   import PrimaryAction from "./ui/PrimaryAction.svelte";
   import Row from "./ui/Row.svelte";
+  import ScrollArea from "./ui/ScrollArea.svelte";
   import RowList from "./ui/RowList.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
   import { preview } from "./widgets";
@@ -82,18 +83,20 @@
         {/each}
       </div>
       <Card list class="modes-levels" label={mode.name}>
-        <RowList label={`${mode.name} levels`}>
-          {#each mode.levels as one, i (one.id)}
-            <Row label={one.name} help={help(one, i)} icon={one.open ? undefined : "icon-lock"} fill focused={one === level} onclick={(click) => aim_or_go(click, () => (level_id = one.id), play)} onfocus={() => (level_id = one.id)}>
-              {#snippet control()}
-                <span class="modes-end">
-                  {#if one.best}<span class="modes-best">{one.best}</span>{/if}
-                  <span class="ev-stars" aria-label={`${one.stars} of ${MAX_STARS} stars`}>{"★".repeat(one.stars)}<i>{"★".repeat(Math.max(0, MAX_STARS - one.stars))}</i></span>
-                </span>
-              {/snippet}
-            </Row>
-          {/each}
-        </RowList>
+        <ScrollArea class="modes-scroll">
+          <RowList label={`${mode.name} levels`}>
+            {#each mode.levels as one, i (one.id)}
+              <Row label={one.name} help={help(one, i)} icon={one.open ? undefined : "icon-lock"} fill focused={one === level} onclick={(click) => aim_or_go(click, () => (level_id = one.id), play)} onfocus={() => (level_id = one.id)}>
+                {#snippet control()}
+                  <span class="modes-end">
+                    {#if one.best}<span class="modes-best">{one.best}</span>{/if}
+                    <span class="ev-stars" aria-label={`${one.stars} of ${MAX_STARS} stars`}>{"★".repeat(one.stars)}<i>{"★".repeat(Math.max(0, MAX_STARS - one.stars))}</i></span>
+                  </span>
+                {/snippet}
+              </Row>
+            {/each}
+          </RowList>
+        </ScrollArea>
       </Card>
       </div>
       {#if level}
@@ -146,8 +149,10 @@
   .modes-list > :global(.modes-levels) {
     align-self: start;
     max-height: 100%;
-    overflow-y: auto;
-    scrollbar-width: none;
+  }
+
+  .modes-list > :global(.modes-levels > .modes-scroll) {
+    min-height: 0;
   }
 
   .modes-end {

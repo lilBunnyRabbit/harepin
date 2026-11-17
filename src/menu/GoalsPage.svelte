@@ -8,6 +8,7 @@
   import PrimaryAction from "./ui/PrimaryAction.svelte";
   import Progress from "./ui/Progress.svelte";
   import Row from "./ui/Row.svelte";
+  import ScrollArea from "./ui/ScrollArea.svelte";
   import RowList from "./ui/RowList.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
   import "./events.css";
@@ -62,15 +63,17 @@
       </div>
     </Card>
     <Card list class="goals-list" label="Things to try">
-      <RowList label="Things to try">
-        {#each rows as one (one.goal.id)}
-          <Row label={one.goal.title} help={one.help} fill focused={one === row} onclick={() => ((picked = one.goal.id), go(one.goal.go))} onfocus={() => (picked = one.goal.id)}>
-            {#snippet control()}
-              {#if one.done}<span class="goals-done"><Icon name="icon-check" />Done</span>{:else}<span class="goals-go"><Icon name="icon-back" flip /></span>{/if}
-            {/snippet}
-          </Row>
-        {/each}
-      </RowList>
+      <ScrollArea class="goals-scroll">
+        <RowList label="Things to try">
+          {#each rows as one (one.goal.id)}
+            <Row label={one.goal.title} help={one.help} fill focused={one === row} onclick={() => ((picked = one.goal.id), go(one.goal.go))} onfocus={() => (picked = one.goal.id)}>
+              {#snippet control()}
+                {#if one.done}<span class="goals-done"><Icon name="icon-check" />Done</span>{:else}<span class="goals-go"><Icon name="icon-back" flip /></span>{/if}
+              {/snippet}
+            </Row>
+          {/each}
+        </RowList>
+      </ScrollArea>
     </Card>
   </div>
 </MenuFrame>
@@ -104,8 +107,10 @@
   .goals > :global(.goals-list) {
     align-self: start;
     max-height: 100%;
-    overflow-y: auto;
-    scrollbar-width: none;
+  }
+
+  .goals > :global(.goals-list > .goals-scroll) {
+    min-height: 0;
   }
 
   .goals-done,

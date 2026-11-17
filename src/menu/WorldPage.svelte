@@ -19,6 +19,7 @@
   import Kbd from "./ui/Kbd.svelte";
   import KeyLink from "./ui/KeyLink.svelte";
   import PrimaryAction from "./ui/PrimaryAction.svelte";
+  import ScrollArea from "./ui/ScrollArea.svelte";
   import Slider from "./ui/Slider.svelte";
   import TextField from "./ui/TextField.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
@@ -157,7 +158,7 @@
       <div class="make-shot">
         <WorldMap {map} label={`Map of ${title}`} />
       </div>
-      <div class="make-side">
+      <ScrollArea class="make-side">
         <header>
           <span class="make-eyebrow">{world.name} · {custom ? "custom" : "rolled"}</span>
           <h2>{title}</h2>
@@ -205,7 +206,7 @@
         {:else}
           <span class="make-sub">{world.name} has no values to change. Roll for another one.</span>
         {/if}
-      </div>
+      </ScrollArea>
     </Card>
 
     <div class="make-pick">
@@ -261,7 +262,7 @@
     aspect-ratio: 1;
   }
 
-  .make-side {
+  .make > :global(.make-big > .make-side) {
     display: flex;
     flex: 1;
     flex-direction: column;
@@ -269,8 +270,6 @@
     min-width: 0;
     min-height: 0;
     padding: var(--pad);
-    overflow-y: auto;
-    scrollbar-width: none;
   }
 
   header,

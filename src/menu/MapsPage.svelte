@@ -14,6 +14,7 @@
   import PlaceLine from "./ui/PlaceLine.svelte";
   import PrimaryAction from "./ui/PrimaryAction.svelte";
   import Row from "./ui/Row.svelte";
+  import ScrollArea from "./ui/ScrollArea.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
   import { preview } from "./widgets";
   import WorldMap from "./WorldMap.svelte";
@@ -142,7 +143,7 @@
           {/if}
         </header>
         {#if stop.events.length}
-          <div class="maps-events">
+          <ScrollArea class="maps-events">
             {#each stop.events as one (one.id)}
               {#if one.open}
                 <Row fill label={one.title} help={one.eyebrow} focused={!making && one.id === event?.id} onfocus={() => pick_event(one.id)} onclick={(click) => press(click, () => pick_event(one.id))}>
@@ -154,7 +155,7 @@
                 <Row fill icon="icon-lock" label={one.title} help={one.note} />
               {/if}
             {/each}
-          </div>
+          </ScrollArea>
         {:else}
           <p class="maps-sub">No events on this map. It is yours to roam.</p>
         {/if}
@@ -254,16 +255,14 @@
     white-space: nowrap;
   }
 
-  .maps-events {
+  .maps-side > :global(.maps-events) {
     display: flex;
     flex-direction: column;
     gap: var(--gap-xs);
     min-height: 0;
-    overflow-y: auto;
-    scrollbar-width: none;
   }
 
-  .maps-events > :global(*) {
+  .maps-side > :global(.maps-events > *) {
     flex: none;
   }
 
@@ -375,8 +374,9 @@
       height: auto;
     }
 
-    .maps-events {
+    .maps-side > :global(.maps-events) {
       overflow: visible;
+      mask-image: none;
     }
 
     h2 {
