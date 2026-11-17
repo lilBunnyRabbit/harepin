@@ -8,6 +8,9 @@ export function lap_cap_ms(length_m: number): number {
   return Math.max(MIN_CAP_MS, (length_m / SLOW_LAP_MPS) * 1000);
 }
 
+/** ms between recorded frames. */
+export const GHOST_EVERY_MS = 100;
+
 /** Floats per recorded frame: ms, position, quaternion. */
 export const STRIDE = 8;
 

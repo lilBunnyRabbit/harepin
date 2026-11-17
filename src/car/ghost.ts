@@ -5,10 +5,9 @@ import { camera_fade, car_view, dispose_car_view, rest_wheels, type CarView } fr
 import { stand_on_drawn } from "./drawn-stand";
 import { brand, color } from "../theme/palette";
 import type { World } from "../world/world";
-import { STRIDE, lap_cap_ms } from "./ghost-cap";
+import { GHOST_EVERY_MS, STRIDE, lap_cap_ms } from "./ghost-cap";
 import { load_ghost, save_ghost } from "./ghost-store";
 
-const EVERY_MS = 100;
 const GHOST_OPACITY = 0.32;
 const GHOST_ORDER = 10;
 
@@ -19,9 +18,10 @@ export function ghost_frame(out: number[], lap_ms: number, car: Pick<Car, "pos" 
   out.push(lap_ms, car.pos.x, y, car.pos.z, car.quat.x, car.quat.y, car.quat.z, car.quat.w);
 }
 
-export const GHOST_EVERY_MS = EVERY_MS;
+/** The two frames round `lap_ms` and the share of the way between them, kept in one object: a pose is asked every frame. */
+const span = { i: 0, j: 0, k: 0 };
 
-function lap_span(lap: readonly number[], lap_ms: number): [number, number, number] {
+function lap_span(lap: readonly number[], lap_ms: number) {
   let lo = 0;
   let hi = lap.length / STRIDE - 1;
   while (hi - lo > 1) {
@@ -29,9 +29,9 @@ function lap_span(lap: readonly number[], lap_ms: number): [number, number, numb
     if (lap[mid * STRIDE] <= lap_ms) lo = mid;
     else hi = mid;
   }
-  const i = lo * STRIDE;
-  const j = hi * STRIDE;
-  return [i, j, lap[j] > lap[i] ? Math.max(0, Math.min(1, (lap_ms - lap[i]) / (lap[j] - lap[i]))) : 0];
+  span.i = lo * STRIDE;
+  span.j = hi * STRIDE;
+  span.k = lap[span.j] > lap[span.i] ? Math.max(0, Math.min(1, (lap_ms - lap[span.i]) / (lap[span.j] - lap[span.i]))) : 0;
 }
 
 const from_quat = new THREE.Quaternion();
@@ -40,7 +40,8 @@ const to_quat = new THREE.Quaternion();
 /** The lap's car at `lap_ms`, between its two nearest frames; false past the lap's end. */
 export function lap_pose(lap: readonly number[], lap_ms: number, pos: THREE.Vector3, quat: THREE.Quaternion): boolean {
   if (lap_ms > lap[lap.length - STRIDE]) return false;
-  const [i, j, k] = lap_span(lap, lap_ms);
+  lap_span(lap, lap_ms);
+  const { i, j, k } = span;
   pos.set(lap[i + 1] + (lap[j + 1] - lap[i + 1]) * k, lap[i + 2] + (lap[j + 2] - lap[i + 2]) * k, lap[i + 3] + (lap[j + 3] - lap[i + 3]) * k);
   from_quat.set(lap[i + 4], lap[i + 5], lap[i + 6], lap[i + 7]);
   to_quat.set(lap[j + 4], lap[j + 5], lap[j + 6], lap[j + 7]);
@@ -121,7 +122,7 @@ export class Ghost {
 
   record(lap_ms: number, car: Pick<Car, "pos" | "quat" | "spec">) {
     const last = this.recording.length ? this.recording[this.recording.length - STRIDE] : -Infinity;
-    if (lap_ms - last < EVERY_MS || lap_ms > this.cap_ms) return;
+    if (lap_ms - last < GHOST_EVERY_MS || lap_ms > this.cap_ms) return;
     ghost_frame(this.recording, lap_ms, car);
   }
 
