@@ -61,6 +61,20 @@ describe("AI awareness", () => {
     expect(drivers[1].cap).toBeLessThan(30);
   });
 
+  test("a car alongside across the road is left room where the line swings over to its lane, and none where it does not", () => {
+    const line = race_line(ring(800), [], COUPE.radius);
+    const drivers = [new Driver(line), new Driver(line)];
+    const cars = drivers.map(() => new Car(COUPE));
+    const awareness = new Awareness(cars, drivers, () => 0);
+    put(line, cars[0], drivers[0], 100, -5, 30);
+    put(line, cars[1], drivers[1], 101, 0, 30);
+    awareness.update(0.05);
+    expect(Number.isNaN(drivers[1].hold)).toBe(true);
+    line.offset.fill(-4, 110, 200);
+    awareness.update(0.05);
+    expect(drivers[1].hold).toBeGreaterThan(2);
+  });
+
   test("a car beside its lane now, on the path it is easing onto, caps it", () => {
     const line = race_line(ring(800), [], COUPE.radius);
     const drivers = [new Driver(line), new Driver(line)];
