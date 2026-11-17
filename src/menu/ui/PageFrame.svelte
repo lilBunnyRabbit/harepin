@@ -177,9 +177,14 @@
   }
 
   .ui-frame-top > *,
-  .ui-frame-rows > :global(.ui-frame-body > *),
   .ui-frame-links > :global(*),
   .ui-frame-action > :global(*) {
+    pointer-events: auto;
+  }
+
+  /* No specificity: a stage page's root gives the pointer back with its own `pointer-events: none` and takes it for
+     its panels only, so a drag between them turns the car. */
+  :global(:where(.ui-frame-rows > .ui-frame-body) > *) {
     pointer-events: auto;
   }
 

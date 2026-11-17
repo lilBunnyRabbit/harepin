@@ -7,17 +7,10 @@ import { contact_shadow } from "../../car/contact-shadow";
 import { build_view, dispose_car_view, rest_wheels, type CarView } from "../../car/models";
 import { neon_look, rest_neon, tint_page } from "../../car/neon-look";
 import { brand, color, dark } from "../../theme/palette";
+import { drag_pose, is_double_tap, is_tap, pinch_factor, wheel_factor, zoom_pose, type Pose, type Press, type Tap } from "./stage-gestures";
 
 const EYE_AZIMUTH = Math.atan2(4.6, 5.4);
 const EYE_ELEVATION = Math.atan2(2.8, Math.hypot(4.6, 5.4));
-/** How far a drag tilts the view above and below the stand's usual angle, radians. */
-const PITCH_MIN = -0.25;
-const PITCH_MAX = 0.55;
-/** Zoom over the whole-car fit; 1 is the most a pinch or the wheel backs out. */
-const ZOOM_MAX = 2.6;
-const DRAG_YAW = 0.01;
-const DRAG_PITCH = 0.006;
-const WHEEL_ZOOM = 0.0015;
 /** Camera distance over the tightest fit: room around the car so it reads as a car on a stand, not a crop. */
 const FIT_SLACK = 1.5;
 const EASE_MS = 600;
@@ -37,13 +30,6 @@ const FLOOR_POINTS = 32;
 
 export const ease = (u: number) => 1 - (1 - u) ** 3;
 const turn = (from: number, to: number) => ((((to - from + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
-
-interface Pose {
-  yaw: number;
-  /** Tilt added to the stand's camera angle by a drag, radians. */
-  pitch: number;
-  zoom: number;
-}
 
 const pose_of = (view: SlotView): Pose => ({ yaw: view.yaw, pitch: 0, zoom: 1 });
 
@@ -98,6 +84,8 @@ export class CarStage {
   private moved = 0;
   private readonly calm = matchMedia("(prefers-reduced-motion: reduce)");
   private readonly pointers = new Map<number, { x: number; y: number }>();
+  private readonly presses = new Map<number, Press>();
+  private last_tap: Tap | null = null;
   private readonly floor: THREE.Object3D | null;
   private readonly slack: number;
 
@@ -108,6 +96,8 @@ export class CarStage {
     this.floor = look.floor ?? null;
     this.slack = look.slack ?? FIT_SLACK;
     if (this.floor) this.scene.add(this.floor);
+    // The theme's arrow is forced on everything else; the stage shows a grab hand (`style.css`).
+    canvas.dataset.ownCursor = "";
     // A lost context comes back only when its loss event is cancelled.
     canvas.addEventListener("webglcontextlost", (event) => event.preventDefault());
     this.shadow.mesh.renderOrder = 2;
@@ -139,7 +129,7 @@ export class CarStage {
     this.canvas.addEventListener("lostpointercapture", this.release);
     this.canvas.addEventListener("wheel", this.wheel, { passive: false });
     this.pose = pose_of(view);
-    this.to = this.pose;
+    this.to = pose_of(view);
     this.shown_code = "";
   }
 
@@ -172,6 +162,8 @@ export class CarStage {
     this.canvas.removeEventListener("lostpointercapture", this.release);
     this.canvas.removeEventListener("wheel", this.wheel);
     this.pointers.clear();
+    this.presses.clear();
+    this.last_tap = null;
     cancelAnimationFrame(this.frame);
     this.frame = 0;
     cancelIdleCallback(this.warm_handle);
@@ -249,11 +241,16 @@ export class CarStage {
   }
 
   aim(view: SlotView) {
-    this.from = { ...this.pose };
     this.to = pose_of(view);
+    this.settle();
+  }
+
+  /** Eases from wherever a drag or an earlier ease left the car to the view it was last aimed at. */
+  private settle() {
+    this.from = { ...this.pose };
     this.moved = performance.now();
     if (this.calm.matches) {
-      this.pose = this.to;
+      this.pose = { ...this.to };
       this.draw();
     } else if (!this.frame) this.frame = requestAnimationFrame(this.tick);
   }
@@ -278,6 +275,7 @@ export class CarStage {
   private readonly grab = (event: PointerEvent) => {
     this.canvas.setPointerCapture(event.pointerId);
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    this.presses.set(event.pointerId, { x: event.clientX, y: event.clientY, at: event.timeStamp, travel: 0 });
     this.stop_easing();
   };
 
@@ -286,6 +284,8 @@ export class CarStage {
   private readonly drag = (event: PointerEvent) => {
     const last = this.pointers.get(event.pointerId);
     if (!last) return;
+    const press = this.presses.get(event.pointerId);
+    if (press) press.travel = Math.max(press.travel, Math.hypot(event.clientX - press.x, event.clientY - press.y));
     const spread = () => {
       const [a, b] = [...this.pointers.values()];
       return Math.hypot(a.x - b.x, a.y - b.y);
@@ -293,27 +293,39 @@ export class CarStage {
     if (this.pointers.size === 2) {
       const before = spread();
       this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (before > 0) this.zoom_by(spread() / before);
+      this.zoom_by(pinch_factor(before, spread()));
       return;
     }
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    this.pose.yaw += (event.clientX - last.x) * DRAG_YAW;
-    this.pose.pitch = THREE.MathUtils.clamp(this.pose.pitch + (event.clientY - last.y) * DRAG_PITCH, PITCH_MIN, PITCH_MAX);
+    drag_pose(this.pose, event.clientX - last.x, event.clientY - last.y);
     this.draw();
   };
 
+  // A double tap or double click puts the car back as the page aimed it. Taps are read off the press itself: a touch
+  // screen sends no dblclick here.
   private readonly release = (event: PointerEvent) => {
+    const press = this.presses.get(event.pointerId);
     this.pointers.delete(event.pointerId);
+    this.presses.delete(event.pointerId);
+    if (!press || this.pointers.size || !is_tap(press, event.timeStamp)) {
+      this.last_tap = null;
+      return;
+    }
+    const tap = { x: press.x, y: press.y, at: event.timeStamp };
+    if (is_double_tap(this.last_tap, tap)) {
+      this.last_tap = null;
+      this.settle();
+    } else this.last_tap = tap;
   };
 
   private readonly wheel = (event: WheelEvent) => {
     event.preventDefault();
     this.stop_easing();
-    this.zoom_by(Math.exp(-event.deltaY * WHEEL_ZOOM));
+    this.zoom_by(wheel_factor(event.deltaY));
   };
 
   private zoom_by(factor: number) {
-    this.pose.zoom = THREE.MathUtils.clamp(this.pose.zoom * factor, 1, ZOOM_MAX);
+    zoom_pose(this.pose, factor);
     this.draw();
   }
 

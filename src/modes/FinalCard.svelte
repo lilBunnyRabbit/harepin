@@ -90,11 +90,17 @@
     gap: var(--gap);
     height: 100%;
     min-height: 0;
+    /* Only the cards take the pointer: a drag anywhere else turns the car. */
+    pointer-events: none;
   }
 
   .final-side {
     display: grid;
     min-width: 0;
+  }
+
+  .final-side > :global(*) {
+    pointer-events: auto;
   }
 
   .final-side[data-side="left"] {
