@@ -14,6 +14,8 @@ const EDGE_VERTS = 12;
 /** A bend's sign: upright arrowheads standing `off` metres outside the road, their middle `base` over the ground. */
 const SIGN = { count: 3, half: 0.75, depth: 0.9, bar: 0.5, pitch: 1.7, base: 1.6, off: 2 };
 const SIGN_VERTS = 12;
+/** Metres after a bend within which the next one the same way is still its corner, already signed. */
+const SIGN_GAP = 80;
 const WRONG_PITCH = 9;
 const WRONG_SHAPE = { half: 2.2, depth: 2.4, bar: 1.1 };
 /** Metres of arrows down the route from the car, where a car facing back looks, and up it. */
@@ -128,7 +130,11 @@ export class Lead {
     const at: number[] = [];
     const back = -(SIGN.depth + SIGN.bar) / 2;
     const tip = back + SIGN.depth;
+    let before: Bend | null = null;
     for (const bend of found) {
+      const same_corner = before !== null && before.side === bend.side && along[bend.from] - along[before.to] < SIGN_GAP;
+      before = bend;
+      if (same_corner) continue;
       const entry = line[bend.from];
       let i = bend.from;
       // Where the road has swung clear of the line the car arrives on: the sign stands straight ahead of that line.
