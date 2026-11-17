@@ -73,4 +73,24 @@
     outline: var(--mark-w) solid var(--cottontail);
     outline-offset: calc(var(--mark-w) * -1);
   }
+
+  /* A portrait phone fits all five across only without the key caps and at the body size. */
+  @media (max-width: 700px) {
+    .ui-stations {
+      font-size: var(--type-body);
+    }
+
+    .ui-stations > :global(.ui-glyph) {
+      display: none;
+    }
+
+    :root .ui-station {
+      padding: 0 var(--gap-sm);
+    }
+
+    .ui-station[aria-current]::after {
+      right: var(--gap-sm);
+      left: var(--gap-sm);
+    }
+  }
 </style>

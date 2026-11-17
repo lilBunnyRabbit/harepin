@@ -197,4 +197,42 @@
       gap: var(--gap-sm);
     }
   }
+
+  /* A portrait phone has no room for the links and the primary on one line: the links wrap, the primary drops under
+     them, and the note goes. The station bar takes a row of its own under the title and chips, all five in view. */
+  @media (max-width: 700px) {
+    .ui-frame-rows {
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
+
+    .ui-frame-top {
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-auto-rows: var(--top-h);
+      gap: var(--gap-sm);
+    }
+
+    .ui-frame-stations {
+      grid-row: 2;
+      grid-column: 1 / -1;
+      justify-content: center;
+    }
+
+    .ui-frame-stations:empty {
+      display: none;
+    }
+
+    .ui-frame-bottom,
+    .ui-frame-links {
+      flex-wrap: wrap;
+      gap: var(--gap-sm);
+    }
+
+    .ui-frame-action {
+      margin-left: auto;
+    }
+
+    .ui-frame-note {
+      display: none;
+    }
+  }
 </style>
