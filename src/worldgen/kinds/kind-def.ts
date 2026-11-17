@@ -89,6 +89,8 @@ const SLUSH: Footing = { grip: 0.6, roll: 10, loose: 0.9, firm: false };
 const SNOW_ROWS = { [SurfaceId.SNOW]: SNOW, [SurfaceId.PACKED_SNOW]: PACKED_SNOW, [SurfaceId.ICE]: ICE, [SurfaceId.SLUSH]: SLUSH };
 /** Dune sand laid as a surface: the dune sea's own ground, the same in every table so a sand patch drives alike anywhere. */
 const SAND: Footing = { grip: 0.7, roll: 28, loose: 1, firm: false };
+/** A gravel trap: it slides like sand and drags twice as hard, near 1 g on a car crossing it; every car still drives out. The same in every table. */
+const GRAVEL: Footing = { grip: 0.66, roll: 60, loose: 1, firm: false };
 /** Lava resets the car the moment it touches, so this row only reads for the frame before. */
 const LAVA: Footing = { grip: 0.45, roll: 40, loose: 1, firm: false };
 
@@ -96,7 +98,7 @@ const LAVA: Footing = { grip: 0.45, roll: 40, loose: 1, firm: false };
 export const LAND_GRIP: GripTable = {
   road: { grip: 1, roll: 1, loose: 0, firm: false },
   shoulder: { grip: 0.85, roll: 1, loose: 0.3, firm: false },
-  surfaces: { [SurfaceId.GRASS]: { grip: 0.72, roll: 12, loose: 0.7, firm: false }, [SurfaceId.DIRT]: { grip: 0.82, roll: 1, loose: 0.8, firm: true }, [SurfaceId.HARDPACK]: { grip: 0.86, roll: 1, loose: 0.5, firm: true }, [SurfaceId.SCREE]: SCREE, [SurfaceId.WET]: WET, [SurfaceId.LAVA]: LAVA, [SurfaceId.SAND]: SAND, ...SNOW_ROWS },
+  surfaces: { [SurfaceId.GRASS]: { grip: 0.72, roll: 12, loose: 0.7, firm: false }, [SurfaceId.DIRT]: { grip: 0.82, roll: 1, loose: 0.8, firm: true }, [SurfaceId.HARDPACK]: { grip: 0.86, roll: 1, loose: 0.5, firm: true }, [SurfaceId.SCREE]: SCREE, [SurfaceId.WET]: WET, [SurfaceId.LAVA]: LAVA, [SurfaceId.SAND]: SAND, [SurfaceId.GRAVEL]: GRAVEL, ...SNOW_ROWS },
   wade: WADE,
 };
 
@@ -107,7 +109,7 @@ export const LAND_GRIP: GripTable = {
 export const SAND_GRIP: GripTable = {
   road: { grip: 1, roll: 1, loose: 0, firm: false },
   shoulder: { grip: 0.86, roll: 1, loose: 0.4, firm: false },
-  surfaces: { [SurfaceId.GRASS]: SAND, [SurfaceId.DIRT]: { grip: 0.84, roll: 1, loose: 0.8, firm: true }, [SurfaceId.HARDPACK]: { grip: 0.92, roll: 1, loose: 0.5, firm: true }, [SurfaceId.SCREE]: SCREE, [SurfaceId.WET]: WET, [SurfaceId.LAVA]: LAVA, [SurfaceId.SAND]: SAND, ...SNOW_ROWS },
+  surfaces: { [SurfaceId.GRASS]: SAND, [SurfaceId.DIRT]: { grip: 0.84, roll: 1, loose: 0.8, firm: true }, [SurfaceId.HARDPACK]: { grip: 0.92, roll: 1, loose: 0.5, firm: true }, [SurfaceId.SCREE]: SCREE, [SurfaceId.WET]: WET, [SurfaceId.LAVA]: LAVA, [SurfaceId.SAND]: SAND, [SurfaceId.GRAVEL]: GRAVEL, ...SNOW_ROWS },
   wade: WADE,
 };
 
@@ -115,6 +117,6 @@ export const SAND_GRIP: GripTable = {
 export const WINTER_GRIP: GripTable = {
   road: PACKED_SNOW,
   shoulder: PACKED_SNOW,
-  surfaces: { [SurfaceId.GRASS]: SNOW, [SurfaceId.DIRT]: PACKED_SNOW, [SurfaceId.HARDPACK]: PACKED_SNOW, [SurfaceId.SCREE]: SNOW, [SurfaceId.WET]: SLUSH, [SurfaceId.LAVA]: LAVA, [SurfaceId.SAND]: SNOW, ...SNOW_ROWS },
+  surfaces: { [SurfaceId.GRASS]: SNOW, [SurfaceId.DIRT]: PACKED_SNOW, [SurfaceId.HARDPACK]: PACKED_SNOW, [SurfaceId.SCREE]: SNOW, [SurfaceId.WET]: SLUSH, [SurfaceId.LAVA]: LAVA, [SurfaceId.SAND]: SNOW, [SurfaceId.GRAVEL]: SNOW, ...SNOW_ROWS },
   wade: WADE,
 };

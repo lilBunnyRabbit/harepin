@@ -19,17 +19,17 @@ export const SPAWN_INDEX = -40;
  * Ground surfaces, each with a LUT row of its own and one half-way to rock. DIRT is firm: trails, and hardpack a recipe lays.
  * SNOW to SLUSH are the snow kit's rows; ASH and after the volcano's.
  */
-export const Ground = { GRASS: 0, DRY: 1, SAND: 2, FOREST: 3, UPLAND: 4, DUNE: 5, DIRT: 6, PAN: 7, SNOW: 8, PACKED_SNOW: 9, ICE: 10, SLUSH: 11, ASH: 12, SCREE: 13, CINDER: 14, EMBER: 15 } as const;
+export const Ground = { GRASS: 0, DRY: 1, SAND: 2, FOREST: 3, UPLAND: 4, DUNE: 5, DIRT: 6, PAN: 7, SNOW: 8, PACKED_SNOW: 9, ICE: 10, SLUSH: 11, ASH: 12, SCREE: 13, CINDER: 14, EMBER: 15, GRAVEL: 16 } as const;
 export type Ground = (typeof Ground)[keyof typeof Ground];
 /**
  * What the wheels drive on, per vertex of the `surface` grid; each id has a grip row in its kind's `GripTable`. GRASS is the
  * kind's own ground (loose sand on the desert), every other id a surface laid over it. SAND is dune sand laid on any kind's
  * ground, so grass and dune sand can sit side by side (the lab). Stored in the grid: never renumber.
  */
-export const SurfaceId = { GRASS: 0, DIRT: 1, HARDPACK: 2, SCREE: 3, WET: 4, SNOW: 5, PACKED_SNOW: 6, ICE: 7, SLUSH: 8, LAVA: 9, SAND: 10 } as const;
+export const SurfaceId = { GRASS: 0, DIRT: 1, HARDPACK: 2, SCREE: 3, WET: 4, SNOW: 5, PACKED_SNOW: 6, ICE: 7, SLUSH: 8, LAVA: 9, SAND: 10, GRAVEL: 11 } as const;
 export type SurfaceId = (typeof SurfaceId)[keyof typeof SurfaceId];
 /** The ground row each laid surface paints, indexed by `SurfaceId`, so colour matches what the wheels feel; null keeps the biome's colour. */
-export const SURFACE_GROUND = [null, Ground.DIRT, Ground.PAN, null, Ground.DIRT, Ground.SNOW, Ground.PACKED_SNOW, Ground.ICE, Ground.SLUSH, Ground.DIRT, Ground.DUNE] as const satisfies Record<SurfaceId, Ground | null>;
+export const SURFACE_GROUND = [null, Ground.DIRT, Ground.PAN, null, Ground.DIRT, Ground.SNOW, Ground.PACKED_SNOW, Ground.ICE, Ground.SLUSH, Ground.DIRT, Ground.DUNE, Ground.GRAVEL] as const satisfies Record<SurfaceId, Ground | null>;
 /** Bump whenever `generate` makes a different island for the same seed: peers and saved records are matched on it. */
 export const WORLD_VERSION = 14;
 
@@ -365,11 +365,12 @@ export interface Route {
 /**
  * Box frame: local +z points along (sin, cos) in world x/z, local +x along (cos, -sin); hw spans x, hd spans z.
  * A box with `bottom` spans y + bottom to y + height and is tested against the car's whole body, so a car can fly under
- * it; one without stands on the ground and stops a car whose centre is below its top.
+ * it; one without stands on the ground and stops a car whose centre is below its top. A `soft` box is a tyre wall: it
+ * takes the hit without throwing the car back.
  */
 export type Solid =
   | { kind: "circle"; x: number; y: number; z: number; radius: number; height: number }
-  | { kind: "box"; x: number; y: number; z: number; hw: number; hd: number; cos: number; sin: number; height: number; bottom?: number };
+  | { kind: "box"; x: number; y: number; z: number; hw: number; hd: number; cos: number; sin: number; height: number; bottom?: number; soft?: true };
 
 /** LANDING is a planar deck with no lip: `rise` 0, falling at `grade` for `length` metres along (fx, fz). */
 export const RampKind = { KICKER: "kicker", BIG: "big", LANDING: "landing" } as const;
