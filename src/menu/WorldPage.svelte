@@ -433,7 +433,7 @@
   }
 
   /* A portrait phone: the map over its values, then the roll and one row of kinds to swipe through. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .make {
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: minmax(0, 1fr) auto;

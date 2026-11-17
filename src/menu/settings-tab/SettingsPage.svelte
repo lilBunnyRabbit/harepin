@@ -371,7 +371,7 @@
   }
 
   /* Portrait: one door a row, its values under its name; a section's rows run the full width with their help under. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .set-doors {
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: none;

@@ -132,7 +132,7 @@
   }
 
   /* Portrait: the numbers run the full width under the title. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .sh {
       grid-template-columns: minmax(0, 1fr);
       gap: var(--gap-md);

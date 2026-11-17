@@ -251,7 +251,7 @@
   }
 
   /* Portrait: one card under the other, each at its own height. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .wel-setup {
       grid-template-columns: minmax(0, 1fr);
       height: auto;

@@ -244,7 +244,7 @@
     }
   }
 
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .garage {
       grid-template: minmax(0, 1fr) auto minmax(0, 1.4fr) / minmax(0, 1fr);
     }

@@ -181,7 +181,7 @@
   }
 
   /* Portrait: one run a row, its picture at the side, each at its own height. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .runs {
       grid-template-rows: auto auto;
       height: auto;

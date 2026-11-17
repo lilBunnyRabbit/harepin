@@ -322,7 +322,7 @@
   }
 
   /* Portrait: the front card takes most of the width, and the rail drops its links to fit every round. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .fl-strip {
       --w: min(78cqh, 68cqw);
     }

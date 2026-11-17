@@ -241,7 +241,7 @@
   }
 
   /* No stage this narrow (`showroom.ts`), so the picks take the row and the car's name stays in the Garage. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .home {
       grid-template-columns: minmax(0, 1fr);
     }

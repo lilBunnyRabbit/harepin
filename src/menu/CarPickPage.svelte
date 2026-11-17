@@ -368,7 +368,7 @@
     }
   }
 
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .pick {
       grid-template-columns: minmax(0, 1fr);
     }

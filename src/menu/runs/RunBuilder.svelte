@@ -281,7 +281,7 @@
   }
 
   /* Portrait: what to run, then the run it rolled, each at its own height. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .builder {
       grid-template-columns: minmax(0, 1fr);
       height: auto;

@@ -345,7 +345,7 @@
   }
 
   /* Portrait: the maps run as a strip along the top, and the picked map stacks under it, its map over its events. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .maps {
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: auto auto;

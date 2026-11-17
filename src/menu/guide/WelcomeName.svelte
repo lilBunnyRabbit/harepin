@@ -161,7 +161,7 @@
   }
 
   /* Portrait: the question and the name field first, the picture of the name tag under them. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .wel-name {
       grid-template-columns: minmax(0, 1fr);
       height: auto;

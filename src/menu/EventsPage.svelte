@@ -350,7 +350,7 @@
   }
 
   /* Portrait: the Series card, then each door, one under the other at their own height; the frame's body scrolls. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .events {
       grid-template-columns: minmax(0, 1fr);
       height: auto;

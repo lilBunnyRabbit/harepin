@@ -75,7 +75,7 @@
   }
 
   /* A portrait phone fits all five across only without the key caps and at the body size. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .ui-stations {
       font-size: var(--type-body);
     }

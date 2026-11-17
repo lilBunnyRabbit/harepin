@@ -284,7 +284,7 @@
   }
 
   /* Portrait: the tiers run as a strip that scrolls sideways, and the picked tier's maps stack under it. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .career {
       grid-template-rows: auto auto;
       height: auto;

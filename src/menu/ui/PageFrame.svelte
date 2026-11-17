@@ -204,9 +204,16 @@
     }
   }
 
+  /* A small phone on its side has the row for the links and the primary only. */
+  @media (max-height: 500px) and (max-width: 799px) {
+    .ui-frame-note {
+      display: none;
+    }
+  }
+
   /* A portrait phone has no room for the links and the primary on one line: the links wrap, the primary drops under
      them, and the note goes. The station bar takes a row of its own under the title and chips, all five in view. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .ui-frame-rows {
       grid-template-rows: auto minmax(0, 1fr) auto;
     }

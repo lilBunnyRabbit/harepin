@@ -290,7 +290,7 @@
   }
 
   /* Portrait: the room, then the players under it, each at its own height. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .online {
       grid-template-columns: minmax(0, 1fr);
       height: auto;

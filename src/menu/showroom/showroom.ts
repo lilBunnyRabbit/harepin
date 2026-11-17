@@ -1,7 +1,7 @@
 import { WHOLE_CAR, type Build, type SlotView } from "../../car/build";
 
 /** Too narrow for a car beside the page: the page takes the screen, no stage. */
-const NARROW = "(max-width: 700px)";
+const NARROW = "(orientation: portrait) and (max-width: 700px)";
 
 /** How a page sits with the car: beside it, around it in panels the car is framed between, or alone on the scene with no car. */
 export type StageRoom = "beside" | "around" | "bare";

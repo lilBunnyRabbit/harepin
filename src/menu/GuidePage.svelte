@@ -224,7 +224,7 @@
   }
 
   /* Portrait: two topics a row, and a topic's points over its picture. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .guide,
     .guide-topic {
       height: auto;

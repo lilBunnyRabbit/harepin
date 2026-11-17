@@ -374,7 +374,7 @@
   }
 
   /* Portrait: two drivers a row, and a full room runs past the screen, so the body scrolls it. */
-  @media (max-width: 700px) {
+  @media (orientation: portrait) and (max-width: 700px) {
     .meet,
     .meet-setup {
       height: auto;
