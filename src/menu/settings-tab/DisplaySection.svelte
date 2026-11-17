@@ -9,6 +9,7 @@
   import ChoiceRow from "./rows/ChoiceRow.svelte";
   import LinkRow from "./rows/LinkRow.svelte";
   import StepRow from "./rows/StepRow.svelte";
+  import ToggleRow from "./rows/ToggleRow.svelte";
   import { BASE_TOKENS, MAP_VIEWS, SPEEDO_STYLES, options, reload_without } from "./sections";
 
   interface Props {
@@ -18,6 +19,7 @@
   let { live }: Props = $props();
 
   const nav = use_nav();
+  const touch = matchMedia("(pointer: coarse)").matches;
   const SIZES = options([
     [HudSize.SMALL, "Small"],
     [HudSize.MEDIUM, "Medium"],
@@ -90,6 +92,9 @@
   onchange={(value) => live.set("speedo", value)}
   visual={wire}
 />
+{#if !touch}
+  <ToggleRow label="Mirror" help="A strip at the top that shows the road behind you, in every camera view." checked={live.prefs.mirror} onchange={(value) => live.set("mirror", value)} />
+{/if}
 <ChoiceRow
   label="HUD size"
   help="How big speed, laps, map and the race cards draw. Touch buttons keep their own size."

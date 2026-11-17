@@ -243,6 +243,10 @@ describe("ui components", () => {
     expect(html(Chip, { variant: "toggle", pressed: true, children: text("Ghost") })).toContain('aria-pressed="true"');
     expect(html(Chip, { tone: "live", children: text("Room 4") })).toContain('data-tone="live"');
     expect(html(Chip, { children: text("2 450 cr") })).not.toContain("ui-dot");
+    expect(html(Chip, { children: text("2 450 cr") })).toMatch(/^<span/);
+    const action = html(Chip, { onclick: () => undefined, children: text("Update ready") });
+    expect(action).toMatch(/^<button type="button"/);
+    expect(action).not.toContain("aria-pressed");
     const inner = html(Chip, { inner: true, icon: "icon-check", focused: true, children: text("Fitted") });
     expect(inner).toContain("ui-inner");
     expect(inner).toContain("#icon-check");

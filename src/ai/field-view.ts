@@ -176,7 +176,7 @@ export class FieldView {
       if (!neon) continue;
       ahead.set(0, 0, 1).applyQuaternion(drawn_quat);
       place_neon(neon, drawn_pos.x, drawn_pos.y, drawn_pos.z, atan2(ahead.x, ahead.z), world);
-      light_neon(neon, 0, false, now);
+      light_neon(neon, false, now);
     }
   }
 
@@ -209,7 +209,7 @@ export class FieldView {
       const { neon } = this.views[i];
       if (neon && this.world) {
         place_neon(neon, drawn_pos.x, drawn_pos.y, drawn_pos.z, car.heading, this.world);
-        light_neon(neon, Math.hypot(car.vel.x, car.vel.z), car.nitro.boosting, now);
+        light_neon(neon, car.nitro.boosting, now);
       }
     }
     if (seen !== this.seen) {

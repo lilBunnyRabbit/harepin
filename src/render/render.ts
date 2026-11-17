@@ -120,6 +120,20 @@ export class Render {
     return this.height;
   }
 
+  /**
+   * Links the scene's shaders without holding the main thread, which a first draw would for each program.
+   * Resolves when they are ready to draw with.
+   */
+  link(): Promise<unknown> {
+    const { renderer } = this;
+    const target = renderer.getRenderTarget();
+    // A program is keyed by where it draws: the composer's pass draws the scene into a target, not the screen.
+    if (this.composer_on) renderer.setRenderTarget(this.composer.renderTarget1);
+    const linked = renderer.compileAsync(this.scene, this.camera);
+    renderer.setRenderTarget(target);
+    return linked;
+  }
+
   draw() {
     if (this.composer_on) this.composer.render();
     else this.renderer.render(this.scene, this.camera);

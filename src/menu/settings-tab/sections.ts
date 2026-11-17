@@ -26,7 +26,7 @@ export const CHANGES = "changes";
 
 export const SECTIONS: readonly SectionMeta[] = [
   { id: "graphics", label: "Graphics", icon: "icon-graphics", keys: ["quality"] },
-  { id: "display", label: "Display", icon: "icon-display", keys: ["hud_size", "speedo", "minimap"] },
+  { id: "display", label: "Display", icon: "icon-display", keys: ["hud_size", "speedo", "minimap", "mirror"] },
   { id: "driving", label: "Driving", icon: "icon-aids", keys: ["tcs", "abs", "assist", "stability", "auto", "ghost", "ai_difficulty"] },
   { id: "camera", label: "Camera", icon: "icon-camera", keys: ["camera", "camera_return", "speed_zoom", "camera_tilt", "invert_y"] },
   {

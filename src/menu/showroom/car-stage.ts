@@ -4,7 +4,8 @@ import { DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, SLOT_NAMES, WHOLE_CAR, build_code,
 import { CARS, is_car, type CarId } from "../../car/cars";
 import { ride_height } from "../../car/car";
 import { contact_shadow } from "../../car/contact-shadow";
-import { build_view, dispose_car_view, rest_wheels, type CarView } from "../../car/models";
+import { dispose_car_view, rest_wheels, view_steps, type CarView } from "../../car/models";
+import { SLICE_MS, advance, type Steps } from "../../car/steps";
 import { neon_look, rest_neon, tint_page } from "../../car/neon-look";
 import { brand, color, dark } from "../../theme/palette";
 import { drag_pose, is_double_tap, is_tap, pinch_factor, wheel_factor, zoom_pose, type Pose, type Press, type Tap } from "./stage-gestures";
@@ -27,6 +28,8 @@ const OUTLINE_GRID = 0.04;
 /** Floor radius over the car's half diagonal, so the car clears the rim at every turn. */
 const FLOOR_ROOM = 1.12;
 const FLOOR_POINTS = 32;
+/** Outline points one hull takes in: the hull of a whole car at once is a long task on a phone. */
+const HULL_PILE = 1500;
 
 export const ease = (u: number) => 1 - (1 - u) ** 3;
 const turn = (from: number, to: number) => ((((to - from + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
@@ -65,9 +68,14 @@ export class CarStage {
   private view: CarView | null = null;
   private shown_code = "";
   private frame = 0;
+  /** The frame a drag, a pinch or the wheel draws in: however many moves a frame brings, the car is drawn once. */
+  private redraw = 0;
   /** The framing is fitted to one outline per car, so swapping a part never moves the camera. */
   private readonly outlines = new Map<CarId, Outline>();
-  private readonly building = new Map<CarId, Generator<void, Outline>>();
+  private readonly building = new Map<CarId, Steps<Outline>>();
+  /** The car being built for the stand, a slice a frame; the one on the stand stays until it is done. */
+  private job: Steps<void> | null = null;
+  private job_frame = 0;
   /** Fits for the clear area and aspect in `fit_area`. */
   private readonly fits = new Map<CarId, Fit>();
   private fit_area = "";
@@ -166,18 +174,41 @@ export class CarStage {
     this.last_tap = null;
     cancelAnimationFrame(this.frame);
     this.frame = 0;
+    cancelAnimationFrame(this.redraw);
+    this.redraw = 0;
     cancelIdleCallback(this.warm_handle);
     this.warm_handle = 0;
+    cancelAnimationFrame(this.job_frame);
+    this.job_frame = 0;
+    this.job = null;
   }
 
   show(build: Build) {
     const code = build_code(build);
     if (code === this.shown_code) return;
     this.shown_code = code;
+    this.job = this.stand_steps(build);
+    this.job_frame ||= requestAnimationFrame(this.work);
+  }
+
+  private readonly work = () => {
+    this.job_frame = this.job && !advance(this.job).done ? requestAnimationFrame(this.work) : 0;
+  };
+
+  private *stand_steps(build: Build): Steps<void> {
+    while (!this.outline_step(build)) yield;
+    const view = yield* stand_view(build);
+    this.job = null;
+    // Linked before the first draw, which would block on a shader the stand has not drawn yet.
+    const linked = this.renderer?.compileAsync(view.root, this.camera, this.scene) ?? Promise.resolve();
+    void linked.then(() => this.put(build, view));
+  }
+
+  private put(build: Build, view: CarView) {
     const old = this.view;
     if (old) this.scene.remove(old.root);
     if (old?.neon) this.scene.remove(old.neon.mesh);
-    this.view = stand_view(build);
+    this.view = view;
     this.scene.add(this.view.root);
     if (this.view.neon) this.scene.add(this.view.neon.mesh);
     if (build.car !== this.stand_car) this.stand(build);
@@ -190,8 +221,10 @@ export class CarStage {
 
   /** Stands the car on the outline of every part it can wear, so the framing and shadow fit them all and stay put across swaps. */
   private stand(build: Build) {
+    const outline = this.outlines.get(build.car);
+    if (!outline) return;
     this.stand_car = build.car;
-    const { center, half } = this.outline(build);
+    const { center, half } = outline;
     this.shadow.mesh.position.set(center.x, GROUND + 0.02, center.z);
     this.shadow.mesh.scale.set(half.x, 1, half.z / 2);
     this.floor?.position.set(0, GROUND, 0);
@@ -199,42 +232,45 @@ export class CarStage {
     this.frame_car();
   }
 
-  private outline(build: Build): Outline {
-    const done = this.outlines.get(build.car);
-    if (done) return done;
+  /** One more step of the outline of `build`'s car, which the stand and the warm-up build between them; true once it is kept. */
+  private outline_step(build: Build): boolean {
+    if (this.outlines.has(build.car)) return true;
     const steps = this.building.get(build.car) ?? outline_steps(build);
-    let step = steps.next();
-    while (!step.done) step = steps.next();
+    this.building.set(build.car, steps);
+    const step = steps.next();
+    if (!step.done) return false;
     this.building.delete(build.car);
     this.outlines.set(build.car, step.value);
-    return step.value;
+    return true;
+  }
+
+  /** A pointer is down on the car: idle work anywhere would cost the drag its frames. */
+  get held(): boolean {
+    return this.pointers.size > 0;
   }
 
   private warm() {
     cancelIdleCallback(this.warm_handle);
+    this.warm_handle = 0;
+    // A slice of this in a frame of a drag is a dropped frame: the queue waits for the last pointer to lift.
+    if (this.pointers.size) return;
     const ids = Object.keys(CARS).filter(is_car);
     const at = this.stand_car ? ids.indexOf(this.stand_car) : 0;
     const queue = ids
       .filter((id) => !this.fits.has(id))
       .sort((a, b) => Math.abs(ids.indexOf(a) - at) - Math.abs(ids.indexOf(b) - at));
-    // The game loop keeps running behind the menu and leaves idle slots of a few ms, shorter than one variant, so each
-    // slot builds at least one.
+    // The game loop keeps running behind the menu and leaves idle slots of a few ms, so each slot takes at least one step.
+    // A sleeping loop leaves slots of 50 ms, a long task if one is used whole.
     const next = (deadline: IdleDeadline) => {
+      const until = performance.now() + SLICE_MS;
       do {
         const car = queue[0];
         const outline = this.outlines.get(car);
         if (outline) {
           if (!this.fits.has(car)) this.fits.set(car, this.fit(this.fit_points(outline)));
           queue.shift();
-          continue;
-        }
-        const steps = this.building.get(car) ?? outline_steps({ ...DEFAULT_BUILD, car });
-        this.building.set(car, steps);
-        const step = steps.next();
-        if (!step.done) continue;
-        this.building.delete(car);
-        this.outlines.set(car, step.value);
-      } while (queue.length && deadline.timeRemaining() > 0);
+        } else this.outline_step({ ...DEFAULT_BUILD, car });
+      } while (queue.length && deadline.timeRemaining() > 0 && performance.now() < until);
       this.warm_handle = queue.length ? requestIdleCallback(next) : 0;
     };
     this.warm_handle = queue.length ? requestIdleCallback(next) : 0;
@@ -277,10 +313,11 @@ export class CarStage {
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     this.presses.set(event.pointerId, { x: event.clientX, y: event.clientY, at: event.timeStamp, travel: 0 });
     this.stop_easing();
+    this.warm();
   };
 
-  // One pointer turns the car on its stand and tilts the view; two pinch the zoom. Each move draws one frame, so a car
-  // left alone runs no loop.
+  // One pointer turns the car on its stand and tilts the view; two pinch the zoom. A move asks for one drawn frame, so
+  // a car left alone runs no loop.
   private readonly drag = (event: PointerEvent) => {
     const last = this.pointers.get(event.pointerId);
     if (!last) return;
@@ -298,7 +335,7 @@ export class CarStage {
     }
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     drag_pose(this.pose, event.clientX - last.x, event.clientY - last.y);
-    this.draw();
+    this.draw_soon();
   };
 
   // A double tap or double click puts the car back as the page aimed it. Taps are read off the press itself: a touch
@@ -307,6 +344,7 @@ export class CarStage {
     const press = this.presses.get(event.pointerId);
     this.pointers.delete(event.pointerId);
     this.presses.delete(event.pointerId);
+    if (!this.pointers.size) this.warm();
     if (!press || this.pointers.size || !is_tap(press, event.timeStamp)) {
       this.last_tap = null;
       return;
@@ -326,8 +364,17 @@ export class CarStage {
 
   private zoom_by(factor: number) {
     zoom_pose(this.pose, factor);
-    this.draw();
+    this.draw_soon();
   }
+
+  private draw_soon() {
+    this.redraw ||= requestAnimationFrame(this.drawn);
+  }
+
+  private readonly drawn = () => {
+    this.redraw = 0;
+    this.draw();
+  };
 
   /** Frames the car in the part of the screen the `panels` leave clear. */
   resize(panels: readonly HTMLElement[]) {
@@ -457,7 +504,20 @@ function axes(pitch: number) {
   return { forward, side, up: side.clone().cross(forward) };
 }
 
-function* outline_steps(build: Build): Generator<void, Outline> {
+/** The points on the convex hull of `points`. The hull's own `vertices` list holds every point it was given. */
+export function hull_corners(points: THREE.Vector3[]): THREE.Vector3[] {
+  const corners = new Set<THREE.Vector3>();
+  for (const face of new ConvexHull().setFromPoints(points).faces) {
+    let edge = face.edge;
+    do {
+      corners.add(edge.head().point);
+      edge = edge.next;
+    } while (edge !== face.edge);
+  }
+  return [...corners];
+}
+
+function* outline_steps(build: Build): Steps<Outline> {
   const base: Build = { ...build, parts: { ...DEFAULT_PARTS } };
   // Only parts that change the shape: a look of their own, or a ride height or centre of mass that moves the body.
   const shaped = ({ look, mod }: Part) => look !== undefined || [mod.add, mod.scale].some((m) => m?.rest !== undefined || m?.cog !== undefined);
@@ -469,9 +529,11 @@ function* outline_steps(build: Build): Generator<void, Outline> {
   const seen = new Set<string>();
   const vertex = new THREE.Vector3();
   const box = new THREE.Box3();
-  const points: THREE.Vector3[] = [];
+  let corners: THREE.Vector3[] = [];
+  const pile: THREE.Vector3[] = [];
   for (const variant of builds) {
-    const view = stand_view(variant);
+    const view = yield* stand_view(variant);
+    yield;
     view.root.traverseVisible((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       const position = object.geometry.getAttribute("position");
@@ -481,23 +543,27 @@ function* outline_steps(build: Build): Generator<void, Outline> {
         const key = `${Math.round(vertex.x / OUTLINE_GRID)},${Math.round(vertex.y / OUTLINE_GRID)},${Math.round(vertex.z / OUTLINE_GRID)}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        points.push(vertex.clone());
+        pile.push(vertex.clone());
       }
     });
     dispose_car_view(view);
     yield;
+    // The hull of a hull's corners and more points is the hull of them all.
+    while (pile.length >= HULL_PILE) {
+      corners = hull_corners([...corners, ...pile.splice(0, HULL_PILE)]);
+      yield;
+    }
   }
-  const corners = new ConvexHull().setFromPoints(points).vertices.map((corner) => corner.point);
-  return { points: corners, center: box.getCenter(new THREE.Vector3()), half: box.getSize(new THREE.Vector3()).multiplyScalar(0.5) };
+  return { points: hull_corners([...corners, ...pile]), center: box.getCenter(new THREE.Vector3()), half: box.getSize(new THREE.Vector3()).multiplyScalar(0.5) };
 }
 
 // The car turns about the stand's origin, not its outline's centre, so the floor centres there too.
 const floor_radius = (center: THREE.Vector3, half: THREE.Vector3) => Math.hypot(Math.abs(center.x) + half.x, Math.abs(center.z) + half.z) * FLOOR_ROOM;
 
 /** The car on its stand: unturned, tyres on the floor, so a lower ride shows as the body dropping. */
-function stand_view(build: Build): CarView {
+function* stand_view(build: Build): Steps<CarView> {
   const spec = build_spec(build);
-  const view = build_view(build, spec);
+  const view = yield* view_steps(build, spec);
   rest_wheels(view, spec);
   view.root.position.y = GROUND + ride_height(spec);
   view.root.updateMatrixWorld(true);

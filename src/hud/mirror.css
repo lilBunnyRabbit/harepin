@@ -1,0 +1,40 @@
+:root {
+  --mirror-w: calc(256px * var(--hud-scale));
+  --mirror-h: calc(var(--mirror-w) / 4);
+}
+
+/* The frame alone: the picture is drawn on the canvas under it (render/mirror.ts). */
+#mirror {
+  box-sizing: border-box;
+  top: var(--inset-top);
+  left: 50%;
+  translate: -50% 0;
+  width: var(--mirror-w);
+  height: var(--mirror-h);
+  padding: 0;
+  border: var(--space-1) solid var(--surface);
+  border-radius: var(--radius-md);
+  background: none;
+  pointer-events: none;
+}
+
+#mirror[hidden] {
+  display: none;
+}
+
+/* The mirror keeps the top edge; the run's card, the race panel and the toast take the row under it. */
+:root[data-mirror] :is(#strip, #mode-status, #race-panel, #toast, .first-steps) {
+  --inset-top: calc(var(--inset) + env(safe-area-inset-top) + var(--mirror-h) + var(--space-2));
+  --corner-top: var(--inset-top);
+}
+
+/* A narrow window keeps its top row for the dock and the title. */
+@media (max-width: 760px) {
+  #mirror {
+    display: none;
+  }
+
+  :root[data-mirror] :is(#strip, #mode-status, #race-panel, #toast, .first-steps) {
+    --inset-top: calc(var(--inset) + env(safe-area-inset-top));
+  }
+}

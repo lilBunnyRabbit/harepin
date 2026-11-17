@@ -25,3 +25,40 @@ test("a tone already light and in gamut stays as it is", async () => {
   const light: Lab = [0.92, 0.03, 0.02];
   expect(page_glow(light)).toEqual(light);
 });
+
+const ring = async () => {
+  const { neon_view } = await import("./neon-look");
+  const { DESIGNS } = await import("./designs");
+  return neon_view(DESIGNS.hatch, { style: "ring", tone: [0.7, 0.1, 0.1] }, 0.4);
+};
+
+test("the ring's band stands still under a car that does not move: a paused game redraws it with the clock still running", async () => {
+  const { light_neon } = await import("./neon-look");
+  const neon = await ring();
+  neon.mesh.position.set(40, 2, -15);
+  light_neon(neon, false, 10);
+  neon.mesh.position.set(43, 2, -15);
+  light_neon(neon, false, 10.1);
+  const phase = neon.phase.value;
+  expect(phase).toBeGreaterThan(0);
+  for (let i = 2; i <= 20; i++) {
+    light_neon(neon, false, 10 + i * 0.1);
+    expect(neon.phase.value).toBe(phase);
+    expect(neon.level.value).toBe(neon.gain);
+  }
+});
+
+test("the band runs once round in the road it was built for, at any frame rate, and a car put elsewhere does not spin it", async () => {
+  const { light_neon } = await import("./neon-look");
+  for (const frames of [30, 144]) {
+    const neon = await ring();
+    for (let i = 0; i <= frames; i++) {
+      neon.mesh.position.set((4.5 * i) / frames, 0, 0);
+      light_neon(neon, false, i / frames);
+    }
+    expect(neon.phase.value).toBeCloseTo(0.5, 9);
+    neon.mesh.position.set(500, 0, 300);
+    light_neon(neon, false, 2);
+    expect(neon.phase.value).toBeCloseTo(0.5, 9);
+  }
+});

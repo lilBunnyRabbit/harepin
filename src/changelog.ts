@@ -51,6 +51,35 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.64.2",
+    date: "2026-11-17",
+    title: "No hitch on Home",
+    changes: [
+      { kind: FIXED, text: "No freeze right after Home shows or on the first drive: shaders now get ready behind the loading screen" },
+      { kind: FIXED, text: "The Garage no longer stalls while it gets its parts ready" },
+    ],
+  },
+  {
+    version: "0.64.1",
+    date: "2026-11-17",
+    title: "Steady glow",
+    changes: [
+      { kind: FIXED, text: "Neon no longer blinks while paused, and your glow follows your car in replays" },
+      { kind: FIXED, text: "Menus show again when an update is ready" },
+      { kind: FIXED, text: "Turning the car on Home is smoother, and the first online connection after starting the browser no longer freezes the game" },
+    ],
+  },
+  {
+    version: "0.64.0",
+    date: "2026-11-17",
+    title: "Mirror and a smoother Garage",
+    changes: [
+      { kind: NEW, text: "Rear-view mirror on desktop: switch it on in Settings > Display" },
+      { kind: IMPROVED, text: "New players start on the Island, right before their first flag" },
+      { kind: IMPROVED, text: "The Garage, part previews and the car picker open without stutter" },
+    ],
+  },
+  {
     version: "0.63.3",
     date: "2026-11-17",
     title: "Faster loads",

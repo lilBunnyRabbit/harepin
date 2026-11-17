@@ -152,6 +152,10 @@ export class WorldView {
 
   private readonly streamed: boolean;
 
+  get tree_meshes(): readonly THREE.Object3D[] {
+    return this.tree_batch.meshes;
+  }
+
   constructor(world: World, private readonly mobile: boolean, trees: TreeLook) {
     this.root.matrixAutoUpdate = false;
     this.streamed = world.tiles.streamed;

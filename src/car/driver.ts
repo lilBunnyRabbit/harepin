@@ -42,6 +42,10 @@ export class Driver {
   /** The last spot the car stood safely on a road, and the way it was going there. */
   private readonly safe = { x: 0, z: 0, fx: 0, fz: 1 };
   private readonly ahead = new THREE.Vector3();
+  /** A replay draws the car off its tape (`draw_at`), and the glow under it there: the live draw leaves the glow alone until `end_tape`. */
+  private taping = false;
+  /** Seconds, the time of the last `draw`. */
+  private drawn_at = 0;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -222,15 +226,22 @@ export class Driver {
     chase.eye = view.eye;
     chase.size = this.size;
     place_contact_shadow(this.shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, this.world);
-    if (view.neon) {
-      neon_under(view.neon, this.shadow);
-      light_neon(view.neon, hypot(car.vel.x, car.vel.z), car.nitro.boosting, now / 1000);
-    }
+    this.drawn_at = now / 1000;
+    if (!this.taping) this.glow(car.nitro.boosting);
   }
 
-  /** After `draw`, a replay's pose in place of the held car's: the view, its shadow and what the camera follows. `roll`: the wheels' turn, radians. */
+  /** The glow on the patch the shadow was just placed on. */
+  private glow(boost: boolean) {
+    const { neon } = this.view;
+    if (!neon) return;
+    neon_under(neon, this.shadow);
+    light_neon(neon, boost, this.drawn_at);
+  }
+
+  /** After `draw`, a replay's pose in place of the held car's, until `end_tape`: the view, its shadow, its glow and what the camera follows. `roll`: the wheels' turn, radians. */
   draw_at(pose: CarPose, roll: number) {
     const { view, drawn } = this;
+    this.taping = true;
     drawn.pos.copy(pose.pos);
     drawn.quat.copy(pose.quat);
     drawn.vel.copy(pose.vel);
@@ -246,5 +257,10 @@ export class Driver {
     stand_on_drawn(view, this.world);
     const ahead = this.ahead.set(0, 0, 1).applyQuaternion(drawn.quat);
     place_contact_shadow(this.shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, atan2(ahead.x, ahead.z), this.world);
+    this.glow(false);
+  }
+
+  end_tape() {
+    this.taping = false;
   }
 }

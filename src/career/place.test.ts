@@ -1,9 +1,9 @@
 import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { plain_map } from "../worldgen/kinds/kinds";
-import { parse_map_code } from "../worldgen/kinds/map-code";
+import { parse_map_code, read_pick } from "../worldgen/kinds/map-code";
 import { WorldKind } from "../worldgen/types";
-import { MAINLAND_SEED, NEW_PLAYER_KIND } from "../world/world-pick";
+import { MAINLAND_SEED, pick_world } from "../world/world-pick";
 import { MAP_NAMES, short_name_of } from "../worlds/map-name";
 import { event_of, type CareerEvent } from "./career";
 import { event_map } from "./career-store";
@@ -34,11 +34,19 @@ test("events group by map, the loaded map's first, then in list order", () => {
   expect(groups[1].place).toEqual({ here: false, name: "Island · Harwar", kind: WorldKind.ISLAND });
 });
 
-test("a fresh profile boots on the mainland, so First lap is on another map, named apart from the mainland", () => {
-  const boot = plain_map(NEW_PLAYER_KIND, MAINLAND_SEED);
-  const place = place_of(event_map(at("r1")), boot);
+const FRESH = { last_seed: null, last_world: null, last_map: null, played: false };
+
+test("a fresh profile boots on the first flag's map, so First lap is here", () => {
+  const boot = read_pick(pick_world(new URLSearchParams(), "lobby", FRESH));
+  expect(short_name_of(boot)).toBe("Island · Harwar");
+  expect(place_of(event_map(at("r1")), boot)).toEqual({ here: true });
+});
+
+test("from the mainland First lap is on another map, named apart from it", () => {
+  const mainland = plain_map(WorldKind.MAINLAND, MAINLAND_SEED);
+  const place = place_of(event_map(at("r1")), mainland);
   expect(place).toEqual({ here: false, name: "Island · Harwar", kind: WorldKind.ISLAND });
-  expect(short_name_of(boot)).not.toBe(place.here ? "" : place.name);
+  expect(short_name_of(mainland)).not.toBe(place.here ? "" : place.name);
 });
 
 test("no two named maps share a name", () => {

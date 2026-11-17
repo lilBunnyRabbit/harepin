@@ -60,7 +60,10 @@ export function show_first_run(host: FirstRunHost): FirstRunView {
   const view = new FirstRunView(host);
   const target = document.createElement("div");
   target.className = "first-run-dock";
-  document.body.append(target);
+  // Right after the dock, so before the update chip and toasts: its ticket is their anchor, and an anchor comes first in the tree.
+  const dock = document.querySelector(".dock-top");
+  if (dock) dock.after(target);
+  else document.body.append(target);
   mount(FirstRunStrip, { target, props: { view } });
   return view;
 }

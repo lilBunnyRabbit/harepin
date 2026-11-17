@@ -26,6 +26,8 @@ import { own_country } from "./net/country";
 import { Chat } from "./net/chat";
 import { Skids, Smoke } from "./render/effects";
 import { Sparks } from "./render/sparks";
+import { Mirror } from "./render/mirror";
+import { MirrorFrame } from "./hud/mirror-frame";
 import { build_code, build_spec, parse_build } from "./car/build";
 import { load_builds } from "./car/builds";
 import { car_shelves, limit_text, type CarLimit, type CarShelf } from "./car/car-pick";
@@ -64,6 +66,7 @@ import { CursorIdle } from "./theme/cursor";
 import { brand, color, rgba, tones } from "./theme/palette";
 import { Race } from "./race";
 import { Remotes } from "./net/remotes";
+import { warm_rtc } from "./net/warm";
 import { Render } from "./render/render";
 import { WorldView, mesh_tones } from "./render/scene";
 import { kit_meshes } from "./render/prop-kit";
@@ -78,7 +81,7 @@ import { Settings } from "./menu/settings";
 import { BUILD, Updater, show_version } from "./menu/update";
 import { card_closed_now, show_updated } from "./menu/updated-card";
 import { when_idle } from "./menu/when-idle";
-import { LAB_PARAM, names_world, pick_world } from "./world/world-pick";
+import { LAB_PARAM, NEW_PLAYER_SPAWN, names_world, new_player, pick_world } from "./world/world-pick";
 import { briefed_car, travel_query } from "./world/travel";
 import { Brief } from "./world/travel-brief.svelte";
 import { travel_here } from "./world/travel-card";
@@ -138,8 +141,8 @@ const net_room = solo ? `solo-${[...crypto.getRandomValues(new Uint8Array(4))].m
 const RECORDS_WAIT_MS = 1500;
 const saved_pick = read_saved_pick();
 const pick = pick_world(params, room, saved_pick);
-pin_pick(params, saved_pick, pick);
 const map = read_pick(pick);
+pin_pick(params, saved_pick, map);
 const { seed, kind } = map;
 const prefs = load_settings(params);
 const random_name = kept_random_name();
@@ -180,6 +183,7 @@ render.mount(app);
 render.start(app);
 render.apply_quality();
 const area_fade = new AreaFade(app);
+warm_rtc();
 const [stream] = await Promise.all([opening, records]);
 brief?.step("Placing flags", 0.8);
 const world = stream.world;
@@ -195,7 +199,7 @@ const chase = new ChaseCamera(camera);
 chase.wall_bank = WORLDS[world.kind].wall_view ?? Infinity;
 // `?view=` and `?replay=` (src/review): shots of the world with nothing driving, for reviewing how it looks.
 const review = (import.meta.env.MODE === "review" || import.meta.env.DEV) && review_wanted(params) ? await (await import("./review/review")).Review.open(world, chase) : null;
-const start_index = review?.start_index ?? (debug_at || SPAWN_INDEX);
+const start_index = review?.start_index ?? (debug_at || (new_player(params, saved_pick) ? NEW_PLAYER_SPAWN : SPAWN_INDEX));
 const start_point = world.road[world.clear_spawn(start_index)];
 // `?debug&pose=x,y,z,tx,ty,tz` pins the camera at a point looking at another, for menu pictures.
 const pose = params.has("debug") ? (params.get("pose")?.split(",").map(Number) ?? []) : [];
@@ -270,6 +274,10 @@ const smoke = new Smoke(look.ground_puff);
 const skids = new Skids();
 const sparks = new Sparks();
 scene.add(smoke.mesh, skids.mesh, sparks.mesh);
+const mirror = new Mirror();
+mirror.skip = [smoke.mesh, sparks.mesh, ...world_view.tree_meshes];
+const mirror_frame = new MirrorFrame($("mirror"), app, (left, top, width, height, radius) => mirror.place(left, top, width, height, radius));
+if (!quality.mobile) mirror_frame.start();
 
 const garage = new Garage(build);
 garage.rewards = () => unlocks(career.stars);
@@ -558,6 +566,7 @@ replay.view.mount(document.body);
 replay.on_open = () => modes.cover_result(true);
 replay.on_close = () => {
   modes.cover_result(false);
+  driver.end_tape();
   chase.snap(driver.car);
 };
 modes.watch = (tape, field) =>
@@ -1145,6 +1154,7 @@ function frame(time: number) {
   if (input.touch.nitro && car.nitro.fill <= 0) input.touch.tank_empty();
   // The menu covers the HUD, so its writes and the minimap wait for the frame the menu closes on.
   if (!settings.is_open) hud.update(car, now, rewinding);
+  mirror_frame.show(settings.state.mirror && !quality.mobile && !settings.is_open && !replay.is_open);
   lab?.frame();
   // Behind the menu each frame carries the redraw gap, which would read as a slow frame.
   if (!draw_ms && quality.adapt(dt)) render.apply_quality();
@@ -1153,10 +1163,12 @@ function frame(time: number) {
   dome.position.copy(camera.position);
   world_view.update(camera, quality.tier.fog_far, world_time);
   driver.view.root.visible = driver.shadow.mesh.visible = !settings.staged;
+  light.show(!settings.staged);
   if (driver.view.neon) driver.view.neon.mesh.visible = !settings.staged;
   if (!draw_ms || now - last_draw >= draw_ms) {
     last_draw = now;
     render.draw();
+    mirror.draw(render.renderer, scene, driver.drawn, chase.size);
   }
   review?.drawn(stream);
   render.check_size(now);
@@ -1207,15 +1219,19 @@ document.addEventListener("click", (e) => {
   if (e.target instanceof HTMLButtonElement && !e.target.closest(".garage-rail")) e.target.blur();
 });
 
+const linked = render.link();
 // A travel holds on its briefing until the player starts: they may have looked away while the map built.
 if (brief) {
   brief.ready();
   await brief.started;
 }
+await linked;
+performance.mark("world:first");
+requestAnimationFrame(frame);
+// The first frame links what `link` cannot reach (shadow depth, the composer's passes), so it draws under the loading screen.
+await new Promise(requestAnimationFrame);
 $("loading").remove();
 // The Updated card waits out a run as the update's reload does, its car picker, and a series link's start, which loads its progress first.
 when_idle(() => run_busy() || modes.engaged || modes.holding || series_starting, () => show_updated(updater.open_notes));
-performance.mark("world:first");
-requestAnimationFrame(frame);
 settings.warm();
-requestIdleCallback(() => void import("./menu/car-still").then(({ warm_stills }) => warm_stills()));
+requestIdleCallback(() => void import("./menu/car-still").then(({ warm_stills }) => warm_stills(() => settings.stage_held)));

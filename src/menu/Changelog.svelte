@@ -30,7 +30,7 @@
     <Card class="changelog-pending" label="Update ready">
       <div class="changelog-update">
         <span class="changelog-update-text">
-          <b>Update ready</b>
+          <b>Update ready{view.pending.remote ? ` · v${view.pending.remote.version}` : ""}</b>
           <small>{view.pending.status}</small>
         </span>
         <Button variant="primary" disabled={view.pending.applying} onclick={onapply}>Update now</Button>

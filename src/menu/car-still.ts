@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { DEFAULT_BUILD, build_code, build_spec, type Build } from "../car/build";
 import { contact_shadow } from "../car/contact-shadow";
-import { build_view, dispose_car_view, rest_wheels, type CarView } from "../car/models";
+import { dispose_car_view, rest_wheels, view_steps, type CarView } from "../car/models";
+import { advance } from "../car/steps";
 import { brand, color, dark } from "../theme/palette";
 import { StillView } from "./still-build";
 
@@ -52,9 +53,16 @@ class Stage {
     this.scene.add(this.shadow.mesh);
   }
 
-  build(build: Build): CarView {
+  /** Builds the model a slice at a time, a `wait` apart. */
+  async build(build: Build, wait: () => Promise<void>): Promise<CarView> {
     const spec = build_spec(build);
-    const car = build_view(build, spec);
+    const steps = view_steps(build, spec);
+    let step = advance(steps);
+    while (!step.done) {
+      await wait();
+      step = advance(steps);
+    }
+    const car = step.value;
     rest_wheels(car, spec);
     car.root.updateMatrixWorld(true);
     return car;
@@ -146,17 +154,22 @@ const idle = () => new Promise<void>((done) => requestIdleCallback(() => done(),
 
 /**
  * Opens the stills' renderer and compiles a stock car's shaders in idle time, so the first stills a page asks for pay
- * for neither. A load that has already drawn a still has both.
+ * for neither. A load that has already drawn a still has both. It waits while `held`: a step in a frame of a drag
+ * is a dropped frame.
  */
-export function warm_stills() {
+export function warm_stills(held: () => boolean) {
+  const free = async () => {
+    do await idle();
+    while (held());
+  };
   turn = turn.then(async () => {
     if (stage) return;
-    await idle();
+    await free();
     try {
       stage = new Stage();
-      await idle();
-      const car = stage.build(DEFAULT_BUILD);
-      await idle();
+      await free();
+      const car = await stage.build(DEFAULT_BUILD, free);
+      await free();
       await stage.place(car, StillView.QUARTER);
       stage.rest(car);
     } catch (error) {
@@ -167,8 +180,8 @@ export function warm_stills() {
 
 /**
  * A picture of the car, drawn once and kept for the session: an object URL of a clear-backed image. Stills draw on one
- * renderer of their own, kept for the session so its shaders compile once. A still takes three tasks, a frame apart:
- * the model, the fit and shader link, the draw. No loop runs.
+ * renderer of their own, kept for the session so its shaders compile once. A still takes its tasks a frame apart:
+ * the model in slices, the fit and shader link, the draw. No loop runs.
  */
 export function car_still(build: Build, view: StillView = StillView.QUARTER): Promise<string> {
   const key = `${build_code(build)} ${view}`;
@@ -184,7 +197,7 @@ export function car_still(build: Build, view: StillView = StillView.QUARTER): Pr
           stage = new Stage();
           await painted();
         }
-        const car = stage.build(build);
+        const car = await stage.build(build, painted);
         await painted();
         await stage.place(car, view);
         await painted();

@@ -30,6 +30,8 @@
 
 {#if variant === "toggle"}
   <button type="button" class="ui-chip" class:ui-inner={inner} data-focused={focused ? "" : undefined} aria-pressed={pressed} {title} onclick={flip}>{@render body()}</button>
+{:else if onclick}
+  <button type="button" class="ui-chip" class:ui-inner={inner} data-focused={focused ? "" : undefined} {title} {onclick}>{@render body()}</button>
 {:else}
   <span class="ui-chip" class:ui-inner={inner} data-focused={focused ? "" : undefined} {title}>{@render body()}</span>
 {/if}
