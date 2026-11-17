@@ -28,6 +28,8 @@ const OUTLINE_GRID = 0.04;
 /** Floor radius over the car's half diagonal, so the car clears the rim at every turn. */
 const FLOOR_ROOM = 1.12;
 const FLOOR_POINTS = 32;
+/** Outline points one hull takes in: the hull of a whole car at once is a long task on a phone. */
+const HULL_PILE = 1500;
 
 export const ease = (u: number) => 1 - (1 - u) ** 3;
 const turn = (from: number, to: number) => ((((to - from + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
@@ -193,7 +195,9 @@ export class CarStage {
     while (!this.outline_step(build)) yield;
     const view = yield* stand_view(build);
     this.job = null;
-    this.put(build, view);
+    // Linked before the first draw, which would block on a shader the stand has not drawn yet.
+    const linked = this.renderer?.compileAsync(view.root, this.camera, this.scene) ?? Promise.resolve();
+    void linked.then(() => this.put(build, view));
   }
 
   private put(build: Build, view: CarView) {
@@ -502,7 +506,8 @@ function* outline_steps(build: Build): Steps<Outline> {
   const seen = new Set<string>();
   const vertex = new THREE.Vector3();
   const box = new THREE.Box3();
-  const points: THREE.Vector3[] = [];
+  let corners: THREE.Vector3[] = [];
+  const pile: THREE.Vector3[] = [];
   for (const variant of builds) {
     const view = yield* stand_view(variant);
     yield;
@@ -515,13 +520,18 @@ function* outline_steps(build: Build): Steps<Outline> {
         const key = `${Math.round(vertex.x / OUTLINE_GRID)},${Math.round(vertex.y / OUTLINE_GRID)},${Math.round(vertex.z / OUTLINE_GRID)}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        points.push(vertex.clone());
+        pile.push(vertex.clone());
       }
     });
     dispose_car_view(view);
     yield;
+    // The hull of a hull's corners and more points is the hull of them all.
+    while (pile.length >= HULL_PILE) {
+      corners = hull_corners([...corners, ...pile.splice(0, HULL_PILE)]);
+      yield;
+    }
   }
-  return { points: hull_corners(points), center: box.getCenter(new THREE.Vector3()), half: box.getSize(new THREE.Vector3()).multiplyScalar(0.5) };
+  return { points: hull_corners([...corners, ...pile]), center: box.getCenter(new THREE.Vector3()), half: box.getSize(new THREE.Vector3()).multiplyScalar(0.5) };
 }
 
 // The car turns about the stand's origin, not its outline's centre, so the floor centres there too.

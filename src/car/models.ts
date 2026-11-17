@@ -314,6 +314,7 @@ function* car_view_steps(paint: THREE.Color, spec: CarSpec, kit: Record<Slot, nu
   const hull_base = merge(painted_body, ...openings, ...fittings);
   // Decals are laid on the body as drawn, cabin included, then sculpted with it; the cabin itself keeps its width.
   const base = merge(hull_base, cabin);
+  yield;
   const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), back(base, paint), nose, tail) : [];
   yield;
   const wing = rear_wing(d, aero, paint, trim);
