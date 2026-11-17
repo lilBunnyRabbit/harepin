@@ -1,6 +1,6 @@
 <script lang="ts">
   import { GOALS, GoalId } from "../goals/goals";
-  import { aim_or_go, bare_enter } from "./drive-picks";
+  import { bare_enter } from "./drive-picks";
   import { GOALS_PAGE, GUIDE_PAGE, TOPICS, line_of, type Topic } from "./guide-topics";
   import MenuFrame from "./MenuFrame.svelte";
   import Card from "./ui/Card.svelte";
@@ -63,6 +63,11 @@
     else enter(focus);
   }
 
+  function skip_first_run() {
+    goals.skip(GoalId.FLAG);
+    menu.refresh();
+  }
+
   function key(event: KeyboardEvent) {
     if (!shown || event.defaultPrevented || !bare_enter(event)) return;
     event.preventDefault();
@@ -73,7 +78,7 @@
 <svelte:window onkeydown={key} />
 
 {#snippet links()}
-  {#if first_run}<KeyLink onclick={() => goals.skip(GoalId.FLAG)}>Skip the first run</KeyLink>{/if}
+  {#if first_run}<KeyLink onclick={skip_first_run}>Skip the first run</KeyLink>{/if}
 {/snippet}
 
 {#snippet primary()}
@@ -98,7 +103,7 @@
 {:else}
   <MenuFrame {menu} id={GUIDE_PAGE} eyebrow="Settings" title="Guide" season={false} veil={0.6} {links} {primary}>
     <div class="guide">
-      <Card pad="sm" flat class="guide-steps" focused={picked === STEPS} onclick={(click) => aim_or_go(click, () => (picked = STEPS), () => open(GOALS_PAGE))} onfocus={() => (picked = STEPS)} label="First steps">
+      <Card pad="sm" flat class="guide-steps" focused={picked === STEPS} onclick={() => ((picked = STEPS), open(GOALS_PAGE))} onfocus={() => (picked = STEPS)} label="First steps">
         <span class="guide-bar">
           <span class="guide-text">
             <span class="ev-eyebrow">First steps</span>
@@ -120,7 +125,7 @@
         {#snippet shot()}
           <img class="ev-pic" src={preview(one.art)} alt="" />
         {/snippet}
-        <Card picture={shot} flat focused={one.id === picked} class="guide-card" onclick={(click) => aim_or_go(click, () => (picked = one.id), () => enter(one))} onfocus={() => (picked = one.id)} label={one.title}>
+        <Card picture={shot} flat focused={one.id === picked} class="guide-card" onclick={() => ((picked = one.id), enter(one))} onfocus={() => (picked = one.id)} label={one.title}>
           <b class="ev-h3">{one.title}</b>
           <span class="ev-small">{one.line}</span>
         </Card>
