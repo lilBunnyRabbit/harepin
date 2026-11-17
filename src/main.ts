@@ -700,8 +700,18 @@ const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), {
   pick: (title, limit, signal) => pick_in(title, limit, shelves_for(limit), signal),
   map: () => map_name(built, world.towns),
 });
-const next_ticket = show_next_up({ stars: () => career.stars, here: built, flags: () => markers.map_markers, travel: (id) => start_event(id), blocked: () => input.blocked() });
-const first_run = show_first_run({ goals, flag: next_ticket, bindings: () => settings.state.bindings, touch_steer: () => settings.state.touch_steer, open_steps: () => settings.open("goals") });
+const next_ticket = show_next_up({
+  stars: () => career.stars,
+  here: built,
+  flags: () => markers.map_markers,
+  // The first run's flag on another map is reached by travelling: its event starts as that map loads.
+  travel: (id) => {
+    first_run.reach();
+    start_event(id);
+  },
+  blocked: () => input.blocked(),
+});
+const first_run = show_first_run({ goals, flag: next_ticket, input: () => document.documentElement.dataset.input, bindings: () => settings.state.bindings, touch_steer: () => settings.state.touch_steer, open_steps: () => settings.open("goals") });
 $("toast").after(markers.card.el);
 const road_map = show_map_overlay({
   here: built,

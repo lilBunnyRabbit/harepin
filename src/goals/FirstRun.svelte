@@ -2,7 +2,8 @@
   import { key_label, pad_text } from "../hud/bindings";
   import { distance_text } from "../menu/maps";
   import Icon from "../menu/ui/Icon.svelte";
-  import { FIRST_STEPS } from "./first-run";
+  import IconButton from "../menu/ui/IconButton.svelte";
+  import { first_steps } from "./first-run";
   import type { FirstRunView } from "./first-run-view.svelte";
   import { GOALS, GoalId } from "./goals";
 
@@ -23,19 +24,21 @@
     return view.input === "pad" ? "Steer L stick" : `Steer ${key("steer_left")} ${key("steer_right")}`;
   });
   const flag = $derived(view.host.flag);
+  const steps = $derived(first_steps(flag.away));
 </script>
 
 {#if view.shown}
   {#if paint}<div class="first-paint" aria-hidden="true">{paint}</div>{/if}
   <section class="first-steps" aria-label="First run">
     <ol>
-      {#each FIRST_STEPS as label, i (label)}
+      {#each steps as label, i (label)}
         <li aria-current={i === view.step ? "step" : undefined} data-done={i < view.step ? "" : undefined}>
           <i>{#if i < view.step}<Icon name="icon-check" />{:else}{i + 1}{/if}</i>{label}
         </li>
       {/each}
     </ol>
     <button type="button" class="first-more" onclick={() => view.host.open_steps()}>First steps<Icon name="icon-back" flip /></button>
+    <IconButton class="first-skip" icon="icon-close" label="Skip the first run" shape="round" size="sm" onclick={() => view.skip()} />
   </section>
   {#if flag.distance !== null}
     <section class="first-ticket" aria-label="First steps">
@@ -55,6 +58,11 @@
   /* One ticket points at the flag, never two. With the flag on another map this one is away, and Next up offers the travel. */
   :global(body:has(.first-ticket) .next-up-dock) {
     display: none;
+  }
+
+  /* The road's lap clock and its "drive through the lit gate" would read as the task: the three steps stand alone. */
+  :global(:root body:has(.first-steps) #strip) {
+    visibility: hidden;
   }
 
   .first-paint {

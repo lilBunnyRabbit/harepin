@@ -36,6 +36,11 @@ export class NextUpView {
 
   constructor(readonly host: NextUpHost) {}
 
+  /** The next event stands on another map: Travel leads there, no arrow does. */
+  get away(): boolean {
+    return this.ticket?.place.here === false;
+  }
+
   /** Only an edge reaches the button, which owns the hold timer. */
   press(down: boolean) {
     if (down && (!this.shown || this.ticket?.place.here !== false || this.host.blocked())) return;

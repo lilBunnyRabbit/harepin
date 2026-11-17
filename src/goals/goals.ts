@@ -128,11 +128,21 @@ export class Goals {
   }
 
   done(id: GoalId) {
-    if (this.finished.has(id)) return;
-    this.finished.add(id);
-    this.save();
+    if (!this.mark(id)) return;
     const goal = GOALS.find((g) => g.id === id);
     if (goal) this.on_done?.(goal);
+  }
+
+  /** A step the player passed on: kept like a done one, so it never asks again, with no toast. */
+  skip(id: GoalId) {
+    this.mark(id);
+  }
+
+  private mark(id: GoalId): boolean {
+    if (this.finished.has(id)) return false;
+    this.finished.add(id);
+    this.save();
+    return true;
   }
 
   played(mode: string) {

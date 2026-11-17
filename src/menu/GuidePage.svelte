@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { GOALS } from "../goals/goals";
+  import { GOALS, GoalId } from "../goals/goals";
   import { aim_or_go, bare_enter } from "./drive-picks";
   import { GOALS_PAGE, GUIDE_PAGE, TOPICS, line_of, type Topic } from "./guide-topics";
   import MenuFrame from "./MenuFrame.svelte";
   import Card from "./ui/Card.svelte";
   import Icon from "./ui/Icon.svelte";
+  import KeyLink from "./ui/KeyLink.svelte";
   import PrimaryAction from "./ui/PrimaryAction.svelte";
   import Progress from "./ui/Progress.svelte";
   import Row from "./ui/Row.svelte";
@@ -23,6 +24,7 @@
   const version = $derived(live.live(() => goals.version));
   const done = $derived.by(() => (void version, goals.count));
   const next = $derived.by(() => (void version, GOALS.find((goal) => !goals.is_done(goal.id))));
+  const first_run = $derived.by(() => (void version, !goals.is_done(GoalId.FLAG)));
 
   const STEPS = "steps";
   let picked = $state<string>(TOPICS[0].id);
@@ -70,6 +72,10 @@
 
 <svelte:window onkeydown={key} />
 
+{#snippet links()}
+  {#if first_run}<KeyLink onclick={() => goals.skip(GoalId.FLAG)}>Skip the first run</KeyLink>{/if}
+{/snippet}
+
 {#snippet primary()}
   <PrimaryAction onclick={act}>{topic ? topic.verb : `Open ${picked === STEPS ? "First steps" : focus.title}`}</PrimaryAction>
 {/snippet}
@@ -90,7 +96,7 @@
     </div>
   </MenuFrame>
 {:else}
-  <MenuFrame {menu} id={GUIDE_PAGE} eyebrow="Settings" title="Guide" season={false} veil={0.6} {primary}>
+  <MenuFrame {menu} id={GUIDE_PAGE} eyebrow="Settings" title="Guide" season={false} veil={0.6} {links} {primary}>
     <div class="guide">
       <Card pad="sm" flat class="guide-steps" focused={picked === STEPS} onclick={(click) => aim_or_go(click, () => (picked = STEPS), () => open(GOALS_PAGE))} onfocus={() => (picked = STEPS)} label="First steps">
         <span class="guide-bar">

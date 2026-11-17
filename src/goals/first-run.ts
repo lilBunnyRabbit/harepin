@@ -1,5 +1,9 @@
 /** The first run's three steps on the road, in order. */
 export const FIRST_STEPS = ["Drive", "Steer", "Reach the flag"] as const;
+/** The same three with the first flag on another map: no drive reaches it, the Next up ticket's Travel does. */
+const AWAY_STEPS = [FIRST_STEPS[0], FIRST_STEPS[1], "Travel to the flag"] as const;
+
+export const first_steps = (away: boolean): readonly string[] => (away ? AWAY_STEPS : FIRST_STEPS);
 
 /** m/s: the car is moving under its own power, not rolling off the spawn. */
 const DRIVE_SPEED = 8;

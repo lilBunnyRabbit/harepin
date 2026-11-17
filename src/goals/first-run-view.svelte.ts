@@ -10,10 +10,14 @@ export interface FirstRunHost {
   readonly goals: Goals;
   bindings(): Bindings;
   touch_steer(): TouchSteer;
-  readonly flag: { readonly distance: number | null; readonly turn: number };
+  /** The input last used, as `:root[data-input]` holds it. */
+  input(): string | undefined;
+  /** `away`: the first flag stands on another map, so no distance leads to it. */
+  readonly flag: { readonly distance: number | null; readonly turn: number; readonly away: boolean };
   open_steps(): void;
 }
 
+/** The first run lasts until the flag goal is done, here or anywhere else that marks it. */
 export class FirstRunView {
   shown = $state(false);
   step = $state(0);
@@ -21,28 +25,34 @@ export class FirstRunView {
   done = $state(0);
   readonly total = GOALS.length;
   private readonly run = new FirstRun();
-  private over: boolean;
 
   constructor(readonly host: FirstRunHost) {
-    this.over = host.goals.is_done(GoalId.FLAG);
     this.done = host.goals.count;
   }
 
   update(speed: number, heading: number, roaming: boolean) {
-    if (this.over) return;
-    if (roaming !== this.shown) {
-      this.shown = roaming;
+    const shown = roaming && !this.host.goals.is_done(GoalId.FLAG);
+    if (shown !== this.shown) {
+      this.shown = shown;
       this.done = this.host.goals.count;
     }
-    if (!roaming) return;
-    const input = document.documentElement.dataset.input;
+    if (!shown) return;
+    const input = this.host.input();
     if (input !== this.input && (input === "keys" || input === "pad" || input === "touch")) this.input = input;
     if (!this.run.update(speed, heading, this.host.flag.distance)) return;
     this.step = this.run.step;
-    if (!this.run.over) return;
-    this.over = true;
+    if (this.run.over) this.reach();
+  }
+
+  /** The flag reached. Travel to its map counts: the event starts under it as the map loads. */
+  reach() {
     this.shown = false;
     this.host.goals.done(GoalId.FLAG);
+  }
+
+  skip() {
+    this.shown = false;
+    this.host.goals.skip(GoalId.FLAG);
   }
 }
 
