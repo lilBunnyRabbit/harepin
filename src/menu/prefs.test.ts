@@ -89,6 +89,8 @@ describe("parse_settings", () => {
     expect(parsed.speedo).toBe("bar");
     expect(parsed.map).toBe("real");
     expect(parse_settings({ map: "close", speedo: "dial" })).toMatchObject({ map: "close", speedo: "dial" });
+    // Rally pace notes are gone: a save that picked them shows the map.
+    expect(parse_settings({ map: "pace" }).map).toBe("real");
   });
 
   test("saves from before the pad settings get the old fixed pad curve", () => {

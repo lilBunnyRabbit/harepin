@@ -57,12 +57,11 @@ export const SpeedoStyle = {
 } as const;
 export type SpeedoStyle = (typeof SpeedoStyle)[keyof typeof SpeedoStyle];
 
-/** What the map card shows: the map's picture north up, the run's route alone, the road ahead turning with the car, rally notes, or nothing. */
+/** What the map card shows: the map's picture north up, the run's route alone, the road ahead turning with the car, or nothing. */
 export const MapView = {
   REAL: "real",
   LINE: "line",
   CLOSE: "close",
-  PACE: "pace",
   OFF: "off",
 } as const;
 export type MapView = (typeof MapView)[keyof typeof MapView];

@@ -61,13 +61,6 @@
     background: color-mix(in oklch, var(--foreground) 60%, transparent);
   }
 
-  [data-look="pace"]::after {
-    content: "3";
-    font-size: var(--text-xs);
-    font-weight: 700;
-    line-height: 1;
-  }
-
   [data-part="speed"] {
     background: var(--primary);
   }

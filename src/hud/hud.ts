@@ -9,7 +9,6 @@ import { HOT_RATIO, tach } from "../car/tach";
 import type { World } from "../world/world";
 import type { RouteRun } from "../modes/mode";
 import { Minimap } from "./minimap";
-import { PaceCard } from "./pace-card";
 import "./hud.css";
 import "./top-bar.css";
 import "./corner.css";
@@ -133,7 +132,6 @@ export class Hud {
     strip: $("strip"),
   };
   private map: Minimap;
-  private pace: PaceCard;
   private view: MapView = MapView.REAL;
   private place = "";
   private picture: (() => Promise<string>) | null = null;
@@ -163,8 +161,6 @@ export class Hud {
     this.map = new Minimap(canvas, world.routes, world.tiles.ext.size, network);
     this.el.dial_zone.style.strokeDasharray = `0 ${DIAL_HOT} ${100 - DIAL_HOT} 100`;
     this.el.rpm.parentElement?.style.setProperty("--rpm-hot", percent(HOT_RATIO));
-    this.pace = new PaceCard(world.routes);
-    canvas.after(this.pace.el);
   }
 
   set_markers(markers: readonly MapMarker[]) {
@@ -319,7 +315,6 @@ export class Hud {
     const gate = run ? run.gate : this.in_run() ? null : route === CIRCUIT ? (this.world.checkpoints[this.race.next] ?? null) : null;
     const later = run ? run.later : NONE;
     this.draw_note(car, gate);
-    if (this.view === MapView.PACE) return this.pace.update(car, route);
     if (this.view === MapView.OFF) return;
     this.map.show_route(route);
     const remotes = this.net.remotes.values();
