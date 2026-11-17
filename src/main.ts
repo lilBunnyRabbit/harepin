@@ -78,7 +78,7 @@ import { Settings } from "./menu/settings";
 import { BUILD, Updater, show_version } from "./menu/update";
 import { card_closed_now, show_updated } from "./menu/updated-card";
 import { when_idle } from "./menu/when-idle";
-import { LAB_PARAM, names_world, pick_world } from "./world/world-pick";
+import { LAB_PARAM, NEW_PLAYER_SPAWN, names_world, new_player, pick_world } from "./world/world-pick";
 import { briefed_car, travel_query } from "./world/travel";
 import { Brief } from "./world/travel-brief.svelte";
 import { travel_here } from "./world/travel-card";
@@ -195,7 +195,7 @@ const chase = new ChaseCamera(camera);
 chase.wall_bank = WORLDS[world.kind].wall_view ?? Infinity;
 // `?view=` and `?replay=` (src/review): shots of the world with nothing driving, for reviewing how it looks.
 const review = (import.meta.env.MODE === "review" || import.meta.env.DEV) && review_wanted(params) ? await (await import("./review/review")).Review.open(world, chase) : null;
-const start_index = review?.start_index ?? (debug_at || SPAWN_INDEX);
+const start_index = review?.start_index ?? (debug_at || (new_player(params, saved_pick) ? NEW_PLAYER_SPAWN : SPAWN_INDEX));
 const start_point = world.road[world.clear_spawn(start_index)];
 // `?debug&pose=x,y,z,tx,ty,tz` pins the camera at a point looking at another, for menu pictures.
 const pose = params.has("debug") ? (params.get("pose")?.split(",").map(Number) ?? []) : [];

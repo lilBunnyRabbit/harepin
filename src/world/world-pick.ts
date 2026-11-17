@@ -24,7 +24,9 @@ export interface SavedPick {
 
 /** What a first load drives, with nothing saved and nothing in the URL: the first flag's map, so the first run ends on a drive to it. */
 export const NEW_PLAYER_MAP = spot_of(suggested({}, 1)[0]).map;
-/** The mainland a player drives before picking one: the same for everyone, so the open lobby meets there. */
+/** Circuit index a new player's first load starts at: about 200 m and a bend before the first flag, so the first run's drive and steer steps come before it. */
+export const NEW_PLAYER_SPAWN = -100;
+/** The mainland Play offers before one is picked: the same for everyone. A new player starts on `NEW_PLAYER_MAP` instead, so the open lobby meets there only once they pick it. */
 export const MAINLAND_SEED = seed_of(LOBBY_ROOM);
 
 /** `?lab=<pack>` or `?lab=~<code>`: the feel lab (`src/lab`, docs/lab.md), alone in a solo room; `&map=<code>` for a race trial's world. */
@@ -34,6 +36,9 @@ const URL_WORLD_PARAMS = ["room", "seed", "world", "map", EVENT_PARAM, RUN_PARAM
 const K2_OPTS = /^\d{1,16}$/;
 
 export const names_world = (params: URLSearchParams) => URL_WORLD_PARAMS.some((param) => params.has(param)) || replay_of(params) !== null;
+
+/** Nothing saved and nothing in the URL: a first load. */
+export const new_player = (params: URLSearchParams, saved: SavedPick) => !saved.played && !names_world(params);
 
 /**
  * The world this load drives. A URL that names a room, seed or world (an invite, a joined server, a room link) wins

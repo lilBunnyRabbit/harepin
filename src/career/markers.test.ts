@@ -6,7 +6,7 @@ import { map_code } from "../worldgen/kinds/map-code";
 import { SPAWN_INDEX } from "../worldgen/types";
 import { EVENTS, TIERS } from "./career";
 import { event_map } from "./career-store";
-import { NEW_PLAYER_MAP } from "../world/world-pick";
+import { NEW_PLAYER_MAP, NEW_PLAYER_SPAWN } from "../world/world-pick";
 import { MARKER_REACH, arrival, event_markers, marker_at, marker_open, type Pose } from "./markers";
 
 const ISLAND = "1C0000003";
@@ -112,13 +112,24 @@ test("a race whose road starts at its line still stops the car before the flag",
   }
 });
 
-test("a new player's map spawns the car on the road a short drive before its first flag, facing it", () => {
+test("a new player starts on the road about 200 m and a bend before the first flag, facing along the road to it", () => {
   expect(map_code(map)).toBe(NEW_PLAYER_MAP);
-  const p = world.road[world.clear_spawn(SPAWN_INDEX)];
-  const car = { x: p.x, z: p.z, heading: Math.atan2(p.tx, p.tz) };
+  const n = world.road.length;
+  const at = ((NEW_PLAYER_SPAWN % n) + n) % n;
+  expect(world.clear_spawn(NEW_PLAYER_SPAWN)).toBe(at);
+  const p = world.road[at];
   const [first] = markers;
-  const away = Math.hypot(first.x - car.x, first.z - car.z);
-  expect(away).toBeGreaterThan(40);
-  expect(away).toBeLessThan(120);
-  expect(short_of(car, first)).toBeGreaterThan(40);
+  const away = Math.hypot(first.x - p.x, first.z - p.z);
+  expect(away).toBeGreaterThan(170);
+  expect(away).toBeLessThan(230);
+  const line = world.road.indexOf(world.nearest_road(first.x, first.z));
+  expect((line - at + n) % n).toBeLessThan(120);
+  // The first run's steer step asks for 0.6 rad of heading turned; the road to the flag bends that much.
+  let bend = 0;
+  for (let i = at; i !== line; i = (i + 1) % n) {
+    const a = world.road[i];
+    const b = world.road[(i + 1) % n];
+    bend += Math.abs(wrap(Math.atan2(b.tx, b.tz) - Math.atan2(a.tx, a.tz)));
+  }
+  expect(bend).toBeGreaterThan(0.6);
 });
