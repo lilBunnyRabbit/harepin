@@ -16,7 +16,7 @@ export const ROWS: Readonly<Record<PauseCard["kind"], readonly PauseRow[]>> = {
     { act: "events", label: "Events", icon: "icon-modes", key: "KeyE" },
     { act: "garage", label: "Garage", icon: "icon-car", key: "KeyG" },
     { act: "online", label: "Online", icon: "icon-people", key: "KeyO" },
-    { act: "showroom", label: "Showroom", icon: "logo-mark", key: "KeyH" },
+    { act: "showroom", label: "Home", icon: "logo-mark", key: "KeyH" },
     { act: "settings", label: "Settings", icon: "icon-settings", key: "KeyS" },
     { act: "reset", label: "Reset car", icon: "icon-reset-car" },
   ],
@@ -24,7 +24,7 @@ export const ROWS: Readonly<Record<PauseCard["kind"], readonly PauseRow[]>> = {
     { act: "reset", label: "Restart", icon: "icon-restart" },
     { act: "leave", label: "Leave event", icon: "icon-close", key: "KeyQ" },
     { act: "garage", label: "Car and parts", icon: "icon-car", key: "KeyG" },
-    { act: "showroom", label: "Showroom", icon: "logo-mark", key: "KeyH" },
+    { act: "showroom", label: "Home", icon: "logo-mark", key: "KeyH" },
     { act: "settings", label: "Settings", icon: "icon-settings", key: "KeyS" },
   ],
 };

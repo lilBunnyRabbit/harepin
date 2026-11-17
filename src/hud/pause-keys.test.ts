@@ -10,7 +10,7 @@ test("free roam: each row takes its letter, Reset car the player's key, 1-4 stil
   expect(caps).toMatchObject({ reset: "R", map: "M", events: "E", garage: "G", online: "O", showroom: "H", settings: "S" });
 });
 
-test("in an event: Restart R, Leave Q, Car and parts G, Showroom H, Settings S, camera keeps C", () => {
+test("in an event: Restart R, Leave Q, Car and parts G, Home H, Settings S, camera keeps C", () => {
   const { acts, caps } = pause_keys(DEFAULT_BINDINGS, "event");
   expect(acts).toMatchObject({ KeyR: "reset", KeyQ: "leave", KeyG: "garage", KeyH: "showroom", KeyS: "settings", KeyC: "camera" });
   expect(caps).toMatchObject({ reset: "R", leave: "Q", garage: "G", showroom: "H", settings: "S", camera: "C" });
