@@ -107,6 +107,12 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     }
   }
 
+  @media (max-width: 599px) {
+    :root {
+      --phone-cell-pad: var(--gap-sm);
+    }
+  }
+
   :root:not([data-map="off"]) body:has(#mode-status:not([hidden])) {
     --phone-under-map: calc(var(--inset-top) + var(--phone-map-h) + var(--gap-sm));
   }
@@ -199,6 +205,12 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     white-space: nowrap;
   }
 
+  @media (max-width: 599px) {
+    :root #mode-status {
+      font-size: var(--text-md);
+    }
+  }
+
   /* On a narrow phone the card drops whole cells, last first (time, place, lap, gap, gates is their order): a cell
      with no room left wraps to a second line the card clips, and the ones that stay share the width. */
   :root #mode-status > :not(:empty, #mode-status-more),
@@ -215,6 +227,19 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     justify-content: center;
     margin: 0;
     padding: 0 var(--phone-cell-pad);
+  }
+
+  /* A card with no place is a clock and one more cell, which may be words (the gymkhana start hint): that cell stays
+     and gives up its tail instead. */
+  :root #mode-status:not(:has(#mode-status-place:not([hidden]))) {
+    flex-wrap: nowrap;
+  }
+
+  :root #mode-status:not(:has(#mode-status-place:not([hidden]))) #mode-status-more > :last-child {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   :root #mode-status > :not(:empty) ~ :not(:empty),
