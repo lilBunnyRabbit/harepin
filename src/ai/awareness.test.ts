@@ -19,8 +19,8 @@ function put(line: RaceLine, car: Car, driver: Driver, index: number, side: numb
 describe("AI awareness", () => {
   test("a passer still in the passed car's lane, held behind it, is not lifted for: the two never cap each other down to a stop", () => {
     const line = race_line(ring(800), [], COUPE.radius);
-    const ahead = new Driver(line, { pace: 0.96, brake_margin: 0, aggression: 0, mistakes: 0 });
-    const behind = new Driver(line, { pace: 1.02, brake_margin: 0, aggression: 1, mistakes: 0 });
+    const ahead = new Driver(line, { pace: 0.96, brake_margin: 0, aggression: 0, dive_reach: 2, keep_lead: 2, mistakes: 0 });
+    const behind = new Driver(line, { pace: 1.02, brake_margin: 0, aggression: 1, dive_reach: 2, keep_lead: 2, mistakes: 0 });
     const cars = [new Car(COUPE), new Car(COUPE)];
     const awareness = new Awareness(cars, [ahead, behind], () => 0);
     put(line, cars[0], ahead, 100, 0, 20);
@@ -71,5 +71,66 @@ describe("AI awareness", () => {
     drivers[1].aside = 3;
     awareness.update(0.05);
     expect(drivers[1].cap).toBeLessThan(25);
+  });
+  test("a dive on the player goes on while its line stays out, and is off for the zone once the player turns in with the diver not level", () => {
+    const line = race_line(ring(800), [], COUPE.radius);
+    line.offset.fill(4, 0, 130);
+    line.offset.fill(-3, 130, 200);
+    line.speed.fill(30);
+    line.speed.fill(15, 140, 150);
+    const diver = new Driver(line, { pace: 1, brake_margin: 0, aggression: 1, dive_reach: 2, keep_lead: 2, mistakes: 0 });
+    const player = new Driver(line);
+    const cars = [new Car(COUPE), new Car(COUPE)];
+    const awareness = new Awareness(cars, [diver, player], () => 0, 1);
+    put(line, cars[1], player, 100, 0, 25);
+    put(line, cars[0], diver, 96, 0, 27);
+    awareness.update(0.05);
+    expect(diver.late).toBe(true);
+    awareness.update(0.05);
+    expect(diver.late).toBe(true);
+    put(line, cars[1], player, 115, 0, 25);
+    put(line, cars[0], diver, 112, -6.8, 27);
+    awareness.update(0.05);
+    expect(diver.late).toBe(false);
+    awareness.update(0.05);
+    expect(diver.late).toBe(false);
+  });
+
+  test("a dive further back than the medium reach holds on for a driver whose reach covers the gap", () => {
+    const line = race_line(ring(800), [], COUPE.radius);
+    line.offset.fill(4, 0, 130);
+    line.offset.fill(-3, 130, 200);
+    line.speed.fill(30);
+    line.speed.fill(15, 140, 150);
+    const diver = new Driver(line, { pace: 1, brake_margin: 0, aggression: 1, dive_reach: 8, keep_lead: 0.5, mistakes: 0 });
+    const player = new Driver(line);
+    const cars = [new Car(COUPE), new Car(COUPE)];
+    const awareness = new Awareness(cars, [diver, player], () => 0, 1);
+    put(line, cars[1], player, 100, 0, 25);
+    put(line, cars[0], diver, 96, 0, 27);
+    awareness.update(0.05);
+    put(line, cars[1], player, 115, 0, 25);
+    put(line, cars[0], diver, 112, -6.8, 27);
+    awareness.update(0.05);
+    expect(diver.late).toBe(true);
+  });
+
+  test("a diver level with the player where it turns in keeps its dive", () => {
+    const line = race_line(ring(800), [], COUPE.radius);
+    line.offset.fill(4, 0, 130);
+    line.offset.fill(-3, 130, 200);
+    line.speed.fill(30);
+    line.speed.fill(15, 140, 150);
+    const diver = new Driver(line, { pace: 1, brake_margin: 0, aggression: 1, dive_reach: 2, keep_lead: 2, mistakes: 0 });
+    const player = new Driver(line);
+    const cars = [new Car(COUPE), new Car(COUPE)];
+    const awareness = new Awareness(cars, [diver, player], () => 0, 1);
+    put(line, cars[1], player, 100, 0, 25);
+    put(line, cars[0], diver, 96, 0, 27);
+    awareness.update(0.05);
+    put(line, cars[1], player, 115, 0, 25);
+    put(line, cars[0], diver, 115, -6.8, 27);
+    awareness.update(0.05);
+    expect(diver.late).toBe(true);
   });
 });

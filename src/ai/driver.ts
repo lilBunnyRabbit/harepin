@@ -57,6 +57,10 @@ export interface Personality {
   brake_margin: number;
   /** 0..1: how tight it passes, how readily it defends. */
   aggression: number;
+  /** Metres behind the player a dive on it holds on when the player turns in; further back, the dive is off. */
+  dive_reach: number;
+  /** Metres ahead of the player alongside past which it keeps its line; closer, it gives the player room. */
+  keep_lead: number;
   /** Chance every SECTOR road points of a mistake: a late brake that runs wide, or a hesitation that costs time. */
   mistakes: number;
 }
@@ -64,7 +68,7 @@ export interface Personality {
 /** Metres off the centre past which a car is off the road: a hazard to the field, and on the clock toward a reset. */
 export const OFF_ROAD = 7;
 
-export const STEADY: Personality = { pace: 1, brake_margin: 0, aggression: 0, mistakes: 0 };
+export const STEADY: Personality = { pace: 1, brake_margin: 0, aggression: 0, dive_reach: 2, keep_lead: 2, mistakes: 0 };
 
 /** How far off the centre (m) a car may go to pass or defend at road point `index`; over a kicker's run, only RAMP_SIDE: posts flank its lip. */
 export const pass_room = (car: Car, line: RaceLine, index: number) => (line.room[index] === 0 ? RAMP_SIDE : ROAD_HALF - car.spec.radius - PASS_EDGE);

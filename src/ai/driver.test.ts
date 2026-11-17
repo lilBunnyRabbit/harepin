@@ -60,7 +60,7 @@ describe("AI driver", () => {
     const line = race_line(route.points, world.ramps, COUPE.radius);
     const at = line.ramp.findIndex((r) => r >= 0);
     expect(at).toBeGreaterThanOrEqual(0);
-    const driver = new Driver(line, { pace: 1.1, brake_margin: 1.5, aggression: 1, mistakes: 0 });
+    const driver = new Driver(line, { pace: 1.1, brake_margin: 1.5, aggression: 1, dive_reach: 2, keep_lead: 2, mistakes: 0 });
     driver.push = 1.2;
     driver.place(at);
     const car = new Car(COUPE);
@@ -76,7 +76,7 @@ describe("AI driver", () => {
     const route = world.routes.find((r) => r.kind === RouteKind.CIRCUIT);
     if (!route) throw new Error("island seed 44 has no circuit");
     const line = plan_for(race_line(route.points, world.ramps, COUPE.radius), { ...UNIT_SCALE, slow: 0.81, fast: 0.81 });
-    const driver = new Driver(line, { pace, brake_margin: 1.5, aggression: 1, mistakes: 0 });
+    const driver = new Driver(line, { pace, brake_margin: 1.5, aggression: 1, dive_reach: 2, keep_lead: 2, mistakes: 0 });
     driver.push = 1.2;
     driver.cap = cap;
     driver.ahead_speed = ahead_speed;

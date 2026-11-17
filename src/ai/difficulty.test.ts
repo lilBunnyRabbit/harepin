@@ -22,3 +22,12 @@ test("a mixed field draws each car as a field of its levels would", () => {
   expect(mixed[0]).toEqual(personalities(9, 2, 1, 5)[0]);
   expect(mixed[1]).toEqual(personalities(9, 2, 5, 1)[1]);
 });
+
+test("a bolder driver dives on the player from further back and keeps its line on it from a smaller lead", () => {
+  const [calm, medium, bold] = field_personalities(9, [{ aggression: 1, mistakes: 3 }, { aggression: 3, mistakes: 3 }, { aggression: 5, mistakes: 3 }]);
+  expect([medium.dive_reach, medium.keep_lead]).toEqual([2, 2]);
+  expect(calm.dive_reach).toBeLessThan(medium.dive_reach);
+  expect(calm.keep_lead).toBeGreaterThan(medium.keep_lead);
+  expect(bold.dive_reach).toBeGreaterThan(medium.dive_reach);
+  expect(bold.keep_lead).toBeLessThan(medium.keep_lead);
+});
