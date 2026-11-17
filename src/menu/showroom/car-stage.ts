@@ -5,7 +5,7 @@ import { CARS, is_car, type CarId } from "../../car/cars";
 import { ride_height } from "../../car/car";
 import { contact_shadow } from "../../car/contact-shadow";
 import { build_view, dispose_car_view, rest_wheels, type CarView } from "../../car/models";
-import { rest_neon } from "../../car/neon-look";
+import { neon_look, rest_neon, tint_page } from "../../car/neon-look";
 import { brand, color, dark } from "../../theme/palette";
 
 const EYE_AZIMUTH = Math.atan2(4.6, 5.4);
@@ -494,7 +494,9 @@ function stand_view(build: Build): CarView {
     view.neon.mesh.material.blending = THREE.NormalBlending;
     view.neon.mesh.material.transparent = true;
     view.neon.mesh.position.y = GROUND + 0.03;
-    rest_neon(view.neon, dark ? 1 : PAGE_TINT);
+    const look = neon_look(build);
+    if (dark || !look) rest_neon(view.neon);
+    else tint_page(view.neon, look, PAGE_TINT);
   }
   return view;
 }

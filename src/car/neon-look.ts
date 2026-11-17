@@ -27,6 +27,8 @@ const BAND_METRES = 9;
 const FLARE = 1.6;
 const FLARE_RATE = 9;
 const LIGHT_STEP = 0.1;
+/** Lightness a tone is raised to on a light page: nothing there is brighter than the page white, so the glow is the tone as a pastel, not the tone itself, which is darker than the page and stains it. */
+const PAGE_GLOW = 0.86;
 
 export interface NeonView {
   mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
@@ -131,6 +133,15 @@ export function light_neon(neon: NeonView, speed: number, boost: boolean, time: 
 /** Lit as under a standing car, for a view no frame loop drives: the garage stand, a review sheet. */
 export function rest_neon(neon: NeonView, share = 1) {
   neon.level.value = neon.gain * share;
+}
+
+/** The glow's tone over a light page: its hue and chroma, no darker than `PAGE_GLOW`. */
+export const page_glow = (tone: Lab): Lab => [Math.max(tone[0], PAGE_GLOW), tone[1], tone[2]];
+
+/** For a stand with no ground to add light to: the glow blends over a light page as `page_glow` of its tone, at `share` of its strength. */
+export function tint_page(neon: NeonView, look: NeonLook, share: number) {
+  neon.mesh.material.uniforms.tone.value = color(page_glow(look.tone));
+  rest_neon(neon, share);
 }
 
 export function dispose_neon(neon: NeonView) {
