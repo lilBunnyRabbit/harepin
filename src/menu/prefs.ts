@@ -186,7 +186,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   hud_size: one_of(Object.values(HudSize), HudSize.MEDIUM),
   speedo: one_of(Object.values(SpeedoStyle), SpeedoStyle.BAR),
   minimap: one_of(Object.values(MapView), MapView.REAL),
-  mirror: flag(true),
+  mirror: flag(false),
   show_country: flag(true),
   last_world: { fallback: null, parse: parse_last_world },
   last_seed: { fallback: null, parse: parse_last_seed },
