@@ -46,7 +46,7 @@ const SPOTS: Partial<Record<WorldKind, Spot>> = {
   velodrome: { at: 100, camera: { from: [481.2, 253.1, 142.8], to: [468.5, 252.4, 101.7] } },
   // Low on the inside of the wall bowl, up the wall where its high rail stops.
   wallride: { at: 100, camera: { from: [552.8, 250.5, 221.7], to: [556.5, 258.4, 176.2] } },
-  raceway: { camera: { from: [-470, 70, 190], to: [-361, 43, 326] } },
+  raceway: { camera: { from: [380, 70, -610], to: [504, 43, -748] } },
 };
 
 const args = process.argv.slice(2);
