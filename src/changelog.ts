@@ -51,6 +51,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.63.2",
+    date: "2026-11-17",
+    title: "Smoother",
+    changes: [
+      { kind: FIXED, text: "Clicking a menu button no longer halves the frame rate for the rest of the session" },
+      { kind: FIXED, text: "Free roam and races run much smoother, up to twice the frame rate on phones" },
+    ],
+  },
+  {
     version: "0.63.1",
     date: "2026-11-17",
     title: "Phone and menu fixes",
