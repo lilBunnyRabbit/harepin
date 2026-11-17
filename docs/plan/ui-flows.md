@@ -440,3 +440,8 @@ Things in the mockups that need a new state layer, new data or engine work. The 
 - 2d done 243ac20..599c280: results as frame cards, podium page with the stage car, tour deleted (Welcome name + skippable Set up, road strip). Follow-up: series Next card (port 1afe6aa, 2d round 2). Batch 3: delete dead unlock-card.css `:empty`, unused Tabs done/compact; owner check that results hide the chat dock.
 - 2a done 4463d07 3365563: Online grouped by room, Meet with driver cars + ready, frame chips (★ season, N online) as MenuFrame defaults, daily board on Runs. Batch 3: chips on Title; `season={false}` on Settings; the road cards' PageFrame gets no chips (fine). Data-less until the Meet quest: lap 2/3, In lobby, Picking a car, countdown.
 - Raceway Make values ecd41f5: Length / Hills / Corners / Run-off (2/200 fallback on Short+Flowing). Batch 3: Raceway `lap_facts` says '1 corners' (wrong count and plural, worlds/); Make overflows sideways at 390 px portrait.
+### 8.8 Owner calls (2026-11-17 night)
+- Saved maps dropped. Rally pace notes dropped for now. Road map card in sea colour OK.
+- Portrait menus are supported; fix the Android PWA reload that lands in portrait and sticks on the rotate prompt.
+- Toasts (lead call): join/leave hidden while a menu is open; goal toasts queue until it closes.
+- Replays get an option to save (new IndexedDB store, owner OK).
