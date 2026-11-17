@@ -57,6 +57,8 @@ export interface SettingsHost {
   readonly code: string | null;
   /** Why this load is not on the map it was sent to: a code it can't read, or settings with no drivable build. */
   readonly map_note: string | null;
+  /** The loaded map by name: "Island · Harwar". */
+  map_name(): string;
   readonly goals: Goals;
   readonly career: Career;
   /** Starts a career event now on this map, or reloads onto its map. */

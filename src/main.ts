@@ -397,6 +397,7 @@ const settings = new Settings(document.body, {
   race_routes: race_choices(world.routes),
   players: () => 1 + net.remotes.size,
   map_markers: () => markers.map_markers,
+  map_name: () => map_name(built, world.towns),
   map_players: () => [
     { name: net.name, x: driver.car.pos.x, z: driver.car.pos.z, you: true },
     ...[...net.remotes.values()].map((r) => ({ name: net.display_name(r), x: r.latest.p[0], z: r.latest.p[2], you: false })),

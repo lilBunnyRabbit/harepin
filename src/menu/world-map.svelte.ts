@@ -54,6 +54,8 @@ export class WorldMap {
   note = $state("");
   /** The raster's corner is open water, so a frame wider than the square map continues the sea instead of a band. */
   edge = $state<string | null>(null);
+  /** The drawn map's side in world metres, for laying pins over it with `map_spot`; null before the first draw. */
+  size = $state<number | null>(null);
   on_ready: ((map: MapData) => void) | null = null;
   private canvas: HTMLCanvasElement | null = null;
   // Cars move on their own layer, so a 4 Hz refresh never repaints the terrain and roads under them.
@@ -145,6 +147,7 @@ export class WorldMap {
     const ctx = canvas?.getContext("2d");
     if (!map || !image || !roads || !canvas || !cars || !ctx) return;
     this.set_status(MapStatus.READY);
+    this.size = map.size;
     this.on_ready?.(map);
     canvas.setAttribute("aria-label", `Map of ${WORLDS[map.kind].map_label} ${map.seed}`);
     const ratio = devicePixelRatio;
@@ -218,10 +221,18 @@ export function road_ink(kind: WorldKind, levels: readonly number[]): RoadInk {
   return world_look(WORLDS[kind], snow_of({ kind, levels }) !== null).roads;
 }
 
+/** World metres to a share of the map's side, 0 to 1 from its top left. */
+export function map_spot(size: number, x: number, z: number): [number, number] {
+  const scale = (MAP_SIDE - 1) / size / MAP_SIDE;
+  return [(x + size / 2) * scale + 0.5 / MAP_SIDE, (z + size / 2) * scale + 0.5 / MAP_SIDE];
+}
+
 /** Paints the map's terrain and roads onto a `side`-pixel square; returns world metres to canvas pixels. */
 export function paint_map(ctx: Ctx2D, map: MapData, image: ImageBitmap, roads: RoadInk, side: number, ratio: number): MapAt {
-  const scale = (side / MAP_SIDE) * ((MAP_SIDE - 1) / map.size);
-  const at = (x: number, z: number): [number, number] => [(x + map.size / 2) * scale + side / MAP_SIDE / 2, (z + map.size / 2) * scale + side / MAP_SIDE / 2];
+  const at = (x: number, z: number): [number, number] => {
+    const [fx, fy] = map_spot(map.size, x, z);
+    return [fx * side, fy * side];
+  };
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(image, 0, 0, side, side);
   ctx.lineJoin = "round";
