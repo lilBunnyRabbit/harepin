@@ -10,6 +10,9 @@ import ModesPage from "./ModesPage.svelte";
 import RunsPage from "./runs/RunsPage.svelte";
 import RoomPage from "./online/RoomPage.svelte";
 import EmptyPage from "./EmptyPage.svelte";
+import GaragePage from "./GaragePage.svelte";
+import CarPickPage from "./CarPickPage.svelte";
+import { CAR_PAGE, CarPicker } from "./car-pick.svelte";
 import { svelte_page } from "./ui/svelte-page.svelte";
 import { MenuTab, ROAD, STATIONS, type Menu, type MenuPage, type SettingsHost } from "./page";
 import type { SettingKey, SettingsState } from "./prefs";
@@ -76,6 +79,7 @@ export class Settings {
   private readonly page_list: MenuPage[];
   private readonly nav: SettingsNav;
   private readonly guide: Guide;
+  private readonly picker = new CarPicker();
 
   constructor(
     private readonly parent: HTMLElement,
@@ -101,7 +105,8 @@ export class Settings {
       () => this.current,
     );
     this.page_list = [
-      ...STATIONS.map(({ id, label }) => (id === MenuTab.PLAY ? svelte_page(this.menu, { id, label }, HomePage) : svelte_page(this.menu, { id, label }, EmptyPage, { id }))),
+      ...STATIONS.map(({ id, label }) => (id === MenuTab.PLAY ? svelte_page(this.menu, { id, label }, HomePage) : id === MenuTab.GARAGE ? svelte_page(this.menu, { id, label }, GaragePage, { garage: host.garage, picker: this.picker }) : svelte_page(this.menu, { id, label }, EmptyPage, { id }))),
+      svelte_page(this.menu, { id: CAR_PAGE, label: "Car", parent: MenuTab.GARAGE, layout: "frame" }, CarPickPage, { picker: this.picker }),
       svelte_page(this.menu, { id: TITLE, label: "Harepin" }, TitlePage),
       svelte_page(this.menu, { id: MAPS_PAGE, label: "Maps", parent: MenuTab.PLAY, layout: "frame" }, MapsPage),
       svelte_page(this.menu, { id: MAKE_PAGE, label: "Make a map", parent: MenuTab.PLAY, layout: "frame" }, WorldPage),

@@ -1,41 +1,50 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { car_shelves } from "../car/car-pick";
+  import { load_builds } from "../car/builds";
   import { CARS } from "../car/cars";
-  import { car_facts } from "./car-facts";
-  import CarFactsLine from "./CarFactsLine.svelte";
+  import { rating } from "../car/pi";
+  import { open_presets } from "../career/rewards";
+  import { CAR_PAGE, type CarPicker } from "./car-pick.svelte";
   import type { Garage } from "./garage.svelte";
   import GarageBuilds from "./GarageBuilds.svelte";
-  import GarageHint from "./GarageHint.svelte";
-  import { TABS, slot_icon } from "./garage-items";
+  import { slot_icon, type Item, type ItemGroup } from "./garage-items";
   import GarageMeters from "./GarageMeters.svelte";
-  import GarageStrip from "./GarageStrip.svelte";
+  import GarageParts from "./GarageParts.svelte";
+  import MenuFrame from "./MenuFrame.svelte";
+  import { MenuTab } from "./page";
+  import Card from "./ui/Card.svelte";
+  import Chip from "./ui/Chip.svelte";
+  import ClassBadge from "./ui/ClassBadge.svelte";
+  import Icon from "./ui/Icon.svelte";
+  import KeyLink from "./ui/KeyLink.svelte";
+  import PrimaryAction from "./ui/PrimaryAction.svelte";
   import ScrollArea from "./ui/ScrollArea.svelte";
-  import SectionHead from "./ui/SectionHead.svelte";
-  import Tabs from "./ui/Tabs.svelte";
-  import Tile from "./ui/Tile.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
 
   interface Props extends PageProps {
     garage: Garage;
+    picker: CarPicker;
   }
 
-  let { garage, shown }: Props = $props();
+  let { menu, garage, picker, shown }: Props = $props();
 
-  const SECTIONS = TABS.map((tab) => ({ id: tab.section, label: tab.label }));
+  const GROUPS: readonly ItemGroup[] = ["parts", "look"];
 
-  let canvas: HTMLCanvasElement;
-  let top: HTMLElement;
-  let rail = $state<HTMLElement | null>(null);
-  let stats: HTMLElement;
-  let bottom: HTMLElement;
+  let side = $state<HTMLElement | null>(null);
 
-  const section = $derived(TABS[garage.tab].section);
-  const facts = $derived(car_facts(garage.shown));
-  const items = $derived(garage.items);
-  const slots = $derived(items.map((item) => ({ id: item.id, label: item.label })));
+  const item = $derived(garage.item);
+  const car = $derived(CARS[garage.current.car].name);
+  const fitted = $derived(item.at(garage.current));
+  const tried = $derived(garage.cursor !== fitted);
+  const now = $derived(rating(garage.current));
+  const next = $derived(rating(garage.shown));
+  const groups = $derived(GROUPS.map((group) => garage.items.filter((one) => one.group === group)));
+  const action = $derived(item.kind === "part" ? `Fit ${item.name(garage.cursor)} ${item.label.toLowerCase()}` : `Use ${item.label.toLowerCase()} ${item.name(garage.cursor)}`);
 
   onMount(() => {
-    garage.attach({ sheet: () => rail });
+    garage.attach({ sheet: () => side });
+    garage.on_pick_car = () => void change_car();
   });
 
   $effect(() => {
@@ -48,363 +57,211 @@
     garage.draw();
   });
 
-  function pick_slot(id: string) {
-    const item = items.find((it) => it.id === id);
-    if (item) garage.select(item);
+  export function back(): boolean {
+    if (!garage.on_builds) return false;
+    garage.toggle_builds();
+    return true;
+  }
+
+  async function change_car() {
+    const shelves = car_shelves(garage.build, load_builds(), open_presets(garage.held_cars), { cap: null, car_sized_only: false });
+    const asked = picker.open({ title: "Garage", limit: "any class", shelves, note: "Your car from now on.", back: "Garage" });
+    menu.show(CAR_PAGE);
+    const code = await asked;
+    if (!code) return;
+    garage.use_code(code);
+    menu.back();
   }
 </script>
 
-<div class="garage" data-tab={section} data-input={garage.input} role="region" aria-label="Garage">
-  <canvas class="garage-canvas" bind:this={canvas}></canvas>
+{#snippet slot(one: Item)}
+  <Chip variant="toggle" icon={slot_icon(one.id)} bind:pressed={() => !garage.on_builds && one.id === item.id, () => garage.select(one)}>{one.label}</Chip>
+{/snippet}
 
-  <header class="garage-top" bind:this={top}>
-    <div class="garage-name">
-      <SectionHead title={CARS[garage.shown.car].name} level={2} />
-      <span class="garage-facts"><CarFactsLine {facts} words /></span>
+{#snippet links()}
+  <KeyLink keys={{ key: "C", pad: "Y" }} onclick={change_car}>Change car</KeyLink>
+  <KeyLink keys={{ key: "B", pad: "LT" }} onclick={() => garage.toggle_builds()}>{garage.on_builds ? "Parts" : "Builds"}</KeyLink>
+{/snippet}
+
+{#snippet primary()}
+  {#if !garage.on_builds}
+    <PrimaryAction disabled={!tried} onclick={() => garage.fit(garage.cursor)}>{tried ? action : "Fitted"}</PrimaryAction>
+  {/if}
+{/snippet}
+
+<MenuFrame {menu} id={MenuTab.GARAGE} floor {links} {primary}>
+  <div class="garage" role="region" aria-label="Garage">
+    <div class="garage-slots" data-stage-panel aria-label="Slots">
+      {#each groups as group, index (GROUPS[index])}
+        <div class="garage-group" role="group" aria-label={GROUPS[index] === "parts" ? "Parts" : "Look"}>
+          {#each group as one (one.id)}{@render slot(one)}{/each}
+        </div>
+      {/each}
     </div>
-    <div class="garage-sections">
-      <span class="garage-step-hint"><GarageHint keys={["prev"]} /></span>
-      <Tabs items={SECTIONS} value={section} label="Garage sections" compact onchange={(id) => garage.switch_tab(TABS.findIndex((tab) => tab.section === id))} />
-      <span class="garage-step-hint"><GarageHint keys={["next"]} /></span>
+
+    <div class="garage-side garage-rail" data-stage-panel bind:this={side}>
+      <Card label={garage.on_builds ? "Builds" : item.label}>
+        <header class="garage-head">
+          <div class="garage-name">
+            <span class="garage-eyebrow">{car} · {garage.on_builds ? "Builds" : item.label}</span>
+            <b class="garage-title">{garage.on_builds ? "Save, share, load" : item.name(garage.cursor)}</b>
+          </div>
+          <span class="garage-class">
+            <ClassBadge rating={now} size="lg" />
+            {#if next.pi !== now.pi}
+              <Icon name="icon-back" flip />
+              <ClassBadge rating={next} size="lg" />
+            {/if}
+          </span>
+        </header>
+        <ScrollArea class="garage-scroll">
+          {#if garage.on_builds}
+            <div class="garage-builds"><GarageBuilds {garage} sheet={side} /></div>
+          {:else}
+            <GarageParts {garage} />
+          {/if}
+        </ScrollArea>
+        {#if !garage.on_builds}
+          <div class="garage-stats"><GarageMeters current={garage.current} shown={garage.shown} /></div>
+        {/if}
+      </Card>
     </div>
-  </header>
-
-  <section class="garage-panel garage-rail" class:garage-sheet={garage.on_builds} bind:this={rail} aria-label={garage.on_builds ? "My builds" : "Slots"}>
-    {#if garage.on_builds}
-      <ScrollArea class="garage-scroll">
-        <div class="garage-sheet-body"><GarageBuilds {garage} sheet={rail} /></div>
-      </ScrollArea>
-    {:else}
-      <div class="garage-slot-tabs">
-        <Tabs items={slots} value={garage.item.id} label="Slots" onchange={pick_slot} />
-      </div>
-      <ScrollArea class="garage-scroll garage-slot-list">
-        <ul class="garage-slots">
-          {#each items as item (item.id)}
-            <li>
-              <Tile
-                size="sm"
-                icon={slot_icon(item.id)}
-                title={item.name(item.at(garage.current))}
-                meta={item.label}
-                selected={item.id === garage.item.id}
-                onclick={() => garage.select(item)}
-              />
-            </li>
-          {/each}
-        </ul>
-      </ScrollArea>
-    {/if}
-  </section>
-
-  <section class="garage-panel garage-stats" bind:this={stats} aria-label="Stats">
-    <GarageMeters current={garage.current} shown={garage.shown} />
-  </section>
-
-  <section class="garage-bottom" bind:this={bottom} aria-label="Options" aria-hidden={garage.on_builds || undefined}>
-    {#if !garage.on_builds}<GarageStrip {garage} />{/if}
-    <div class="garage-hints">
-      <GarageHint keys={["move"]} label="Slot / part" />
-      <GarageHint keys={["accept"]} label="Fit" />
-      <GarageHint keys={["prev", "next"]} label="Sections" />
-    </div>
-  </section>
-</div>
+  </div>
+</MenuFrame>
 
 <style>
+  /* The car stands in the space the two panels leave: the card keeps one size through every slot and the builds, so it never moves. */
   .garage {
-    --garage-glow: var(--background);
-    --garage-floor: var(--background-darkest);
-    --garage-rail-w: 300px;
-    --garage-stats-w: 300px;
-    --garage-bottom-h: 168px;
-    --garage-inset: var(--space-4);
-    position: relative;
     display: grid;
-    grid-template:
-      "top top top" auto
-      "rail . stats" minmax(0, 1fr)
-      "bottom bottom bottom" var(--garage-bottom-h)
-      / var(--garage-rail-w) minmax(0, 1fr) var(--garage-stats-w);
-    gap: var(--space-4);
+    grid-template-columns: minmax(0, 1fr) 430px;
+    gap: var(--gap);
     height: 100%;
     min-height: 0;
-    padding: var(--garage-inset);
-    overflow: hidden;
-    border: 1px solid var(--set-line);
-    border-radius: var(--radius-lg);
-    background: radial-gradient(ellipse 60% 70% at 50% 55%, var(--garage-glow), var(--garage-floor) 78%);
-    color: var(--foreground);
-    font-size: var(--text-md);
     /* A pinch here is the car's zoom; left to the browser it zooms the page and pushes the panels off screen. */
     touch-action: none;
-  }
-
-  :global(:root[data-scheme="light"]) .garage {
-    --garage-glow: var(--background-lighter);
-    --garage-floor: var(--background-dark);
-  }
-
-  .garage-canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  .garage-top {
-    --garage-side: top;
-    position: relative;
-    display: grid;
-    grid-area: top;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: center;
-    gap: var(--space-3);
     pointer-events: none;
   }
 
-  .garage-top > * {
+  .garage-slots {
+    --stage-side: bottom;
+    display: grid;
+    align-self: end;
+    justify-self: start;
+    gap: var(--gap-md);
+    max-width: 560px;
+    min-width: 0;
     pointer-events: auto;
   }
 
-  .garage-name {
+  .garage-group {
     display: flex;
-    align-items: center;
-    gap: var(--space-2) var(--space-5);
-    min-width: 0;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
   }
 
-  .garage-facts {
-    display: flex;
+  .garage-side {
+    --stage-side: right;
+    display: grid;
     min-width: 0;
-    color: var(--set-dim);
-  }
-
-  .garage-sections {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-width: 0;
-  }
-
-  .garage-panel {
-    position: relative;
-    display: flex;
-    flex-direction: column;
     min-height: 0;
-    border: 1px solid var(--set-line);
-    border-radius: var(--radius-lg);
-    background: var(--set-panel);
+    pointer-events: auto;
   }
 
-  .garage-rail {
-    --garage-side: left;
-    grid-area: rail;
-    align-self: start;
-    max-height: 100%;
+  .garage-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap);
+    min-width: 0;
   }
 
-  .garage-sheet {
-    grid-row: rail-start / bottom-end;
-  }
-
-  .garage-rail > :global(.garage-scroll) {
-    flex: 0 1 auto;
-  }
-
-  .garage-slot-tabs {
-    display: none;
-  }
-
-  .garage-slots {
+  .garage-name {
     display: grid;
-    gap: var(--space-2);
-    margin: 0;
-    padding: var(--space-3);
-    list-style: none;
+    gap: var(--gap-xs);
+    min-width: 0;
   }
 
-  .garage-slots > li {
-    display: grid;
+  .garage-name > * {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .garage-sheet-body {
+  .garage-eyebrow {
+    color: var(--dim);
+    font-size: var(--type-eyebrow);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .garage-title {
+    font-size: var(--type-h2);
+    font-weight: 800;
+    line-height: 1.1;
+  }
+
+  .garage-class {
+    --icon-size: var(--type-body);
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--gap-sm);
+    color: var(--dim);
+  }
+
+  .garage-side :global(.garage-scroll) {
+    flex: 1;
+  }
+
+  .garage-builds {
     display: grid;
-    gap: var(--space-6);
-    padding: var(--space-5);
+    gap: var(--pad);
   }
 
   .garage-stats {
-    --garage-side: right;
-    grid-area: stats;
-    align-self: start;
-    gap: var(--space-4);
-    max-height: 100%;
-    padding: var(--space-5);
-    overflow-y: auto;
-    scrollbar-width: none;
+    padding-top: var(--gap-md);
+    border-top: 1px solid var(--line);
   }
 
-  /* A fixed band across the whole stage: the car is framed once into what the panels leave, so nothing here may change size between slots or sections. */
-  .garage-bottom {
-    --garage-side: bottom;
-    position: relative;
-    display: grid;
-    grid-area: bottom;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    justify-items: center;
-    align-items: center;
-    gap: var(--space-2);
-    min-width: 0;
-  }
-
-  .garage-bottom > :global(*) {
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .garage[data-tab="builds"] .garage-bottom {
-    visibility: hidden;
-  }
-
-  .garage-hints {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: var(--space-2) var(--space-5);
-    color: var(--set-dim);
-    font-size: var(--text-sm);
-    font-weight: 600;
-  }
-
-  @media (pointer: coarse) {
-    .garage-hints {
-      display: none;
-    }
-  }
-
-  @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 700px) {
+  @media (max-height: 500px) {
     .garage {
-      --garage-sheet-w: clamp(320px, 46vw, 400px);
-      --garage-inset: var(--space-3);
-      grid-template:
-        "top top" auto
-        ". rail" auto
-        ". ." minmax(0, 1fr)
-        "stats bottom" auto
-        / minmax(0, 1fr) var(--garage-sheet-w);
-      gap: var(--space-3);
+      grid-template-columns: minmax(0, 1fr) 340px;
     }
 
-    .garage-top {
-      grid-template-columns: minmax(0, 1fr) var(--garage-sheet-w);
+    .garage-slots {
+      display: flex;
+      flex-wrap: wrap;
+      max-width: 100%;
+      gap: var(--gap-sm);
     }
 
-    .garage-sections {
-      justify-content: end;
-    }
-
-    .garage-rail {
-      --garage-side: right;
-      border-color: transparent;
-      background: none;
-    }
-
-    .garage-sheet {
-      grid-row: rail-start / bottom-end;
-      border-color: var(--set-line);
-      background: var(--set-panel);
+    .garage-group {
+      display: contents;
     }
 
     .garage-stats {
-      --garage-side: bottom;
-      align-self: end;
-      padding: var(--space-3) var(--space-4);
-    }
-
-    .garage-bottom {
-      --garage-side: right;
-      grid-template-rows: auto;
-    }
-
-    .garage-sheet-body {
-      padding: var(--space-4);
-    }
-  }
-
-  @media (orientation: landscape) and (max-height: 500px), (max-width: 700px) {
-    .garage-step-hint {
-      display: none;
-    }
-
-    .garage-slot-tabs {
-      display: block;
-      min-width: 0;
-    }
-
-    .garage-rail > :global(.garage-slot-list) {
       display: none;
     }
   }
 
-  @media (orientation: portrait) and (max-width: 700px) {
+  @media (max-width: 700px) {
     .garage {
-      --garage-inset: var(--space-3);
-      grid-template:
-        "top" auto
-        "rail" auto
-        "." minmax(0, 1fr)
-        "stats" auto
-        "bottom" auto
-        / minmax(0, 1fr);
-      gap: var(--space-3);
+      grid-template: minmax(0, 1fr) auto minmax(0, 1.4fr) / minmax(0, 1fr);
     }
 
-    .garage[data-tab="builds"] {
-      grid-template:
-        "top" auto
-        "rail" minmax(0, 1fr)
-        "stats" auto
-        / minmax(0, 1fr);
+    .garage-slots {
+      grid-row: 2;
+      max-width: 100%;
     }
 
-    .garage-top {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .garage-rail {
-      --garage-side: top;
-      border-color: transparent;
-      background: none;
-    }
-
-    .garage-sheet {
-      grid-row: auto;
-      align-self: stretch;
-      border-color: var(--set-line);
-      background: var(--set-panel);
+    .garage-side {
+      --stage-side: bottom;
+      grid-row: 3;
     }
 
     .garage-stats {
-      --garage-side: bottom;
-      padding: var(--space-3) var(--space-4);
-    }
-
-    .garage-bottom {
-      grid-template-rows: auto;
-    }
-
-    .garage[data-tab="builds"] .garage-bottom {
       display: none;
-    }
-
-    /* A sliver of car peeking round the builds sheet reads as a glitch. */
-    .garage[data-tab="builds"] .garage-canvas {
-      visibility: hidden;
-    }
-
-    .garage-sheet-body {
-      padding: var(--space-4);
     }
   }
 </style>

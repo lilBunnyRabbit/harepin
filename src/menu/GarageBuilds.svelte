@@ -223,14 +223,14 @@
 <style>
   .garage-group {
     display: grid;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     min-width: 0;
   }
 
   .garage-form {
     display: flex;
     align-items: start;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     min-width: 0;
   }
 
@@ -243,9 +243,9 @@
     min-width: 0;
     align-self: center;
     overflow: hidden;
-    color: var(--set-dim);
+    color: var(--dim);
     font-family: var(--font-mono);
-    font-size: var(--text-md);
+    font-size: var(--type-small);
     text-overflow: ellipsis;
     white-space: nowrap;
     user-select: text;
@@ -253,7 +253,7 @@
 
   .garage-builds {
     display: grid;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -263,7 +263,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
   }
 
   .garage-build:has(.garage-rename) {
@@ -273,7 +273,7 @@
   .garage-build-tools {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
   }
 
   .garage-rename {

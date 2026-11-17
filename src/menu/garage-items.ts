@@ -1,19 +1,20 @@
-import { DECALS, DECAL_NAMES, MAX_NUMBER, MAX_PAINT, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Decal, type Slot, type SlotView } from "../car/build";
-import { CARS, is_car, type CarId } from "../car/cars";
+import { DECALS, DECAL_NAMES, MAX_NUMBER, MAX_PAINT, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Slot, type SlotView } from "../car/build";
 import { TIERS } from "../career/career";
-import { PLAIN_CARS, REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
+import { REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
 import { NEUTRAL_INKS, car_paints, decal_inks } from "../theme/palette";
 
 const SIDE_VIEW: SlotView = { yaw: -0.87 };
-/** Slots shown under Body: the parts you see first on the car. Every other slot lands under Performance. */
-const BODY_SLOTS: readonly Slot[] = ["aero"];
 
-type Kind = "part" | "car" | "paint" | "ink" | "decal" | "number";
+type Kind = "part" | "paint" | "ink" | "decal" | "number";
+
+/** The two rows of slot chips: what the car drives with, and what it wears. */
+export type ItemGroup = "parts" | "look";
 
 export interface Item {
   id: string;
   label: string;
   kind: Kind;
+  group: ItemGroup;
   view: SlotView;
   count: number;
   /** Build values behind the options, when they are not simply 0 to `count - 1`. */
@@ -25,12 +26,11 @@ export interface Item {
   blurb(option: number): string;
 }
 
-const CAR_IDS = Object.keys(CARS).filter(is_car);
-
 const part_item = (slot: Slot): Item => ({
   id: slot,
   label: SLOTS[slot].label,
   kind: "part",
+  group: "parts",
   view: slot_view(slot),
   count: SLOTS[slot].parts.length,
   at: (b) => b.parts[slot],
@@ -39,35 +39,12 @@ const part_item = (slot: Slot): Item => ({
   blurb: (i) => part_of(slot, i).blurb ?? "",
 });
 
-const PART_ITEMS = new Map(SLOT_NAMES.map((slot) => [slot, part_item(slot)]));
-const part_items = (slots: readonly Slot[]) => slots.flatMap((slot) => PART_ITEMS.get(slot) ?? []);
+const PART_ITEMS = SLOT_NAMES.map(part_item);
 
 // Rewards not earned yet stay off the strip; one a loaded build code already wears stays on it.
 function listed<T>(base: readonly T[], earned: readonly T[], fitted: T): T[] {
   const values = [...base, ...earned];
   return values.includes(fitted) ? values : [...values, fitted];
-}
-
-/** The car item's build value for a car: what its `values` hold. */
-export const car_value = (id: CarId | undefined) => (id ? CAR_IDS.indexOf(id) : -1);
-
-function car_item(build: Build, unlocks: Unlocks): Item {
-  const cars = listed(PLAIN_CARS, unlocks.cars, build.car);
-  return {
-    id: "car",
-    label: "Car",
-    kind: "car",
-    view: WHOLE_CAR,
-    count: cars.length,
-    values: cars.map(car_value),
-    at: (b) => cars.indexOf(b.car),
-    with: (b, i) => ({ ...b, car: cars[i] }),
-    name: (i) => CARS[cars[i]].name,
-    blurb: (i) => {
-      const spec = CARS[cars[i]];
-      return `${spec.drive.toUpperCase()} · ${Math.round(spec.mass)} kg`;
-    },
-  };
 }
 
 const PLAIN_DECALS = DECALS.map((_, i) => i).filter((i) => !REWARD_DECALS.includes(i));
@@ -78,6 +55,7 @@ function decal_item(build: Build, unlocks: Unlocks): Item {
     id: "decal",
     label: "Decal",
     kind: "decal",
+  group: "look",
     view: SIDE_VIEW,
     count: values.length,
     values,
@@ -92,6 +70,7 @@ const NUMBER_ITEM: Item = {
   id: "number",
   label: "Number",
   kind: "number",
+  group: "look",
   view: SIDE_VIEW,
   count: MAX_NUMBER + 1,
   at: (b) => b.number,
@@ -109,6 +88,7 @@ function paint_item(build: Build, unlocks: Unlocks): Item {
     id: "paint",
     label: "Paint",
     kind: "paint",
+  group: "look",
     view: WHOLE_CAR,
     count: values.length,
     values,
@@ -126,6 +106,7 @@ const INK_ITEM: Item = {
   id: "ink",
   label: "Decal colour",
   kind: "ink",
+  group: "look",
   view: SIDE_VIEW,
   count: decal_inks.length,
   at: (b) => b.ink % decal_inks.length,
@@ -134,31 +115,13 @@ const INK_ITEM: Item = {
   blurb: () => "",
 };
 
-/** Garage tabs other screens open straight into. */
-export const GarageSection = {
-  BODY: "body",
-  PERFORMANCE: "performance",
-  PAINT: "paint",
-  BUILDS: "builds",
-} as const;
-export type GarageSection = (typeof GarageSection)[keyof typeof GarageSection];
-
-interface Tab {
-  section: GarageSection;
-  label: string;
-  items(build: Build, unlocks: Unlocks): Item[];
+/** Every slot of the garage, parts first: the reward paints and decals earned, and the number and decal colour only while a decal shows them. */
+export function garage_items(build: Build, unlocks: Unlocks): Item[] {
+  const decal = DECALS[build.decal];
+  return [...PART_ITEMS, paint_item(build, unlocks), decal_item(build, unlocks), ...(decal === "number" ? [NUMBER_ITEM] : []), ...(decal === "none" ? [] : [INK_ITEM])];
 }
-
-export const TABS: Tab[] = [
-  { section: GarageSection.BODY, label: "Body", items: (b, u) => [car_item(b, u),...part_items(BODY_SLOTS), decal_item(b, u), ...(DECALS[b.decal] === "number" ? [NUMBER_ITEM] : [])] },
-  { section: GarageSection.PERFORMANCE, label: "Performance", items: () => part_items(SLOT_NAMES.filter((slot) => !BODY_SLOTS.includes(slot))) },
-  { section: GarageSection.PAINT, label: "Paint", items: (b, u) => [paint_item(b, u), ...(DECALS[b.decal] === "none" ? [] : [INK_ITEM])] },
-  { section: GarageSection.BUILDS, label: "My builds", items: () => [] },
-];
-
-export const BUILDS_TAB = TABS.findIndex((tab) => tab.section === GarageSection.BUILDS);
 
 const SLOT_ICONS = new Set(["engine", "tyres", "aero", "suspension", "brakes", "weight", "bias", "nitro", "decal", "number", "ink"]);
 
 /** The sprite icon for a slot or option kind. */
-export const slot_icon = (id: string) => (id === "car" || id === "paint" ? `icon-${id}` : `icon-slot-${SLOT_ICONS.has(id) ? id : "part"}`);
+export const slot_icon = (id: string) => (id === "paint" ? "icon-paint" : `icon-slot-${SLOT_ICONS.has(id) ? id : "part"}`);
