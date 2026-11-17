@@ -25,9 +25,9 @@
   .car-facts {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--gap-md);
     min-width: 0;
-    font-size: var(--text-sm);
+    font-size: var(--type-small);
     font-weight: 600;
     white-space: nowrap;
   }
@@ -36,7 +36,7 @@
     display: inline-flex;
     flex: none;
     align-items: center;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
   }
 
   .car-fact-weight {

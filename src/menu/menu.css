@@ -56,7 +56,7 @@
 
 .settings[data-view="page"] .settings-panel {
   grid-template: "head" auto "body" minmax(0, 1fr) / minmax(0, 1fr);
-  gap: var(--space-5);
+  gap: var(--pad);
 }
 
 .settings:not([data-view="guide"]) .menu-top,
@@ -70,7 +70,7 @@
 }
 
 .settings-head {
-  gap: var(--space-2);
+  gap: var(--gap-sm);
 }
 
 .settings-head .settings-title {
@@ -80,16 +80,16 @@
 .settings .settings-back {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--gap-xs);
   height: var(--control-h);
-  margin-left: calc(-1 * var(--space-2));
-  padding: 0 var(--space-3) 0 var(--space-2);
+  margin-left: calc(-1 * var(--gap-sm));
+  padding: 0 var(--gap-md) 0 var(--gap-sm);
   border-radius: var(--radius-sm);
   font-weight: 600;
 }
 
 .settings .settings-back:hover {
-  background: var(--set-well);
+  background: var(--row);
 }
 
 .settings-back svg,
@@ -101,7 +101,7 @@
 
 .settings[data-view="page"] .settings-body {
   /* Room for the focus ring of the outer tiles (2px outline, 2px offset), which the scroller would otherwise cut. */
-  --focus-room: var(--space-1);
+  --focus-room: var(--gap-xs);
   overflow-y: auto;
   /* Scrolls on the compositor, off the busy game thread. A rounded corner here would put it back on the main thread. */
   will-change: scroll-position;
@@ -117,10 +117,10 @@
 }
 
 .settings:is([data-layout="column"], [data-layout="fill-panel"]) .settings-page {
-  padding: var(--space-4);
+  padding: var(--gap);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--set-line);
-  background: var(--set-panel);
+  border: 1px solid var(--line);
+  background: var(--surface);
 }
 
 .settings:is([data-layout="fill"], [data-layout="fill-panel"]) .settings-page {
@@ -146,7 +146,7 @@ body:has(> .settings:is([data-view="frame"], [data-view="page"][data-layout="sta
    page it takes its plain top-centre spot. */
 body:has(> .settings:is([data-view="frame"], [data-view="page"][data-layout="stage"]):not([hidden])) > #toast {
   position-anchor: auto;
-  top: calc(var(--inset-top) + var(--space-4));
+  top: calc(var(--inset-top) + var(--gap));
   left: 50%;
 }
 
@@ -167,16 +167,16 @@ body:has(> .settings:is([data-view="frame"], [data-view="page"][data-layout="sta
   grid-area: top;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--gap-md);
   min-width: 0;
 }
 
 .menu-brand {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--gap-sm);
   margin-right: auto;
-  font-size: var(--text-xl);
+  font-size: var(--type-h3);
   font-weight: 700;
   letter-spacing: -0.011em;
 }
@@ -191,19 +191,19 @@ body:has(> .settings:is([data-view="frame"], [data-view="page"][data-layout="sta
 .menu-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--gap-sm);
   height: var(--control-h);
-  padding: 0 var(--space-3);
+  padding: 0 var(--gap-md);
   border-radius: var(--radius-full);
-  border: 1px solid var(--set-line);
-  background: var(--set-panel);
+  border: 1px solid var(--line);
+  background: var(--surface);
   font-weight: 600;
   white-space: nowrap;
   min-width: 0;
 }
 
 .menu-chip small {
-  color: var(--set-dim);
+  color: var(--dim);
   font-weight: 500;
 }
 
@@ -211,7 +211,7 @@ body:has(> .settings:is([data-view="frame"], [data-view="page"][data-layout="sta
   flex: none;
   width: 14px;
   height: 14px;
-  color: var(--set-dim);
+  color: var(--dim);
 }
 
 .menu-name:focus-within {
@@ -265,7 +265,7 @@ body:has(> .settings:is([data-view="frame"], [data-view="page"][data-layout="sta
 
 @media (max-height: 500px) {
   .settings[data-view="page"] .settings-panel {
-    gap: var(--space-3);
+    gap: var(--gap-md);
   }
 
   .menu-brand {

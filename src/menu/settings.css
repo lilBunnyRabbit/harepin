@@ -1,9 +1,9 @@
 /* :root, not .settings: dialogs like the car pick open over the game, outside the menu, and use the same ui tiles. */
 :root {
   --set-panel: var(--panel);
-  --set-well: var(--panel-well);
+  --set-well: var(--row);
   --set-raised: var(--panel-raised);
-  --set-soft: color-mix(in oklch, var(--set-well) 60%, var(--set-panel));
+  --set-soft: color-mix(in oklch, var(--row) 60%, var(--set-panel));
   --set-line: var(--line);
   --set-dim: var(--dim);
 }
@@ -14,7 +14,7 @@
   z-index: 30;
   background: color-mix(in oklch, var(--background-darkest) 20%, transparent);
   color: var(--foreground);
-  font-size: var(--text-md);
+  font-size: var(--type-body);
   user-select: none;
 }
 
@@ -27,9 +27,9 @@
   display: grid;
   overflow: hidden;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--set-line);
-  background: var(--set-panel);
-  box-shadow: var(--panel-shadow);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .settings-head {
@@ -37,13 +37,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
-  border-bottom: 1px solid var(--set-line);
+  padding: var(--gap-md) var(--gap-md) var(--gap-md) var(--pad);
+  border-bottom: 1px solid var(--line);
 }
 
 .settings-title {
   margin: 0;
-  font-size: var(--text-xl);
+  font-size: var(--type-h3);
   font-weight: 600;
   letter-spacing: -0.011em;
 }
@@ -72,7 +72,7 @@
 }
 
 .settings .settings-close:hover {
-  background: var(--set-well);
+  background: var(--row);
 }
 
 .settings-body {
