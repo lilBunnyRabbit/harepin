@@ -9,8 +9,8 @@ interface Dot {
   z: number;
 }
 
-const W = 192;
-const H = 104;
+const W = 252;
+const H = 136;
 /** Realistic shows the world this many times larger than a map of all of it would, so the card is a window that follows the car. */
 const REAL_ZOOM = 2.3;
 /** CSS px side of the whole world in the Realistic map; the map's picture is painted at this size. */

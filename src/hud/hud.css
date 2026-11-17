@@ -14,9 +14,9 @@
   --corner-bottom: var(--inset-bottom);
   --corner-left: var(--inset-left);
   --corner-right: var(--inset-right);
-  --corner-w: 216px;
-  --corner-h: 152px;
-  /* Less the card border, so the map canvas lands on its own 192 px and is never resampled. */
+  --corner-w: 276px;
+  --corner-h: 184px;
+  /* Less the card border, so the map canvas lands on its own 252 px and is never resampled. */
   --corner-pad: calc(var(--gap-md) - 1px);
 }
 

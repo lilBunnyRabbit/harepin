@@ -77,8 +77,8 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
 @media (pointer: coarse) {
   :root {
     --phone-hand-h: 52px;
-    --phone-map-w: 136px;
-    --phone-map-h: 82px;
+    --phone-map-h: clamp(79px, 30vh - 17px, 120px);
+    --phone-map-w: calc((var(--phone-map-h) - 2 * var(--gap-sm)) * 252 / 136 + 2 * var(--gap-sm));
     --phone-brake-h: min(96px, 25vh);
     --phone-gas-h: calc(var(--phone-brake-h) + var(--phone-hand-h) + var(--space-2));
     --phone-slot: calc(var(--control-h) + var(--space-2));
@@ -95,13 +95,13 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     --phone-centre: calc(100vw - 2 * var(--phone-flank));
   }
 
-  @media (max-width: 739px) {
+  @media (max-width: 799px) {
     :root {
       --phone-cell-pad: var(--space-3);
     }
   }
 
-  @media (max-width: 649px) {
+  @media (max-width: 739px) {
     :root {
       --phone-cell-pad: var(--space-2);
     }
@@ -526,6 +526,8 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
   }
 
   .nitro-key {
+    top: max(50% - 28px, var(--phone-under-map) + var(--phone-slot));
+    translate: none;
     width: 56px;
     height: 56px;
     border-radius: var(--radius-full);

@@ -18,7 +18,7 @@
 #minimap {
   display: block;
   width: 100%;
-  aspect-ratio: 192 / 104;
+  aspect-ratio: 252 / 136;
   border-radius: var(--radius-xs);
   background: var(--row);
 }
