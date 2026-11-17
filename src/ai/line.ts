@@ -14,8 +14,11 @@ export function grip_at(bend: number, scale: PlanScale = UNIT_SCALE): number {
   return line_grip + (fast_grip - line_grip) * Math.max(0, Math.min(1, (radius - hairpin_radius) / (fast_radius - hairpin_radius)));
 }
 
-/** Metres between the car's body and the road edge. */
-const EDGE_GAP = 1.2;
+/**
+ * Metres between the car's body and the road edge: the driver holds the line to about half a metre through a bend. At
+ * 0.6 a car braked behind another in a fast bend had no road left to catch its slide in and met a post (seeds 14, 17, 34).
+ */
+const EDGE_GAP = 0.9;
 /** Coarsest point spacing the relax starts at, and passes at spacing 1 (more at coarser ones, by the square root). */
 const RELAX_TOP = 64;
 const RELAX_PASSES = 100;
@@ -87,9 +90,9 @@ export function drive_at(speed: number, scale: PlanScale = UNIT_SCALE): number {
   return Math.min(AI_TUNING.line_drive * scale.drive, (AI_TUNING.line_power * scale.power) / Math.max(1, speed));
 }
 
-/** Share of the tyres' grip left along the road at `speed` m/s through bend `bend` (1/m): the friction circle, never under GRIP_FLOOR. */
-function along(speed: number, bend: number, scale: PlanScale): number {
-  const used = (speed * speed * Math.abs(bend)) / grip_at(bend, scale);
+/** Share of the tyres' grip left along the road at `speed` m/s through bend `bend` (1/m), the car at `load` of its weight: the friction circle, never under GRIP_FLOOR. */
+function along(speed: number, bend: number, scale: PlanScale, load: number): number {
+  const used = (speed * speed * Math.abs(bend)) / (grip_at(bend, scale) * load);
   return Math.max(GRIP_FLOOR, Math.sqrt(Math.max(0, 1 - used * used)));
 }
 
@@ -98,13 +101,16 @@ function along(speed: number, bend: number, scale: PlanScale): number {
  * m/s² less what the bend's turning takes of the grip, forward so no exit plans more than `drive_at` gives. Two laps
  * each way, as a curve from the slowest bend wraps past the start line. The forward pass takes no share for the turn:
  * the line corners under the car's real grip, and an exit held to the friction circle had it lifting a second a lap.
+ * Over a crest (`lift`) the car is light, and the braking and the circle shrink with its load: braked at the flat's
+ * 5 m/s² through a 250 m bend over a crest at 36 m/s, the hatch's tail came round (seeds 4, 15).
  */
-function profile(speed: Float64Array, step: Float64Array, bend: Float64Array, brake: number, scale: PlanScale) {
+function profile(speed: Float64Array, step: Float64Array, bend: Float64Array, lift: Float64Array, brake: number, scale: PlanScale) {
   const n = speed.length;
   for (let k = 2 * n - 1; k >= 0; k--) {
     const i = wrap(k, n);
     const v = speed[wrap(k + 1, n)];
-    speed[i] = Math.min(speed[i], Math.sqrt(v * v + 2 * brake * along(v, bend[i], scale) * step[i]));
+    const load = 1 - Math.min(AI_TUNING.crest_light, (v * v * lift[i]) / GRAVITY);
+    speed[i] = Math.min(speed[i], Math.sqrt(v * v + 2 * brake * load * along(v, bend[i], scale, load) * step[i]));
   }
   for (let k = 0; k < 2 * n; k++) {
     const i = wrap(k, n);
@@ -250,7 +256,7 @@ export function plan_for(line: RaceLine, scale: PlanScale): RaceLine {
     speed[i] = Math.min(Math.sqrt(hold / (1 + Math.min(AI_TUNING.crest_light, (hold * lift[i]) / GRAVITY))), takeoff, cap);
   }
   const late = speed.slice();
-  profile(speed, step, bend, AI_TUNING.line_brake * scale.brake, scale);
-  profile(late, step, bend, AI_TUNING.late_brake * scale.brake, scale);
+  profile(speed, step, bend, lift, AI_TUNING.line_brake * scale.brake, scale);
+  profile(late, step, bend, lift, AI_TUNING.late_brake * scale.brake, scale);
   return { ...line, speed, late, scale };
 }

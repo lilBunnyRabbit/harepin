@@ -80,6 +80,15 @@ describe("race line", () => {
     expect(rippled.hi[at]).toBe(ROAD_HALF - 1);
   });
 
+  test("steps on one side then the other within a few metres are taken, not woven through", () => {
+    const ground: LineGround = { ...flat, height: (x, z) => (x > 25 && x < 35 ? ((x - 30) * side > 0 ? hump(z) : hump(z - 4)) : 0) };
+    const woven = race_line(road, [], 1, ground);
+    for (let i = at - 5; i <= at + 7; i++) expect(Math.abs(woven.offset[i + 1] - woven.offset[i])).toBeLessThan(0.3);
+    expect(woven.kick[at]).toBe(1);
+    expect(woven.kick[at + 2]).toBe(1);
+    expect(woven.hi[at] - woven.lo[at]).toBe(2 * (ROAD_HALF - 1));
+  });
+
   test("a solid on the road holds the line a car's width off it", () => {
     const post = { x: 30 + side * 3.5, z: 100 };
     const ground: LineGround = { ...flat, touches: (car, gap) => (Math.hypot(car.pos.x - post.x, car.pos.z - post.z) < car.spec.radius + 0.3 + gap ? 1 : 0) };

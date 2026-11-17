@@ -6,13 +6,14 @@ export interface AiTuning {
   /**
    * Cornering grip and braking (m/s²) the line plans on, for the stock coupe at pace 1 (`grip_pace` scales other cars).
    * `line_grip` holds in a hairpin (`hairpin_radius` m and tighter), where the driver is already at full lock; it eases up to
-   * `fast_grip` in a bend of `fast_radius` m or wider. The coupe holds 0.94 g on the skidpad: the steering is the limit, and
-   * at 6.5 in hairpins, 7.5 in fast bends or braking at 3, cars run wide.
+   * `fast_grip` in a bend of `fast_radius` m or wider. The coupe holds 0.94 g on the skidpad and stops at 12.9 m/s²; the
+   * owner's laps corner at 8 to 8.8 and brake at 8 to 10. Half a metre off the line at most is what these leave for: at
+   * 8.2 in hairpins, 9 in fast bends and braking at 8.3, one solo lap in fifteen left the road.
    */
   line_grip: number;
   fast_grip: number;
   line_brake: number;
-  /** Braking (m/s²) a driver diving down the inside plans on: it brakes later and harder than the line, into the apex. */
+  /** Braking (m/s²) a driver diving down the inside plans on: it brakes later and harder than the line, into the apex. At 9.1 a dive that touched its car spun. */
   late_brake: number;
   /**
    * Traction (m/s²) and power (m²/s³: acceleration times speed) the line's forward pass lets a car pull out of a bend
@@ -24,13 +25,17 @@ export interface AiTuning {
   crest_light: number;
   /** Share over the line's grip a passing driver plans its path on: off the line every bend is tighter, and a pass at the line's grip never gets by. */
   pass_grip: number;
+  /** Share of the line's grip a driver off the line and not passing plans its path on: that path is the line shifted and clamped, not a relaxed one, and at the line's own grip a car inside a tightening bend at 36 m/s ran off the far side (seed 1). */
+  aside_grip: number;
   /** Most grip (m/s²) a pass plans on, whatever the line's: the coupe's skidpad is 9.2, and past this a pass runs wide. */
   pass_max: number;
   /** Road points of aim past the car, plus one per `aim_per` m/s: pure pursuit, as the autopilot steers. */
   aim_base: number;
   aim_per: number;
-  /** Wheel per rad of aim error: at 3 a car sat up to 3 m wide of the line through a 200 m bend at 38 m/s and ran off. */
+  /** Wheel per rad the aim sits off where it would on the path, over the wheel the bend itself takes: at 3 a car sat up to 3 m wide of the line through a 200 m bend at 38 m/s and ran off. */
   steer_gain: number;
+  /** Share of the wheel a bend takes that the driver holds: a little over, it sits a hand inside its line, where the road is. At 1 the coupe's fields held 4 to 5 spins and resets in 50 seeds, at 1.04 2 to 3. */
+  steer_lead: number;
   /** Wheel per rad/s the aim error swings at: without it a fast car fishtails, each catch overshooting the last. */
   steer_damp: number;
   /** Pedal limits of the line driver: the most brake off the line, the most diving down the inside, m/s over the plan before the brake comes on, and m/s of overspeed per unit of pedal. */
@@ -60,18 +65,20 @@ export interface AiTuning {
 }
 
 export const AI_TUNING: AiTuning = {
-  line_grip: 7.1,
-  fast_grip: 7.85,
-  line_brake: 5.2,
-  late_brake: 7,
+  line_grip: 7.8,
+  fast_grip: 8.6,
+  line_brake: 6.75,
+  late_brake: 7.5,
   line_drive: 6.5,
   line_power: 140,
   crest_light: 0.5,
   pass_grip: 1.4,
+  aside_grip: 0.9,
   pass_max: 8.4,
   aim_base: 7,
   aim_per: 3,
   steer_gain: 6.5,
+  steer_lead: 1.04,
   steer_damp: 1.25,
   brake_max: 0.95,
   late_pedal: 0.95,

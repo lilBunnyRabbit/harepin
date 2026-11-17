@@ -24,6 +24,8 @@ const STEP_GAP = 0.5;
 const SOLID_GAP = 0.8;
 /** Road points either side a hazard holds the car off for: its nose and tail reach about one each way. */
 const DILATE = 1;
+/** Road points inside which a car cannot swap sides of the road: bands that far apart with no lane in common are no passage. */
+const SWERVE = 5;
 /** Metres over the road a probe stands: a deck or a beam overhead is neither ground nor a wall. */
 const PROBE_LIFT = 0.5;
 const PROBE_BAND: [number, number] = [0.25, 0.9];
@@ -143,6 +145,35 @@ export function hazards(road: readonly RoadPoint[], free: Uint8Array, half_width
     }
     lo[i] = (best_a - mid) * LATERAL;
     hi[i] = (best_b - mid) * LATERAL;
+  }
+  // Bands that share no lane within SWERVE road points leave no way through: a car does not cross the road in a few
+  // metres. The ground rippled 20 cm at the foot of a dip, each point's clear run fell on another side and the line
+  // zigzagged 8 m across the road, planned at 9 m/s (seed 1). Such a run of steps is taken as one across the road is.
+  const narrowed = (i: number) => lo[i] > -reach || hi[i] < reach;
+  const held = (i: number) => narrowed(i) || step[i] === 1;
+  for (let i = 0; i < n; i++) {
+    if (!narrowed(i)) continue;
+    let to = -1;
+    for (let d = 1; d <= SWERVE && held(wrap(i + d, n)); d++) {
+      const j = wrap(i + d, n);
+      if (narrowed(j) && (lo[j] > hi[i] || hi[j] < lo[i])) to = j;
+    }
+    if (to < 0) continue;
+    let from = i;
+    while (from !== to && held(wrap(from - 1, n))) from = wrap(from - 1, n);
+    while (to !== from && held(wrap(to + 1, n))) to = wrap(to + 1, n);
+    let walled = false;
+    for (let k = from; ; k = wrap(k + 1, n)) {
+      for (let l = 0; l < lanes; l++) walled ||= solid[k * lanes + l] === 1;
+      if (k === to) break;
+    }
+    if (walled) continue;
+    for (let k = from; ; k = wrap(k + 1, n)) {
+      lo[k] = -reach;
+      hi[k] = reach;
+      step[k] = 1;
+      if (k === to) break;
+    }
   }
   return { lo, hi, step };
 }
