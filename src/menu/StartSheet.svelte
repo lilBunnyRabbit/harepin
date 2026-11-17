@@ -50,8 +50,10 @@
   }
 
   function finish(car: string | null) {
+    // onclose clears the parent's target, which this prop reads.
+    const picked = target;
     onclose();
-    start_target(host, target, car);
+    start_target(host, picked, car);
   }
 
   function key(event: KeyboardEvent) {
