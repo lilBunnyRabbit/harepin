@@ -358,9 +358,9 @@ function unpinched(geometry: THREE.BufferGeometry, d: Design, anchor: number): T
   return geometry;
 }
 
-/** The design's raised side profiles, each less the wheel openings and cut where the body side folds. */
-export function body_slabs(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
-  return (d.slabs ?? []).flatMap((part) => notch(part.points, d, spec).flatMap((piece) => fitted_slab(d, { ...part, points: piece })));
+/** A raised side profile of the design, less the wheel openings and cut where the body side folds. */
+export function body_slab(d: Design, spec: CarSpec, part: Slab): THREE.BufferGeometry[] {
+  return notch(part.points, d, spec).flatMap((piece) => fitted_slab(d, { ...part, points: piece }));
 }
 
 export function body_pieces(d: Design, spec: CarSpec): Point[][] {
@@ -377,18 +377,43 @@ function body_ends(d: Design): [number, number] {
   return [front, rear];
 }
 
+interface Lines {
+  nose: number;
+  tail: number;
+  front_end: number;
+  rear_end: number;
+  rise: number;
+  drop: number;
+}
+
+// A sculpt asks per vertex, and walking the outline for each made it half of a car's build.
+const LINES = new WeakMap<Design, Lines | null>();
+
+function lines_of(d: Design): Lines | null {
+  let lines = LINES.get(d);
+  if (lines !== undefined) return lines;
+  const s = d.section;
+  if (!s) lines = null;
+  else {
+    const [front_end, rear_end] = body_ends(d);
+    let top = -Infinity;
+    for (const [, oy] of d.outline) top = Math.max(top, oy);
+    lines = { nose: d.outline[0][0], tail: d.outline[d.outline.length - 1][0], front_end, rear_end, rise: s.rise ?? top - Math.max(...s.belt), drop: Math.min(...s.belt) - d.sill };
+  }
+  LINES.set(d, lines);
+  return lines;
+}
+
 /**
  * Share of its x a point at `z` loses to the pinched nose and tail. A pinch runs on past the outline's first and last
  * point to the body's real end, so no face of a proud bumper folds there, and is spent past that end.
  */
 function pinch(d: Design, z: number): number {
   const s = d.section;
-  if (!s) return 0;
-  const nose = d.outline[0][0];
-  const tail = d.outline[d.outline.length - 1][0];
-  const [front_end, rear_end] = body_ends(d);
-  const front = s.nose[1] > 0 ? Math.max(0, Math.min(front_end, z) - (nose - s.nose[1])) / s.nose[1] : 0;
-  const back = s.tail[1] > 0 ? Math.max(0, tail + s.tail[1] - Math.max(rear_end, z)) / s.tail[1] : 0;
+  const lines = lines_of(d);
+  if (!s || !lines) return 0;
+  const front = s.nose[1] > 0 ? Math.max(0, Math.min(lines.front_end, z) - (lines.nose - s.nose[1])) / s.nose[1] : 0;
+  const back = s.tail[1] > 0 ? Math.max(0, lines.tail + s.tail[1] - Math.max(lines.rear_end, z)) / s.tail[1] : 0;
   return s.nose[0] * front + s.tail[0] * back;
 }
 
@@ -398,15 +423,10 @@ function pinch(d: Design, z: number): number {
  */
 export function sculpt_factor(d: Design, y: number, z: number): number {
   const s = d.section;
-  if (!s) return 1;
-  const nose = d.outline[0][0];
-  const tail = d.outline[d.outline.length - 1][0];
-  let top = -Infinity;
-  for (const [, oy] of d.outline) top = Math.max(top, oy);
-  const rise = s.rise ?? top - Math.max(...s.belt);
-  const drop = Math.min(...s.belt) - d.sill;
-  const belt = s.belt[0] + ((s.belt[1] - s.belt[0]) * (nose - z)) / (nose - tail);
-  const side = y > belt ? s.shoulder * Math.min(1, (y - belt) / rise) : s.tuck * Math.min(1, (belt - y) / drop);
+  const lines = lines_of(d);
+  if (!s || !lines) return 1;
+  const belt = s.belt[0] + ((s.belt[1] - s.belt[0]) * (lines.nose - z)) / (lines.nose - lines.tail);
+  const side = y > belt ? s.shoulder * Math.min(1, (y - belt) / lines.rise) : s.tuck * Math.min(1, (belt - y) / lines.drop);
   return 1 - side - pinch(d, z);
 }
 

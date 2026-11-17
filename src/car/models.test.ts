@@ -104,3 +104,32 @@ test("downforce at top speed never pushes a tyre up through its arch, and a car 
   expect([view.body.position.y, view.body.rotation.x]).toEqual([rest_y, 0]);
   dispose_car_view(view);
 });
+
+test("a car built in steps, with another car built between them, is the car built in one go", async () => {
+  const THREE = await import("three");
+  const { build_view, view_steps } = await import("./models");
+  const { parse_build } = await import("./build");
+  const shape = (root: InstanceType<typeof THREE.Object3D>) => {
+    const out: number[][] = [];
+    root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      out.push([...object.position.toArray(), ...object.scale.toArray()]);
+      for (const name of ["position", "color"]) out.push(Array.from(object.geometry.getAttribute(name)?.array ?? []));
+    });
+    return out;
+  };
+  // The Sturm has the longest build: sculpted, slabs on every corner, a kit shell, a decal and a metal paint.
+  const build = parse_build("sturm.4.0.4.2.5.0.7.2.2.2.1.2");
+  if (!build) throw new Error("build code");
+  const other: typeof build = { ...DEFAULT_BUILD, car: "sajin" };
+  const whole = build_view(build);
+  const [steps, between] = [view_steps(build), view_steps(other)];
+  let count = 0;
+  let step = steps.next();
+  for (; !step.done; step = steps.next()) {
+    count++;
+    between.next();
+  }
+  expect(count).toBeGreaterThan(12);
+  expect(shape(step.value.root)).toEqual(shape(whole.root));
+});
