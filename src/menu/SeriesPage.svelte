@@ -9,7 +9,7 @@
 
   let { menu, live }: PageProps = $props();
 
-  const list = $derived(menu.host.series ?? []);
+  const list = $derived(menu.host.series);
   const ready = $derived(live.live(() => list.length > 0 && list.every((one) => one.ready)));
   let picked = $state<number | null>(null);
   const at = $derived(ready ? (picked ?? series_front(list)) : 0);

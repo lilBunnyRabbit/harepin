@@ -17,15 +17,28 @@ import { DEFAULT_KIND } from "../worldgen/types";
 import type { WorldKind } from "../worldgen/types";
 import type { MapPlayer } from "./world-map.svelte";
 import type { Laps, QualityTier, SettingKey, SettingsState } from "./prefs";
+import type { Tab } from "./ui/types";
 
 export const MenuTab = {
   PLAY: "play",
+  EVENTS: "career",
   GARAGE: "garage",
   ONLINE: "online",
   SETTINGS: "settings",
   SUPPORT: "support",
 } as const;
 export type MenuTab = (typeof MenuTab)[keyof typeof MenuTab];
+
+export const STATIONS: readonly Tab<MenuTab>[] = [
+  { id: MenuTab.PLAY, label: "Home" },
+  { id: MenuTab.EVENTS, label: "Events" },
+  { id: MenuTab.GARAGE, label: "Garage" },
+  { id: MenuTab.ONLINE, label: "Online" },
+  { id: MenuTab.SETTINGS, label: "Settings" },
+];
+
+/** Where Back leads from a station. */
+export const ROAD = "Road";
 
 export interface QualityStatus {
   tier: QualityTier;
@@ -48,8 +61,8 @@ export interface SettingsHost {
   readonly career: Career;
   /** Starts a career event now on this map, or reloads onto its map. */
   start_event(id: string): void;
-  /** `?series` in dev and review builds: the Harepin Series, one entry per season in `SEASONS` order; null without it. */
-  readonly series: readonly Series[] | null;
+  /** The Harepin Series, one entry per season in `SEASONS` order. */
+  readonly series: readonly Series[];
   /** Starts a series event now on this map, or reloads onto its map. */
   start_series(id: string): void;
   readonly runs: Runs;
@@ -118,6 +131,10 @@ export interface Menu {
   refresh(): void;
   close(): void;
   show(section: string): void;
+  /** One level up: to the page this one was opened from, else its station; a station closes the menu. */
+  back(): void;
+  /** The name of the place `back` leads to from `section`, for its Back pill. */
+  up_of(section: string): string;
   /** A world the player picked: remembered for the next bare load, then driven in this room. */
   drive(seed: number, kind: WorldKind, levels?: readonly number[]): void;
   go(query: Record<string, string>): void;
@@ -127,8 +144,9 @@ export interface Menu {
  * How a full-screen page sits under its Back and title. `column`: a centred panel, the head over it. `wide`: full width,
  * no panel, as tall as its content. `fill`: full width, no panel, the screen's height. `fill-panel`: the screen in one
  * panel, as tall as its content on a phone. `stage`: the screen's height with no Back bar; the page draws its own way out.
+ * `frame`: a rebuilt page, which draws itself in `MenuFrame` as every station does; the layouts before it go with the last old page.
  */
-export type PageLayout = "column" | "wide" | "fill" | "fill-panel" | "stage";
+export type PageLayout = "column" | "wide" | "fill" | "fill-panel" | "stage" | "frame";
 
 export interface MenuPage {
   readonly id: string;
@@ -140,6 +158,8 @@ export interface MenuPage {
   build(): HTMLElement[];
   on_show?(): void;
   on_hide?(): void;
+  /** B / Esc / phone Back on this page: true when the page took it a level up itself. */
+  back?(): boolean;
 }
 
 export function invite_link(room: string, seed: number, kind: WorldKind = DEFAULT_KIND, code: string | null = null): string {

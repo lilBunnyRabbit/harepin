@@ -1,15 +1,48 @@
-.settings[data-view="menu"],
+/* The frame view: a station, or a rebuilt child page. The page draws its own frame (MenuFrame) over the live scene, so
+   the shell adds no shade, panel or scroll of its own, and only what the frame holds takes the pointer: a drag on the
+   open stage turns the car. */
+.settings[data-view="frame"] {
+  background: none;
+}
+
+.settings[data-view="frame"] .settings-panel {
+  inset: 0;
+  grid-template: "body" minmax(0, 1fr) / minmax(0, 1fr);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.settings[data-view="frame"] .settings-body {
+  overflow: visible;
+}
+
+.settings[data-view="frame"] .settings-page {
+  position: relative;
+  height: 100%;
+}
+
+/* The stage frames the car between the frame's rows; a page names the sides of its own panels the same way. */
+.settings .ui-frame-top {
+  --stage-side: top;
+}
+
+.settings .ui-frame-bottom {
+  --stage-side: bottom;
+}
+
+/* Everything below lays out the child pages not rebuilt yet and the first-run guide's top bar; it goes with them. */
 .settings[data-view="page"] {
   background: color-mix(in oklch, var(--background-darkest) 72%, transparent);
   backdrop-filter: blur(8px);
 }
 
-:root[data-scheme="light"] .settings[data-view="menu"],
 :root[data-scheme="light"] .settings[data-view="page"] {
   background: color-mix(in oklch, var(--background-lighter) 78%, transparent);
 }
 
-.settings[data-view="menu"] .settings-panel,
 .settings[data-view="page"] .settings-panel {
   inset: var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);
   width: auto;
@@ -21,19 +54,13 @@
   overflow: visible;
 }
 
-.settings[data-view="menu"] .settings-panel {
-  grid-template: "top" auto "tabs" auto "body" minmax(0, 1fr) / minmax(0, 1fr);
-  gap: var(--space-5);
-}
-
 .settings[data-view="page"] .settings-panel {
   grid-template: "head" auto "body" minmax(0, 1fr) / minmax(0, 1fr);
   gap: var(--space-5);
 }
 
-.settings:not([data-view="menu"]) .menu-top,
-.settings:not([data-view="menu"]) .menu-tabs,
-.settings[data-view="menu"] .settings-head {
+.settings:not([data-view="guide"]) .menu-top,
+.settings:not([data-view="page"]) .settings-head {
   display: none;
 }
 
@@ -72,8 +99,7 @@
   height: var(--icon-size);
 }
 
-.settings[data-view="page"] .settings-body,
-.settings[data-view="menu"] .settings-body {
+.settings[data-view="page"] .settings-body {
   /* Room for the focus ring of the outer tiles (2px outline, 2px offset), which the scroller would otherwise cut. */
   --focus-room: var(--space-1);
   overflow-y: auto;
@@ -112,13 +138,13 @@
 }
 
 /* Only the driving HUD: the update card, rotate prompt and toasts still show over a stage page. */
-body:has(> .settings[data-view="page"][data-layout="stage"]:not([hidden])) > :is(#labels, #touch, #hud-menu-btn, .dock-top, .dock-left, .hud:not(#toast), #banner, #delta, #countdown, #race-lights, #mode-hint, #rewind) {
+body:has(> .settings:is([data-view="frame"], [data-view="page"][data-layout="stage"]):not([hidden])) > :is(#labels, #touch, #hud-menu-btn, .dock-top, .dock-left, .hud:not(#toast), #banner, #delta, #countdown, #race-lights, #mode-hint, #rewind) {
   visibility: hidden;
 }
 
 /* The toast hangs under the HUD strip or dock, and Chrome hides an anchored box whose anchor is hidden, so over a stage
    page it takes its plain top-centre spot. */
-body:has(> .settings[data-view="page"][data-layout="stage"]:not([hidden])) > #toast {
+body:has(> .settings:is([data-view="frame"], [data-view="page"][data-layout="stage"]):not([hidden])) > #toast {
   position-anchor: auto;
   top: calc(var(--inset-top) + var(--space-4));
   left: 50%;
@@ -212,47 +238,6 @@ body:has(> .settings[data-view="page"][data-layout="stage"]:not([hidden])) > #to
   color: var(--foreground);
 }
 
-.menu-room .menu-live {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--primary);
-}
-
-.settings .menu-update {
-  gap: var(--space-2);
-  height: var(--control-h);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--set-line);
-  background: var(--set-panel);
-  font-weight: 600;
-}
-
-.settings .menu-update:hover {
-  background: var(--set-panel);
-  border-color: var(--line-strong);
-}
-
-.settings .menu-update[data-state="ready"] {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--on-primary);
-}
-
-:root[data-scheme="light"] .settings .menu-update[data-state="ready"] {
-  background: var(--set-raised);
-  color: var(--foreground);
-}
-
-.settings .menu-update[data-state="coming"] {
-  color: var(--dim);
-  font-weight: 500;
-}
-
-.menu-update[hidden] {
-  display: none;
-}
-
 .menu-update-dot {
   flex: none;
   width: 8px;
@@ -260,10 +245,6 @@ body:has(> .settings[data-view="page"][data-layout="stage"]:not([hidden])) > #to
   border-radius: 50%;
   background: var(--success);
   animation: update-pulse 1.4s ease-in-out infinite;
-}
-
-.menu-update[data-state="ready"] .menu-update-dot {
-  background: currentColor;
 }
 
 @keyframes update-pulse {
@@ -278,142 +259,26 @@ body:has(> .settings[data-view="page"][data-layout="stage"]:not([hidden])) > #to
   }
 }
 
-.settings .menu-sponsor {
-  gap: var(--space-2);
-  height: var(--control-h);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--secondary);
-  background: color-mix(in oklch, var(--secondary) 18%, var(--set-panel));
-  color: var(--foreground);
-  font-weight: 600;
-}
-
-.settings .menu-sponsor:hover {
-  background: color-mix(in oklch, var(--secondary) 30%, var(--set-panel));
-}
-
-.menu-sponsor svg {
-  flex: none;
-  width: var(--icon-size);
-  height: var(--icon-size);
-  color: var(--secondary);
-}
-
-.settings .menu-close {
-  width: var(--control-h);
-  height: var(--control-h);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--set-line);
-  background: var(--set-panel);
-}
-
-.settings .menu-close:hover {
-  border-color: var(--line-strong);
-}
-
-.menu-close svg {
-  flex: none;
-  width: var(--icon-size);
-  height: var(--icon-size);
-}
-
-.menu-tabs {
-  grid-area: tabs;
-  justify-self: start;
-  display: flex;
-  gap: var(--space-1);
-  max-width: 100%;
-  padding: var(--space-1);
-  overflow-x: auto;
-  scrollbar-width: none;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--set-line);
-  background: var(--set-well);
-}
-
-.settings .menu-tab {
-  height: calc(var(--control-h) + var(--space-2));
-  border: 1px solid transparent;
-  padding: 0 var(--space-5);
-  border-radius: var(--radius-full);
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--set-dim);
-  white-space: nowrap;
-  transition: background-color 120ms ease-out, color 120ms ease-out;
-}
-
-.settings .menu-tab:hover {
-  color: var(--foreground);
-  background: color-mix(in oklch, var(--set-raised) 45%, transparent);
-}
-
-.settings .menu-tab[aria-current="true"] {
-  color: var(--foreground);
-  background: var(--set-raised);
-  border-color: var(--line-strong);
-  box-shadow: 0 1px 2px color-mix(in oklch, var(--background-darkest) 40%, transparent);
-}
-
-.settings .menu-tab:active {
-  background: var(--set-panel);
-}
-
-.settings .menu-tab:focus-visible {
-  outline-offset: -2px;
+.svelte-page {
+  display: contents;
 }
 
 @media (max-height: 500px) {
-  .settings[data-view="menu"] .settings-panel,
   .settings[data-view="page"] .settings-panel {
     gap: var(--space-3);
   }
 
-  /* Tabs and the name / close bar share one row, so the first screen keeps the height for the map and its Drive. */
-  .settings[data-view="menu"] .settings-panel {
-    grid-template: "tabs top" auto "body body" minmax(0, 1fr) / auto minmax(0, 1fr);
-    column-gap: var(--space-3);
-  }
-
-  .menu-brand,
-  .menu-room {
+  .menu-brand {
     display: none;
   }
 
   .menu-top {
     justify-content: flex-end;
   }
-
-  .settings .menu-tab {
-    padding: 0 var(--space-4);
-  }
-
 }
 
 @media (max-width: 600px) {
   .settings[data-layout="fill-panel"] .settings-page {
     height: auto;
   }
-
-  .menu-room {
-    display: none;
-  }
-
-  .menu-tabs {
-    justify-self: stretch;
-  }
-
-  .settings .menu-tab {
-    flex: 1 1 auto;
-    padding: 0 var(--space-2);
-  }
-}
-
-.settings[data-view="menu"] .settings-page {
-  height: 100%;
-  padding: 0;
-}
-
-.svelte-page {
-  display: contents;
 }
