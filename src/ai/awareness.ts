@@ -1,5 +1,6 @@
 import type { Car } from "../car/car";
 import { OFF_ROAD, pass_clamp, pass_room, type Driver } from "./driver";
+import type { RaceLine } from "./line";
 import { AI_TUNING } from "./tuning";
 import { atan2, cos, hypot, sin } from "../sim-math";
 
@@ -261,7 +262,7 @@ export class Awareness {
       const wait = !diving && gap > 0 && !this.lane_clear(i, target, this.pass_side[i], PASS_KEEP);
       // A pass rides the passed car's line shifted by a side gap, so the two swing together; the road's edge clamps it.
       // A dive holds the inside lane down to the apex, wherever the other car's line swings.
-      const hold = diving ? this.pass_side[i] * lane - base : this.rel[target] + this.pass_side[i] * this.flank(target);
+      const hold = diving ? this.pass_side[i] * lane - base : this.flank_hold(i, target, this.pass_side[i], this.flank(target));
       const at = pass_clamp(this.cars[i], line, driver.index, base + hold);
       // Squeezed alongside with the nose still behind: the car being passed has come over, so the pass is off.
       const squeezed = gap > 0 && gap < ALONGSIDE && (wait || Math.abs(this.lateral[target] - at) < (this.trouble[target] ? TROUBLE_FLANK : IN_LANE - aggression * PASS_TIGHT));
@@ -281,7 +282,7 @@ export class Awareness {
     // Overlapped down the inside into a braking zone, the defender gives the apex up and runs round the outside.
     const diver = this.diver_on(i);
     if (diver >= 0) {
-      driver.hold = this.rel[diver] - (Math.sign(this.lateral[diver] - me) || 1) * SIDE_GAP;
+      driver.hold = this.flank_hold(i, diver, -Math.sign(this.lateral[diver] - me) || -1, SIDE_GAP);
       return;
     }
     if (this.defend_until[i] >= 0 && beside < 0 && this.ahead_of(driver.index, this.defend_until[i], n)) {
@@ -309,7 +310,7 @@ export class Awareness {
         this.passing[i] = blocker;
         this.dive_until[i] = -1;
         this.pass_side[i] = pick;
-        driver.hold = this.rel[blocker] + pick * this.flank(blocker);
+        driver.hold = this.flank_hold(i, blocker, pick, this.flank(blocker));
         driver.push = 1 + PUSH * aggression;
         return;
       }
@@ -321,7 +322,7 @@ export class Awareness {
         this.passing[i] = cover;
         this.dive_until[i] = -1;
         this.pass_side[i] = outside;
-        driver.hold = this.rel[cover] + outside * SIDE_GAP;
+        driver.hold = this.flank_hold(i, cover, outside, SIDE_GAP);
         driver.push = 1 + PUSH * aggression;
         return;
       }
@@ -330,7 +331,7 @@ export class Awareness {
     if (beside >= 0 && !this.trouble[beside] && this.gap(i, beside) < 0 && beside >= this.driven) beside = -1;
     if (beside >= 0) {
       const dl = this.lateral[beside] - me;
-      const at = this.rel[beside] - (Math.sign(dl) || 1) * SIDE_GAP;
+      const at = this.flank_hold(i, beside, -Math.sign(dl) || -1, SIDE_GAP);
       driver.hold = at;
       // Squeezed against the edge: the car with its nose behind gives the corner up rather than leaning on the other.
       if (Math.abs(base + at) > room && this.gap(i, beside) > 0) this.hold(driver, beside, Math.max(0, this.speed[beside] - YIELD));
@@ -534,10 +535,33 @@ export class Awareness {
     const n = line.road.length;
     for (let k = 0; k < span; k += LANE_STRIDE) {
       const at = (this.drivers[i].index + k) % n;
-      const them = line.offset[at] + this.rel[target];
+      const them = this.lane_of(target, line, at);
       if (Math.abs(pass_clamp(this.cars[i], line, at, them + side * SIDE_GAP) - them) < PASS_FLANK) return false;
     }
     return true;
+  }
+
+  /** Metres off the centre car j's lane runs at road point `at`: as far off the line as it is now, inside the road's edge. */
+  private lane_of(j: number, line: RaceLine, at: number): number {
+    return pass_clamp(this.cars[j], line, at, line.offset[at] + this.rel[j]);
+  }
+
+  /**
+   * Metres off the line that keep driver i `flank` m to `side` of car j over the next PASS_KEEP road points. Where the
+   * line swings to the edge car j is on, the edge holds j and the line closes on it at 2 m/s: held a flank off where j
+   * is now, the car alongside followed the line over and took j's road (seed 0).
+   */
+  private flank_hold(i: number, j: number, side: number, flank: number): number {
+    const driver = this.drivers[i];
+    const { line } = driver;
+    const n = line.road.length;
+    let hold = this.rel[j] + side * flank;
+    for (let k = LANE_STRIDE; k < PASS_KEEP; k += LANE_STRIDE) {
+      const at = (driver.index + k) % n;
+      const need = this.lane_of(j, line, at) + side * flank - line.offset[at];
+      hold = side > 0 ? Math.max(hold, need) : Math.min(hold, need);
+    }
+    return hold;
   }
 
   /** Whether lateral spot `at` (m off the centre) is on the road and clear of every car from alongside to `reach` metres ahead. */
