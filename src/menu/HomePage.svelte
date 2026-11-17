@@ -7,6 +7,7 @@
   import { target_of, type StartTarget } from "./events-view";
   import { MAPS_PAGE } from "./maps";
   import MenuFrame from "./MenuFrame.svelte";
+  import { change_own_car } from "./own-car";
   import { MenuTab } from "./page";
   import StartSheet from "./StartSheet.svelte";
   import Card from "./ui/Card.svelte";
@@ -52,6 +53,8 @@
     target = target_of(host, KINDS[pick.id], pick.target);
   }
 
+  const change_car = () => void change_own_car(menu, picker, "Home");
+
   const press = (click: MouseEvent, pick: DrivePick) => aim_or_go(click, () => (aimed = pick.id), () => go(pick));
 
   function key(event: KeyboardEvent) {
@@ -61,7 +64,7 @@
       return go();
     }
     const link = link_key(event);
-    if (link === "c") menu.show(MenuTab.GARAGE);
+    if (link === "c") change_car();
     else if (link === "m") menu.show(MAPS_PAGE);
   }
 </script>
@@ -106,7 +109,7 @@
   </div>
 
   {#snippet links()}
-    <KeyLink keys={{ key: "C" }} onclick={() => menu.show(MenuTab.GARAGE)}>Car</KeyLink>
+    <KeyLink keys={{ key: "C" }} onclick={change_car}>Car</KeyLink>
     <KeyLink keys={{ key: "M" }} onclick={() => menu.show(MAPS_PAGE)}>Maps</KeyLink>
   {/snippet}
   {#snippet primary()}
