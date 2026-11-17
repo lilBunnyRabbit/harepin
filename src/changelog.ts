@@ -51,6 +51,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.56.0",
+    date: "2026-11-17",
+    title: "Velodrome",
+    changes: [
+      { kind: NEW, text: "Velodrome is on the map list: steep bowls, half-pipes and a wall to ride, with its own options in Create world" },
+      { kind: IMPROVED, text: "Fujin and Formula rivals carry more speed through bends and stay on the road" },
+    ],
+  },
+  {
     version: "0.55.0",
     date: "2026-11-16",
     title: "One frame, many bodies",
