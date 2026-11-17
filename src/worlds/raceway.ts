@@ -2,6 +2,7 @@ import { roadside } from "../car/trackside";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, type WorldDef } from "./world-def";
 import { PLAIN_KIT } from "../render/prop-kit";
+import { stadium } from "./raceway-stadium";
 
 export const raceway: WorldDef = {
   kind: WorldKind.RACEWAY,
@@ -19,6 +20,6 @@ export const raceway: WorldDef = {
   ground_puff: "grass",
   backdrop: "sky",
   facts: (f) => lap_facts(f, "lap"),
-  dress: (world) => [roadside(world)],
+  dress: (world) => [roadside(world), ...stadium(world)],
   kit: PLAIN_KIT,
 };
