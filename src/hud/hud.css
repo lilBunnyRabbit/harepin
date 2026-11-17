@@ -16,7 +16,8 @@
   --corner-right: var(--inset-right);
   --corner-w: 216px;
   --corner-h: 152px;
-  --corner-pad: var(--gap-md);
+  /* Less the card border, so the map canvas lands on its own 192 px and is never resampled. */
+  --corner-pad: calc(var(--gap-md) - 1px);
 }
 
 .dock-left {

@@ -63,7 +63,7 @@ export const STEER_LABEL: Record<SteerMode, string> = { snap: "Classic", hold: "
 export const MAP_VIEWS: Record<MapView, [string, string]> = {
   real: ["Realistic", "The map's own picture around you, north up"],
   line: ["Race line", "Only the route of the run you are in, with the next gate and the other cars. Roaming shows Realistic"],
-  close: ["Close-up", "Turns with you and shows the next 200 m"],
+  close: ["Close-up", "Turns with you and shows the road about 130 m ahead"],
   pace: ["Notes", "Rally pace notes instead of a map: the next turn, 1 tightest to 6 fastest, and how far off it is"],
   off: ["Off", "No map"],
 };
