@@ -68,6 +68,8 @@ export class CarStage {
   private view: CarView | null = null;
   private shown_code = "";
   private frame = 0;
+  /** The frame a drag, a pinch or the wheel draws in: however many moves a frame brings, the car is drawn once. */
+  private redraw = 0;
   /** The framing is fitted to one outline per car, so swapping a part never moves the camera. */
   private readonly outlines = new Map<CarId, Outline>();
   private readonly building = new Map<CarId, Steps<Outline>>();
@@ -172,6 +174,8 @@ export class CarStage {
     this.last_tap = null;
     cancelAnimationFrame(this.frame);
     this.frame = 0;
+    cancelAnimationFrame(this.redraw);
+    this.redraw = 0;
     cancelIdleCallback(this.warm_handle);
     this.warm_handle = 0;
     cancelAnimationFrame(this.job_frame);
@@ -242,6 +246,9 @@ export class CarStage {
 
   private warm() {
     cancelIdleCallback(this.warm_handle);
+    this.warm_handle = 0;
+    // A slice of this in a frame of a drag is a dropped frame: the queue waits for the last pointer to lift.
+    if (this.pointers.size) return;
     const ids = Object.keys(CARS).filter(is_car);
     const at = this.stand_car ? ids.indexOf(this.stand_car) : 0;
     const queue = ids
@@ -301,10 +308,11 @@ export class CarStage {
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     this.presses.set(event.pointerId, { x: event.clientX, y: event.clientY, at: event.timeStamp, travel: 0 });
     this.stop_easing();
+    this.warm();
   };
 
-  // One pointer turns the car on its stand and tilts the view; two pinch the zoom. Each move draws one frame, so a car
-  // left alone runs no loop.
+  // One pointer turns the car on its stand and tilts the view; two pinch the zoom. A move asks for one drawn frame, so
+  // a car left alone runs no loop.
   private readonly drag = (event: PointerEvent) => {
     const last = this.pointers.get(event.pointerId);
     if (!last) return;
@@ -322,7 +330,7 @@ export class CarStage {
     }
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     drag_pose(this.pose, event.clientX - last.x, event.clientY - last.y);
-    this.draw();
+    this.draw_soon();
   };
 
   // A double tap or double click puts the car back as the page aimed it. Taps are read off the press itself: a touch
@@ -331,6 +339,7 @@ export class CarStage {
     const press = this.presses.get(event.pointerId);
     this.pointers.delete(event.pointerId);
     this.presses.delete(event.pointerId);
+    if (!this.pointers.size) this.warm();
     if (!press || this.pointers.size || !is_tap(press, event.timeStamp)) {
       this.last_tap = null;
       return;
@@ -350,8 +359,17 @@ export class CarStage {
 
   private zoom_by(factor: number) {
     zoom_pose(this.pose, factor);
-    this.draw();
+    this.draw_soon();
   }
+
+  private draw_soon() {
+    this.redraw ||= requestAnimationFrame(this.drawn);
+  }
+
+  private readonly drawn = () => {
+    this.redraw = 0;
+    this.draw();
+  };
 
   /** Frames the car in the part of the screen the `panels` leave clear. */
   resize(panels: readonly HTMLElement[]) {
