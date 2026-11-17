@@ -38,7 +38,8 @@ import { Heartbeat } from "./net/heartbeat";
 import { $, Hud } from "./hud/hud";
 import { Presence } from "./hud/presence";
 import { TRAVEL_BUTTON, type Action } from "./hud/bindings";
-import { Input, modal_open } from "./hud/input";
+import { Input } from "./hud/input";
+import { modal_open, watch_modals } from "./hud/modals";
 import { Rumble, sense_drive, type RumbleSense } from "./hud/rumble";
 import { show_key_hints } from "./hud/key-hints";
 import { PICTURE_SIDE } from "./hud/minimap";
@@ -498,7 +499,7 @@ addEventListener("pointerdown", (event: PointerEvent) => {
   if (event.clientY < innerHeight * WAKE_ZONE) hud.wake();
 }, { capture: true });
 const pad_menu = new PadMenu({ settings, chat, garage_open: () => garage.is_open, notice: (text) => hud.toast(text), pad: () => input.pad });
-pad_menu.start();
+watch_modals();
 settings.on_nav = (nav) => pad_menu.navigate([nav]);
 garage.on_tab = (step) => settings.step_tab(step);
 garage.on_back = () => settings.back();
@@ -1001,7 +1002,7 @@ function frame(time: number) {
   // A lab card holds the trial under it, as the menu does: the clock and the car wait for the answers.
   const menu_hold = (settings.is_open || pause.is_open || road_map.is_open || (lab_id !== null && modal_open())) && net.remotes.size === 0;
   const draw_ms = menu_hold ? MENU_DRAW_MS : settings.is_open ? COVERED_DRAW_MS : 0;
-  const skips = draw_ms > 0 && !review && !garage.is_open && now - last_draw < draw_ms;
+  const skips = draw_ms > 0 && !review && now - last_draw < draw_ms;
   // A held sim behind the menu has nothing to step on a frame the redraw rate skips: `last` stays, so the next drawn
   // frame's dt carries the skipped time and the chase cam, smoke and audio advance by all of it. Waking on every
   // display frame only to skip it costs Blink a full frame each time, so the loop sleeps until the redraw instead; a

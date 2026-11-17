@@ -3,7 +3,7 @@ import type { Build } from "../car/build";
 import type { Car, Controls } from "../car/car";
 import type { CarSpec } from "../car/cars";
 import { CLASS_LABELS } from "../car/pi";
-import { modal_open } from "../hud/input";
+import { modal_open } from "../hud/modals";
 import { BUILD } from "../menu/update";
 import type { FieldRace } from "../modes/mode";
 import type { LabSpot } from "../worldgen/lab";

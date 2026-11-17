@@ -1,6 +1,7 @@
 import type { Chat } from "../net/chat";
 import { $ } from "../hud/hud";
 import type { Nav } from "../hud/input";
+import { modal_open, top_modal } from "../hud/modals";
 import { ROTATE_QUERY, rotate_shown } from "../hud/orientation";
 import { ADJUST_EVENT, HOLD_EVENT } from "./dom";
 import { first_spot, walk_step, type Spot } from "./focus-walk";
@@ -113,38 +114,13 @@ export class PadMenu {
   private holding: HTMLElement | null = null;
   private readonly rotate = matchMedia(ROTATE_QUERY);
   private readonly chat_panel = $("chat-panel");
-  /** Dialogs seen opening, newest last; one closed or taken out of the page drops off on the next `is_open`. */
-  private readonly modals: HTMLDialogElement[] = [];
-  // `beforetoggle` runs inside showModal, so the dialog counts from the same frame on; `toggle` would land a task later.
-  private readonly on_toggle = (event: Event) => {
-    const dialog = event.target;
-    if (dialog instanceof HTMLDialogElement && (event as ToggleEvent).newState === "open" && !this.modals.includes(dialog)) this.modals.push(dialog);
-  };
 
   constructor(private readonly host: PadMenuHost) {}
 
-  start() {
-    for (const dialog of document.querySelectorAll<HTMLDialogElement>("dialog:modal")) this.modals.push(dialog);
-    document.addEventListener("beforetoggle", this.on_toggle, { capture: true });
-  }
-
-  stop() {
-    document.removeEventListener("beforetoggle", this.on_toggle, { capture: true });
-    this.modals.length = 0;
-  }
-
-  /** Read on every input poll, so it answers from the dialogs seen opening rather than a document query or a built layer. */
+  /** Read on every input poll, so it never builds a layer to answer. */
   get is_open(): boolean {
     const { settings, chat } = this.host;
-    return this.hud_open || this.modal_open() || settings.is_open || (chat.is_open && this.chat_panel.contains(document.activeElement));
-  }
-
-  private modal_open(): boolean {
-    for (let i = this.modals.length - 1; i >= 0; i--) {
-      if (this.modals[i].matches(":modal")) return true;
-      this.modals.splice(i, 1);
-    }
-    return false;
+    return this.hud_open || modal_open() || settings.is_open || (chat.is_open && this.chat_panel.contains(document.activeElement));
   }
 
   toggle() {
@@ -251,7 +227,7 @@ export class PadMenu {
 
   private overlay(): Layer | null {
     const { settings, chat } = this.host;
-    const modal = document.querySelector<HTMLDialogElement>("dialog:modal");
+    const modal = top_modal();
     if (modal) return { roots: [modal], back: () => modal.close(), first: () => modal.querySelector<HTMLElement>("[autofocus]") ?? first_of(modal) };
     if (settings.is_open)
       return {
@@ -304,7 +280,7 @@ export class PadMenu {
   }
 
   private close_all() {
-    document.querySelector<HTMLDialogElement>("dialog:modal")?.close();
+    top_modal()?.close();
     this.host.settings.close();
     if (this.host.chat.is_open && this.chat_panel.contains(document.activeElement)) this.host.chat.close();
     this.close_hud();

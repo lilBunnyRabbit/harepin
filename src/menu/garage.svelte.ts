@@ -4,7 +4,8 @@ import { free_build_name, load_builds, store_builds, with_build, without_build, 
 import { CARS, type CarId } from "../car/cars";
 import { PRESETS } from "../car/presets";
 import { NO_UNLOCKS, type Reward, type Unlocks } from "../career/rewards";
-import { modal_open, typing, type Nav } from "../hud/input";
+import { typing, type Nav } from "../hud/input";
+import { modal_open } from "../hud/modals";
 import { save_build } from "./garage-builds";
 import { garage_items, type Item } from "./garage-items";
 

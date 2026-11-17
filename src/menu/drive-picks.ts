@@ -8,7 +8,7 @@ import { place_of, type Place } from "../career/place";
 import { event_states, season_done, standings, type Season, type SeriesProgress } from "../career/series";
 import { series_map } from "../career/series-run";
 import { series_front } from "../career/series-store";
-import { modal_open } from "../hud/input";
+import { modal_open } from "../hud/modals";
 import { next_up } from "../hud/next-up";
 import { daily, type_of, type RunPick } from "../runs/runs";
 import { plain_map, type MapSpec } from "../worldgen/kinds/kinds";

@@ -1,5 +1,6 @@
 import { flushSync } from "svelte";
-import { modal_open, typing, type Nav } from "../hud/input";
+import { typing, type Nav } from "../hud/input";
+import { modal_open } from "../hud/modals";
 import { clean_name } from "../net/net";
 import WelcomePage from "./guide/WelcomePage.svelte";
 import FinalCard from "../modes/FinalCard.svelte";
