@@ -20,6 +20,8 @@ import type { MlJob, MlResult } from "./worker";
 // State in .ai-ml/car-fit/<name>.json after every seed; it stops starting work past `minutes` and the same command resumes.
 // bun scripts/ai-ml/car-fit.ts <car> --bar [--ai slow,fast,brake|0.53] [--jobs n]: the bar, a field on seeds 0-49 and a solo
 // lap on 0-24, printed as scratch sweep lines (`seed S races R spins X resets Y stuck Z lap L`) and the solo summary.
+// --eps e (bar and fit): every factor times 1 + e, 1e-7 to 1e-5: another draw of the same block. One bar swings 3 trouble
+// on noise alone, so judge trouble on the mean of three.
 
 const KEYS = ["slow", "fast", "brake"] as const;
 /** Each factor's search box around its start, by default. */
@@ -46,6 +48,8 @@ interface State {
   /** Absent on runs from before them: SPAN, and not hard. */
   span?: number;
   hard?: boolean;
+  /** Absent on runs from before it: 0. */
+  eps?: number;
   cma: Cma;
   done: Record<string, Eval>;
   gens: { sigma: number; candidates: { ai: CarAi; loss: number }[] }[];
@@ -109,7 +113,7 @@ function summary(evals: readonly Eval[]) {
 
 async function evaluate(pool: Pool<MlJob, MlResult>, car: string, entries: readonly CarAi[], seeds: readonly number[], solo_seeds: readonly number[], done: Record<string, Eval>, save: () => void, deadline: number): Promise<boolean> {
   const todo: MlJob[] = [];
-  for (const ai of entries) for (const seed of seeds) if (!done[`${ai_key(ai)}/${seed}`]) todo.push({ type: "car", id: `${ai_key(ai)}/${seed}`, seed, car, ai, solo: solo_seeds.includes(seed) });
+  for (const ai of entries) for (const seed of seeds) if (!done[`${ai_key(ai)}/${seed}`]) todo.push({ type: "car", id: `${ai_key(ai)}/${seed}`, seed, car, ai, solo: solo_seeds.includes(seed), eps });
   for (let i = 0; i < todo.length; i += pool_size) {
     if (performance.now() > deadline) return false;
     await pool.run(todo.slice(i, i + pool_size), (r) => {
@@ -121,6 +125,7 @@ async function evaluate(pool: Pool<MlJob, MlResult>, car: string, entries: reado
   return true;
 }
 
+const eps = Number(arg("eps", "0"));
 const jobs = Number(arg("jobs", String(Math.max(1, availableParallelism() - 2))));
 const pool_size = jobs;
 
@@ -182,8 +187,8 @@ async function fit(car: string) {
   const box = (k: (typeof KEYS)[number]) => [start[k] * (1 - span), start[k] * (1 + span)] as const;
   const to_ai = (x: readonly number[]): CarAi => from_list(KEYS.map((k, i) => Number((box(k)[0] + (box(k)[1] - box(k)[0]) * x[i]).toFixed(4))));
   let st = read_json<State>(path);
-  if (st && (st.car !== car || st.train !== train || ai_key(st.start) !== ai_key(start) || (st.span ?? SPAN) !== span || (st.hard ?? false) !== hard)) throw new Error(`${path} was started on ${st.car} ${st.train} from ${ai_key(st.start)} span ${st.span ?? SPAN}${st.hard ? " hard" : ""}`);
-  st ??= { car, train, start, span, hard, cma: cma_init([0.5, 0.5, 0.5], sigma), done: {}, gens: [] };
+  if (st && (st.car !== car || st.train !== train || ai_key(st.start) !== ai_key(start) || (st.span ?? SPAN) !== span || (st.hard ?? false) !== hard || (st.eps ?? 0) !== eps)) throw new Error(`${path} was started on ${st.car} ${st.train} from ${ai_key(st.start)} span ${st.span ?? SPAN}${st.hard ? " hard" : ""} eps ${st.eps ?? 0}`);
+  st ??= { car, train, start, span, hard, eps, cma: cma_init([0.5, 0.5, 0.5], sigma), done: {}, gens: [] };
   const state = st;
   const save = () => write_json(path, state);
   const pool = new Pool<MlJob, MlResult>(new URL("./worker.ts", import.meta.url), jobs);

@@ -68,6 +68,8 @@ export interface RaceTrial extends TrialCore {
   /** The race level the field runs, on a closed route; `circuit` when absent. */
   route?: string;
   field: TrialField;
+  /** Keeps every pass between the player and the field, and the whole grid at a low rate, in the export (`pass-trace.ts`): a file, not a paste. */
+  passes?: true;
 }
 
 /** Laps of a race world's closed route alone, no field, its drive traced for `scripts/ai-ml/owner.ts`: the lab reloads onto `map` for it. */
