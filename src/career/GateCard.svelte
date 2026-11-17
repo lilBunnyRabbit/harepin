@@ -108,7 +108,7 @@
         </div>
         {#snippet primary()}
           {#if view.open}
-            {#if choice}<KeyLink keys={{ key: "Enter", pad: "A" }} onclick={onmore}>Change car</KeyLink>{/if}
+            {#if choice}<KeyLink onclick={onmore}>Change car</KeyLink>{/if}
             <PrimaryAction keys={KEYS} hold={HOLD_MS} onheld={onstart} disabled={!startable}><span class="gate-hold">Hold: </span>Start{chosen ? ` in ${chosen.title}` : ""}</PrimaryAction>
           {/if}
         {/snippet}

@@ -4,6 +4,7 @@
   import { MAX_EVENT_STARS } from "../career/career";
   import { PICTURE_SIDE } from "../hud/minimap";
   import CarStill from "../menu/CarStill.svelte";
+  import { free_enter } from "../menu/enter-key";
   import { thumb_url } from "../menu/map-thumb";
   import Chip from "../menu/ui/Chip.svelte";
   import ClassBadge from "../menu/ui/ClassBadge.svelte";
@@ -32,7 +33,7 @@
   });
 
   function key(press: KeyboardEvent) {
-    if (press.key !== "Enter" || press.repeat || !view.ready) return;
+    if (!free_enter(press) || !view.ready) return;
     // The chat opens on Enter too, in the capture phase of the same window: this listener is older, so it stops there.
     press.preventDefault();
     press.stopImmediatePropagation();

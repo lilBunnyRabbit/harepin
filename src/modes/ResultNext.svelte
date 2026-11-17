@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Attachment } from "svelte/attachments";
+  import { takes_enter } from "../menu/enter-key";
   import Card from "../menu/ui/Card.svelte";
   import KeyLink from "../menu/ui/KeyLink.svelte";
   import PageFrame from "../menu/ui/PageFrame.svelte";
@@ -38,7 +39,7 @@
     const page = root?.closest<HTMLElement>("#mode-result");
     if (!page || page.hidden) return;
     const at = document.activeElement;
-    const focus = view.host.covered() ? "away" : !at || at === document.body ? "none" : page.contains(at) ? "page" : "away";
+    const focus = view.host.covered() ? "away" : !at || at === document.body ? "none" : !page.contains(at) ? "away" : takes_enter(at) ? "page" : "none";
     const press = result_press(event, focus, view.shown && !view.disabled);
     if (!press) return;
     event.preventDefault();

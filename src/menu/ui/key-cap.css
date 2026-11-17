@@ -51,6 +51,11 @@
   display: inline-grid;
 }
 
+/* enter-key.ts marks the root while the focused control would take Enter from the primary. */
+:root[data-enter-own] .ui-primary .ui-glyph-cap[data-glyph="key"] {
+  opacity: 0.4;
+}
+
 /* :root lifts these over the old `.settings button` reset (0,1,1). */
 :root .ui-key-btn {
   --key-fill: var(--cottontail);

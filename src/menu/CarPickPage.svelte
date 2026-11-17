@@ -3,7 +3,7 @@
   import { CARS } from "../car/cars";
   import { CLASS_FLOORS, type CarClass } from "../car/pi";
   import { CAR_PAGE, type CarPicker } from "./car-pick.svelte";
-  import { aim_or_go } from "./drive-picks";
+  import { aim_or_go, bare_enter } from "./drive-picks";
   import { car_facts } from "./car-facts";
   import CarFactsLine from "./CarFactsLine.svelte";
   import CarStill from "./CarStill.svelte";
@@ -77,7 +77,7 @@
   function key(event: KeyboardEvent) {
     if (!shown || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.code === "KeyQ" || event.code === "KeyE") return step_class(event.code === "KeyQ" ? -1 : 1);
-    if (event.key === "Enter" && !(event.target instanceof Element && event.target.closest("button, a, input"))) {
+    if (bare_enter(event)) {
       event.preventDefault();
       take();
     }

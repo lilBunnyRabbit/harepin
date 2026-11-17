@@ -13,6 +13,7 @@ import { next_up } from "../hud/next-up";
 import { daily, type_of, type RunPick } from "../runs/runs";
 import { plain_map, type MapSpec } from "../worldgen/kinds/kinds";
 import type { WorldKind } from "../worldgen/types";
+import { free_enter } from "./enter-key";
 import type { SettingsHost } from "./page";
 import { car_note, event_art, next_event, rival_gap } from "./series-view";
 
@@ -20,8 +21,8 @@ const MINUTE_MS = 60_000;
 
 const plain = (event: KeyboardEvent) => !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && !modal_open();
 
-/** Enter on the page itself, not on a control: the primary's key works before anything has focus. */
-export const bare_enter = (event: KeyboardEvent) => event.key === "Enter" && plain(event) && !(event.target instanceof Element && event.target.closest("button, a, input, select, textarea"));
+/** Enter on the page itself or a nav link, not on a control that takes it (`takes_enter`), with no modal over the page. */
+export const bare_enter = (event: KeyboardEvent) => free_enter(event) && !modal_open();
 
 /** What the click rule reads off a click: a `PointerEvent` in the browser, with no pointer type behind Enter or the pad's A. */
 export interface Press {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { MAX_EVENT_STARS } from "../career/career";
+  import { free_enter } from "../menu/enter-key";
   import KeyLink from "../menu/ui/KeyLink.svelte";
   import MapPins from "../menu/ui/MapPins.svelte";
   import PageFrame from "../menu/ui/PageFrame.svelte";
@@ -74,8 +75,9 @@
       event.preventDefault();
       return view.more();
     }
-    if (event.key === "Enter" && !(event.target instanceof Element && event.target.closest("button"))) {
+    if (free_enter(event)) {
       event.preventDefault();
+      event.stopPropagation();
       return go();
     }
     const step = STEPS[event.key];

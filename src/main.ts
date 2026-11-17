@@ -60,6 +60,7 @@ import { field_routes } from "./modes/field-route";
 import { CUSTOM_PAGE } from "./menu/events-view";
 import { ChunkTrackside, gates, type Gate } from "./car/trackside";
 import { kept_random_name } from "./menu/guide-rules";
+import { watch_enter_focus } from "./menu/enter-key";
 import { PadMenu } from "./menu/pad-menu";
 import { Net, WRONG_PASSWORD } from "./net/net";
 import { Quality } from "./render/quality";
@@ -510,6 +511,7 @@ addEventListener("pointerdown", (event: PointerEvent) => {
 }, { capture: true });
 const pad_menu = new PadMenu({ settings, chat, garage_open: () => garage.is_open, notice: (text) => hud.toast(text), pad: () => input.pad });
 watch_modals();
+watch_enter_focus();
 settings.on_nav = (nav) => pad_menu.navigate([nav]);
 garage.on_tab = (step) => settings.step_tab(step);
 garage.on_back = () => settings.back();
