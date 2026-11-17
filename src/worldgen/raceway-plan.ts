@@ -100,9 +100,10 @@ function draw(next: () => number): { pieces: Piece[]; corners: Corner[] } | null
   const list = turns(next, dir);
   const order = list && ordered(next, list);
   if (!order) return null;
-  // The one heavy braking zone: the back straight ends in the first hairpin, or in a later corner when the pit straight already does.
-  const hairpin = order.findIndex((t) => t.kind === Corner.HAIRPIN);
-  const back = hairpin > 0 ? hairpin : 1 + Math.floor(next() * (order.length - 1));
+  // The one heavy braking zone: the back straight ends in a hairpin, or in the chicane when the only hairpin already ends the pit straight.
+  const ends = (kind: Corner) => order.findIndex((t, i) => i > 0 && t.kind === kind);
+  const back = ends(Corner.HAIRPIN) > 0 ? ends(Corner.HAIRPIN) : ends(Corner.CHICANE);
+  if (back < 0) return null;
   const pieces: Piece[] = [straight(PIT_AHEAD)];
   order.forEach((turn, i) => {
     if (i > 0) pieces.push(straight(i === back ? BACK : LINK));
