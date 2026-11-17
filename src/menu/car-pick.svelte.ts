@@ -18,6 +18,8 @@ export interface CarAsk {
 
 export class CarPicker {
   ask = $state.raw<CarAsk | null>(null);
+  /** Set by the shown page: the menu hands it the shoulder buttons, which step the class. */
+  on_step: ((by: number) => void) | null = null;
   private done: ((code: string | null) => void) | null = null;
 
   /** Opens an ask; one still open ends unpicked. */

@@ -21,6 +21,7 @@ import { CAR_PAGE, CarPicker } from "./car-pick.svelte";
 import { svelte_page } from "./ui/svelte-page.svelte";
 import { MenuTab, ROAD, STATIONS, type Menu, type MenuPage, type SettingsHost } from "./page";
 import type { SettingKey, SettingsState } from "./prefs";
+import type { CarShelf } from "../car/car-pick";
 import { mark_drive, read_saved, write_saved } from "./prefs-store";
 import { picture } from "./widgets";
 import { SettingsNav } from "./settings-tab/nav.svelte";
@@ -302,6 +303,7 @@ export class Settings {
   /** Q / E, LB / RB: the next station. A child page shows no station bar, so the keys stay its own. */
   step_tab(step: number) {
     if (this.guide_open) return this.guide.step_by(step);
+    if (this.section === CAR_PAGE) return this.picker.on_step?.(step);
     const at = STATIONS.findIndex((station) => station.id === this.section);
     if (at >= 0) this.show(STATIONS[(at + step + STATIONS.length) % STATIONS.length].id, null);
   }
@@ -456,6 +458,28 @@ export class Settings {
   private go(query: Record<string, string>) {
     mark_drive();
     location.search = `?${new URLSearchParams(query)}`;
+  }
+
+  /**
+   * The car picker page, over the road or from the page that asked. Settles with the car's code, or null when backed
+   * out, closed or aborted; the menu then returns to where the ask came from.
+   */
+  async pick_car(title: string, limit: string, shelves: readonly CarShelf[], signal: AbortSignal, note = `For ${title}.`): Promise<string | null> {
+    if (signal.aborted) return null;
+    const from = this.is_open && this.section !== CAR_PAGE ? this.section : null;
+    const abort = () => this.picker.end(null);
+    signal.addEventListener("abort", abort, { once: true });
+    const asked = this.picker.open({ title, limit, shelves, note, back: from ? (this.page_of(from)?.label ?? ROAD) : ROAD });
+    if (from) this.show(CAR_PAGE);
+    else this.open(CAR_PAGE);
+    const code = await asked;
+    signal.removeEventListener("abort", abort);
+    // A newer ask holds the page now: it decides where the menu goes.
+    if (!this.picker.open_ask && this.is_open) {
+      if (!from) this.close();
+      else if (this.section === CAR_PAGE) this.back();
+    }
+    return signal.aborted ? null : code;
   }
 
   step_sub(step: number) {

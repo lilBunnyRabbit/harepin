@@ -29,7 +29,6 @@ import { Sparks } from "./render/sparks";
 import { build_spec, parse_build } from "./car/build";
 import { load_builds } from "./car/builds";
 import { car_shelves, limit_text, type CarLimit, type CarShelf } from "./car/car-pick";
-import { pick_car } from "./menu/car-pick";
 import { Garage } from "./menu/garage.svelte";
 import { load_build, save_build } from "./menu/garage-builds";
 import { Ghost } from "./car/ghost";
@@ -486,7 +485,7 @@ modes.try_reward = (reward) => {
   garage.try_reward(reward);
 };
 const shelves_for = (limit: CarLimit, own = garage.code) => car_shelves(parse_build(own) ?? garage.build, load_builds(), open_presets(unlocks(career.stars).cars), limit, garage.code);
-const pick_in = (title: string, limit: CarLimit, shelves: readonly CarShelf[], signal: AbortSignal) => pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", shelves, signal, () => settings.open(MenuTab.GARAGE));
+const pick_in = (title: string, limit: CarLimit, shelves: readonly CarShelf[], signal: AbortSignal) => settings.pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", shelves, signal);
 // The car taken on the start sheet or picked on a flag's card runs its event when it fits the route; the picker opens only when it does not.
 let taken: string | null = null;
 modes.pick_car = (title, limit, own, signal) => {

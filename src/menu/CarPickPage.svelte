@@ -8,6 +8,7 @@
   import MenuFrame from "./MenuFrame.svelte";
   import Card from "./ui/Card.svelte";
   import ClassBadge from "./ui/ClassBadge.svelte";
+  import Icon from "./ui/Icon.svelte";
   import KeyLink from "./ui/KeyLink.svelte";
   import PrimaryAction from "./ui/PrimaryAction.svelte";
   import Progress from "./ui/Progress.svelte";
@@ -45,6 +46,14 @@
       card?.scrollIntoView({ block: "nearest" });
     });
     return () => cancelAnimationFrame(frame);
+  });
+
+  $effect(() => {
+    if (!shown) return;
+    picker.on_step = step_class;
+    return () => {
+      if (picker.on_step === step_class) picker.on_step = null;
+    };
   });
 
   function step_class(by: number) {
@@ -93,14 +102,14 @@
 <svelte:window onkeydown={key} />
 
 {#snippet links()}
-  {#if classes.length > 1}<KeyLink keys={{ key: "Q E" }} onclick={() => step_class(1)}>Next class</KeyLink>{/if}
+  {#if classes.length > 1}<KeyLink keys={{ key: "Q E", pad: "LB RB" }} onclick={() => step_class(1)}>Next class</KeyLink>{/if}
 {/snippet}
 
 {#snippet primary()}
   <PrimaryAction disabled={!pick || pick.blocked !== null} onclick={take}>Take {pick?.title ?? "a car"}</PrimaryAction>
 {/snippet}
 
-<MenuFrame {menu} id={CAR_PAGE} eyebrow={ask ? `${ask.title} · ${ask.limit}` : undefined} title="Choose a car" veil={0.78} {links} note={ask?.note} {primary}>
+<MenuFrame {menu} id={CAR_PAGE} back_to={ask?.back} eyebrow={ask ? `${ask.title} · ${ask.limit}` : undefined} title="Choose a car" veil={0.78} {links} note={ask?.note} {primary}>
   <div class="pick">
     <ol class="pick-cars" bind:this={grid} aria-label="Cars">
       {#each cars as c (c.code)}
@@ -110,7 +119,7 @@
             class="pick-car"
             data-code={c.code}
             aria-pressed={c.code === chosen}
-            disabled={c.blocked !== null}
+            aria-disabled={c.blocked !== null}
             onfocus={(event) => focused(event, c)}
             onclick={() => choose(c)}
           >
@@ -132,9 +141,11 @@
         <span class="pick-big"><CarStill car={pick.build.car} build={pick.build} /></span>
         <div class="pick-info">
           <div class="pick-head">
-            <span class="pick-eyebrow">{pick.fitted ? "Your car now" : pick.own ? "Your car" : pick.sub || "Saved build"}</span>
+            <span class="pick-eyebrow">{pick.fitted ? "Your car now" : pick.own ? "Your car" : "From your garage"}</span>
             <b class="pick-title">{pick.title}</b>
+            {#if pick.sub}<span class="pick-sub">{pick.sub}</span>{/if}
             <span class="pick-facts"><ClassBadge rating={pick.rating} /><CarFactsLine {facts} words /></span>
+            {#if pick.blocked}<span class="pick-why"><Icon name="icon-lock" />{pick.blocked}</span>{/if}
           </div>
           <div class="pick-meters">
             {#each facts.meters as m (m.key)}
@@ -202,7 +213,7 @@
     cursor: pointer;
   }
 
-  :root .pick-car:hover:not(:disabled) {
+  :root .pick-car:hover {
     border-color: var(--dim);
   }
 
@@ -211,12 +222,11 @@
     outline-offset: var(--space-0);
   }
 
-  :root .pick-car:disabled {
+  :root .pick-car[aria-disabled="true"] > * {
     opacity: 0.5;
-    cursor: default;
   }
 
-  .pick-car:disabled .pick-shot {
+  .pick-car[aria-disabled="true"] .pick-shot {
     filter: grayscale(1);
   }
 
@@ -305,6 +315,16 @@
     white-space: nowrap;
   }
 
+  .pick-sub {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--dim);
+    font-size: var(--type-small);
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
   .pick-facts {
     display: flex;
     flex-wrap: wrap;
@@ -315,6 +335,16 @@
 
   .pick-facts > :global(.car-facts) {
     flex-wrap: wrap;
+  }
+
+  .pick-why {
+    --icon-size: 1.15em;
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    color: var(--error);
+    font-size: var(--type-small);
+    font-weight: 700;
   }
 
   .pick-meters {

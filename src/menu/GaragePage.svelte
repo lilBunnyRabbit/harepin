@@ -89,7 +89,7 @@
   {/if}
 {/snippet}
 
-<MenuFrame {menu} id={MenuTab.GARAGE} floor {links} {primary}>
+<MenuFrame {menu} id={MenuTab.GARAGE} back_to={garage.on_builds ? "Parts" : undefined} floor {links} {primary}>
   <div class="garage" role="region" aria-label="Garage">
     <div class="garage-slots" data-stage-panel aria-label="Slots">
       {#each groups as group, index (GROUPS[index])}

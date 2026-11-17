@@ -17,10 +17,12 @@
     primary?: Snippet;
     veil?: number;
     floor?: boolean;
+    /** Where Back leads when the page takes it itself (`MenuPage.back`), in place of the page above. */
+    back_to?: string;
     children?: Snippet;
   }
 
-  let { menu, id, eyebrow, title, chips, links, note, primary, veil, floor, children }: Props = $props();
+  let { menu, id, eyebrow, title, chips, links, note, primary, veil, floor, back_to, children }: Props = $props();
 
   const live = $derived(menu_state(menu));
   const station = $derived(STATIONS.find((one) => one.id === id)?.id);
@@ -31,6 +33,6 @@
   {#if station}<Stations items={STATIONS} value={station} label="Stations" onchange={(to) => menu.show(to)} />{/if}
 {/snippet}
 
-<PageFrame {eyebrow} {title} stations={bar} {chips} back={{ to: up, go: () => menu.back() }} {links} {note} {primary} {veil} {floor}>
+<PageFrame {eyebrow} {title} stations={bar} {chips} back={{ to: back_to ?? up, go: () => menu.back() }} {links} {note} {primary} {veil} {floor}>
   {@render children?.()}
 </PageFrame>
