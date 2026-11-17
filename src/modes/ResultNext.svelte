@@ -197,7 +197,10 @@
 
   .result-facts {
     display: grid;
+    flex: 1;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(min-content, calc(var(--row-h) * 3));
+    align-content: end;
     gap: var(--gap-sm);
     min-height: 0;
   }
@@ -224,11 +227,6 @@
   /* An odd fact out takes the full row, so the grid never ends on a hole. */
   .result-facts > :global(div:last-child:nth-child(odd)) {
     grid-column: 1 / -1;
-  }
-
-  .result-cards > :global(.result-run-card > .result-facts) {
-    flex: 1;
-    grid-auto-rows: minmax(0, 1fr);
   }
 
   .result-table {

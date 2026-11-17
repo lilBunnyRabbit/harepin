@@ -176,6 +176,11 @@ body:has(#mode-result:not([hidden])) :is(.hud:not(#toast), #touch, .dock-top, .d
   visibility: hidden;
 }
 
+/* A menu opened from the results (Next's start sheet, Change car) takes the screen alone. */
+body:has(.settings:not([hidden])) #mode-result {
+  visibility: hidden;
+}
+
 #race-panel:not([hidden]) ~ #mode-status {
   position-anchor: --race-panel;
   top: calc(anchor(bottom) + var(--space-2));

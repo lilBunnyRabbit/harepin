@@ -432,7 +432,7 @@ Things in the mockups that need a new state layer, new data or engine work. The 
   - the road map card is filled with the map's edge colour (sea blue), not the mockup's dark fade: owner check.
 
 - 2d done 243ac20..65c1139: results page (view state, no ids in `index.html`), podium page `final` (`?final` in review builds), Welcome (name, Set up) in place of the tour, the first run strip on the road, goals `flag` / `handling` / `theme`. Batch 3:
-  - a series result has no Next card and its primary still reads "Series": the series host needs to hand `next` a ticket and start the next open round (ui-old `1afe6aa`);
+  - a series result's Next (e91df52) opens the next open round's start sheet on the Series page (`Settings.open_round`); a round on another map still reads "Next: Round N" and the sheet says Travel;
   - D15, the podium shows the season car and credits only: no title reward and no "View Series" link in the data;
   - the first-steps ticket hides `.next-up-dock` by CSS `:has`; with the first flag on another map it stays away and Next up offers the travel;
   - `#mode-result-unlock:empty` in `unlock-card.css` is dead; `Tabs` `done` / `compact` lost their only user;
