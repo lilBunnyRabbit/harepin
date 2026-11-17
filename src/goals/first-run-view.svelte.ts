@@ -1,6 +1,6 @@
 import { mount } from "svelte";
 import type { Bindings } from "../hud/bindings";
-import type { LastInput } from "../hud/input";
+import type { LastInput } from "../hud/last-input";
 import type { TouchSteer } from "../menu/prefs";
 import FirstRunStrip from "./FirstRun.svelte";
 import { FirstRun } from "./first-run";
