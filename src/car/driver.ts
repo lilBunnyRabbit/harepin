@@ -224,7 +224,7 @@ export class Driver {
     place_contact_shadow(this.shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, this.world);
     if (view.neon) {
       neon_under(view.neon, this.shadow);
-      light_neon(view.neon, hypot(car.vel.x, car.vel.z), car.nitro.boosting, now / 1000);
+      light_neon(view.neon, car.nitro.boosting, now / 1000);
     }
   }
 

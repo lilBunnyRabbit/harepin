@@ -6,7 +6,7 @@ import { paint_lab } from "./paint";
 import { brand, color, dark, in_gamut } from "../theme/palette";
 import type { Lab } from "../theme/theme";
 import type { World } from "../world/world";
-import { exp } from "../sim-math";
+import { exp, hypot } from "../sim-math";
 
 type Lit = Exclude<Neon, "none">;
 
@@ -27,6 +27,8 @@ const BAND_METRES = 9;
 const FLARE = 1.6;
 const FLARE_RATE = 9;
 const LIGHT_STEP = 0.1;
+/** Metres between two frames past which the car was put somewhere else, not driven there. */
+const LEAP = 10;
 /** Lightness a tone is raised to on a light page: nothing there is brighter than the page white, so the glow is the tone as a pastel, not the tone itself, which is darker than the page and stains it. */
 const PAGE_GLOW = 0.86;
 
@@ -43,6 +45,9 @@ export interface NeonView {
   flare: number;
   /** Time in seconds `light_neon` last ran. */
   at: number;
+  /** Where the glow lay when `light_neon` last ran, NaN before the first run. */
+  from_x: number;
+  from_z: number;
 }
 
 const VERTEX = `
@@ -106,7 +111,7 @@ export function neon_view(d: Design, look: NeonLook, ride: number): NeonView {
   });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2 * (half_x + spill), 2 * (half_z + spill)).rotateX(-Math.PI / 2).translate(0, 0, centre), material);
   mesh.renderOrder = POOL_ORDER;
-  return { mesh, phase, level, gain: STRENGTH[look.style] * (dark ? 1 : DAY_GAIN), ride, fade: 1, flare: 1, at: 0 };
+  return { mesh, phase, level, gain: STRENGTH[look.style] * (dark ? 1 : DAY_GAIN), ride, fade: 1, flare: 1, at: 0, from_x: NaN, from_z: NaN };
 }
 
 /** On the ground patch `shadow` was just placed on, fading with it as the car leaves the ground. */
@@ -121,11 +126,19 @@ export function place_neon(neon: NeonView, x: number, y: number, z: number, head
   neon.fade = ground_fade(lay_on_ground(neon.mesh, x, y, z, heading, world, world.drawn_lift(x, z, y)), neon.ride);
 }
 
-/** This frame's light: the ring's band runs back with the road at `speed` m/s, the glow flares while `boost` fires; `time` in seconds. */
-export function light_neon(neon: NeonView, speed: number, boost: boolean, time: number, opacity = 1) {
+/**
+ * This frame's light, once the glow is placed: the ring's band runs back with the road the glow moved over since the last
+ * frame, so it stands still under a car a menu holds, whatever speed its sim still reports; the glow flares while `boost`
+ * fires; `time` in seconds.
+ */
+export function light_neon(neon: NeonView, boost: boolean, time: number, opacity = 1) {
   const dt = Math.min(LIGHT_STEP, Math.max(0, time - neon.at));
   neon.at = time;
-  neon.phase.value = (neon.phase.value + (speed * dt) / BAND_METRES) % 1;
+  const { x, z } = neon.mesh.position;
+  const moved = hypot(x - neon.from_x, z - neon.from_z);
+  neon.from_x = x;
+  neon.from_z = z;
+  if (moved < LEAP) neon.phase.value = (neon.phase.value + moved / BAND_METRES) % 1;
   neon.flare += ((boost ? FLARE : 1) - neon.flare) * (1 - exp(-FLARE_RATE * dt));
   neon.level.value = neon.gain * neon.fade * neon.flare * opacity;
 }

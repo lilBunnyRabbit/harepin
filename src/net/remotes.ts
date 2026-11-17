@@ -291,7 +291,7 @@ export class Remotes {
       neon.mesh.visible = rv.shadow.mesh.visible && root.visible;
       if (neon.mesh.visible) {
         neon_under(neon, rv.shadow);
-        light_neon(neon, Math.hypot(s.v[0], s.v[2]), s.boost === true, now / 1000, opacity);
+        light_neon(neon, s.boost === true, now / 1000, opacity);
       }
     }
     this.screen.copy(root.position);
