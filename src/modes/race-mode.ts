@@ -86,6 +86,7 @@ class Race implements ModeRun {
     this.clock = now;
     const was = run.status;
     const taken = run.update(run.countdown > 0 ? wall : sim_dt * 1000, car.pos.x, car.pos.z);
+    this.route.progress = run.tracker.index;
     this.hits?.update(sim_dt * 1000, run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING);
     if (this.traps && (run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING)) {
       const passed = this.traps.next;

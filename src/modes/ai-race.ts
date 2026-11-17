@@ -145,6 +145,7 @@ export class AiRace implements ModeRun, FieldRace {
     this.wall = now;
     const was = run.status;
     const taken = run.update(run.countdown > 0 ? wall : sim_dt * 1000, car.pos.x, car.pos.z);
+    this.route.progress = run.tracker.index;
     if (this.go_at < 0 && run.status !== RaceStatus.READY) this.go_at = now;
     this.lights.update(run.countdown, this.go_at < 0 ? -1 : now - this.go_at);
     this.field.update(ctx.camera);

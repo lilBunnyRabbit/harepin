@@ -90,6 +90,7 @@ const TOAST_MS = 1200;
 /** The lobby's route id when no race is on; lap gates belong to it. */
 const CIRCUIT = "circuit";
 const NONE: readonly { x: number; z: number }[] = [];
+const NO_CARS: readonly Car[] = [];
 /** Driving this long above CALM_KMH lets the touch HUD fade back; stopping brings it back. */
 const CALM_MS = 3000;
 const CALM_KMH = 12;
@@ -140,6 +141,8 @@ export class Hud {
   run_route: () => RouteRun | null = () => null;
   /** A mode run is on: the free lap's gate and panel step aside, even for a run with no route of its own. */
   in_run: () => boolean = () => false;
+  /** The AI cars racing now: rivals on the map beside the net's. */
+  field: () => readonly Car[] = () => NO_CARS;
   private toast_timer = 0;
   private players: PlayerRow[] = [];
   private results_key = "";
@@ -320,14 +323,15 @@ export class Hud {
     if (this.view === MapView.OFF) return;
     this.map.show_route(route);
     const remotes = this.net.remotes.values();
-    if (this.view === MapView.CLOSE) return this.map.close(car, gate, later, remotes, now);
+    const field = this.field();
+    if (this.view === MapView.CLOSE) return this.map.close(car, gate, later, remotes, field, Math.max(0, run?.progress ?? 0), now);
     // The race line is a run's own; roaming has none, so it shows the map.
     const racing = run !== null || this.lobby.state.kind !== "idle";
-    if (this.view === MapView.LINE && racing && this.map.line(car, gate, remotes)) return;
+    if (this.view === MapView.LINE && racing && this.map.line(car, gate, remotes, field)) return;
     if (this.picture) {
       void this.load_picture(this.picture());
       this.picture = null;
     }
-    this.map.real(car, gate, later, remotes);
+    this.map.real(car, gate, later, remotes, field);
   }
 }

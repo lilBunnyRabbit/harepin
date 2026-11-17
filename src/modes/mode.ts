@@ -159,6 +159,8 @@ export interface RouteRun {
   later: readonly { x: number; z: number }[];
   /** Where a fall puts the car back: the last gate taken, the start before any; without one, where it last stood safely. */
   respawn?: RoutePoint;
+  /** Index into the route's points the car has reached: the close-up map lights the route only from there on. Absent, all of it. */
+  progress?: number;
 }
 
 /** The top card's fields after the clock, each in a slot of its own, in this order. */

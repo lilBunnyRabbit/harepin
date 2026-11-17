@@ -317,7 +317,7 @@ export class Minimap {
     ctx.clearRect(0, 0, W, H);
   }
 
-  real(car: Car, gate: Dot | null, later: readonly Dot[], remotes: Iterable<Remote>) {
+  real(car: Car, gate: Dot | null, later: readonly Dot[], remotes: Iterable<Remote>, field: readonly Car[]) {
     this.fit();
     if (!this.real_ok) this.paint_real();
     this.clear();
@@ -347,11 +347,18 @@ export class Minimap {
       const edge = this.edge(rx, ry);
       this.dot(W / 2 + rx * edge, H / 2 + ry * edge, 4, INK.rival);
     }
+    for (const rival of field) {
+      if (!Number.isFinite(rival.pos.x)) continue;
+      const rx = (rival.pos.x - x) * k;
+      const ry = (rival.pos.z - z) * k;
+      const edge = this.edge(rx, ry);
+      this.dot(W / 2 + rx * edge, H / 2 + ry * edge, 4, INK.rival);
+    }
     this.diamond(W / 2, H / 2, 6.5, INK.you);
   }
 
   /** The route alone, all of it. False when there is no route to draw, so the caller can show another view. */
-  line(car: Car, gate: Dot | null, remotes: Iterable<Remote>): boolean {
+  line(car: Car, gate: Dot | null, remotes: Iterable<Remote>, field: readonly Car[]): boolean {
     const route = this.drawn;
     if (!route) return false;
     this.fit();
@@ -364,11 +371,13 @@ export class Minimap {
     ctx.drawImage(this.line_layer, 0, 0, W, H);
     if (gate) this.gate(ox + gate.x * k, oy + gate.z * k);
     for (const remote of remotes) this.dot(ox + remote.latest.p[0] * k, oy + remote.latest.p[2] * k, 4, INK.rival);
+    for (const rival of field) if (Number.isFinite(rival.pos.x)) this.dot(ox + rival.pos.x * k, oy + rival.pos.z * k, 4, INK.rival);
     this.diamond(ox + car.pos.x * k, oy + car.pos.z * k, 6.5, INK.you);
     return true;
   }
 
-  close(car: Car, gate: Dot | null, later: readonly Dot[], remotes: Iterable<Remote>, now: number) {
+  /** `from`: the route point the run has reached; the route is lit only from there on. */
+  close(car: Car, gate: Dot | null, later: readonly Dot[], remotes: Iterable<Remote>, field: readonly Car[], from: number, now: number) {
     this.fit();
     const { ctx } = this;
     const heading = car.heading;
@@ -401,6 +410,10 @@ export class Minimap {
       ctx.lineWidth = CLOSE_ROAD / CLOSE_SCALE;
       ctx.strokeStyle = INK.band;
       ctx.stroke();
+      if (from > 0) {
+        ctx.beginPath();
+        this.trace_line(this.drawn, x, z, from);
+      }
       ctx.lineWidth = 2.5 / CLOSE_SCALE;
       ctx.strokeStyle = INK.ahead;
       ctx.stroke();
@@ -447,6 +460,15 @@ export class Minimap {
       const edge = this.edge(px, py);
       this.dot(W / 2 + px * edge, H / 2 + py * edge, 4, INK.rival);
     }
+    for (const rival of field) {
+      if (!Number.isFinite(rival.pos.x)) continue;
+      const dx = rival.pos.x - x;
+      const dz = rival.pos.z - z;
+      const px = cos * dx - sin * dz + ox;
+      const py = sin * dx + cos * dz + oy;
+      const edge = this.edge(px, py);
+      this.dot(W / 2 + px * edge, H / 2 + py * edge, 4, INK.rival);
+    }
     ctx.beginPath();
     ctx.moveTo(cx, cy - 10);
     ctx.lineTo(cx + 7.5, cy + 8);
@@ -482,23 +504,25 @@ export class Minimap {
     return true;
   }
 
-  private trace_line({ bounds, points, closed }: Line, x: number, z: number) {
+  private trace_line({ bounds, points, closed }: Line, x: number, z: number, from = 0) {
     const { ctx } = this;
     const reach = W / CLOSE_SCALE;
     const count = bounds.length / 4;
     let joined = false;
     for (let k = 0; k < count; k++) {
       const at = k * 4;
-      if (bounds[at] > x + reach || bounds[at + 2] < x - reach || bounds[at + 1] > z + reach || bounds[at + 3] < z - reach) {
+      if ((k + 1) * PIECE < from || bounds[at] > x + reach || bounds[at + 2] < x - reach || bounds[at + 1] > z + reach || bounds[at + 3] < z - reach) {
         joined = false;
         continue;
       }
-      for (let j = joined ? 1 : 0; j <= PIECE; j++) {
+      let pen = joined;
+      for (let j = Math.max(joined ? 1 : 0, from - k * PIECE); j <= PIECE; j++) {
         const i = k * PIECE + j;
         if (!closed && i >= points.length) break;
         const p = points[i % points.length];
-        if (j) ctx.lineTo(p.x, p.z);
+        if (pen) ctx.lineTo(p.x, p.z);
         else ctx.moveTo(p.x, p.z);
+        pen = true;
       }
       joined = true;
     }

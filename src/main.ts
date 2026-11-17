@@ -292,6 +292,7 @@ const lobby = new Lobby(net, lobby_routes(world.routes), world.key);
 lobby.start();
 const hud = new Hud(world, race, net, lobby);
 hud.set_place(map_name(built, world.towns), () => thumb_url(built, PICTURE_SIDE));
+hud.field = () => sim.field_cars;
 /** The map-code note can be an error to read, so it stays up well past a goal toast. */
 const MAP_NOTE_MS = 4500;
 /** A lab that failed to open leaves a plain free-roam page: the toast says so for longer than a passing note. */
