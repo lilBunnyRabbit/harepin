@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, MAX_PAINT, REWARD_PAINTS, SLOTS, SLOT_NAMES, STATS, apply_build, build_code, build_spec, parse_build, stat_range, stats, type Build } from "./build";
+import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, MAX_PAINT, NEONS, NEON_TONES, REWARD_PAINTS, SLOTS, SLOT_NAMES, STATS, apply_build, build_code, build_spec, neon_of, parse_build, split_neon, stat_range, stats, type Build } from "./build";
 import { CARS, COUPE, HATCH, RALLY, car_sized, type CarId, type CarSpec } from "./cars";
 import { surface_grip as tyre_share } from "./car";
 import { LAND_GRIP, SAND_GRIP } from "../worldgen/kinds/kind-def";
@@ -329,4 +329,24 @@ test("stats rise with the parts that should raise them and stay inside the range
         expect(s[key]).toBeGreaterThanOrEqual(low[key]);
       }
   }
+});
+
+test("neon rides behind its own mark, left off at none, and a bad one falls back to none", () => {
+  const lit = with_parts({ nitro: 2 }, { car: "kaze", neon: 2, neon_tone: 5 });
+  expect(build_code(lit)).toBe("kaze.0.0.0.1.0.0.7.0.0.0.1.2+25");
+  expect(parse_build(build_code(lit))).toEqual(lit);
+  expect(build_code(with_parts({}, { neon: 1 }))).toBe("coupe.0.0.0.1.0+10");
+  expect(parse_build("coupe.0.0.0.1.0+10")).toEqual(with_parts({}, { neon: 1 }));
+  expect(build_code(with_parts({}, { neon: 0, neon_tone: 3 }))).toBe("coupe.0.0.0.1.0+03");
+  expect(parse_build("coupe.0.0.0.1.0")).toEqual(with_parts({}));
+  for (const bad of ["+30", "+16", "+99"]) expect(parse_build(`coupe.0.0.0.1.0${bad}`)).toEqual(with_parts({}));
+  for (const bad of ["+1", "+123", "+1a", "+"]) expect(parse_build(`coupe.0.0.0.1.0${bad}`)).toBeNull();
+  for (const byte of [-1, 1.5, NaN, 30, 16, 256]) expect(neon_of(byte)).toEqual({ neon: 0, neon_tone: 0 });
+  expect(NEONS.slice(0, 3)).toEqual(["none", "pool", "ring"]);
+  expect(NEON_TONES.slice(0, 6)).toEqual(["accent", "primary", "secondary", "tertiary", "cottontail", "paint"]);
+  const all = with_parts({ tyres: 1, brakes: 2, weight: 1, bias: 2, nitro: 2, aero: 2, suspension: 3, engine: 2 }, { car: "tsumuji", paint: 15, decal: 13, ink: 8, number: 99, neon: 2, neon_tone: 5 });
+  expect(parse_build(build_code(all))).toEqual(all);
+  expect(split_neon(build_code(all))).toEqual({ code: build_code({ ...all, neon: 0, neon_tone: 0 }), neon: 25 });
+  expect(split_neon("coupe.0.0.0.1.0")).toEqual({ code: "coupe.0.0.0.1.0", neon: 0 });
+  expect(split_neon("coupe.0.0.0.1.0+99")).toEqual({ code: "coupe.0.0.0.1.0", neon: 0 });
 });

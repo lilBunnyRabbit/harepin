@@ -1,7 +1,9 @@
 import * as THREE from "three";
-import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, MAX_PAINT, REWARD_PAINTS, SLOT_NAMES, SLOTS, build_spec, part_of, type Build, type Slot } from "../car/build";
+import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, MAX_PAINT, NEONS, NEON_TONES, REWARD_PAINTS, SLOT_NAMES, SLOTS, build_spec, part_of, type Build, type Slot } from "../car/build";
 import { CARS, is_car, type CarId } from "../car/cars";
+import { contact_shadow, fit_contact_shadow } from "../car/contact-shadow";
 import { build_view, rest_wheels } from "../car/models";
+import { rest_neon } from "../car/neon-look";
 import { gate_kit, gate_view } from "../car/trackside";
 import { TIERS } from "../career/career";
 import { reward_paint_name } from "../career/rewards";
@@ -30,6 +32,8 @@ export interface SheetLayout {
   columns: number | null;
   /** One camera distance for the whole sheet, so sizes compare; else each tile fills its frame. */
   same_scale: boolean;
+  /** Camera distance as a share of the framed radius, where the sheet's own differs. */
+  margin?: number;
 }
 
 const ALL_ANGLES: readonly [string, number, number][] = [
@@ -166,4 +170,37 @@ function carbons(): SheetLayout {
   return { tiles, columns: 4, same_scale: false };
 }
 
-export const SHEET_LAYOUTS: Record<Sheet, () => SheetLayout> = { cars, lineup, paints, decals, biomes, track, carbon: carbons };
+const NEON_PHASE = Number(url.get("phase") ?? 0.3);
+const NEON_CARS: [CarId, number, string][] = [
+  ["coupe", 1, "accent"],
+  ["muscle", 5, "primary"],
+  ["rally", 2, "paint"],
+];
+
+function neon_car(id: CarId, paint: number, neon: number, tone: string): THREE.Object3D {
+  const build = { ...DEFAULT_BUILD, car: id, paint, neon: url.has("off") ? 0 : neon, neon_tone: NEON_TONES.findIndex((name) => name === tone), parts: DEFAULT_PARTS };
+  const spec = build_spec(build);
+  const view = build_view(build, spec);
+  rest_wheels(view, spec);
+  const box = new THREE.Box3().setFromObject(view.root);
+  view.root.position.y = -box.min.y;
+  const shadow = contact_shadow();
+  fit_contact_shadow(shadow, spec);
+  shadow.mesh.position.y = 0.01;
+  const holder = new THREE.Group();
+  holder.add(view.root, shadow.mesh);
+  if (view.neon) {
+    view.neon.mesh.position.y = 0.02;
+    view.neon.phase.value = NEON_PHASE;
+    rest_neon(view.neon);
+    holder.add(view.neon.mesh);
+  }
+  return holder;
+}
+
+function neon(): SheetLayout {
+  const tiles = NEONS.slice(1).flatMap((style, i) => NEON_CARS.map(([id, paint, tone]) => ({ label: `${id} · ${style} · ${tone}`, object: neon_car(id, paint, i + 1, tone), ground: tones.asphalt, yaw: 162, pitch: 15 })));
+  return { tiles, columns: NEON_CARS.length, same_scale: true, margin: 0.62 };
+}
+
+export const SHEET_LAYOUTS: Record<Sheet, () => SheetLayout> = { cars, lineup, paints, decals, biomes, track, carbon: carbons, neon };

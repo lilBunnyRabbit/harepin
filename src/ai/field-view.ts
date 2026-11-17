@@ -3,6 +3,7 @@ import { build_spec, type Build } from "../car/build";
 import { Car } from "../car/car";
 import { TELEPORT_SQ } from "../car/driver";
 import { far_view } from "../car/far-view";
+import { light_neon, place_neon } from "../car/neon-look";
 import { build_view, dispose_car_view, sync_car_view, type CarView } from "../car/models";
 import type { Sim } from "../sim/sim-client";
 import type { FieldStart } from "../sim/sim-host";
@@ -47,6 +48,7 @@ export class FieldView {
   private seen = -1;
   /** The cars stand on the grid and the sim's field runs: `start`. */
   private started = false;
+  private world: World | null = null;
 
   /** Builds every car's view, hidden until `start`: the models are ready before the race's first frame. */
   constructor(
@@ -70,6 +72,10 @@ export class FieldView {
       this.mid.push(false);
       this.retired.push(false);
       scene.add(view.root, far);
+      if (view.neon) {
+        view.neon.mesh.visible = false;
+        scene.add(view.neon.mesh);
+      }
     }
   }
 
@@ -82,7 +88,10 @@ export class FieldView {
       const spot = grid_spot(this.route, k < this.rival_slot ? k : k + 1);
       car.park(spot.x, spot.z, spot.heading, world);
       this.views[k].root.visible = true;
+      const { neon } = this.views[k];
+      if (neon) neon.mesh.visible = true;
     });
+    this.world = world;
     this.started = true;
     this.sim.send({ type: "field", ...field });
   }
@@ -103,6 +112,7 @@ export class FieldView {
 
   update(camera: THREE.Camera) {
     if (!this.started) return;
+    const now = performance.now() / 1000;
     // Before its first step the sim's field stands where the grid cars do, or (a worker's mirrors) nowhere yet.
     const live = this.sim.field_cars.length === this.grid.length && Number.isFinite(this.sim.field_progress[0]);
     const cars = live ? this.sim.field_cars : this.grid;
@@ -144,6 +154,11 @@ export class FieldView {
         root.position.copy(drawn_pos);
         root.quaternion.copy(drawn_quat);
       }
+      const { neon } = this.views[i];
+      if (neon && this.world) {
+        place_neon(neon, drawn_pos.x, drawn_pos.y, drawn_pos.z, car.heading, this.world);
+        light_neon(neon, Math.hypot(car.vel.x, car.vel.z), car.nitro.boosting, now);
+      }
     }
     if (seen !== this.seen) {
       this.seen = seen;
@@ -156,12 +171,15 @@ export class FieldView {
     if (i < 0 || i >= this.views.length) return;
     this.retired[i] = true;
     this.views[i].root.visible = false;
+    const { neon } = this.views[i];
+    if (neon) neon.mesh.visible = false;
     this.fars[i].visible = false;
   }
 
   dispose() {
     for (const view of this.views) {
       this.scene.remove(view.root);
+      if (view.neon) this.scene.remove(view.neon.mesh);
       dispose_car_view(view);
     }
     for (const far of this.fars) {

@@ -9,6 +9,7 @@ import { contact_shadow, fit_contact_shadow, place_contact_shadow } from "./cont
 import { lamps_lit, set_lights, show_flame, snap_lights, swing_popups } from "./lights";
 import { build_view, dispose_car_view, sync_car_view, type CarView } from "./models";
 import { stand_on_drawn } from "./drawn-stand";
+import { light_neon, neon_under } from "./neon-look";
 import type { Race } from "../race";
 import type { RoutePoint } from "../modes/route";
 import { Rewind } from "./rewind";
@@ -55,6 +56,7 @@ export class Driver {
     fit_contact_shadow(this.shadow, this.car.spec);
     scene.add(this.view.root);
     scene.add(this.shadow.mesh);
+    if (this.view.neon) scene.add(this.view.neon.mesh);
     snap_lights(this.view, dark);
     light.mount(this.view.root, dark, this.car.spec.body.length / 2);
     this.rewind = new Rewind([race]);
@@ -174,10 +176,12 @@ export class Driver {
     fit_contact_shadow(this.shadow, this.car.spec);
     const { lights } = this.view;
     this.scene.remove(this.view.root);
+    if (this.view.neon) this.scene.remove(this.view.neon.mesh);
     dispose_car_view(this.view);
     this.view = build_view(build, this.car.spec);
     snap_lights(this.view, lights);
     this.scene.add(this.view.root);
+    if (this.view.neon) this.scene.add(this.view.neon.mesh);
     this.light.mount(this.view.root, lights, this.car.spec.body.length / 2);
     sync_car_view(this.view, this.car);
   }
@@ -217,5 +221,9 @@ export class Driver {
     chase.eye = view.eye;
     chase.size = this.size;
     place_contact_shadow(this.shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, this.world);
+    if (view.neon) {
+      neon_under(view.neon, this.shadow);
+      light_neon(view.neon, hypot(car.vel.x, car.vel.z), car.nitro.boosting, now / 1000);
+    }
   }
 }

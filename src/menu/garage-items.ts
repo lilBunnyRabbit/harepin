@@ -1,4 +1,4 @@
-import { DECALS, DECAL_NAMES, MAX_NUMBER, MAX_PAINT, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Decal, type Slot, type SlotView } from "../car/build";
+import { DECALS, DECAL_NAMES, MAX_NUMBER, MAX_PAINT, NEONS, NEON_NAMES, NEON_TONES, NEON_TONE_NAMES, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Decal, type Neon, type Slot, type SlotView } from "../car/build";
 import { CARS, is_car, type CarId } from "../car/cars";
 import { TIERS } from "../career/career";
 import { PLAIN_CARS, REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
@@ -8,7 +8,7 @@ const SIDE_VIEW: SlotView = { yaw: -0.87 };
 /** Slots shown under Body: the parts you see first on the car. Every other slot lands under Performance. */
 const BODY_SLOTS: readonly Slot[] = ["aero"];
 
-type Kind = "part" | "car" | "paint" | "ink" | "decal" | "number";
+type Kind = "part" | "car" | "paint" | "ink" | "decal" | "number" | "neon" | "glow";
 
 export interface Item {
   id: string;
@@ -134,6 +134,34 @@ const INK_ITEM: Item = {
   blurb: () => "",
 };
 
+/** Three-quarter rear and low: the light lies on the ground behind and beside the car. */
+const GLOW_VIEW: SlotView = { yaw: 2.6 };
+const NEON_BLURBS: Record<Neon, string> = { none: "", pool: "Soft light under the whole car", ring: "A bright line round the car that runs with the road" };
+
+const NEON_ITEM: Item = {
+  id: "neon",
+  label: "Neon",
+  kind: "neon",
+  view: GLOW_VIEW,
+  count: NEONS.length,
+  at: (b) => b.neon,
+  with: (b, i) => ({ ...b, neon: i }),
+  name: (i) => NEON_NAMES[NEONS[i]],
+  blurb: (i) => NEON_BLURBS[NEONS[i]],
+};
+
+const GLOW_ITEM: Item = {
+  id: "glow",
+  label: "Neon colour",
+  kind: "glow",
+  view: GLOW_VIEW,
+  count: NEON_TONES.length,
+  at: (b) => b.neon_tone,
+  with: (b, i) => ({ ...b, neon_tone: i }),
+  name: (i) => NEON_TONE_NAMES[NEON_TONES[i]],
+  blurb: () => "",
+};
+
 /** Garage tabs other screens open straight into. */
 export const GarageSection = {
   BODY: "body",
@@ -152,13 +180,13 @@ interface Tab {
 export const TABS: Tab[] = [
   { section: GarageSection.BODY, label: "Body", items: (b, u) => [car_item(b, u),...part_items(BODY_SLOTS), decal_item(b, u), ...(DECALS[b.decal] === "number" ? [NUMBER_ITEM] : [])] },
   { section: GarageSection.PERFORMANCE, label: "Performance", items: () => part_items(SLOT_NAMES.filter((slot) => !BODY_SLOTS.includes(slot))) },
-  { section: GarageSection.PAINT, label: "Paint", items: (b, u) => [paint_item(b, u), ...(DECALS[b.decal] === "none" ? [] : [INK_ITEM])] },
+  { section: GarageSection.PAINT, label: "Paint", items: (b, u) => [paint_item(b, u), ...(DECALS[b.decal] === "none" ? [] : [INK_ITEM]), NEON_ITEM, ...(NEONS[b.neon] === "none" ? [] : [GLOW_ITEM])] },
   { section: GarageSection.BUILDS, label: "My builds", items: () => [] },
 ];
 
 export const BUILDS_TAB = TABS.findIndex((tab) => tab.section === GarageSection.BUILDS);
 
-const SLOT_ICONS = new Set(["engine", "tyres", "aero", "suspension", "brakes", "weight", "bias", "nitro", "decal", "number", "ink"]);
+const SLOT_ICONS = new Set(["engine", "tyres", "aero", "suspension", "brakes", "weight", "bias", "nitro", "decal", "number", "ink", "neon", "glow"]);
 
 /** The sprite icon for a slot or option kind. */
 export const slot_icon = (id: string) => (id === "car" || id === "paint" ? `icon-${id}` : `icon-slot-${SLOT_ICONS.has(id) ? id : "part"}`);

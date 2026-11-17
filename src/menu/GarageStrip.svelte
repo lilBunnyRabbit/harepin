@@ -1,6 +1,7 @@
 <script lang="ts">
   import { DECALS } from "../car/build";
   import { livery_of } from "../car/livery";
+  import { neon_look } from "../car/neon-look";
   import { paint_finish, paint_lab } from "../car/paint";
   import { rating } from "../car/pi";
   import { color, decal_inks, rgba } from "../theme/palette";
@@ -36,7 +37,7 @@
         name: item.name(index),
         blurb: item.blurb(index),
         rating: item.kind === "car" ? rating(build) : null,
-        swatch: item.kind === "paint" ? rgba(paint_lab(build.paint)) : item.kind === "ink" ? rgba(decal_inks[index]) : null,
+        swatch: item.kind === "paint" ? rgba(paint_lab(build.paint)) : item.kind === "ink" ? rgba(decal_inks[index]) : item.kind === "glow" ? rgba(neon_look(build)?.tone ?? paint_lab(build.paint)) : null,
         finish: item.kind === "paint" ? paint_finish(build.paint) : null,
         decal: DECALS[build.decal],
       };
@@ -288,7 +289,8 @@
   }
 
   [data-kind="paint"] .garage-option,
-  [data-kind="ink"] .garage-option {
+  [data-kind="ink"] .garage-option,
+  [data-kind="glow"] .garage-option {
     flex: 0 0 112px;
     min-width: 0;
   }

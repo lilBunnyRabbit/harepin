@@ -6,6 +6,7 @@ import { chunk_of } from "../worldgen/chunk-grid";
 import { BRAKE_REST, brake_on, set_lights, show_flame, snap_lights, swing_popups } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import { stand_on_lifts, wheel_lifts } from "../car/drawn-stand";
+import { light_neon, neon_under } from "../car/neon-look";
 import { Scrape } from "../car/car";
 import { Sparks } from "../render/sparks";
 import type { Collider, World } from "../world/world";
@@ -157,6 +158,7 @@ export class Remotes {
     for (const [id, rv] of this.views)
       if (!this.net.remotes.has(id)) {
         this.scene.remove(rv.view.root, rv.shadow.mesh, rv.sparks.mesh);
+        if (rv.view.neon) this.scene.remove(rv.view.neon.mesh);
         dispose_car_view(rv.view);
         rv.sparks.dispose();
         rv.shadow.mesh.geometry.dispose();
@@ -203,6 +205,7 @@ export class Remotes {
     const lights = b.state.lights ?? true;
     if (rv && rv.code !== code && now - rv.built >= REBUILD_GAP_MS) {
       this.scene.remove(rv.view.root);
+      if (rv.view.neon) this.scene.remove(rv.view.neon.mesh);
       dispose_car_view(rv.view);
       const spec = build_spec(build);
       Object.assign(rv, { code, spec, built: now, above: ABOVE * oversize(spec).height }, translucent_view(build, spec, lights));
@@ -210,11 +213,13 @@ export class Remotes {
       rv.probe.spec = spec;
       fit_contact_shadow(rv.shadow, spec);
       this.scene.add(rv.view.root);
+      if (rv.view.neon) this.scene.add(rv.view.neon.mesh);
     }
     if (!rv) {
       const spec = build_spec(build);
       const { view, materials } = translucent_view(build, spec, lights);
       this.scene.add(view.root);
+      if (view.neon) this.scene.add(view.neon.mesh);
       const label = document.createElement("div");
       label.className = "label";
       const name = document.createElement("span");
@@ -280,6 +285,14 @@ export class Remotes {
     for (const material of rv.materials) {
       material.opacity = opacity;
       material.depthWrite = opacity > 0.99;
+    }
+    const { neon } = rv.view;
+    if (neon) {
+      neon.mesh.visible = rv.shadow.mesh.visible && root.visible;
+      if (neon.mesh.visible) {
+        neon_under(neon, rv.shadow);
+        light_neon(neon, Math.hypot(s.v[0], s.v[2]), s.boost === true, now / 1000, opacity);
+      }
     }
     this.screen.copy(root.position);
     this.screen.y += rv.above;
