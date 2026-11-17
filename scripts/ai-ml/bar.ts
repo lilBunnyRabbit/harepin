@@ -89,7 +89,7 @@ function race(job: BarJob): BarRace[] {
   const base = car_spec(job.car);
   const ai = base.ai ?? { slow: 1, fast: 1, brake: 1 };
   const off = 1 + job.eps;
-  const spec = { ...base, ai: { slow: ai.slow * off, fast: ai.fast * off, brake: ai.brake * off } };
+  const spec = { ...base, ai: { ...ai, slow: ai.slow * off, fast: ai.fast * off, brake: ai.brake * off } };
   const out: BarRace[] = [];
   for (const route of circuits(world)) {
     if (route.excludes?.includes(spec.id)) continue;

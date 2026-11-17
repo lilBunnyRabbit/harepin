@@ -75,6 +75,9 @@ export function pass_clamp(car: Car, line: RaceLine, index: number, lateral: num
   return Math.max(Math.max(-room, line.lo[index]), Math.min(Math.min(room, line.hi[index]), lateral));
 }
 
+/** Slip angle (rad) past which a car with `CarAi.slide_throttle` drives its slide out. */
+const SLIDE_GAS = 0.06;
+
 const wrap_angle = (a: number) => atan2(sin(a), cos(a));
 const never = () => 1;
 const Y = new Vector3(0, 1, 0);
@@ -373,7 +376,8 @@ export class Driver {
     }
     let airborne = true;
     for (let w = 0; w < car.wheels.length; w++) if (car.wheels[w].contact) airborne = false;
-    const slide = speed > 5 ? Math.abs(wrap_angle(atan2(vx, vz) - car.heading)) : 0;
+    const beta = speed > 5 ? wrap_angle(atan2(vx, vz) - car.heading) : 0;
+    const slide = Math.abs(beta);
     const ease = Math.max(0, 1 - slide / AI_TUNING.slide_let_go);
     // The aim steps a road point at a time: its jump read as a rate would kick the wheel to full lock for one step.
     const swing = Number.isNaN(this.last_err) ? 0 : at === this.last_at ? wrap_angle(err - this.last_err) / dt : this.last_swing;
@@ -391,6 +395,13 @@ export class Driver {
     const feed = Math.max(0, decel - COAST_DECEL) / (AI_TUNING.brake_gain * line.scale.brake);
     const pedal = capped ? Math.min(1, feed + (speed - target) / CAP_BRAKE_PER) : Math.min(this.late ? AI_TUNING.late_pedal : AI_TUNING.brake_max, feed + (speed - target) / AI_TUNING.brake_per);
     c.brake = speed > target + (decel > 0 ? 0 : AI_TUNING.brake_slack) ? pedal * turn * ease : 0;
+    // Tail out is the slip against the yaw: the nose turned in past where the car is going. Slip with the yaw is the
+    // catch swinging back, which the gas is not for.
+    const gas = car.spec.ai?.slide_throttle ?? 0;
+    if (gas > 0 && slide > SLIDE_GAS && beta * car.ang.y < 0 && !airborne) {
+      c.throttle = Math.max(c.throttle, gas);
+      c.brake = 0;
+    }
     return c;
   }
 
