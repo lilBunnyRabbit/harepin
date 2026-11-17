@@ -44,6 +44,7 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 | `theme/` | palette and themes |
 | `store/` | IndexedDB (`idb.ts`): the game's one database `HAREPIN_DB`, its stores and versioned upgrade, get / put / update / delete, an open that gives up after 10 s. Saves move here from localStorage store by store |
 | `lab/` | the feel lab, hidden, on `?lab=<pack>` or `?lab=~<code>`: packs of trials, trial resolve to a spec, the per-step recorder and the export block. How it works, how to write a pack and promote a winner: [docs/lab.md](docs/lab.md) |
+| `replay/` | watching a finished run back: the run's tape of the player's car (`run-tape.ts`, a ghost lap's layout, recorded by `Modes`), the playback clock, the free camera and the overlay bar; the held sim's car is never moved, `Driver.draw_at` draws the taped pose. Plan: [docs/plan/replay.md](docs/plan/replay.md) |
 | `review/` | visual review for agents, in dev and `vite build --mode review` only (a production build drops it): `?showcase` sheets, `?view=` viewpoints, `?replay=` ghost shots, and the catalog `scripts/shots.ts` reads |
 | `viewer/` | the car and asset viewer, hidden, on `?cars` (ships in production): real car models, their parts and world assets (`ASSETS` registry) on a stage, orbit, per-asset notes and pins, Copy export block; `scripts/car-view.ts` shoots a block's views. [docs/cars.md](docs/cars.md) |
 

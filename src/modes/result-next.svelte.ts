@@ -24,6 +24,8 @@ export interface ResultCard {
   unlock: HTMLElement[];
   can_change_car: boolean;
   can_try: boolean;
+  /** The run left a tape to watch back. */
+  can_replay: boolean;
 }
 
 export interface ResultHost {
@@ -32,6 +34,7 @@ export interface ResultHost {
   retry(): void;
   change_car(): void;
   try_on(): void;
+  watch(): void;
   /** A menu is open over the page: its keys are the menu's. */
   covered(): boolean;
 }

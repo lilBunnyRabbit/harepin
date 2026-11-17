@@ -53,6 +53,7 @@
 {#snippet links()}
   <KeyLink keys={{ key: "R", pad: "Y", touch: "icon-restart" }} onclick={() => view.host.retry()}>Restart</KeyLink>
   {#if card?.can_change_car}<KeyLink keys={{ touch: "icon-car" }} onclick={() => view.host.change_car()}>Change car</KeyLink>{/if}
+  {#if card?.can_replay}<KeyLink keys={{ touch: "icon-play" }} onclick={() => view.host.watch()}>Watch replay</KeyLink>{/if}
   {#if card?.can_try}<KeyLink keys={{ touch: "icon-paint" }} onclick={() => view.host.try_on()}>Try it in the garage</KeyLink>{/if}
 {/snippet}
 
