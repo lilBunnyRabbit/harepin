@@ -24,7 +24,8 @@
   import Select from "../ui/Select.svelte";
   import type { PageProps } from "../ui/svelte-page.svelte";
   import type { Option } from "../ui/types";
-  import { COPIED_MS } from "../widgets";
+  import { COPIED_MS, preview } from "../widgets";
+  import "../events.css";
   import { map_request, map_worker } from "../world-map.svelte";
   import { band_text, route_text } from "../../runs/run-route";
   import { car_text, pick_text, run_link, world_name } from "./run-text";
@@ -187,28 +188,30 @@
       </RowList>
     </Card>
   
-    {#if built}
-      <div class="event" bind:this={event_card}>
-      <Card list label="Your run">
-        <div class="head"><SectionHead eyebrow="Your run" title={pick_text(built)} /></div>
-        <RowList divided label="Your run">
-          {#if built.type === RunType.RACE || built.type === RunType.TRAP}
-            <Row label={route ?? "Finding the route…"} help={built.laps > 1 ? `${built.laps} laps · circuits only, the nearest one stands in` : (band_text(built) ?? "Route of the map")} />
-          {/if}
-          <Row label={car_text(built.car)} help={`${DIFFICULTIES.find((d) => d.value === built?.difficulty)?.label} star marks · season stars within today's cap`} />
-        </RowList>
-        <div class="actions">
-          <Button icon="icon-dice" onclick={generate}>Roll again</Button>
-        </div>
+    {#snippet shot()}
+      <img class="ev-pic" src={preview(built?.kind ?? (kind === ANY ? "raceway" : kind))} alt="" />
+    {/snippet}
+    <div class="event" bind:this={event_card}>
+      <Card flat picture={shot} class="run-shot" label="Your run">
+        {#if built}
+          <SectionHead eyebrow="Your run" title={pick_text(built)} />
+          <RowList divided label="Your run">
+            {#if built.type === RunType.RACE || built.type === RunType.TRAP}
+              <Row label={route ?? "Finding the route…"} help={built.laps > 1 ? `${built.laps} laps · circuits only, the nearest one stands in` : (band_text(built) ?? "Route of the map")} />
+            {/if}
+            <Row label={car_text(built.car)} help={`${DIFFICULTIES.find((d) => d.value === built?.difficulty)?.label} star marks · season stars within today's cap`} />
+          </RowList>
+          <div class="actions">
+            <Button icon="icon-dice" onclick={generate}>Roll again</Button>
+          </div>
+        {:else}
+          <div class="empty">
+            <b><Icon name="icon-dice" />No run rolled yet</b>
+            <span>Set what matters on the left, then roll. The run shows here with its map, route and car, ready to start or share.</span>
+          </div>
+        {/if}
       </Card>
-      </div>
-    {:else}
-      <div class="empty">
-        <Icon name="icon-dice" />
-        <b>No run rolled yet</b>
-        <span>Set what matters on the left, then roll. The run shows here with its map, route and car, ready to start or share.</span>
-      </div>
-    {/if}
+    </div>
   </div>
   </MenuFrame>
 {/if}
@@ -216,34 +219,39 @@
 <style>
   .builder {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
     align-items: start;
     gap: var(--gap);
+    height: 100%;
+    min-height: 0;
+  }
+
+  .builder > :global(.ui-card) {
     max-height: 100%;
     overflow-y: auto;
     scrollbar-width: none;
   }
 
-  .empty {
-    --icon-size: 1.6em;
+  .event {
     display: grid;
-    justify-items: center;
-    align-content: center;
-    gap: var(--gap-xs);
     align-self: stretch;
-    padding: var(--pad);
-    border: 1px dashed var(--line-strong);
-    border-radius: var(--card-radius);
-    background: var(--surface);
+    min-height: 0;
+  }
+
+  .empty {
+    display: grid;
+    gap: var(--gap-xs);
     color: var(--dim);
     font-size: var(--type-small);
-    text-align: center;
-    text-wrap: balance;
   }
 
   .empty > b {
+    --icon-size: 1.15em;
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
     color: var(--foreground);
-    font-size: var(--type-body);
+    font-size: var(--type-h3);
   }
 
   .head {
@@ -255,10 +263,24 @@
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: var(--gap-md);
-    padding: var(--gap-md);
   }
 
-  @media (max-width: 900px) {
+  /* The phone body scrolls as one: the cards take their own height and the run keeps its text, no picture. */
+  @media (max-height: 500px) {
+    .builder {
+      height: auto;
+    }
+
+    .builder > :global(.ui-card) {
+      max-height: none;
+    }
+
+    .event :global(.ui-card-pic) {
+      display: none;
+    }
+  }
+
+  @media (max-width: 700px) {
     .builder {
       grid-template-columns: minmax(0, 1fr);
     }

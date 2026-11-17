@@ -11,6 +11,7 @@
   import Row from "./ui/Row.svelte";
   import RowList from "./ui/RowList.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
+  import { preview } from "./widgets";
   import "./events.css";
 
   let { menu, live, shown }: PageProps = $props();
@@ -27,6 +28,7 @@
   const playable = (level: LevelEntry) => level.open && !mode?.blocked && !level.blocked;
   const level = $derived(mode?.levels.find((one) => one.id === level_id) ?? mode?.levels.find((one) => playable(one) && one.stars < MAX_STARS) ?? mode?.levels[0]);
   const can_play = $derived(level !== undefined && playable(level));
+  const map = $derived(live.live(() => host.map_name()));
 
   const minutes = (ms: number) => {
     const s = Math.round(ms / 1000);
@@ -70,6 +72,7 @@
 <MenuFrame {menu} id={MODES_PAGE} eyebrow="Events" title="Free modes" veil={0.55} {links} note={mode?.blocked ?? `Runs on this map, in the car you drive. ★ ${total} of ${max}.`} {primary}>
   {#if mode}
     <div class="modes">
+      <div class="modes-list">
       <div class="modes-picks" role="group" aria-label="Modes">
         {#each modes as m (m.id)}
           <Chip variant="toggle" bind:pressed={() => m.id === mode.id, () => ((picked = m.id), (level_id = ""))}>{m.name}<span class="modes-count">{m.stars}/{m.max}</span></Chip>
@@ -89,6 +92,21 @@
           {/each}
         </RowList>
       </Card>
+      </div>
+      {#if level}
+        {#snippet shot()}
+          <img class="ev-pic" src={preview(host.kind)} alt="" />
+        {/snippet}
+        <Card flat picture={shot} class="modes-shot" label={level.name}>
+          <span class="ev-eyebrow">{mode.name} · {map}</span>
+          <b class="ev-h2">{level.name}</b>
+          <span class="ev-small">{help(level, mode.levels.indexOf(level))}</span>
+          <span class="modes-end">
+            <span class="ev-stars" aria-label={`${level.stars} of ${MAX_STARS} stars`}>{"★".repeat(level.stars)}<i>{"★".repeat(Math.max(0, MAX_STARS - level.stars))}</i></span>
+            <span class="modes-best">{level.best ? `Best ${level.best}` : "No time yet"}</span>
+          </span>
+        </Card>
+      {/if}
     </div>
   {/if}
 </MenuFrame>
@@ -96,17 +114,23 @@
 <style>
   .modes {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    justify-items: center;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
     gap: var(--gap);
     height: 100%;
+    min-height: 0;
+  }
+
+  .modes-list {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: var(--gap);
+    min-width: 0;
     min-height: 0;
   }
 
   .modes-picks {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
     gap: var(--gap-sm);
   }
 
@@ -116,8 +140,7 @@
     font-weight: 500;
   }
 
-  .modes > :global(.modes-levels) {
-    width: min(760px, 100%);
+  .modes-list > :global(.modes-levels) {
     align-self: start;
     max-height: 100%;
     overflow-y: auto;
@@ -136,14 +159,22 @@
     font-size: var(--type-small);
   }
 
+  /* A phone's list fills the screen by itself: the picture stays away. */
   @media (max-height: 500px) {
     .modes {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .modes-list {
       gap: var(--gap-sm);
+    }
+
+    .modes > :global(.modes-shot) {
+      display: none;
     }
 
     .modes-picks {
       flex-wrap: nowrap;
-      justify-content: flex-start;
       max-width: 100%;
       overflow-x: auto;
       scrollbar-width: none;
