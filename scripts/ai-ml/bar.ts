@@ -1,7 +1,8 @@
 import { writeFileSync } from "node:fs";
+import { Car } from "../../src/car/car";
 import { car_spec } from "../../src/car/cars";
 import { at_difficulty, Difficulty } from "../../src/ai/difficulty";
-import { Field, personalities } from "../../src/ai/field";
+import { Field, grid_spot, personalities } from "../../src/ai/field";
 import { World } from "../../src/world/world";
 import { ROAD_HALF } from "../../src/worldgen/types";
 import { circuits, FIELD_SLACK } from "../ai-race";
@@ -9,7 +10,8 @@ import { DT } from "../autolap";
 import { Pool, seed_list } from "./cache";
 
 // bun scripts/ai-ml/bar.ts <out.json> <cars,> [eps,] [seeds] [jobs] [difficulty]: the owner's AI bar on island field races, (a) mistakes and (b) ugly failures per car and eps
-// No player car is in these fields: an AI hitting the player hard is not counted here.
+// The player is a seventh car on the field's own line follower, mid-grid, blind to the cars around it: a hard touch counts
+// against the AI unless the player ran into the back of a car ahead.
 
 declare const self: Worker;
 
@@ -25,12 +27,19 @@ const GRID_TIME = 6;
 /** Seconds inside which ugly events are one incident, and a car's mistakes one visible error. */
 const MERGE = 10;
 const SAMPLE = 18;
+/** The player's grid slot, the closing m/s past which a touch on it is hard, and the metres ahead from which the car it touched was run into. */
+const PLAYER_SLOT = 3;
+const HARD_HIT = 4;
+const RUN_INTO = 2;
+/** Seconds the player is off the road or stopped before it is put back, and seconds after in which its touches do not count. */
+const PLAYER_LOST = 4;
+const PLAYER_GRACE = 3;
 /** Road points after a mistake's start in which an error counts as the rolled one: its span and the slide after it. */
 const ROLLED_SPAN = 90;
 
-const Kind = { SPIN: "spin", WIDE: "wide", REVERSE: "reverse", RESET: "reset", LONG_OFF: "long_off", PILE: "pile", STUCK: "stuck" } as const;
+const Kind = { SPIN: "spin", WIDE: "wide", REVERSE: "reverse", RESET: "reset", LONG_OFF: "long_off", PILE: "pile", STUCK: "stuck", PLAYER: "player" } as const;
 type Kind = (typeof Kind)[keyof typeof Kind];
-const UGLY: readonly Kind[] = [Kind.RESET, Kind.LONG_OFF, Kind.PILE, Kind.STUCK];
+const UGLY: readonly Kind[] = [Kind.RESET, Kind.LONG_OFF, Kind.PILE, Kind.STUCK, Kind.PLAYER];
 
 interface Incident {
   t: number;
@@ -85,7 +94,15 @@ function race(job: BarJob): BarRace[] {
   for (const route of circuits(world)) {
     if (route.excludes?.includes(spec.id)) continue;
     const unplace = world.place(route.closure);
-    const field = new Field(world, route, Array.from({ length: 6 }, () => spec), at_difficulty(personalities(job.seed, 6), job.difficulty), job.seed);
+    const field = new Field(world, route, Array.from({ length: 6 }, () => spec), at_difficulty(personalities(job.seed, 6), job.difficulty), job.seed, PLAYER_SLOT);
+    const player = new Car(spec);
+    const spot = grid_spot(route, PLAYER_SLOT);
+    player.park(spot.x, spot.z, spot.heading, world);
+    field.rival = player;
+    field.drives_rival = true;
+    const me = field.racers.length;
+    let lost = 0;
+    let grace = 0;
     let plan = 0;
     for (let i = 0; i < field.line.step.length; i++) plan += field.line.step[i] / field.line.speed[i];
     const limit = plan * 2 * FIELD_SLACK + 30;
@@ -97,9 +114,34 @@ function race(job: BarJob): BarRace[] {
     let steps = 0;
     const done = () => rs.every((r) => r.stats.laps.length >= 2);
     while (field.t < limit && !done()) {
+      player.step(DT, field.rival_controls(DT), world);
+      world.collide(player);
       field.step(DT, 2);
+      if (field.impacts[me] > HARD_HIT && field.t > grace) {
+        grace = field.t + PLAYER_GRACE;
+        let near = -1;
+        let near_d = Infinity;
+        rs.forEach((r, k) => {
+          const d = Math.hypot(r.car.pos.x - player.pos.x, r.car.pos.z - player.pos.z);
+          if (d < near_d) {
+            near_d = d;
+            near = k;
+          }
+        });
+        if ((rs[near].driver.progress - field.progress[me]) * spacing < RUN_INTO) events.push({ t: field.t, car: near, kind: Kind.PLAYER, rolled: false });
+      }
       if (++steps % SAMPLE) continue;
       const dt = DT * SAMPLE;
+      const adrift = world.distance_to_road(player.pos.x, player.pos.z) > OFF_ROAD || (field.t > GRID_TIME && Math.hypot(player.vel.x, player.vel.z) < STOPPED);
+      lost = adrift ? lost + dt : 0;
+      if (lost > PLAYER_LOST) {
+        const n = route.points.length;
+        const p = route.points[((Math.round(field.progress[me]) % n) + n) % n];
+        player.park(p.x, p.z, Math.atan2(p.tx, p.tz), world);
+        player.parked = false;
+        lost = 0;
+        grace = field.t + PLAYER_GRACE;
+      }
       let pile = 0;
       rs.forEach((r, k) => {
         const s = seen[k];
@@ -195,7 +237,7 @@ if (!Bun.isMainThread) {
         if (Number.isFinite(r.lap)) { lap += r.lap * r.finished; n += r.finished; }
         if (r.ugly) bad.push(`s${seed}${r.route === "circuit" ? "" : "r"}:${UGLY.filter((k) => r.counts[k]).map((k) => `${k}${r.counts[k]}`).join("+")}`);
       }
-      console.log(`${car} ${eps}: races ${races} lap ${(lap / n).toFixed(3)} contacts ${contacts} | (a) mistakes ${mistakes} (${(mistakes / races).toFixed(2)}/race, rolled ${rolled}; spin ${counts.spin} wide ${counts.wide} reverse ${counts.reverse}) | (b) ugly ${ugly} (${((ugly * 50) / races).toFixed(2)}/50; reset ${counts.reset} long_off ${counts.long_off} pile ${counts.pile} stuck ${counts.stuck}) | ${bad.join(" ")}`);
+      console.log(`${car} ${eps}: races ${races} lap ${(lap / n).toFixed(3)} contacts ${contacts} | (a) mistakes ${mistakes} (${(mistakes / races).toFixed(2)}/race, rolled ${rolled}; spin ${counts.spin} wide ${counts.wide} reverse ${counts.reverse}) | (b) ugly ${ugly} (${((ugly * 50) / races).toFixed(2)}/50; reset ${counts.reset} long_off ${counts.long_off} pile ${counts.pile} stuck ${counts.stuck} player ${counts.player}) | ${bad.join(" ")}`);
       ugly_50 += (ugly * 50) / races;
       per_race += mistakes / races;
       rolled_share += mistakes ? rolled / mistakes : 0;
