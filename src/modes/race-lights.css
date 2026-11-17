@@ -20,7 +20,7 @@
   width: var(--space-6);
   height: var(--space-6);
   border-radius: var(--radius-full);
-  background: var(--panel-well);
+  background: var(--row);
 }
 
 #race-lights i[data-on="red"] {
