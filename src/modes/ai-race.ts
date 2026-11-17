@@ -314,7 +314,7 @@ export class AiRace implements ModeRun, FieldRace {
       row.el.dataset.now = String(car === this.builds.length);
       row.place.textContent = String(i + 1);
       row.name.textContent = this.names[car];
-      row.time.textContent = this.tally.is_out(car) ? "out" : done === Infinity ? (this.final ? "--" : "racing") : i === 0 ? format(done * 1000) : `+${seconds(done - leader)}`;
+      row.time.textContent = this.tally.is_out(car) ? "out" : done === Infinity ? (this.final ? "--" : "racing") : i === 0 ? format(done * 1000) : `+${(done - leader).toFixed(3)} s`;
     }
   }
 
