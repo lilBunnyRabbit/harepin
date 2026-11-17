@@ -74,7 +74,7 @@ import { Settings } from "./menu/settings";
 import { BUILD, Updater, show_version } from "./menu/update";
 import { card_closed_now, show_updated } from "./menu/updated-card";
 import { LAB_PARAM, names_world, pick_world } from "./world/world-pick";
-import { travel_query } from "./world/travel";
+import { briefed_car, travel_query } from "./world/travel";
 import { Brief } from "./world/travel-brief.svelte";
 import { travel_here } from "./world/travel-card";
 import type { Lab } from "./lab/lab";
@@ -680,9 +680,11 @@ markers.on_map = (list) => hud.set_markers(list);
 // A lab trial on a race world keeps the career out of it, as the lab world does.
 markers.place(world, SPAWN_INDEX, lab_id === null ? EVENTS.filter(on_this_map) : []).catch((error: unknown) => console.error(error));
 // A map that fell back to its plain one would reload onto itself forever, so a load starts the event only where it landed.
-if (event && on_this_map(event)) modes.play_event(event);
+// The briefing named the car above Start, so the start asks again only when that car does not fit.
+const briefed = briefed_car(travelling, garage.code);
+if (event && on_this_map(event)) play_taken(briefed, () => modes.play_event(event));
 else if (event) goal_toasts.push("This event's map did not load", MAP_NOTE_MS);
-if (run && run_on_map(run)) play_run(run);
+if (run && run_on_map(run)) play_taken(briefed, () => play_run(run));
 else if (run) goal_toasts.push("This run's map did not load", MAP_NOTE_MS);
 if (ai_level) modes.play(ai_level);
 // A link without its map reloads onto it; one that names a map which fell back would reload onto itself forever.

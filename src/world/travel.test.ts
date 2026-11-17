@@ -2,7 +2,7 @@ import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { SEASONS } from "../career/series-seasons";
 import { WorldKind } from "../worldgen/types";
-import { came_from, travel_of, travel_query } from "./travel";
+import { briefed_car, came_from, travel_of, travel_query } from "./travel";
 
 const saved = { last_seed: 3, last_world: WorldKind.ISLAND, last_map: null, played: true };
 const url = (query: string) => new URLSearchParams(query);
@@ -56,4 +56,11 @@ test("a travel keeps the room, tune and car, but a car taken in the picker wins 
   const here = url("room=pals&car=coupe&tune&seed=7");
   expect(travel_query({ event: "r6" }, here, false).toString()).toBe("event=r6&room=pals&car=coupe&tune=");
   expect(travel_query({ event: "r6" }, here, true).toString()).toBe("event=r6&room=pals&tune=");
+});
+
+test("a start from the briefing runs on the car it showed; a load with no briefing took none", () => {
+  const run = travel_of(url("run=daily:2026-11-16"), url(""), saved);
+  expect(briefed_car(run, "hatch-code")).toBe("hatch-code");
+  expect(briefed_car(travel_of(url("event=r6"), null, saved), "hatch-code")).toBe("hatch-code");
+  expect(briefed_car(travel_of(url("seed=7"), null, saved), "hatch-code")).toBeNull();
 });

@@ -23,6 +23,9 @@ export function travel_query(to: Record<string, string>, here: URLSearchParams, 
   return query;
 }
 
+/** The car this load's start runs on unasked: the briefing shows the player's own above Start, taken or not. No briefing, none taken. */
+export const briefed_car = (travel: Travel | null, own: string): string | null => (travel ? own : null);
+
 // A travel reloads this page with a new search, so the referrer still holds the map it left.
 export function came_from(referrer: string, here: URL): URLSearchParams | null {
   if (!URL.canParse(referrer)) return null;
