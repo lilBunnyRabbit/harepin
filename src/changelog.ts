@@ -51,6 +51,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.58.0",
+    date: "2026-11-17",
+    title: "Lit roads",
+    changes: [
+      { kind: IMPROVED, text: "Races light the edges of the road ahead instead of floor arrows, with upright signs before real bends" },
+      { kind: NEW, text: "Facing the wrong way shows arrows on the road and a Wrong way card" },
+    ],
+  },
+  {
     version: "0.57.0",
     date: "2026-11-17",
     title: "Raceway",
