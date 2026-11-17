@@ -3,13 +3,15 @@ import { linear } from "../theme/palette";
 import type { Tree } from "../world/world";
 import { TreeKind } from "../worldgen/biomes";
 import type { TreeKit } from "./scene";
-import { cast_batched } from "./shadow-depth";
+import { cast_instanced } from "./shadow-depth";
 
-// Scrub is a crown squashed to a bush and sunk to the ground: it rides in the leaf batch, with no trunk.
+// Scrub is a crown squashed to a bush and sunk to the ground: it rides with the crowns, with no trunk.
 const SCRUB_SQUASH = 0.35;
 const SCRUB_SINK = 0.5;
-/** Starting instance room of a batch whose world streams its trees in; it doubles when a chunk would overflow it. */
+/** Starting instance room of a pool whose world streams its trees in; it doubles when a chunk would overflow it. */
 const STREAMED_ROOM = 4096;
+const MATRIX_SIZE = 16;
+const COLOUR_SIZE = 3;
 
 function jitter(i: number, j: number): number {
   const h = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
@@ -18,35 +20,161 @@ function jitter(i: number, j: number): number {
 
 export interface Planted {
   readonly bark: number[];
-  readonly leaf: number[];
+  /** By crown shape. */
+  readonly leaf: number[][];
 }
 
-/** A batch takes one index layout for every geometry: a mix goes non-indexed. */
-function one_layout(geometries: THREE.BufferGeometry[]): THREE.BufferGeometry[] {
-  if (geometries.every((geometry) => geometry.index !== null)) return geometries;
-  return geometries.map((geometry) => (geometry.index ? geometry.toNonIndexed() : geometry));
-}
+/**
+ * Every tree of one shape in one instanced draw. A batched mesh draws each tree as a draw of its own in WebGL: 46 000
+ * a frame on the mainland, with the shadow pass. The instances that draw are the first `shown`; hidden ones sit behind
+ * them, so hiding or freeing a tree swaps two instances and rewrites nothing else.
+ */
+export class TreePool {
+  readonly mesh: THREE.InstancedMesh;
+  private readonly slot_of: number[] = [];
+  private readonly id_at: number[] = [];
+  private readonly spare: number[] = [];
+  private used = 0;
+  private room: number;
+  private low = Infinity;
+  private high = -1;
 
-function batch(geometries: THREE.BufferGeometry[], material: THREE.Material, room: number): { mesh: THREE.BatchedMesh; ids: number[] } {
-  const vertices = geometries.reduce((sum, geometry) => sum + geometry.getAttribute("position").count, 0);
-  const indices = geometries.reduce((sum, geometry) => sum + (geometry.index?.count ?? 0), 0);
-  const mesh = new THREE.BatchedMesh(room, vertices, indices, material);
-  const ids = geometries.map((geometry) => mesh.addGeometry(geometry));
-  // The batch's own bounds are computed once and never follow added instances. Culling or sorting per tree walks every
-  // instance on each pass (camera and shadow): measured 2-3x the CPU frame time on mainland. Unculled, the draw list is
-  // rebuilt only when a chunk's trees come, go or hide.
-  mesh.frustumCulled = false;
-  mesh.perObjectFrustumCulled = false;
-  mesh.sortObjects = false;
-  mesh.receiveShadow = true;
-  return { mesh, ids };
+  constructor(geometry: THREE.BufferGeometry, material: THREE.Material, room: number, private readonly coloured: boolean) {
+    this.room = Math.max(1, room);
+    this.mesh = new THREE.InstancedMesh(geometry, material, this.room);
+    this.mesh.count = 0;
+    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    if (coloured) this.mesh.instanceColor = this.colours(new Float32Array(this.room * COLOUR_SIZE));
+    // The bounds are computed once and never follow the instances, and culling per tree would walk every one on each
+    // pass (camera and shadow).
+    this.mesh.frustumCulled = false;
+    this.mesh.receiveShadow = true;
+    cast_instanced(this.mesh);
+  }
+
+  get shown(): number {
+    return this.mesh.count;
+  }
+
+  get size(): number {
+    return this.used;
+  }
+
+  get capacity(): number {
+    return this.room;
+  }
+
+  add(matrix: THREE.Matrix4, tint: THREE.Color | null): number {
+    if (this.used === this.room) this.grow(this.room * 2);
+    const id = this.spare.pop() ?? this.slot_of.length;
+    const slot = this.mesh.count;
+    if (slot < this.used) this.move(slot, this.used);
+    matrix.toArray(this.mesh.instanceMatrix.array, slot * MATRIX_SIZE);
+    if (tint && this.mesh.instanceColor) tint.toArray(this.mesh.instanceColor.array, slot * COLOUR_SIZE);
+    this.seat(id, slot);
+    this.mesh.count++;
+    this.used++;
+    return id;
+  }
+
+  remove(id: number) {
+    this.show(id, false);
+    const slot = this.slot_of[id];
+    const last = --this.used;
+    if (slot < last) this.move(last, slot);
+    this.slot_of[id] = -1;
+    this.spare.push(id);
+  }
+
+  show(id: number, shown: boolean) {
+    const slot = this.slot_of[id];
+    if (slot < this.mesh.count === shown) return;
+    const edge = shown ? this.mesh.count++ : --this.mesh.count;
+    if (slot !== edge) this.swap(slot, edge);
+  }
+
+  is_shown(id: number): boolean {
+    return this.slot_of[id] < this.mesh.count;
+  }
+
+  reserve(more: number) {
+    const need = this.used + more;
+    if (need > this.room) this.grow(Math.max(need, this.room * 2));
+  }
+
+  flush() {
+    if (this.high < this.low) return;
+    const count = this.high - this.low + 1;
+    const { instanceMatrix, instanceColor } = this.mesh;
+    instanceMatrix.addUpdateRange(this.low * MATRIX_SIZE, count * MATRIX_SIZE);
+    instanceMatrix.needsUpdate = true;
+    if (instanceColor) {
+      instanceColor.addUpdateRange(this.low * COLOUR_SIZE, count * COLOUR_SIZE);
+      instanceColor.needsUpdate = true;
+    }
+    this.low = Infinity;
+    this.high = -1;
+  }
+
+  private seat(id: number, slot: number) {
+    this.slot_of[id] = slot;
+    this.id_at[slot] = id;
+    if (slot < this.low) this.low = slot;
+    if (slot > this.high) this.high = slot;
+  }
+
+  private move(from: number, to: number) {
+    const { instanceMatrix, instanceColor } = this.mesh;
+    instanceMatrix.array.copyWithin(to * MATRIX_SIZE, from * MATRIX_SIZE, (from + 1) * MATRIX_SIZE);
+    instanceColor?.array.copyWithin(to * COLOUR_SIZE, from * COLOUR_SIZE, (from + 1) * COLOUR_SIZE);
+    this.seat(this.id_at[from], to);
+  }
+
+  private swap(a: number, b: number) {
+    const id = this.id_at[a];
+    const matrix = this.mesh.instanceMatrix.array;
+    const colour = this.mesh.instanceColor?.array;
+    for (let i = 0; i < MATRIX_SIZE; i++) {
+      const kept = matrix[a * MATRIX_SIZE + i];
+      matrix[a * MATRIX_SIZE + i] = matrix[b * MATRIX_SIZE + i];
+      matrix[b * MATRIX_SIZE + i] = kept;
+    }
+    if (colour)
+      for (let i = 0; i < COLOUR_SIZE; i++) {
+        const kept = colour[a * COLOUR_SIZE + i];
+        colour[a * COLOUR_SIZE + i] = colour[b * COLOUR_SIZE + i];
+        colour[b * COLOUR_SIZE + i] = kept;
+      }
+    this.seat(this.id_at[b], a);
+    this.seat(id, b);
+  }
+
+  private colours(array: Float32Array): THREE.InstancedBufferAttribute {
+    const attribute = new THREE.InstancedBufferAttribute(array, COLOUR_SIZE);
+    attribute.setUsage(THREE.DynamicDrawUsage);
+    return attribute;
+  }
+
+  private grow(room: number) {
+    const { mesh } = this;
+    const matrix = new Float32Array(room * MATRIX_SIZE);
+    matrix.set(mesh.instanceMatrix.array);
+    const colour = mesh.instanceColor && new Float32Array(room * COLOUR_SIZE);
+    if (colour && mesh.instanceColor) colour.set(mesh.instanceColor.array);
+    // The renderer keeps a GPU buffer per attribute and lets go of an instanced mesh's only on its dispose.
+    mesh.dispose();
+    mesh.instanceMatrix = new THREE.InstancedBufferAttribute(matrix, MATRIX_SIZE);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    if (colour) mesh.instanceColor = this.colours(colour);
+    this.room = room;
+    this.low = Infinity;
+    this.high = -1;
+  }
 }
 
 export class TreeBatch {
-  readonly bark: THREE.BatchedMesh;
-  readonly leaf: THREE.BatchedMesh;
-  private readonly trunk: number;
-  private readonly crowns: number[];
+  readonly bark: TreePool;
+  readonly leaf: readonly TreePool[];
   private readonly m = new THREE.Matrix4();
   private readonly q = new THREE.Quaternion();
   private readonly s = new THREE.Vector3();
@@ -55,27 +183,21 @@ export class TreeBatch {
   private readonly tint = new THREE.Color();
 
   constructor(private readonly kit: TreeKit, room: number) {
-    const size = Math.max(1, room || STREAMED_ROOM);
-    const bark = batch([kit.trunk], kit.bark, size);
-    const leaf = batch(one_layout(kit.crowns), kit.leaf, size);
-    this.bark = bark.mesh;
-    this.leaf = leaf.mesh;
-    this.trunk = bark.ids[0];
-    this.crowns = leaf.ids;
-    cast_batched(this.bark, false);
-    cast_batched(this.leaf, true);
+    const size = room || STREAMED_ROOM;
+    this.bark = new TreePool(kit.trunk, kit.bark, size, kit.one_tone);
+    this.leaf = kit.crowns.map((crown) => new TreePool(crown, kit.leaf, size, true));
   }
 
-  get meshes(): THREE.BatchedMesh[] {
-    return [this.bark, this.leaf];
+  get meshes(): THREE.InstancedMesh[] {
+    return [this.bark.mesh, ...this.leaf.map((pool) => pool.mesh)];
   }
 
   /** `order` keys each tree's shade jitter to its place in the world's list; without it, to its position. */
   plant(here: readonly Tree[], order: Map<Tree, number> | null): Planted {
-    const planted: Planted = { bark: [], leaf: [] };
+    const planted: Planted = { bark: [], leaf: this.leaf.map(() => []) };
     if (!here.length) return planted;
-    this.make_room(this.bark, here.length);
-    this.make_room(this.leaf, here.length);
+    this.bark.reserve(here.length);
+    for (const pool of this.leaf) pool.reserve(here.length);
     const { m, q, s, p } = this;
     for (const tree of here) {
       q.setFromAxisAngle(this.axis, (tree.x * 13.37) % (Math.PI * 2));
@@ -85,31 +207,33 @@ export class TreeBatch {
       if (tree.kind === TreeKind.SCRUB) m.compose(p.set(tree.x, tree.y - SCRUB_SINK, tree.z), q, s.set(tree.scale, tree.scale * SCRUB_SQUASH, tree.scale));
       else {
         m.compose(p.set(tree.x, tree.y - 0.2, tree.z), q, s.setScalar(tree.scale));
-        const id = this.bark.addInstance(this.trunk);
-        this.bark.setMatrixAt(id, m);
-        if (this.kit.one_tone) this.bark.setColorAt(id, this.tint);
-        planted.bark.push(id);
+        planted.bark.push(this.bark.add(m, this.tint));
       }
-      const id = this.leaf.addInstance(this.crowns[tree.kind] ?? this.crowns[TreeKind.BROADLEAF]);
-      this.leaf.setMatrixAt(id, m);
-      this.leaf.setColorAt(id, this.tint);
-      planted.leaf.push(id);
+      const crown = tree.kind < this.leaf.length ? tree.kind : TreeKind.BROADLEAF;
+      planted.leaf[crown].push(this.leaf[crown].add(m, this.tint));
     }
+    this.flush();
     return planted;
   }
 
   show(planted: Planted, shown: boolean) {
-    for (const id of planted.bark) this.bark.setVisibleAt(id, shown);
-    for (const id of planted.leaf) this.leaf.setVisibleAt(id, shown);
+    for (const id of planted.bark) this.bark.show(id, shown);
+    planted.leaf.forEach((ids, crown) => {
+      for (const id of ids) this.leaf[crown].show(id, shown);
+    });
+    this.flush();
   }
 
   free(planted: Planted) {
-    for (const id of planted.bark) this.bark.deleteInstance(id);
-    for (const id of planted.leaf) this.leaf.deleteInstance(id);
+    for (const id of planted.bark) this.bark.remove(id);
+    planted.leaf.forEach((ids, crown) => {
+      for (const id of ids) this.leaf[crown].remove(id);
+    });
+    this.flush();
   }
 
-  private make_room(mesh: THREE.BatchedMesh, more: number) {
-    const need = mesh.instanceCount + more;
-    if (need > mesh.maxInstanceCount) mesh.setInstanceCount(Math.max(need, mesh.maxInstanceCount * 2));
+  private flush() {
+    this.bark.flush();
+    for (const pool of this.leaf) pool.flush();
   }
 }
