@@ -40,22 +40,26 @@
   const startable = $derived(view.open && (!choice || chosen !== null));
 
   // Keys reach the hold button with nothing else focused; the chat's Enter skips a focused button.
+  // A dialog that closed in this same turn (the road map's Go to flag) still holds the focus, hidden: that counts as nothing.
   const take_focus: Attachment<HTMLElement> = (node) => {
-    if (!view.open || document.activeElement !== document.body || document.documentElement.dataset.input === "touch") return;
+    const active = document.activeElement;
+    const free = active === document.body || (active instanceof HTMLElement && !active.checkVisibility());
+    if (!view.open || !free || document.documentElement.dataset.input === "touch") return;
     node.querySelector<HTMLElement>(".ui-primary")?.focus({ preventScroll: true, focusVisible: false });
   };
 
   let pressed = 0;
 
+  // A tap counts only when it began on the card's button: the Enter that sent the car here is still down as the card shows.
   function key_down(press: KeyboardEvent) {
-    if (press.key === "Enter" && !press.repeat) pressed = press.timeStamp;
+    if (press.key === "Enter" && !press.repeat && press.target instanceof Element && press.target.closest(".event-card .ui-primary")) pressed = press.timeStamp;
   }
 
   function key_up(press: KeyboardEvent) {
     if (press.key !== "Enter" || !pressed) return;
     const tap = press.timeStamp - pressed < HOLD_MS;
     pressed = 0;
-    if (tap && choice && view.open && press.target instanceof Element && press.target.closest(".event-card .ui-primary")) onmore();
+    if (tap && choice && view.open) onmore();
   }
 </script>
 

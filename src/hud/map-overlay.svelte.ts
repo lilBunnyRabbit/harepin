@@ -1,4 +1,4 @@
-import { mount } from "svelte";
+import { flushSync, mount } from "svelte";
 import { event_of, type Stars } from "../career/career";
 import type { MapMarker } from "../career/markers";
 import { distance_text, elsewhere, first_pick, map_event, type Elsewhere, type MapEvent, type MapPin } from "../menu/maps";
@@ -100,6 +100,8 @@ export class MapOverlayView {
 
   go(id: string) {
     this.close();
+    // The dialog closes in an effect: the flag's card takes the keys only once focus is back from it.
+    flushSync();
     this.host.go(id);
   }
 
