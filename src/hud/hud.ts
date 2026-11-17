@@ -90,7 +90,7 @@ const TOAST_MS = 1200;
 /** The lobby's route id when no race is on; lap gates belong to it. */
 const CIRCUIT = "circuit";
 const NONE: readonly { x: number; z: number }[] = [];
-/** Driving this long above CALM_KMH lets the touch HUD (and the Minimal layout) fade back; stopping brings it back. */
+/** Driving this long above CALM_KMH lets the touch HUD fade back; stopping brings it back. */
 const CALM_MS = 3000;
 const CALM_KMH = 12;
 const STOP_KMH = 4;

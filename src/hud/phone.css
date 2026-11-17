@@ -79,15 +79,18 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     --phone-hand-h: 52px;
     --phone-map-w: 136px;
     --phone-map-h: 82px;
-    --phone-under-map: calc(var(--inset-top) + var(--phone-map-h) + var(--gap-sm));
     --phone-brake-h: min(96px, 25vh);
     --phone-gas-h: calc(var(--phone-brake-h) + var(--phone-hand-h) + var(--space-2));
     --phone-slot: calc(var(--control-h) + var(--space-2));
     --phone-centre: calc(100vw - 2 * (max(var(--inset-left), var(--inset-right)) + max(3 * var(--phone-slot), var(--pedals)) + var(--space-3)));
   }
 
-  :root[data-map="off"] {
+  body {
     --phone-under-map: var(--inset-top);
+  }
+
+  :root:not([data-map="off"]) body:has(#mode-status:not([hidden])) {
+    --phone-under-map: calc(var(--inset-top) + var(--phone-map-h) + var(--gap-sm));
   }
 
   :is(.dock-break, #online-chip, #players, #map-note) {
@@ -293,8 +296,14 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     text-shadow: none;
   }
 
-  /* The thumbs own the bottom corners, so the map takes the top left and lets touches through to the steer zone. */
+  /* The thumbs own the bottom corners, so the map takes the top left and lets touches through to the steer zone. Only in
+     a run: roaming, that corner is the Next up ticket's. */
   .top-right {
+    display: none;
+  }
+
+  :root:not([data-map="off"]) body:has(#mode-status:not([hidden])) .top-right {
+    display: flex;
     inset: var(--inset-top) auto auto var(--inset-left);
     zoom: 1;
     width: var(--phone-map-w);
