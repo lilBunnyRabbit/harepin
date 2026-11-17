@@ -12,6 +12,12 @@ export const TYRE_HALF = 0.42;
 /** Road points a barrier box spans: 4 m, a chord a centimetre off the tightest railed bend. */
 const SPAN = 2;
 const OVERLAP = 0.1;
+/**
+ * Metres a barrier box's ground may rise over its base, the lowest corner: the box's top is level while the drawn wall
+ * follows the ground, so a span on a slope splits into up to MAX_PIECES boxes that step up with it.
+ */
+export const BURY = 0.25;
+const MAX_PIECES = 4;
 export const STAND_BASE = 1.2;
 export const STAND_RISE = 0.8;
 export const STAND_BACK = 1.4;
@@ -27,10 +33,22 @@ export type Disc = readonly [x: number, z: number, radius: number];
 
 const offset = (p: RoadPoint, off: number): [number, number] => [p.x - p.tz * off, p.z + p.tx * off];
 
+/** Ground under a box's centre and its lowest and highest corner. */
+function footing(heights: Float32Array, x: number, z: number, hw: number, hd: number, fx: number, fz: number): [low: number, middle: number, high: number] {
+  const middle = sample(heights, x, z);
+  let low = middle;
+  let high = middle;
+  for (const sx of [-1, 1])
+    for (const sz of [-1, 1]) {
+      const y = sample(heights, x + sx * hw * fz + sz * hd * fx, z - sx * hw * fx + sz * hd * fz);
+      low = Math.min(low, y);
+      high = Math.max(high, y);
+    }
+  return [low, middle, high];
+}
+
 function box_on(heights: Float32Array, x: number, z: number, hw: number, hd: number, fx: number, fz: number, top: number): Extract<Solid, { kind: "box" }> {
-  let low = sample(heights, x, z);
-  const middle = low;
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) low = Math.min(low, sample(heights, x + sx * hw * fz + sz * hd * fx, z - sx * hw * fx + sz * hd * fz));
+  const [low, middle] = footing(heights, x, z, hw, hd, fx, fz);
   return { kind: "box", x, y: low, z, hw, hd, cos: fz, sin: fx, height: top + middle - low };
 }
 
@@ -47,9 +65,25 @@ function chain(road: readonly RoadPoint[], heights: Float32Array, line: Float32A
       const [ax, az] = offset(road[a], side * line[a]);
       const [bx, bz] = offset(road[b], side * line[b]);
       const length = hypot(bx - ax, bz - az);
-      const box = box_on(heights, (ax + bx) / 2, (az + bz) / 2, half, length / 2 + OVERLAP, (bx - ax) / length, (bz - az) / length, height);
-      out.push(soft ? { ...box, soft: true } : box);
+      const fx = (bx - ax) / length;
+      const fz = (bz - az) / length;
+      let pieces = 1;
+      while (pieces < MAX_PIECES && !level(heights, ax, az, bx, bz, pieces, half, length / pieces / 2 + OVERLAP, fx, fz)) pieces++;
+      for (let k = 0; k < pieces; k++) {
+        const t = (k + 0.5) / pieces;
+        const box = box_on(heights, ax + (bx - ax) * t, az + (bz - az) * t, half, length / pieces / 2 + OVERLAP, fx, fz, height);
+        out.push(soft ? { ...box, soft: true } : box);
+      }
     }
+}
+
+function level(heights: Float32Array, ax: number, az: number, bx: number, bz: number, pieces: number, hw: number, hd: number, fx: number, fz: number): boolean {
+  for (let k = 0; k < pieces; k++) {
+    const t = (k + 0.5) / pieces;
+    const [low, , high] = footing(heights, ax + (bx - ax) * t, az + (bz - az) * t, hw, hd, fx, fz);
+    if (high - low > BURY) return false;
+  }
+  return true;
 }
 
 export function venue_solids(road: readonly RoadPoint[], layout: Layout, heights: Float32Array): Solid[] {
