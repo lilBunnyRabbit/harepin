@@ -539,12 +539,8 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     height: 22px;
   }
 
-  /* The first-run steps take the top centre from the lap strip, inside the same width; on a narrow phone only the step
-     in hand keeps its words. */
-  body:has(.first-steps) #strip {
-    display: none;
-  }
-
+  /* The first-run steps keep to the top centre the corners leave; on a narrow phone only the step in hand keeps its
+     words. */
   :root body .first-steps {
     left: var(--phone-flank-left);
     right: var(--phone-flank-right);
