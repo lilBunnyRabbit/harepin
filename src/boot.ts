@@ -15,7 +15,20 @@ const params = new URLSearchParams(location.search);
 const showcase = (import.meta.env.MODE === "review" || import.meta.env.DEV) && params.has(SHOWCASE_PARAM);
 const release = (import.meta.env.MODE === "review" || import.meta.env.DEV) && params.has(RELEASE_PARAM);
 const cars = params.has(CARS_PARAM);
-if (!showcase && !release && !cars) start_early(pick_world(params, clean_room(params.get("room")) ?? LOBBY_ROOM, read_saved_pick()));
+const game = !showcase && !release && !cars;
+let failed = false;
+if (game) start_early(pick_world(params, clean_room(params.get("room")) ?? LOBBY_ROOM, read_saved_pick()));
+// A load bound for an event, a run or a Series race shows where it is going while the bundle arrives; reading that needs
+// the career and the kinds, so it comes in beside main.ts rather than in this entry.
+if (game) {
+  import("./world/travel-card")
+    .then(({ travel_here, show_backdrop }) => {
+      const loading = document.getElementById("loading");
+      const travel = travel_here(params, read_saved_pick());
+      if (loading && travel && !failed) show_backdrop(loading, travel);
+    })
+    .catch((error: unknown) => console.error(error));
+}
 try {
   if ((import.meta.env.MODE === "review" || import.meta.env.DEV) && showcase) await import("./review/showcase");
   else if ((import.meta.env.MODE === "review" || import.meta.env.DEV) && release) await import("./review/release");
@@ -28,8 +41,10 @@ try {
 
 // A stale tab after a deploy, or a dropped connection, fails the game chunk's download; the loading screen says so.
 function boot_failed() {
+  failed = true;
   const loading = document.getElementById("loading");
   if (!loading) return;
+  delete loading.dataset.travel;
   const text = loading.querySelector("span");
   if (text) text.textContent = "Harepin failed to load";
   const reload = document.createElement("button");

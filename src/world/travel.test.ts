@@ -23,15 +23,6 @@ test("an event names its map, and the map the player left", () => {
   });
 });
 
-test("an event taken on a menu page starts as it arrives; a link drives to its flag", () => {
-  const go = (search: string) => {
-    const travel = travel_of(url(search), null, saved);
-    return travel && "event" in travel ? travel.go : null;
-  };
-  expect(go("event=r6&go=")).toBe(true);
-  expect(go("event=r6")).toBe(false);
-});
-
 test("an event's map left from another event reads off that event", () => {
   expect(travel_of(url("event=r6"), url("event=r4"), saved)?.from).toBe(travel_of(url("event=r4"), null, saved)?.to);
 });

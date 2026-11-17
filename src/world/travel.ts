@@ -1,4 +1,4 @@
-import { EVENT_PARAM, GO_PARAM, TUNE_PARAM, event_of, type CareerEvent } from "../career/career";
+import { EVENT_PARAM, TUNE_PARAM, event_of, type CareerEvent } from "../career/career";
 import { SERIES_PARAM, type Season, type SeriesEvent } from "../career/series";
 import { series_event } from "../career/series-seasons";
 import { LOBBY_ROOM, clean_room } from "../net/room-name";
@@ -8,7 +8,7 @@ import { map_code, read_pick } from "../worldgen/kinds/map-code";
 import { short_name_of } from "../worlds/map-name";
 import { pick_world, type SavedPick } from "./world-pick";
 
-export type Travel = { from: string | null; to: string; map: MapSpec } & ({ event: CareerEvent; /** Starts as the map loads, its car picked before the travel. */ go: boolean } | { run: RunPick } | { series: { season: Season; event: SeriesEvent } });
+export type Travel = { from: string | null; to: string; map: MapSpec } & ({ event: CareerEvent } | { run: RunPick } | { series: { season: Season; event: SeriesEvent } });
 
 // A room the player chose stays theirs across events; without one the event runs solo.
 const KEPT_ON_TRAVEL = ["room", "car", TUNE_PARAM];
@@ -39,7 +39,7 @@ export function travel_of(params: URLSearchParams, before: URLSearchParams | nul
   const map = map_of(params, saved);
   const left = before && map_of(before, saved);
   const where = { from: left && map_code(left) !== map_code(map) ? short_name_of(left) : null, to: short_name_of(map), map };
-  if (event) return { ...where, event, go: params.has(GO_PARAM) };
+  if (event) return { ...where, event };
   if (run) return { ...where, run };
   return series && { ...where, series };
 }

@@ -5,8 +5,6 @@ import type { Stage } from "../modes/championship";
 import { SILVER_SHARE, type StarRun, type Thresholds } from "../modes/track";
 
 export const EVENT_PARAM = "event";
-/** Beside `?event=`: the event starts on arrival with this car code, picked before the travel ("" for a fixed car). */
-export const GO_PARAM = "go";
 // `?tune` (old links: `?career&tune`) opens every tier and adds "Copy my times": the owner's runs set the non-race events' stars.
 export const TUNE_PARAM = "tune";
 

@@ -74,6 +74,8 @@ import { BUILD, Updater, show_version } from "./menu/update";
 import { card_closed_now, show_updated } from "./menu/updated-card";
 import { LAB_PARAM, names_world, pick_world } from "./world/world-pick";
 import { travel_query } from "./world/travel";
+import { Brief } from "./world/travel-brief.svelte";
+import { travel_here } from "./world/travel-card";
 import type { Lab } from "./lab/lab";
 import { GUARD_STATE, SystemBack, type Watcher } from "./menu/system-back";
 import { SPAWN_INDEX } from "./world/world";
@@ -132,6 +134,9 @@ const prefs = load_settings(params);
 const random_name = kept_random_name();
 
 show_version($("loading"));
+const travelling = travel_here(params, saved_pick);
+const brief = travelling && new Brief($("loading"), travelling, load_build(params.get("car")));
+brief?.step("Building the map", 0.3);
 const audio = new Audio();
 // Built and unlocked before the island loads, so the first taps on the loading screen already count.
 audio.prepare();
@@ -165,6 +170,7 @@ render.start(app);
 render.apply_quality();
 const area_fade = new AreaFade(app);
 const [stream] = await Promise.all([opening, records]);
+brief?.step("Placing flags", 0.8);
 const world = stream.world;
 // A custom map with no drivable build stands in as its seed's plain map everywhere: peers, records and the menu.
 const built = stream.fallback ? plain_map(kind, seed) : map;
@@ -1093,6 +1099,11 @@ document.addEventListener("click", (e) => {
   if (e.target instanceof HTMLButtonElement && !e.target.closest(".garage-rail")) e.target.blur();
 });
 
+// A travel holds on its briefing until the player starts: they may have looked away while the map built.
+if (brief) {
+  brief.ready();
+  await brief.started;
+}
 $("loading").remove();
 show_updated(updater.open_notes);
 performance.mark("world:first");
