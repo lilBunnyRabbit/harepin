@@ -108,6 +108,10 @@ This codebase is yours to keep building on, not a place you visit.
 
 ## Performance
 
+Harepin is a lightweight low-poly game first. A visual that costs frame time has to pay for it, or it goes (the 0.60 road lamps were removed for this).
+
+- A change that adds visuals measures frame time old vs new on the phone quality tier and on Mainland, and reports it; any rise needs the lead's OK.
+- Flat and cheap: ground decals over volumes and light cones, one draw call per thing, no `backdrop-filter` blur over the game view, no extra WebGL scene or batch of 3D renders without a measured budget.
 - No allocations in the 360 Hz physics step or the per-frame loop: hoist scratch vectors, no closures, `filter`, spreads or object literals per call.
 - The DOM is written only when a value changes; read layout before writing, never after.
 - A change that claims identical output proves it: `car.test.ts` bit-exact and `scripts/telemetry.ts` / `scripts/feel.ts` byte-identical for physics; `bun scripts/golden.ts --check` for worldgen and meshes.
