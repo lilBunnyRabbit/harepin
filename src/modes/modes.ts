@@ -32,6 +32,7 @@ import { level_route, race_levels } from "./races";
 import { line, next_label, next_ticket, run_text, stage_rows, stamp_text } from "./result";
 import { ResultNextView, type ResultCard } from "./result-next.svelte";
 import { RunTape } from "../replay/run-tape";
+import type { FieldView } from "../ai/field-view";
 import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
 import { atan2 } from "../sim-math";
@@ -155,7 +156,7 @@ export class Modes implements CarHooks {
     retry: () => this.restart(),
     change_car: () => void this.change_car(),
     try_on: () => this.reward && this.try_reward?.(this.reward),
-    watch: () => this.watch?.(this.tape),
+    watch: () => this.watch?.(this.tape, this.current?.run?.field ?? null),
     covered: () => this.covered(),
   });
   /** A menu is open over the results page, so the page's keys wait. */
@@ -172,7 +173,7 @@ export class Modes implements CarHooks {
   on_finish: ((mode: string) => void) | null = null;
   /** The player's car over the run under way or just finished, for its replay. */
   readonly tape = new RunTape();
-  watch: ((tape: RunTape) => void) | null = null;
+  watch: ((tape: RunTape, field: FieldView | null) => void) | null = null;
   /** A short note over the HUD; a run says its goal on it as it starts. */
   toast: ((text: string, label: string, hold: number) => void) | null = null;
   /** Starts an event here, or reloads onto its map. */
@@ -535,7 +536,7 @@ export class Modes implements CarHooks {
     if (!this.lobby_lap) this.toast?.(active.level.goal ?? active.mode.def.goal, active.level.name, GOAL_MS);
     active.pi = active.event ? this.car.pi() : null;
     active.shown = false;
-    this.tape.start();
+    this.tape.start(active.event?.name ?? active.level.name, active.mode.def.name);
     this.el.result.hidden = true;
     if (active.cup) this.el.status.dataset.cup = active.cup.cup.status;
   }
@@ -647,9 +648,9 @@ export class Modes implements CarHooks {
     const status = run.update(sim_dt, car);
     if (this.current !== active || active.run !== run) return;
     const finish = active.shown ? null : run.finished();
-    if (!active.shown) this.tape.record(sim_dt, car);
+    if (!active.shown) this.tape.record(sim_dt, car, run.field ?? null);
     if (finish) {
-      this.tape.end(car);
+      this.tape.end(car, run.field ?? null);
       active.shown = true;
       this.show_result(finish, active);
     }

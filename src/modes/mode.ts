@@ -1,6 +1,7 @@
 import type * as THREE from "three";
 import type { Difficulty } from "../ai/difficulty";
 import type { FieldCar } from "../ai/field";
+import type { FieldView } from "../ai/field-view";
 import type { Build } from "../car/build";
 import type { Rating } from "../car/pi";
 import type { CarSpec } from "../car/cars";
@@ -190,6 +191,8 @@ export interface ModeRun {
   readonly captions?: StatusCaptions;
   readonly holding?: boolean;
   readonly route?: RouteRun;
+  /** The AI cars the run races, for its replay's tape. */
+  readonly field?: FieldView;
   /** On a streamed world, the ground where `inside` streamed in: what the run laid there on stand-in ground goes down on it. */
   ground_in?(inside: (x: number, z: number) => boolean): void;
   dispose(): void;

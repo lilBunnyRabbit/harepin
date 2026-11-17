@@ -3,27 +3,27 @@ import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { GHOST_EVERY_MS, STRIDE, is_lap } from "../car/ghost-cap";
 import { Playback, SPEEDS } from "./playback";
-import { RunTape } from "./run-tape";
+import { RunTape, on_tape } from "./run-tape";
 
 const car = (x: number) => ({ pos: { x, y: 1, z: 0 }, quat: { x: 0, y: 0, z: 0, w: 1 } });
 
 test("a tape takes a frame every 100 ms of stepped time, none while the sim holds, and the run's last pose", () => {
   const tape = new RunTape();
-  tape.start();
-  for (let i = 0; i < 10; i++) tape.record(0, car(0));
+  tape.start("", "");
+  for (let i = 0; i < 10; i++) tape.record(0, car(0), null);
   expect(tape.frames.length).toBe(STRIDE);
   expect(tape.watchable).toBe(false);
-  for (let i = 1; i <= 60; i++) tape.record(0.025, car(i));
+  for (let i = 1; i <= 60; i++) tape.record(0.025, car(i), null);
   expect(tape.frames.length / STRIDE).toBe(1 + Math.floor(1500 / GHOST_EVERY_MS));
-  tape.record(0.03, car(61));
-  tape.end(car(61));
+  tape.record(0.03, car(61), null);
+  tape.end(car(61), null);
   expect(tape.end_ms).toBeCloseTo(1530, 6);
   expect(tape.frames[tape.frames.length - STRIDE + 1]).toBe(61);
   expect(is_lap(tape.frames)).toBe(true);
   expect(tape.watchable).toBe(true);
-  tape.end(car(62));
+  tape.end(car(62), null);
   expect(tape.frames[tape.frames.length - STRIDE + 1]).toBe(61);
-  tape.start();
+  tape.start("", "");
   expect(tape.frames.length).toBe(0);
   expect(tape.end_ms).toBe(0);
 });
@@ -32,11 +32,11 @@ test("a placement mid-run is a cut on the tape: the pose jumps there, it never s
   const THREE = await import("three");
   const { lap_pose } = await import("../car/ghost");
   const tape = new RunTape();
-  tape.start();
-  tape.record(0, car(0));
-  tape.record(0.1, car(3));
-  tape.record(0.1, car(500));
-  tape.record(0.1, car(503));
+  tape.start("", "");
+  tape.record(0, car(0), null);
+  tape.record(0.1, car(3), null);
+  tape.record(0.1, car(500), null);
+  tape.record(0.1, car(503), null);
   expect(tape.frames.length / STRIDE).toBe(5);
   expect(is_lap(tape.frames)).toBe(true);
   const pos = new THREE.Vector3();
@@ -47,6 +47,26 @@ test("a placement mid-run is a cut on the tape: the pose jumps there, it never s
   expect(pos.x).toBe(500);
   lap_pose(tape.frames, 250, pos, quat);
   expect(pos.x).toBeCloseTo(501.5, 6);
+});
+
+test("each AI car gets its own lap on the player's clock; one knocked out stops short and leaves the replay there", () => {
+  const tape = new RunTape();
+  let out = false;
+  const rivals = { count: 2, taped: (i: number) => (i === 1 && out ? null : car(10 * (i + 1))) };
+  tape.start("Cup", "Race");
+  tape.record(0, car(0), rivals);
+  tape.record(0.1, car(1), rivals);
+  out = true;
+  tape.record(0.1, car(2), rivals);
+  tape.record(0.1, car(3), rivals);
+  tape.end(car(3), rivals);
+  expect(tape.field.map((lap) => lap.length / STRIDE)).toEqual([4, 2]);
+  expect(tape.field.every(is_lap)).toBe(true);
+  expect(tape.field[0][tape.field[0].length - STRIDE]).toBe(tape.end_ms);
+  expect([on_tape(tape.field[1], 100), on_tape(tape.field[1], 200), on_tape(tape.field[1], 201), on_tape(tape.field[0], 300)]).toEqual([true, true, false, true]);
+  expect([on_tape(undefined, 0), on_tape([], 0)]).toEqual([false, false]);
+  tape.start("", "");
+  expect(tape.field.length).toBe(0);
 });
 
 test("playback runs at its speed, pauses on the tape's end and starts over from there", () => {

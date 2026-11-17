@@ -542,14 +542,14 @@ modes.start();
 modes.result_next.mount($("mode-result"));
 chat.enter_taken = () => modes.result_up;
 modes.covered = () => menu_over() || pad_menu.is_open;
-const replay = new Replay(chase);
+const replay = new Replay(chase, world);
 replay.view.mount(document.body);
 replay.on_open = () => modes.cover_result(true);
 replay.on_close = () => {
   modes.cover_result(false);
   chase.snap(driver.car);
 };
-modes.watch = (tape) => replay.open(tape);
+modes.watch = (tape, field) => replay.open(tape, field);
 updater.start();
 const system_back = new SystemBack(
   {
@@ -1062,7 +1062,7 @@ function frame(time: number) {
   const focus = replay.is_open ? replay.focus : car.pos;
   field_view?.update(camera);
   const offroad = !world.on_road(focus.x, focus.z);
-  if (replay.flying) replay.aim(view_dt, input.look, controls.throttle - controls.brake, controls.steer, world);
+  if (replay.flying) replay.aim(view_dt, input.look, controls.throttle - controls.brake, controls.steer);
   else chase.update(view_dt, driver.drawn, world, offroad, world_time, input.look);
   if (!review?.aim(camera) && posed) {
     camera.position.set(pose[0], pose[1], pose[2]);
