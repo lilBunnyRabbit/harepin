@@ -111,3 +111,22 @@ test("the Updates page shows the list until a story is open, then that story alo
   expect(updates([], "9.9.8")).not.toContain("All updates");
   expect(render(ReleaseStories, { props: { releases: [versioned("9.9.7")], onopen: () => undefined } }).body).not.toContain("See what's new");
 });
+
+test("What's new leads with the waiting update: its version, what reloads and Update now, held while it applies", () => {
+  const pending = (applying: boolean, status: string) => {
+    const view = new UpdateView();
+    view.pending = { remote: { version: "9.10.0", commit: "def5678", built: 1, notes: [versioned("9.10.0")] }, status, applying };
+    return render(Changelog, { props: { view, build: { version: "9.9.9", commit: "abc1234", built: 0 }, onapply: () => undefined, releases: [versioned("9.9.9")] } }).body;
+  };
+  const ready = pending(false, "v9.9.9 → v9.10.0 · the game reloads");
+  expect(ready).toContain("Update ready · v9.10.0");
+  expect(ready).toContain("v9.9.9 → v9.10.0 · the game reloads");
+  expect(ready).toMatch(/<button[^>]*data-variant="primary"[^>]*>(<!--.*?-->)*Update now/);
+  expect(ready).not.toMatch(/<button[^>]*disabled[^>]*>(<!--.*?-->)*Update now/);
+  expect(ready.indexOf("Update now")).toBeLessThan(ready.indexOf("You have v9.9.9"));
+  expect(ready).toContain("Release 9.10.0");
+  const waiting = pending(true, "Updating when this run ends");
+  expect(waiting).toContain("Updating when this run ends");
+  expect(waiting).toMatch(/<button[^>]*disabled[^>]*>(<!--.*?-->)*Update now/);
+  expect(updates([versioned("9.9.9")])).not.toContain("Update now");
+});

@@ -4,6 +4,7 @@ import { render } from "svelte/server";
 import type { Server } from "../../net/directory";
 import type { Player } from "../../net/players";
 import type { ReadyStatus } from "../../net/ready";
+import { UpdateState } from "../../version";
 import { CarPicker } from "../car-pick.svelte";
 import type { Menu } from "../page";
 import { DEFAULT_SETTINGS } from "../prefs";
@@ -64,6 +65,7 @@ const HOST = {
   ready_status: () => ready(),
   meet_drivers: () => [{ id: "me", name: "Me", country: "SI", car: null, you: true, ready: false }],
   online_count: () => 1,
+  update_state: () => UpdateState.NONE,
   runs: { stars: 0 },
   lobby_record: () => "",
   browse_servers: () => {},
