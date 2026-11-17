@@ -32,4 +32,16 @@ describe("AI awareness", () => {
     expect(behind.cap).toBeLessThan(Infinity);
     expect(ahead.cap).toBe(Infinity);
   });
+
+  test("behind two cars a row apart, the slower one past the nearest caps it too", () => {
+    const line = race_line(ring(800), [], COUPE.radius);
+    const drivers = [new Driver(line), new Driver(line), new Driver(line)];
+    const cars = drivers.map(() => new Car(COUPE));
+    const awareness = new Awareness(cars, drivers, () => 0);
+    put(line, cars[0], drivers[0], 104, 3, 15);
+    put(line, cars[1], drivers[1], 100, -1, 30);
+    put(line, cars[2], drivers[2], 95, 1, 30);
+    awareness.update(0.05);
+    expect(drivers[2].cap).toBeLessThan(20);
+  });
 });

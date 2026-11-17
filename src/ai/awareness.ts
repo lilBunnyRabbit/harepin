@@ -215,6 +215,9 @@ export class Awareness {
     let attacker = -1;
     let cover = -1;
     let cover_gap = Infinity;
+    driver.cap = Infinity;
+    driver.ahead_speed = Infinity;
+    const keep = this.keep(driver);
     for (let j = 0; j < this.cars.length; j++) {
       if (j === i) continue;
       const gap = this.gap(i, j);
@@ -222,9 +225,13 @@ export class Awareness {
       if (Math.abs(gap) < ALONGSIDE && Math.abs(dl) < SIDE_GAP + 0.5) beside = j;
       // A car in trouble blocks the whole road, except to the car already going by it with TROUBLE_FLANK to spare.
       const width = this.trouble[j] ? (this.passing[i] === j ? TROUBLE_FLANK : HAZARD_LANE) : IN_LANE;
-      if (gap > 0 && gap < LOOK + LOOK_PER * v && Math.abs(dl) < width && gap < blocker_gap) {
-        blocker = j;
-        blocker_gap = gap;
+      if (gap > 0 && gap < LOOK + LOOK_PER * v && Math.abs(dl) < width) {
+        // Every car ahead in its lane caps it, not the nearest alone: behind two cars a row apart, it ran into the slower one past the first.
+        this.hold(driver, j, this.follow(j, gap, j === this.passing[i] ? PASS_FOLLOW : keep));
+        if (gap < blocker_gap) {
+          blocker = j;
+          blocker_gap = gap;
+        }
       }
       if (gap > 0 && gap < LOOK + LOOK_PER * v && this.defend_until[j] >= 0 && gap < cover_gap) {
         cover = j;
@@ -232,15 +239,9 @@ export class Awareness {
       }
       if (gap < -DEFEND_CLEAR && -gap < DEFEND_BEHIND && this.speed[j] > v) attacker = j;
     }
-    driver.cap = Infinity;
-    driver.ahead_speed = Infinity;
     driver.push = 1;
     driver.late = false;
     const kicker = this.kicker_ahead(driver);
-    if (blocker >= 0) {
-      // The speed the car ahead is about to hold, not the one it has: it brakes for the bend before the follower sees it slow.
-      this.hold(driver, blocker, this.follow(blocker, blocker_gap, blocker === this.passing[i] ? PASS_FOLLOW : this.keep(driver)));
-    }
     const line = driver.line;
     const n = line.road.length;
     const room = pass_room(this.cars[i], driver.line, driver.index);
