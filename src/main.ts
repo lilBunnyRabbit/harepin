@@ -1219,15 +1219,19 @@ document.addEventListener("click", (e) => {
   if (e.target instanceof HTMLButtonElement && !e.target.closest(".garage-rail")) e.target.blur();
 });
 
+const linked = render.link();
 // A travel holds on its briefing until the player starts: they may have looked away while the map built.
 if (brief) {
   brief.ready();
   await brief.started;
 }
+await linked;
+performance.mark("world:first");
+requestAnimationFrame(frame);
+// The first frame links what `link` cannot reach (shadow depth, the composer's passes), so it draws under the loading screen.
+await new Promise(requestAnimationFrame);
 $("loading").remove();
 // The Updated card waits out a run as the update's reload does, its car picker, and a series link's start, which loads its progress first.
 when_idle(() => run_busy() || modes.engaged || modes.holding || series_starting, () => show_updated(updater.open_notes));
-performance.mark("world:first");
-requestAnimationFrame(frame);
 settings.warm();
 requestIdleCallback(() => void import("./menu/car-still").then(({ warm_stills }) => warm_stills()));
