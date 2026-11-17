@@ -44,4 +44,18 @@ describe("AI awareness", () => {
     awareness.update(0.05);
     expect(drivers[2].cap).toBeLessThan(20);
   });
+
+  test("a car beside its lane now, on the path it is easing onto, caps it", () => {
+    const line = race_line(ring(800), [], COUPE.radius);
+    const drivers = [new Driver(line), new Driver(line)];
+    const cars = drivers.map(() => new Car(COUPE));
+    const awareness = new Awareness(cars, drivers, () => 0);
+    put(line, cars[0], drivers[0], 110, 3, 15);
+    put(line, cars[1], drivers[1], 100, 0, 30);
+    awareness.update(0.05);
+    expect(drivers[1].cap).toBe(Infinity);
+    drivers[1].aside = 3;
+    awareness.update(0.05);
+    expect(drivers[1].cap).toBeLessThan(25);
+  });
 });

@@ -225,7 +225,10 @@ export class Awareness {
       if (Math.abs(gap) < ALONGSIDE && Math.abs(dl) < SIDE_GAP + 0.5) beside = j;
       // A car in trouble blocks the whole road, except to the car already going by it with TROUBLE_FLANK to spare.
       const width = this.trouble[j] ? (this.passing[i] === j ? TROUBLE_FLANK : HAZARD_LANE) : IN_LANE;
-      if (gap > 0 && gap < LOOK + LOOK_PER * v && Math.abs(dl) < width) {
+      // Beside its lane now, a car ahead may still sit where the driver's path runs by the time it gets there: the line swings
+      // across the road, and a car two metres to the side was closed on at 15 m/s as the line came over to it (seed 6).
+      const across = gap > 0 ? Math.min(Math.abs(dl), Math.abs(this.lateral[j] - driver.lateral_at(this.cars[i], this.drivers[j].index))) : Math.abs(dl);
+      if (gap > 0 && gap < LOOK + LOOK_PER * v && across < width) {
         // Every car ahead in its lane caps it, not the nearest alone: behind two cars a row apart, it ran into the slower one past the first.
         this.hold(driver, j, this.follow(j, gap, j === this.passing[i] ? PASS_FOLLOW : keep));
         if (gap < blocker_gap) {

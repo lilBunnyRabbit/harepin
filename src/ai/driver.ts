@@ -223,7 +223,7 @@ export class Driver {
   }
 
   /** Metres off the centre it drives at road point `j`, `aside` off the line or in its grid lane: the road's edge clamps it. */
-  private lateral_at(car: Car, j: number): number {
+  lateral_at(car: Car, j: number): number {
     return pass_clamp(car, this.line, j, Number.isNaN(this.launch) ? this.line.offset[j] + this.aside : this.launch);
   }
 
