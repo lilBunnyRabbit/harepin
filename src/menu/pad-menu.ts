@@ -3,19 +3,19 @@ import { $ } from "../hud/hud";
 import type { Nav } from "../hud/input";
 import { ROTATE_QUERY, rotate_shown } from "../hud/orientation";
 import { ADJUST_EVENT, HOLD_EVENT } from "./dom";
+import { first_spot, walk_step, type Spot } from "./focus-walk";
 import type { Settings } from "./settings";
 
 // Controls inside a menu row carry tabindex -1: the row holds focus and they stay click targets only.
 const FOCUSABLE = ":is(button, input, select, textarea, a[href], [tabindex]):not([tabindex='-1'])";
-// Borders and focus outlines make neighbours overlap by a few px; they still count as the next row or column.
+// The page frame's station bar: Q / E and LB / RB step it, so focus never starts there and no arrow lands there.
+const STATION_BAR = ".ui-frame-stations";
+// A focused block's content this close to its scroller's edge counts as shown.
 const OVERLAP_PX = 4;
-const SIDE_WEIGHT = 2;
 /** Share of the visible height one up or down press scrolls a focused block taller than its scroller. */
 const SCROLL_STEP = 0.4;
 /** The pad button behind `accept` in `PAD_NAV` (`hud/input.ts`): a hold button stays pressed while it is down. */
 const ACCEPT_BUTTON = 0;
-
-type Direction = "up" | "down" | "left" | "right";
 
 interface Layer {
   roots: Element[];
@@ -40,32 +40,16 @@ function candidates(roots: Element[]): HTMLElement[] {
     .filter((el): el is HTMLElement => el instanceof HTMLElement && el.matches(FOCUSABLE) && !el.matches(":disabled") && !el.closest("[inert]") && el.checkVisibility({ visibilityProperty: true }));
 }
 
-const first_of = (...roots: Element[]) => candidates(roots)[0] ?? null;
+function first_of(...roots: Element[]): HTMLElement | null {
+  const items = candidates(roots);
+  return items[first_spot(spots(items))] ?? null;
+}
 
-const gap = (a0: number, a1: number, b0: number, b1: number) => Math.max(0, b0 - a1, a0 - b1);
-
-function nearest(from: HTMLElement, items: HTMLElement[], dir: Direction): HTMLElement | null {
-  const f = from.getBoundingClientRect();
-  const vertical = dir === "up" || dir === "down";
-  const group = from.closest("nav, section");
-  let best: HTMLElement | null = null;
-  let best_rank = [Infinity, Infinity];
-  for (const item of items) {
-    if (item === from) continue;
-    const r = item.getBoundingClientRect();
-    const ahead = { down: r.top - f.bottom, up: f.top - r.bottom, right: r.left - f.right, left: f.left - r.right }[dir];
-    const beyond = { down: r.top + r.bottom > f.top + f.bottom, up: r.top + r.bottom < f.top + f.bottom, right: r.left + r.right > f.left + f.right, left: r.left + r.right < f.left + f.right }[dir];
-    if (!beyond || ahead < -OVERLAP_PX) continue;
-    const side = vertical ? gap(f.left, f.right, r.left, r.right) : gap(f.top, f.bottom, r.top, r.bottom);
-    // Staying in the same nav or section beats leaving it, however close: the settings tabs sit beside the page, and a
-    // tall control (the world map) would otherwise hand down-presses to the next tab.
-    const rank = [group && item.closest("nav, section") !== group ? 1 : 0, Math.max(0, ahead) + side * SIDE_WEIGHT];
-    if (rank[0] < best_rank[0] || (rank[0] === best_rank[0] && rank[1] < best_rank[1])) {
-      best = item;
-      best_rank = rank;
-    }
-  }
-  return best;
+function spots(items: HTMLElement[]): Spot[] {
+  return items.map((item) => {
+    const { left, top, right, bottom } = item.getBoundingClientRect();
+    return { left, top, right, bottom, group: item.closest("nav, section"), bar: item.closest(STATION_BAR) !== null };
+  });
 }
 
 function scroller(el: HTMLElement): HTMLElement | null {
@@ -211,7 +195,7 @@ export class PadMenu {
       }
       if ((nav === "left" || nav === "right") && adjust(current, nav === "left" ? -1 : 1)) continue;
       if ((nav === "up" || nav === "down") && scroll_within(current, nav)) continue;
-      const next = nearest(current, items, nav);
+      const next = items[walk_step(items.indexOf(current), spots(items), nav)];
       if (!next) continue;
       settle(current);
       focus(next);

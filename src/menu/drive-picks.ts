@@ -23,13 +23,26 @@ const plain = (event: KeyboardEvent) => !event.repeat && !event.ctrlKey && !even
 /** Enter on the page itself, not on a control: the primary's key works before anything has focus. */
 export const bare_enter = (event: KeyboardEvent) => event.key === "Enter" && plain(event) && !(event.target instanceof Element && event.target.closest("button, a, input, select, textarea"));
 
+/** What the click rule reads off a click: a `PointerEvent` in the browser, with no pointer type behind Enter or the pad's A. */
+export interface Press {
+  detail: number;
+  pointerType?: string;
+  currentTarget: unknown;
+}
+
+let tapped: unknown = null;
+
 /**
- * The one click rule: a tap or click only aims, and the page's primary acts on what is aimed. Enter and the pad's A
- * arrive as a click with no pointer behind it (detail 0): they aim and go.
+ * The one click rule, for an item whose selection shows something (a part on the car, a car, a map): a click or tap
+ * aims; a double-click, or a second tap on the item just tapped, goes. Enter and the pad's A arrive as a click with no
+ * pointer behind it (detail 0): they aim and go. A door, which has nothing to show before it opens, skips the rule and
+ * opens on its click.
  */
-export function aim_or_go(click: MouseEvent, aim: () => void, go: () => void) {
+export function aim_or_go(press: Press, aim: () => void, go: () => void) {
+  const again = press.pointerType === "mouse" ? press.detail === 2 : press.detail !== 0 && press.currentTarget === tapped;
+  tapped = again ? null : press.currentTarget;
   aim();
-  if (click.detail === 0) go();
+  if (press.detail === 0 || again) go();
 }
 
 /** A page's link key ("m", "c"): a plain press outside a text field, lowercased; null otherwise. */

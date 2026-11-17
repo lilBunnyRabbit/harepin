@@ -8,7 +8,7 @@ import { series_map } from "../career/series-run";
 import { SEASON_1 } from "../career/series-seasons";
 import { daily } from "../runs/runs";
 import { map_code } from "../worldgen/kinds/map-code";
-import { career_pick, roam_pick, run_pick, series_pick } from "./drive-picks";
+import { aim_or_go, career_pick, roam_pick, run_pick, series_pick } from "./drive-picks";
 
 const island = event_map(event_of("r1")!);
 const rookie = TIERS[0].events;
@@ -57,4 +57,43 @@ test("today's run shows the stars still open", () => {
 test("free roam drives the map by its first name; a paused run only resumes", () => {
   expect(roam_pick(island, "Island · Harwar", null).verb).toBe("Drive Island");
   expect(roam_pick(island, "Island · Harwar", "Sand trail").verb).toBe("Resume Sand trail");
+});
+
+function presses() {
+  const log: string[] = [];
+  const press = (id: string, pointerType: string, detail = 1) => aim_or_go({ detail, pointerType, currentTarget: id }, () => log.push(`aim ${id}`), () => log.push(`go ${id}`));
+  return { log, press };
+}
+
+test("a mouse click selects, a double-click acts", () => {
+  const { log, press } = presses();
+  press("a", "mouse");
+  press("b", "mouse");
+  press("b", "mouse");
+  expect(log).toEqual(["aim a", "aim b", "aim b"]);
+  press("a", "mouse", 1);
+  press("a", "mouse", 2);
+  expect(log.slice(3)).toEqual(["aim a", "aim a", "go a"]);
+});
+
+test("a tap selects, a second tap on the same item acts, and the tap after that starts over", () => {
+  for (const pointer of ["touch", "pen"]) {
+    const { log, press } = presses();
+    press("a", pointer);
+    press("b", pointer);
+    press("a", pointer);
+    expect(log).toEqual(["aim a", "aim b", "aim a"]);
+    press("a", pointer);
+    expect(log.slice(3)).toEqual(["aim a", "go a"]);
+    press("a", pointer);
+    expect(log.slice(5)).toEqual(["aim a"]);
+    press("b", pointer);
+  }
+});
+
+test("Enter and the pad's A, a click with no pointer, always act", () => {
+  const { log, press } = presses();
+  press("a", "", 0);
+  press("b", "", 0);
+  expect(log).toEqual(["aim a", "go a", "aim b", "go b"]);
 });

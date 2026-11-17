@@ -1,6 +1,6 @@
 <script lang="ts">
   import { GOALS, type GoTo } from "../goals/goals";
-  import { aim_or_go, bare_enter } from "./drive-picks";
+  import { bare_enter } from "./drive-picks";
   import { hint_of } from "./goal-hint";
   import MenuFrame from "./MenuFrame.svelte";
   import Card from "./ui/Card.svelte";
@@ -64,7 +64,7 @@
     <Card list class="goals-list" label="Things to try">
       <RowList label="Things to try">
         {#each rows as one (one.goal.id)}
-          <Row label={one.goal.title} help={one.help} fill focused={one === row} onclick={(click) => aim_or_go(click, () => (picked = one.goal.id), () => go(one.goal.go))} onfocus={() => (picked = one.goal.id)}>
+          <Row label={one.goal.title} help={one.help} fill focused={one === row} onclick={() => ((picked = one.goal.id), go(one.goal.go))} onfocus={() => (picked = one.goal.id)}>
             {#snippet control()}
               {#if one.done}<span class="goals-done"><Icon name="icon-check" />Done</span>{:else}<span class="goals-go"><Icon name="icon-back" flip /></span>{/if}
             {/snippet}
