@@ -6,6 +6,7 @@
   import { UpdateState } from "../../version";
   import { aim_or_go, bare_enter, link_key } from "../drive-picks";
   import { GUIDE_PAGE, TOPICS } from "../guide-topics";
+  import FrameChips from "../FrameChips.svelte";
   import MenuFrame from "../MenuFrame.svelte";
   import { MenuTab, ROAD } from "../page";
   import Card from "../ui/Card.svelte";
@@ -117,12 +118,16 @@
   <PrimaryAction onclick={() => door.open()}>Open {door.label}</PrimaryAction>
 {/snippet}
 
+{#snippet section_chips()}
+  <FrameChips {menu} season={false} />
+{/snippet}
+
 {#snippet section_links()}
   {#if resettable}<KeyLink keys={{ key: "X", pad: "Y" }} onclick={() => nav.reset()}>Reset {nav.label(nav.sub)}</KeyLink>{/if}
 {/snippet}
 
 {#if on_list}
-  <MenuFrame {menu} id={MenuTab.SETTINGS} veil={0.6} links={list_links} primary={list_primary}>
+  <MenuFrame {menu} id={MenuTab.SETTINGS} season={false} veil={0.6} links={list_links} primary={list_primary}>
     <div class="set-doors">
       {#each doors as one (one.id)}
         <Card flat pad="none" class="set-door" focused={one.id === picked} onclick={(click) => aim_or_go(click, () => (picked = one.id), one.open)} onfocus={() => (picked = one.id)} label={one.label}>
@@ -140,7 +145,7 @@
   </MenuFrame>
 {/if}
 <div class="set-step" hidden={on_list}>
-  <PageFrame eyebrow={parent ? nav.label(parent) : STATION} title={nav.label(nav.sub)} back={{ to: up, go: () => menu.back() }} links={section_links} veil={0.6}>
+  <PageFrame eyebrow={parent ? nav.label(parent) : STATION} title={nav.label(nav.sub)} chips={section_chips} back={{ to: up, go: () => menu.back() }} links={section_links} veil={0.6}>
     <div class="set-page">
       <Card list class="set-rows" label={nav.label(nav.sub)}>
         <ScrollArea class="set-scroll">

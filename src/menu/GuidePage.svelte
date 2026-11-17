@@ -75,7 +75,7 @@
 {/snippet}
 
 {#if topic}
-  <MenuFrame {menu} id={GUIDE_PAGE} eyebrow="Guide" title={topic.title} veil={0.6} back_to="Guide" {primary}>
+  <MenuFrame {menu} id={GUIDE_PAGE} eyebrow="Guide" title={topic.title} season={false} veil={0.6} back_to="Guide" {primary}>
     <div class="guide-topic">
       <Card list class="guide-points" label={topic.title}>
         <RowList divided label={topic.title}>
@@ -90,7 +90,7 @@
     </div>
   </MenuFrame>
 {:else}
-  <MenuFrame {menu} id={GUIDE_PAGE} eyebrow="Settings" title="Guide" veil={0.6} {primary}>
+  <MenuFrame {menu} id={GUIDE_PAGE} eyebrow="Settings" title="Guide" season={false} veil={0.6} {primary}>
     <div class="guide">
       <Card pad="sm" flat class="guide-steps" focused={picked === STEPS} onclick={(click) => aim_or_go(click, () => (picked = STEPS), () => open(GOALS_PAGE))} onfocus={() => (picked = STEPS)} label="First steps">
         <span class="guide-bar">

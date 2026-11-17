@@ -1,6 +1,7 @@
 <script lang="ts">
   import { parse_build } from "../../car/build";
   import { PickId, bare_enter, host_picks, link_key, type DrivePick } from "../drive-picks";
+  import FrameChips from "../FrameChips.svelte";
   import { MenuTab } from "../page";
   import Card from "../ui/Card.svelte";
   import KeyLink from "../ui/KeyLink.svelte";
@@ -39,7 +40,11 @@
 
 <svelte:window onkeydown={key} />
 
-<PageFrame floor note={lead.note}>
+{#snippet chips()}
+  <FrameChips {menu} />
+{/snippet}
+
+<PageFrame floor {chips} note={lead.note}>
   <div class="title-page">
     <h1 class="title-mark" data-stage-panel>
       <svg aria-hidden="true"><use href="#logo-mark" /></svg>

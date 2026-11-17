@@ -7,7 +7,7 @@
   let { menu }: PageProps = $props();
 </script>
 
-<MenuFrame {menu} id={CHANGES} eyebrow="Settings" title="What's new" veil={0.6} note={`You have v${menu.host.version}`}>
+<MenuFrame {menu} id={CHANGES} eyebrow="Settings" title="What's new" season={false} veil={0.6} note={`You have v${menu.host.version}`}>
   <div class="changes">
     <Card class="changes-card" label="Release notes">
       <div class="changes-body" {@attach (node) => void node.append(menu.host.changelog())}></div>

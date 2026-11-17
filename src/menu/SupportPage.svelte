@@ -47,7 +47,7 @@
   });
 </script>
 
-<MenuFrame {menu} id={MenuTab.SUPPORT} eyebrow="Settings" title="Support" veil={0.6} note="Posting needs a GitHub account. Links open in a new tab.">
+<MenuFrame {menu} id={MenuTab.SUPPORT} eyebrow="Settings" title="Support" season={false} veil={0.6} note="Posting needs a GitHub account. Links open in a new tab.">
   <div class="support">
     <div class="support-side">
       <Card label="About Harepin">
