@@ -8,6 +8,7 @@ import { MapView } from "../menu/prefs";
 import { HOT_RATIO, tach } from "../car/tach";
 import type { World } from "../world/world";
 import type { RouteRun } from "../modes/mode";
+import { GREEN_MS } from "../modes/start-steps";
 import { Minimap } from "./minimap";
 import "./hud.css";
 import "./top-bar.css";
@@ -288,7 +289,7 @@ export class Hud {
   private draw_lobby(now: number) {
     const { el } = this;
     const { state, finishers } = this.lobby;
-    const count = state.kind === "countdown" ? String(Math.ceil((state.go - now) / 1000)) : state.kind === "racing" && now - state.go < 1000 ? "GO" : "";
+    const count = state.kind === "countdown" ? String(Math.ceil((state.go - now) / 1000)) : state.kind === "racing" && now - state.go < GREEN_MS ? "GO" : "";
     set_text(el.countdown, count);
     set_style(el.countdown, "opacity", count ? "1" : "0");
     set_hidden(el.race_panel, state.kind === "idle");
