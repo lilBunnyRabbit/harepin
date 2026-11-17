@@ -238,7 +238,8 @@
     display: grid;
     flex: 1;
     grid-template-columns: 1.6em minmax(0, 1fr) auto auto;
-    grid-auto-rows: minmax(0, 1fr);
+    grid-auto-rows: var(--row-h);
+    align-content: start;
     gap: var(--gap-xs) var(--gap-sm);
     min-height: 0;
     margin: 0;
