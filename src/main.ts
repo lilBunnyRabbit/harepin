@@ -284,7 +284,8 @@ const open_pause = () => {
 let map_open = () => false;
 input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open || pause.is_open || map_open();
 new CursorIdle(() => !input.blocked()).start();
-chat.blocked = () => garage.is_open || settings.is_open || pause.is_open || map_open();
+const menu_over = () => garage.is_open || settings.is_open || pause.is_open || map_open();
+chat.blocked = menu_over;
 input.touch.start();
 input.touch.show_nitro(driver.car.nitro.fitted);
 input.mouse.start();
@@ -539,7 +540,7 @@ if (ai_race) {
 modes.start();
 modes.result_next.mount($("mode-result"));
 chat.enter_taken = () => modes.result_up;
-modes.covered = () => garage.is_open || settings.is_open || pause.is_open || map_open();
+modes.covered = () => menu_over() || pad_menu.is_open;
 updater.start();
 const system_back = new SystemBack(
   {
@@ -1148,8 +1149,8 @@ if (brief) {
   await brief.started;
 }
 $("loading").remove();
-// The Updated card waits out a run as the update's reload does, and a series link's start, which loads its progress first.
-when_idle(() => run_busy() || modes.engaged || series_starting, () => show_updated(updater.open_notes));
+// The Updated card waits out a run as the update's reload does, its car picker, and a series link's start, which loads its progress first.
+when_idle(() => run_busy() || modes.engaged || modes.holding || series_starting, () => show_updated(updater.open_notes));
 performance.mark("world:first");
 requestAnimationFrame(frame);
 settings.warm();
