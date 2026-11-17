@@ -14,8 +14,10 @@
   const STEP: Readonly<Record<string, number>> = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 };
 
   $effect(() => {
-    if (view.shown && !dialog.open) dialog.showModal();
-    else if (!view.shown && dialog.open) dialog.close();
+    if (view.shown && !dialog.open) {
+      dialog.showModal();
+      dialog.querySelector<HTMLElement>(".ui-primary")?.focus({ focusVisible: false });
+    } else if (!view.shown && dialog.open) dialog.close();
   });
 
   // The dialog closes before the act: a later close hands focus back to whatever had it, over the settings or chat input the act focused.
@@ -51,12 +53,11 @@
     height: 100%;
     max-height: none;
     margin: 0;
-    padding: var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);
+    padding: 0;
     border: 0;
     background: none;
     color: var(--foreground);
     font-family: var(--font-sans);
-    font-size: var(--text-md);
     user-select: none;
   }
 
@@ -65,6 +66,6 @@
   }
 
   .pause::backdrop {
-    background: color-mix(in oklch, var(--background-darkest) 35%, transparent);
+    background: none;
   }
 </style>

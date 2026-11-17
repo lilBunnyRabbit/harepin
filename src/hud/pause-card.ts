@@ -18,7 +18,7 @@ export function roam_card({ stars, here, map, flags, players }: RoamFacts): Paus
   const facts = [`${tier.name} ${tier_stars(stars, tier)}/${tier_max(tier)} ★`, `${flags} ${flags === 1 ? "flag" : "flags"} here`];
   if (players > 1) facts.push(`${players} drivers`);
   if (up) facts.push(`next: ${up.event.name}${up.place.here ? "" : ` on ${up.place.name}`}`);
-  return { kind: "roam", context: "free roam", title: map, facts };
+  return { kind: "roam", context: "Free roam", title: map, facts };
 }
 
 // The run's top card already holds its name, clock and captioned fields; while paused it no longer moves.
@@ -27,7 +27,5 @@ export function run_card(mode: string): PauseCard {
   for (const slot of $("mode-status-more").children) {
     if (slot instanceof HTMLElement && !slot.hidden && slot.textContent) facts.push(`${slot.dataset.caption} ${slot.textContent}`);
   }
-  const clock = $("mode-status-clock").textContent;
-  if (clock) facts.push(clock);
-  return { kind: "event", context: mode, title: $("mode-status-name").textContent ?? mode, facts };
+  return { kind: "event", context: mode, title: $("mode-status-name").textContent ?? mode, facts, clock: $("mode-status-clock").textContent || undefined };
 }

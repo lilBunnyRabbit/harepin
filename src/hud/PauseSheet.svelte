@@ -1,11 +1,14 @@
 <script lang="ts">
   import Glyph from "../menu/ui/Glyph.svelte";
   import Icon from "../menu/ui/Icon.svelte";
-  import IconButton from "../menu/ui/IconButton.svelte";
-  import KeyButton from "../menu/ui/KeyButton.svelte";
+  import KeyLink from "../menu/ui/KeyLink.svelte";
+  import PageFrame from "../menu/ui/PageFrame.svelte";
+  import PrimaryAction from "../menu/ui/PrimaryAction.svelte";
   import PauseAids from "./PauseAids.svelte";
-  import { ROWS, with_cap, type PauseKeys } from "./pause-keys";
+  import { ROWS, type PauseKeys } from "./pause-keys";
   import type { PauseAct, PauseAid, PauseAids as Aids, PauseCard } from "./pause-view.svelte";
+
+  const VEIL = 0.55;
 
   interface Props {
     card: PauseCard;
@@ -18,256 +21,208 @@
   }
 
   let { card, aids, solo, caps, onact, onflip, onresume }: Props = $props();
+
+  const rows = $derived(ROWS[card.kind]);
+  const [lead, ...rest] = $derived(card.facts);
 </script>
 
-<div class="run">
-  <section class="run-panel" aria-label={card.kind === "roam" ? "Free roam" : "This run"}>
-    <header class="run-head">
-      <span class="run-eyebrow" data-live={solo ? undefined : ""}>{solo ? "Paused" : "Menu"} · {card.context}</span>
-      <b>{card.title}</b>
-      {#if card.facts.length}
-        <span class="run-facts">
-          {#each card.facts as fact, index (index)}<span>{fact}</span>{/each}
-        </span>
-      {/if}
-    </header>
+<PageFrame eyebrow={card.context} title={solo ? "Paused" : "Menu"} veil={VEIL} back={{ to: "Resume", go: onresume }}>
+  <div class="pause-body">
+    <section class="pause-panel" aria-label={card.kind === "roam" ? "Free roam" : "This run"}>
+      <div class="pause-run">
+        <div class="pause-now">
+          <div class="pause-what">
+            <span class="pause-eyebrow">{card.title}</span>
+            {#if lead}<b class="pause-lead">{lead}</b>{/if}
+            {#if rest.length}<span class="pause-facts">{rest.join(" · ")}</span>{/if}
+          </div>
+          {#if card.clock}<b class="pause-clock">{card.clock}</b>{/if}
+        </div>
+        <div class="pause-acts">
+          {#each rows.acts as row (row.act)}
+            <button type="button" class="pause-act" onclick={() => onact(row.act)}><Glyph key={caps[row.act]} /><span>{row.label}</span></button>
+          {/each}
+        </div>
+      </div>
 
-    <nav class="run-rows" aria-label="Pause" style:--cols={Math.ceil(ROWS[card.kind].length / 2)}>
-      {#each ROWS[card.kind] as row (row.act)}
-        <button type="button" class="run-row" onclick={() => onact(row.act)}>
-          <span class="run-well"><Icon name={row.icon} /></span>
-          <span class="run-label">{row.label}</span>
-          <Glyph key={caps[row.act]} />
-        </button>
-      {/each}
-    </nav>
-
-    <footer class="run-aids">
       <PauseAids {aids} {onflip} />
-    </footer>
-  </section>
 
-  <div class="run-end">
-    <IconButton class="run-tool" shape="round" icon="icon-camera" label="Camera" title={with_cap("Camera", caps.camera)} onclick={() => onact("camera")} />
-    <IconButton class="run-tool" shape="round" icon="icon-chat" label="Chat" title={with_cap("Chat", caps.chat)} onclick={() => onact("chat")} />
-    <!-- svelte-ignore a11y_autofocus -->
-    <KeyButton class="run-resume" size="lg" keys={{ key: "Esc", pad: "B", touch: "icon-play" }} onclick={onresume} autofocus>Resume</KeyButton>
+      <nav class="pause-go" aria-label="Go to">
+        <span class="pause-eyebrow">Go to</span>
+        <div class="pause-doors">
+          {#each rows.doors as row (row.act)}
+            <button type="button" class="pause-door" onclick={() => onact(row.act)}>
+              <span>{row.label}</span>
+              <Glyph key={caps[row.act]} />
+              <Icon name="icon-back" flip />
+            </button>
+          {/each}
+        </div>
+      </nav>
+    </section>
   </div>
-</div>
+
+  {#snippet links()}
+    <KeyLink keys={{ key: caps.camera }} onclick={() => onact("camera")}>Camera</KeyLink>
+    <KeyLink keys={{ key: caps.chat }} onclick={() => onact("chat")}>Chat</KeyLink>
+  {/snippet}
+  {#snippet primary()}
+    <PrimaryAction keys={{ key: "Enter", pad: "A", touch: "icon-play" }} onclick={onresume}>Resume</PrimaryAction>
+  {/snippet}
+</PageFrame>
 
 <style>
-  .run {
+  .pause-body {
     display: grid;
-    grid-template: "panel ." auto ". ." 1fr ". end" auto / minmax(0, 28rem) 1fr;
+    grid-template-columns: minmax(0, 25rem);
+    align-items: start;
     height: 100%;
+    pointer-events: none;
   }
 
-  .run-panel {
-    grid-area: panel;
-    display: grid;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
+  .pause-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    padding: var(--pad);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--card-radius);
     background: var(--surface);
-    box-shadow: var(--panel-shadow);
-    overflow: hidden;
+    box-shadow: var(--shadow);
+    pointer-events: auto;
   }
 
-  .run-head {
+  .pause-run,
+  .pause-go {
     display: grid;
-    gap: var(--space-2);
-    padding: var(--space-5) var(--space-6);
+    gap: var(--gap-sm);
+    min-width: 0;
   }
 
-  .run-head b {
-    font-size: var(--text-3xl);
-    font-weight: 800;
-    line-height: 1.1;
-  }
-
-  .run-eyebrow {
+  .pause-now {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    justify-content: space-between;
+    gap: var(--gap-md);
+    padding: var(--gap-sm) var(--gap-md);
+    border-radius: var(--radius-sm);
+    background: var(--row);
+  }
+
+  .pause-what {
+    display: grid;
+    gap: var(--gap-xs);
+    min-width: 0;
+  }
+
+  .pause-eyebrow {
     color: var(--dim);
-    font-size: var(--text-xs);
+    font-size: var(--type-eyebrow);
     font-weight: 700;
     letter-spacing: 0.08em;
+    line-height: 1.2;
     text-transform: uppercase;
   }
 
-  .run-eyebrow::before {
-    content: "";
-    width: var(--space-2);
-    height: var(--space-2);
-    border-radius: 50%;
-    background: var(--line-strong);
+  .pause-lead {
+    font-size: var(--type-h3);
+    font-weight: 800;
+    line-height: 1.15;
   }
 
-  .run-eyebrow[data-live]::before {
-    background: var(--success);
-  }
-
-  .run-facts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    margin-top: var(--space-1);
-  }
-
-  .run-facts span {
-    display: inline-flex;
-    align-items: center;
-    height: var(--space-6);
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-full);
-    background: color-mix(in oklch, var(--foreground) 8%, transparent);
+  .pause-facts {
     color: var(--dim);
-    font: 600 var(--text-sm) / 1 var(--font-mono);
-    white-space: nowrap;
+    font-size: var(--type-small);
+    font-weight: 600;
   }
 
-  .run-facts span:first-child {
-    color: var(--foreground);
-    font-weight: 700;
+  .pause-clock {
+    flex: none;
+    font: 800 var(--type-h2) / 1 var(--font-mono);
   }
 
-  .run-rows {
-    display: grid;
-    border-top: 1px solid var(--line);
-  }
-
-  .run-row {
-    --icon-size: var(--text-xl);
+  .pause-acts {
     display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    height: var(--control-h-lg);
-    padding: 0 var(--space-5) 0 var(--space-4);
+    gap: var(--gap-sm);
+  }
+
+  /* :root lifts these over the base button rules. */
+  :root .pause-act,
+  :root .pause-door {
     border: 0;
-    border-radius: 0;
-    background: none;
     color: var(--foreground);
-    font: 700 var(--text-xl) / 1 var(--font-sans);
+    font: 700 var(--type-body) / 1.2 var(--font-sans);
     cursor: pointer;
   }
 
-  .run-row + .run-row {
-    border-top: 1px solid var(--line);
-  }
-
-  .run-row:hover {
-    background: color-mix(in oklch, var(--foreground) 6%, transparent);
-  }
-
-  .run-row:focus-visible {
-    outline: 3px solid var(--cottontail);
-    outline-offset: calc(-1 * var(--space-1));
-    border-radius: var(--radius-md);
-  }
-
-  .run-well {
-    display: grid;
-    place-items: center;
-    width: var(--space-8);
-    height: var(--space-8);
-    border-radius: 50%;
-    background: color-mix(in oklch, var(--foreground) 8%, transparent);
-  }
-
-  .run-well :global(.ui-icon) {
-    fill: currentColor;
-  }
-
-  .run-label {
+  :root .pause-act {
+    display: inline-flex;
     flex: 1;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gap-sm);
+    height: var(--top-h);
+    padding: 0 var(--gap);
+    border-radius: var(--radius-full);
+    background: var(--fill);
+    white-space: nowrap;
+  }
+
+  .pause-doors {
+    display: grid;
+    gap: var(--gap-xs);
+  }
+
+  :root .pause-door {
+    --icon-size: 1.15em;
+    display: flex;
+    align-items: center;
+    gap: var(--gap-md);
+    min-height: var(--row-h);
+    padding: var(--gap-sm) var(--gap-md);
+    border-radius: var(--radius-sm);
+    background: var(--row);
     text-align: left;
   }
 
-  .run-row :global(.ui-glyph-cap) {
-    min-width: var(--space-6);
-    font-size: var(--text-sm);
+  .pause-door span {
+    flex: 1;
+    min-width: 0;
   }
 
-  .run-aids {
-    padding: var(--space-4) var(--space-6) var(--space-5);
-    border-top: 1px solid var(--line);
-    background: color-mix(in oklch, var(--foreground) 4%, transparent);
+  .pause-door :global(.ui-icon),
+  .pause-door :global(.ui-cap) {
+    color: var(--dim);
   }
 
-  .run-end {
-    grid-area: end;
-    justify-self: end;
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
+  :root :is(.pause-act, .pause-door):hover {
+    background: var(--row-on);
   }
 
-  .run-end :global(.run-tool) {
-    width: var(--control-h-lg);
-    height: var(--control-h-lg);
+  :root :is(.pause-act, .pause-door):focus-visible {
+    outline: var(--mark-w) solid var(--cottontail);
+    outline-offset: calc(var(--mark-w) * -1);
+    background: var(--row-on);
   }
 
   @media (max-height: 500px) {
-    .run {
-      grid-template: "panel ." 1fr "panel end" auto / auto 1fr;
+    .pause-body {
+      grid-template-columns: minmax(0, 30rem);
     }
 
-    .run-panel {
-      align-self: start;
-      width: 27rem;
+    .pause-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--gap-md) var(--gap);
     }
 
-    .run-head {
-      gap: var(--space-1);
-      padding: var(--space-3) var(--space-4);
+    .pause-go {
+      grid-column: 1 / -1;
     }
 
-    .run-head b {
-      font-size: var(--text-2xl);
-    }
-
-    .run-facts {
-      gap: var(--space-1);
-      margin: 0;
-    }
-
-    .run-rows {
-      grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
-      row-gap: var(--space-1);
-      padding: var(--space-2);
-    }
-
-    .run-row {
-      --icon-size: var(--text-2xl);
-      flex-direction: column;
-      gap: var(--space-1);
-      height: auto;
-      padding: var(--space-2) var(--space-1);
-      border-radius: var(--radius-md);
-      font-size: var(--text-sm);
-    }
-
-    .run-row + .run-row {
-      border-top: 0;
-    }
-
-    .run-well {
-      width: calc(var(--space-8) + var(--space-1));
-      height: calc(var(--space-8) + var(--space-1));
-    }
-
-    .run-label {
-      flex: none;
-      text-align: center;
-      white-space: nowrap;
-    }
-
-    .run-row :global(.ui-glyph) {
-      display: none;
-    }
-
-    .run-aids {
-      padding: var(--space-3) var(--space-4);
+    .pause-doors {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--gap-sm);
     }
   }
 </style>

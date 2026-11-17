@@ -4,29 +4,42 @@ import type { PauseAct, PauseAid, PauseCard } from "./pause-view.svelte";
 export interface PauseRow {
   act: PauseAct;
   label: string;
-  icon: string;
   /** The `KeyboardEvent.code` that runs it; absent, the row takes the player's Reset keys. */
   key?: string;
 }
 
-/** Each pause state's rows, top to bottom. */
-export const ROWS: Readonly<Record<PauseCard["kind"], readonly PauseRow[]>> = {
-  roam: [
-    { act: "map", label: "Map", icon: "icon-globe", key: "KeyM" },
-    { act: "events", label: "Events", icon: "icon-modes", key: "KeyE" },
-    { act: "garage", label: "Garage", icon: "icon-car", key: "KeyG" },
-    { act: "online", label: "Online", icon: "icon-people", key: "KeyO" },
-    { act: "showroom", label: "Home", icon: "logo-mark", key: "KeyH" },
-    { act: "settings", label: "Settings", icon: "icon-settings", key: "KeyS" },
-    { act: "reset", label: "Reset car", icon: "icon-reset-car" },
-  ],
-  event: [
-    { act: "reset", label: "Restart", icon: "icon-restart" },
-    { act: "leave", label: "Leave event", icon: "icon-close", key: "KeyQ" },
-    { act: "garage", label: "Car and parts", icon: "icon-car", key: "KeyG" },
-    { act: "showroom", label: "Home", icon: "logo-mark", key: "KeyH" },
-    { act: "settings", label: "Settings", icon: "icon-settings", key: "KeyS" },
-  ],
+export interface PauseRows {
+  /** What the pause does to the drive itself, as quiet buttons under the title. */
+  acts: readonly PauseRow[];
+  /** Where it leads, as the Go to list. */
+  doors: readonly PauseRow[];
+}
+
+/** Each pause state's rows, in the order shown. */
+export const ROWS: Readonly<Record<PauseCard["kind"], PauseRows>> = {
+  roam: {
+    acts: [{ act: "reset", label: "Reset car" }],
+    doors: [
+      { act: "showroom", label: "Home", key: "KeyH" },
+      { act: "events", label: "Events", key: "KeyE" },
+      { act: "garage", label: "Garage", key: "KeyG" },
+      { act: "online", label: "Online", key: "KeyO" },
+      { act: "settings", label: "Settings", key: "KeyS" },
+      { act: "map", label: "Road map", key: "KeyM" },
+    ],
+  },
+  event: {
+    acts: [
+      { act: "reset", label: "Restart" },
+      { act: "leave", label: "Leave", key: "KeyQ" },
+    ],
+    doors: [
+      { act: "garage", label: "Car and parts", key: "KeyG" },
+      { act: "showroom", label: "Home", key: "KeyH" },
+      { act: "settings", label: "Settings", key: "KeyS" },
+      { act: "map", label: "Route map", key: "KeyM" },
+    ],
+  },
 };
 /** The aid chips flip on the player's aid keys, as they do on the road. */
 const AIDS: readonly PauseAid[] = ["tcs", "abs", "assist", "stability", "auto", "lights"];
@@ -64,7 +77,7 @@ export function pause_keys(bindings: Bindings, kind: PauseCard["kind"]): PauseKe
         taken.add(code);
         flips[code] = aid;
       }
-  for (const row of ROWS[kind]) if (row.key) claim(row.act, [row.key]);
+  for (const row of [...ROWS[kind].acts, ...ROWS[kind].doors]) if (row.key) claim(row.act, [row.key]);
   claim("chat", ["KeyT"]);
   claim("camera", bindings.camera.keys);
   return { acts, flips, caps };

@@ -10,11 +10,13 @@ export type PauseAids = Record<PauseAid, boolean>;
 /** The pause's title card: free roam or the run in progress. */
 export interface PauseCard {
   kind: "roam" | "event";
-  /** After "Paused ·": the mode, or free roam. */
+  /** Over "Paused": the mode, or free roam. */
   context: string;
   title: string;
   /** The stats line; the first one stands out. */
   facts: readonly string[];
+  /** The run's clock, stopped while the pause holds it. */
+  clock?: string;
 }
 
 export interface PauseHost {
