@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { DEFAULT_BUILD, build_code, parse_build } from "../car/build";
 import { rating } from "../car/pi";
 import { PRESETS } from "../car/presets";
-import { field_builds } from "./field-pick";
+import { RivalPick, field_builds, field_presets } from "./field-pick";
 
 describe("AI field cars", () => {
   test("six cars for a class C player: class C presets only, none looking alike, none wearing the player's paint", () => {
@@ -31,5 +31,24 @@ describe("AI field cars", () => {
     const builds = field_builds(bus, rating(bus), 6);
     expect(builds).toHaveLength(6);
     for (const build of builds) expect([build.car, rating(build).class]).toEqual([build.car, "c"]);
+  });
+
+  test("any class: a field of four spans the slowest and the fastest preset, and the bus stays out", () => {
+    const all = field_presets().map((p) => p.rated.pi);
+    const builds = field_builds(DEFAULT_BUILD, rating(DEFAULT_BUILD), 4, [], { pick: RivalPick.ANY });
+    const pis = builds.map((b) => rating(b).pi);
+    expect(Math.min(...pis)).toBe(Math.min(...all));
+    expect(Math.max(...pis)).toBeGreaterThan(rating(DEFAULT_BUILD).pi);
+    expect(new Set(builds.map((b) => b.car)).size).toBe(4);
+    const more = field_builds(DEFAULT_BUILD, rating(DEFAULT_BUILD), 7, [], { pick: RivalPick.ANY });
+    expect(more.some((b) => b.car === "bus")).toBe(false);
+  });
+
+  test("picked presets cycle over the field; the bus or a name it does not know falls back to the player's class", () => {
+    const builds = field_builds(DEFAULT_BUILD, rating(DEFAULT_BUILD), 5, [], { pick: RivalPick.PICKED, presets: ["Maxed F1", "Sturm GT"] });
+    expect(builds.map((b) => b.car)).toEqual(["formula", "sturm", "formula", "sturm", "formula"]);
+    expect(new Set(builds.map((b) => b.paint)).size).toBe(5);
+    const none = field_builds(DEFAULT_BUILD, rating(DEFAULT_BUILD), 3, [], { pick: RivalPick.PICKED, presets: ["Party bus", "nope"] });
+    expect(none).toEqual(field_builds(DEFAULT_BUILD, rating(DEFAULT_BUILD), 3));
   });
 });

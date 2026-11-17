@@ -1,6 +1,7 @@
 import type * as THREE from "three";
 import type { Difficulty } from "../ai/difficulty";
 import type { FieldCar } from "../ai/field";
+import type { RivalCars } from "../ai/field-pick";
 import type { FieldView } from "../ai/field-view";
 import type { Build } from "../car/build";
 import type { Rating } from "../car/pi";
@@ -66,6 +67,8 @@ export interface FieldHost {
   attach?(race: FieldRace | null): void;
   /** A series event's rules and names; free play and the lab race the plain field. */
   readonly event?: FieldEvent;
+  /** The cars the field drives; the player's class when absent. */
+  readonly rivals?: RivalCars;
 }
 
 /** How the player's race ended, for a series event to score. */
@@ -91,6 +94,8 @@ export interface FieldEvent {
   readonly limit_ms: number | null;
   /** The player's grid slot, 0 on pole; last when absent. */
   readonly grid?: number;
+  /** Laps a race to the line runs; the route's par decides when absent. A timed race runs the most a field may. */
+  readonly laps?: number;
   /** Called once as the player's race ends; returns lines for the result card. */
   finish(outcome: FieldOutcome): HTMLElement[];
   /** What the result card's Next does; read once the result has scored, so it can name what the result opened. */

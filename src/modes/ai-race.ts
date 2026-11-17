@@ -79,8 +79,9 @@ export class AiRace implements ModeRun, FieldRace {
     this.view = new RaceView(course, ctx.ground);
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(route.closure);
-    this.laps = race_laps(route.par_ms, host.event?.limit_ms ?? null);
-    this.builds = field_builds(host.build(), host.rating(), host.cars.length, route.excludes);
+    const limit = host.event?.limit_ms ?? null;
+    this.laps = (limit ? undefined : host.event?.laps) ?? race_laps(route.par_ms, limit);
+    this.builds = field_builds(host.build(), host.rating(), host.cars.length, route.excludes, host.rivals);
     this.specs = this.builds.map(build_spec);
     warm(this.specs);
     this.names = [...this.builds.map((b, i) => host.event?.names[i] ?? `${CARS[b.car].name} ${b.number}`), PLAYER];
