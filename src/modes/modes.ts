@@ -140,6 +140,7 @@ export class Modes implements CarHooks {
   private noticed = "";
   private readonly notice_status = mode_status("");
   private clock_chars = 0;
+  private clockless = false;
   private notice_until = 0;
   private readonly el = {
     hint: $("mode-hint"),
@@ -693,6 +694,13 @@ export class Modes implements CarHooks {
     if (el.status.hidden) el.status.hidden = false;
     set_text(el.status_name, status.name);
     set_text(el.status_clock, status.clock);
+    // An attribute, not `:has(#mode-status-clock:empty)`: under `:has()` every clock tick restyled the whole document.
+    const clockless = status.clock === "";
+    if (clockless !== this.clockless) {
+      this.clockless = clockless;
+      if (clockless) el.status.dataset.clockless = "";
+      else delete el.status.dataset.clockless;
+    }
     const chars = TIME.test(status.clock) ? status.clock.length : 0;
     if (chars !== this.clock_chars) {
       this.clock_chars = chars;

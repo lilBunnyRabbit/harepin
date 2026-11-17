@@ -87,7 +87,7 @@
     color: var(--dim);
   }
 
-  :root #mode-status:has(#mode-status-clock:empty) #mode-status-name {
+  :root #mode-status[data-clockless] #mode-status-name {
     grid-row: 1 / 3;
     align-self: center;
     max-width: 60vw;

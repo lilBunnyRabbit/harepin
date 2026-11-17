@@ -277,7 +277,7 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
   }
 
   /* The phone card keeps the figures; the event's name shows only when there is no clock to show. */
-  :root #mode-status:not(:has(#mode-status-clock:empty)) #mode-status-name {
+  :root #mode-status:not([data-clockless]) #mode-status-name {
     display: none;
   }
 
