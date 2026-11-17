@@ -30,6 +30,10 @@
     const press = pause_press(view.keys, event);
     if (press) return "act" in press ? choose(press.act) : view.flip(press.aid);
     if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key === "Enter" && !(document.activeElement instanceof HTMLButtonElement || document.activeElement instanceof HTMLInputElement)) {
+      event.preventDefault();
+      return view.close();
+    }
     const step = STEP[event.key];
     if (step === undefined) return;
     event.preventDefault();
