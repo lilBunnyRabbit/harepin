@@ -51,6 +51,16 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.64.0",
+    date: "2026-11-17",
+    title: "Mirror and a smoother Garage",
+    changes: [
+      { kind: NEW, text: "Rear-view mirror on desktop: switch it on in Settings > Display" },
+      { kind: IMPROVED, text: "New players start on the Island, right before their first flag" },
+      { kind: IMPROVED, text: "The Garage, part previews and the car picker open without stutter" },
+    ],
+  },
+  {
     version: "0.63.3",
     date: "2026-11-17",
     title: "Faster loads",
