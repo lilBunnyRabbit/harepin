@@ -115,9 +115,9 @@
   .fl {
     display: grid;
     overflow: clip;
-    overflow-clip-margin: var(--space-1);
+    overflow-clip-margin: var(--gap-xs);
     grid-template-rows: auto minmax(0, 1fr) auto;
-    gap: var(--space-3);
+    gap: var(--gap-md);
     height: 100%;
     min-height: 20rem;
   }
@@ -132,7 +132,7 @@
     /* One step holds half the front card and half a turned one (0.75 of it, at most 0.86 with perspective) plus a gap.
        Both poses blend linearly over one step, so through a swipe the two half widths sum to the same: no card ever
        reaches over its neighbour. */
-    --step: calc(var(--w) * 0.86 + var(--space-4));
+    --step: calc(var(--w) * 0.86 + var(--gap));
     display: flex;
     align-items: center;
     height: 100%;
@@ -215,12 +215,12 @@
     position: relative;
     display: grid;
     grid-template-rows: auto 1fr auto;
-    gap: var(--space-3);
-    padding: max(var(--space-4), 6cqmin);
+    gap: var(--gap-md);
+    padding: max(var(--gap), 6cqmin);
     container-type: size;
-    border: 2px solid var(--set-line);
+    border: 2px solid var(--line);
     border-radius: var(--radius-lg);
-    background: var(--set-panel);
+    background: var(--surface);
   }
 
   .fl-table[data-front="true"] {
@@ -229,20 +229,20 @@
 
   .fl-table h3 {
     margin: 0;
-    font-size: max(var(--text-xl), 8cqmin);
+    font-size: max(var(--type-h3), 8cqmin);
   }
 
   .fl-table :global(.ss) {
-    font-size: max(var(--text-md), 5cqmin);
+    font-size: max(var(--type-body), 5cqmin);
   }
 
   .fl-reset {
     justify-self: start;
     border: 0;
     background: none;
-    color: var(--set-dim);
+    color: var(--dim);
     font: inherit;
-    font-size: var(--text-sm);
+    font-size: var(--type-small);
     cursor: pointer;
   }
 
@@ -263,7 +263,7 @@
     z-index: 20;
     display: flex;
     justify-content: center;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -276,10 +276,10 @@
 
   .fl-rail li:not(:last-child)::after {
     content: "";
-    width: var(--space-3);
+    width: var(--gap-md);
     height: 2px;
-    margin-left: var(--space-2);
-    background: var(--set-line);
+    margin-left: var(--gap-sm);
+    background: var(--line);
   }
 
   .fl-rail li[data-state="podium"]::after {
@@ -291,13 +291,13 @@
     place-items: center;
     min-width: var(--control-h);
     height: var(--control-h);
-    padding: 0 var(--space-2);
-    border: 2px solid var(--set-line);
+    padding: 0 var(--gap-sm);
+    border: 2px solid var(--line);
     border-radius: var(--radius-full);
     background: var(--surface);
-    color: var(--set-dim);
+    color: var(--dim);
     font: inherit;
-    font-size: var(--text-sm);
+    font-size: var(--type-small);
     font-weight: 800;
     cursor: pointer;
   }
@@ -318,7 +318,7 @@
   }
 
   .fl-rail-table button {
-    padding: 0 var(--space-4);
+    padding: 0 var(--gap);
   }
 
   /* Portrait: the front card takes most of the width, and the rail drops its links to fit every round. */

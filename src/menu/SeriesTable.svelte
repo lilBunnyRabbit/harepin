@@ -34,13 +34,13 @@
 
 <style>
   h4 {
-    margin: 0 0 var(--space-3);
-    font-size: var(--text-lg);
+    margin: 0 0 var(--gap-md);
+    font-size: var(--type-body);
   }
 
   .sr-standings {
     display: grid;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -50,33 +50,33 @@
     display: grid;
     grid-template-columns: 1.5em minmax(0, 1fr) auto;
     align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-1) var(--space-2);
+    gap: var(--gap-sm);
+    padding: var(--gap-xs) var(--gap-sm);
     border-radius: var(--radius-sm);
   }
 
   .sr-standings li[data-now="true"] {
-    background: var(--set-well);
+    background: var(--row);
   }
 
   .sr-who {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     min-width: 0;
   }
 
   .sr-dim {
-    color: var(--set-dim);
+    color: var(--dim);
   }
 
   .sr-lines {
     display: grid;
-    gap: var(--space-1);
-    margin: var(--space-4) 0 0;
+    gap: var(--gap-xs);
+    margin: var(--gap) 0 0;
     padding: 0;
     list-style: none;
-    color: var(--set-dim);
-    font-size: var(--text-sm);
+    color: var(--dim);
+    font-size: var(--type-small);
   }
 </style>

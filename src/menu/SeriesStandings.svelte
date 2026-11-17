@@ -22,7 +22,7 @@
   .ss {
     display: grid;
     grid-auto-rows: 1fr;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
     min-height: 0;
     margin: 0;
     padding: 0;
@@ -33,15 +33,15 @@
     display: grid;
     grid-template-columns: 1.4em minmax(0, 1fr) auto;
     align-items: center;
-    gap: var(--space-2);
-    padding: 0 var(--space-2);
+    gap: var(--gap-sm);
+    padding: 0 var(--gap-sm);
     border-radius: var(--radius-md);
     font-weight: 600;
     white-space: nowrap;
   }
 
   .ss-pos {
-    color: var(--set-dim);
+    color: var(--dim);
   }
 
   .ss-who {

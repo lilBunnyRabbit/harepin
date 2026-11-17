@@ -50,7 +50,7 @@
 <style>
   .sr-list {
     display: grid;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -59,14 +59,14 @@
   .sr-row {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--gap-md);
   }
 
   .sr-n {
     flex: none;
     width: 1.5em;
-    color: var(--set-dim);
-    font-size: var(--text-xl);
+    color: var(--dim);
+    font-size: var(--type-h3);
     text-align: center;
   }
 
@@ -74,23 +74,23 @@
     display: grid;
     flex: 1;
     min-width: 0;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
   }
 
   .sr-name {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
   }
 
   .sr-dim {
-    color: var(--set-dim);
-    font-size: var(--text-sm);
+    color: var(--dim);
+    font-size: var(--type-small);
   }
 
   .sr-result {
-    font-size: var(--text-sm);
+    font-size: var(--type-small);
   }
 
   .sr-result[data-podium="true"] {

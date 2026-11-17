@@ -57,14 +57,14 @@
     grid-template-columns: minmax(0, 1fr) auto;
     justify-self: center;
     align-items: start;
-    gap: var(--space-6);
+    gap: calc(2 * var(--gap-md));
     width: min(100%, 80rem);
   }
 
   /* The title sits straight on the live sky, which can be as light as the dim text. */
   .sh-title {
     display: grid;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
     min-width: 0;
     text-shadow:
       0 0 2px var(--background-darkest),
@@ -73,7 +73,7 @@
 
   h2 {
     margin: 0;
-    font-size: var(--text-3xl);
+    font-size: var(--type-h1);
     font-weight: 800;
     line-height: 1.05;
     white-space: nowrap;
@@ -81,16 +81,16 @@
 
   .sh-terms {
     margin: 0;
-    color: var(--set-dim);
-    font-size: var(--text-md);
+    color: var(--dim);
+    font-size: var(--type-body);
     font-weight: 600;
   }
 
   .sh-stats {
     display: flex;
     margin: 0;
-    padding: var(--space-2) 0;
-    border: 1px solid var(--set-line);
+    padding: var(--gap-sm) 0;
+    border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     background: var(--surface);
   }
@@ -98,16 +98,16 @@
   .sh-stats div {
     display: grid;
     gap: var(--space-0);
-    padding: 0 var(--space-4);
+    padding: 0 var(--gap);
   }
 
   .sh-stats div + div {
-    border-left: 1px solid var(--set-line);
+    border-left: 1px solid var(--line);
   }
 
   dt {
-    color: var(--set-dim);
-    font-size: var(--text-xs);
+    color: var(--dim);
+    font-size: var(--type-eyebrow);
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -116,7 +116,7 @@
 
   dd {
     margin: 0;
-    font-size: var(--text-xl);
+    font-size: var(--type-h3);
     font-weight: 800;
     white-space: nowrap;
   }
@@ -126,32 +126,8 @@
   }
 
   @media (max-height: 500px) {
-    .sh {
-      gap: var(--space-4);
-    }
-
-    h2 {
-      font-size: var(--text-xl);
-    }
-
     .sh-terms {
       display: none;
-    }
-
-    .sh-stats {
-      padding: var(--space-1) 0;
-    }
-
-    .sh-stats div {
-      padding: 0 var(--space-3);
-    }
-
-    dt {
-      font-size: var(--text-2xs);
-    }
-
-    dd {
-      font-size: var(--text-lg);
     }
   }
 

@@ -30,13 +30,13 @@
 <style>
   .sw {
     display: grid;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
     min-width: 0;
   }
 
   .sw-of {
-    color: var(--set-dim);
-    font-size: var(--text-xs);
+    color: var(--dim);
+    font-size: var(--type-eyebrow);
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -52,17 +52,17 @@
   .sw-row {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
+    gap: var(--gap);
     min-width: 0;
   }
 
   h2 {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     min-width: 0;
     margin: 0;
-    font-size: var(--text-3xl);
+    font-size: var(--type-h1);
     font-weight: 800;
     line-height: 1.05;
     white-space: nowrap;
@@ -77,26 +77,12 @@
     flex: none;
     width: 0.7em;
     height: 0.7em;
-    color: var(--set-dim);
+    color: var(--dim);
   }
 
   .sw-step {
     display: flex;
     flex: none;
-    gap: var(--space-2);
-  }
-
-  @media (max-height: 500px) {
-    .sw-of {
-      font-size: var(--text-2xs);
-    }
-
-    h2 {
-      font-size: var(--text-xl);
-    }
-
-    .sw-row {
-      gap: var(--space-3);
-    }
+    gap: var(--gap-sm);
   }
 </style>
