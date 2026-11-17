@@ -4,6 +4,7 @@ import { COUPE, type CarSpec } from "./cars";
 import { curve_at } from "./curve";
 import { NITRO_TORQUE, Nitro, type NitroSense } from "./nitro";
 import { GRAVITY, RigidBody } from "./rigid-body";
+import { ShiftMode, downshift_rpm, shift_band, upshift_rpm } from "./shift-mode";
 import { SteerMode, Steering } from "./steering";
 import { CurveCache, spin_free, suspend, tyre } from "./tyre";
 import { atan, atan2, axis_angle, hypot, tan } from "../sim-math";
@@ -345,6 +346,8 @@ export class Car {
 
   gear = 1;
   auto = true;
+  shift_mode: ShiftMode = ShiftMode.NORMAL;
+  private readonly band: number;
   // NaN until the constructor sets them, as the frame's numbers are: begun as 0 or undefined, each reshaped the car or boxed every write.
   rpm = NaN;
   steer = NaN;
@@ -386,6 +389,7 @@ export class Car {
     this.steering = new Steering(this.axles.find((a) => a.steer)?.z ?? 0);
     this.driven = this.wheels.filter((w) => w.driven);
     this.corners = spec.corners.map(([x, y, z]) => new Vector3(x, y, z));
+    this.band = shift_band(spec);
     this.rpm = spec.idle;
     this.steer = 0;
     this.shifting = 0;
@@ -551,9 +555,12 @@ export class Car {
       // A slide spins the driven wheels far past road speed, and the engine turns with them: judged on road speed at a
       // big drift angle, the box dropped a gear and put the engine on the limiter.
       const turning = Math.max(road_rpm, wheel_rpm);
-      if (wheel_rpm > spec.upshift && this.gear < spec.gears.length) {
-        if (!spinning && landing >= spec.downshift * (1 + SHIFT_MARGIN)) this.shift(1);
-      } else if (turning < spec.downshift && this.gear > 1 && turning * (spec.gears[this.gear - 2] / spec.gears[this.gear - 1]) < spec.upshift - 600) this.shift(-1);
+      const up = upshift_rpm(spec, this.band, this.shift_mode);
+      const down = downshift_rpm(spec, this.band, this.shift_mode, frame.pedal);
+      if (wheel_rpm > up && this.gear < spec.gears.length) {
+        // On Sport's raised line, wide-ratio boxes held 1st onto the limiter; the `up - 600` check keeps the box from hunting.
+        if (!spinning && landing >= Math.min(down, spec.downshift) * (1 + SHIFT_MARGIN)) this.shift(1);
+      } else if (turning < down && this.gear > 1 && turning * (spec.gears[this.gear - 2] / spec.gears[this.gear - 1]) < up - 600) this.shift(-1);
     }
   }
 

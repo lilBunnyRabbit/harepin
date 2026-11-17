@@ -26,6 +26,7 @@ describe("parse_settings", () => {
       assist: false,
       stability: true,
       auto: false,
+      shift_mode: "eco",
       steer_mode: "smooth",
       precision_key: true,
       bindings: rebind_key(DEFAULT_BINDINGS, "reset", "KeyC").bindings,
@@ -74,6 +75,7 @@ describe("parse_settings", () => {
     expect(parse_settings({ quality: "ultra" }).quality).toBe("auto");
     expect(parse_settings({ minimap: "radar" }).minimap).toBe("real");
     expect(parse_settings({ hud_size: "huge" }).hud_size).toBe("medium");
+    expect(parse_settings({ shift_mode: "turbo" }).shift_mode).toBe("normal");
     expect(parse_settings({ volume: 3 }).volume).toBe(1);
     expect(parse_settings({ volume: -1 }).volume).toBe(0);
     expect(parse_settings({ volume: Number.NaN }).volume).toBe(0.8);

@@ -2,6 +2,7 @@ import { Quaternion, Vector3 } from "three";
 import { Field } from "../ai/field";
 import type { Personality } from "../ai/driver";
 import { Car, type Controls, type SteerMode } from "../car/car";
+import type { ShiftMode } from "../car/shift-mode";
 import type { CarSpec } from "../car/cars";
 import { peer_pass, type Near, type NitroSnapshot } from "../car/nitro";
 import { Rewind, type RewindPart } from "../car/rewind";
@@ -44,6 +45,7 @@ export interface CarAids {
   assist: boolean;
   stability: boolean;
   auto: boolean;
+  shift_mode: ShiftMode;
   steer_mode: SteerMode;
   drift_full_lock: boolean;
 }

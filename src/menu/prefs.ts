@@ -1,5 +1,6 @@
 import { Difficulty } from "../ai/difficulty";
 import { SteerMode } from "../car/car";
+import { ShiftMode } from "../car/shift-mode";
 import { DEFAULT_BINDINGS, parse_bindings, type Bindings } from "../hud/bindings";
 import { RumbleLevel } from "../hud/rumble";
 import { fit_zone, pad_response, STEER_INNER, STEER_LINEARITY, STEER_OUTER, TRIGGER_INNER, TRIGGER_OUTER, type PadPercents, type PadResponse } from "../hud/pad-curve";
@@ -89,6 +90,7 @@ export interface SettingsState {
   /** Stability (STM): the yaw damper. Saves from before the split take the old steer assist's value. */
   stability: boolean;
   auto: boolean;
+  shift_mode: ShiftMode;
   steer_mode: SteerMode;
   precision_key: boolean;
   bindings: Bindings;
@@ -161,6 +163,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   assist: flag(true),
   stability: flag(true),
   auto: flag(true),
+  shift_mode: one_of(Object.values(ShiftMode), ShiftMode.NORMAL),
   steer_mode: one_of(Object.values(SteerMode), SteerMode.SMOOTH),
   precision_key: flag(false),
   bindings: { fallback: DEFAULT_BINDINGS, parse: parse_bindings },

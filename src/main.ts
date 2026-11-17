@@ -465,7 +465,7 @@ presence.start();
 let drift_full_lock = true;
 
 function apply_car_settings(state: SettingsState) {
-  sim.send({ type: "aids", aids: { tcs: state.tcs, abs: state.abs, assist: state.assist, stability: state.stability, auto: state.auto, steer_mode: state.steer_mode, drift_full_lock } });
+  sim.send({ type: "aids", aids: { tcs: state.tcs, abs: state.abs, assist: state.assist, stability: state.stability, auto: state.auto, shift_mode: state.shift_mode, steer_mode: state.steer_mode, drift_full_lock } });
 }
 
 function apply_settings(state: SettingsState) {

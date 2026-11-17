@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Difficulty } from "../../ai/difficulty";
+  import { ShiftMode } from "../../car/shift-mode";
   import type { Bindable } from "../../hud/bindings";
   import { AidPreset, preset_aids, preset_of, type Aids } from "../guide-rules";
   import type { SettingKey } from "../prefs";
@@ -28,6 +29,12 @@
     ["auto", "Automatic gearbox", "Shifts for you.", "Shifts up and down for you.", "You shift yourself and pick the gear."],
   ];
 
+  const SHIFT_MODES = options([
+    [ShiftMode.SPORT, "Sport"],
+    [ShiftMode.NORMAL, "Normal"],
+    [ShiftMode.ECO, "Eco"],
+  ]);
+
   const DIFFICULTIES = options([
     [Difficulty.EASY, "Easy"],
     [Difficulty.NORMAL, "Normal"],
@@ -51,6 +58,15 @@
 />
 {#each AIDS as [key, label, help, on, off] (key)}
   <ToggleRow {label} help={() => while_driving(live.prefs.bindings, key, help)} checked={live.prefs[key]} onchange={(value) => live.set(key, value)} effect={[on, off]} />
+  {#if key === "auto" && live.prefs.auto}
+    <ChoiceRow
+      label="Shift style"
+      help="When the automatic gearbox changes gear. Sport holds the revs and shifts near the redline, Eco shifts early for a calm, quiet drive, and floors it to kick down. Power and grip stay the same."
+      value={live.prefs.shift_mode}
+      options={SHIFT_MODES}
+      onchange={(value) => live.set("shift_mode", value)}
+    />
+  {/if}
 {/each}
 <ToggleRow
   label="Ghost car"
