@@ -1,4 +1,5 @@
 <script lang="ts">
+  import FrameChips from "../FrameChips.svelte";
   import MenuFrame from "../MenuFrame.svelte";
   import Card from "../ui/Card.svelte";
   import type { PageProps } from "../ui/svelte-page.svelte";
@@ -7,7 +8,11 @@
   let { menu }: PageProps = $props();
 </script>
 
-<MenuFrame {menu} id={CHANGES} eyebrow="Settings" title="What's new" season={false} veil={0.6} note={`You have v${menu.host.version}`}>
+{#snippet chips()}
+  <FrameChips {menu} season={false} update={false} />
+{/snippet}
+
+<MenuFrame {menu} id={CHANGES} eyebrow="Settings" title="What's new" {chips} veil={0.6} note={`You have v${menu.host.version}`}>
   <div class="changes">
     <Card class="changes-card" label="Release notes">
       <div class="changes-body" {@attach (node) => void node.append(menu.host.changelog())}></div>
