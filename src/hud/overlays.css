@@ -11,11 +11,15 @@
   pointer-events: none;
   /* Above the menu panel (.settings, 30): a pad press in the menu answers with a toast. */
   z-index: 31;
+  /* Out of layout while it shows nothing: an anchored box is laid out again with every frame's HUD write, the whole
+     document with it (docs/plan/perf-2026-11.md, cause 2). */
+  display: none;
   opacity: 0;
   transition: opacity 0.3s;
 }
 
 #toast[data-shown] {
+  display: block;
   opacity: 1;
   transition-duration: 0.1s;
 }
@@ -171,18 +175,33 @@ body:has(> .settings:not([hidden])) #toast[data-road] {
 
 #toast {
   translate: -50% calc(-1 * var(--space-2));
+  /* `display` waits for the fade to end before the box leaves the layout. */
   transition:
     opacity 0.3s,
-    translate 0.3s;
+    translate 0.3s,
+    display 0.3s allow-discrete;
 }
 
 #toast[data-shown] {
   translate: -50% 0;
 }
 
+@starting-style {
+  #toast[data-shown] {
+    opacity: 0;
+    translate: -50% calc(-1 * var(--space-2));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   #toast,
   #toast[data-shown] {
     translate: -50% 0;
+  }
+
+  @starting-style {
+    #toast[data-shown] {
+      translate: -50% 0;
+    }
   }
 }
