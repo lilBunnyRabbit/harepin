@@ -132,7 +132,7 @@
 
   .set-bind-note {
     min-width: 0;
-    color: var(--set-dim);
+    color: var(--dim);
     font-size: var(--text-md);
     text-align: right;
   }

@@ -127,7 +127,7 @@
   .set-swatches i {
     width: var(--control-h-lg);
     height: var(--control-h-lg);
-    border: 1px solid var(--set-line);
+    border: 1px solid var(--line);
     border-radius: var(--radius-sm);
   }
 </style>

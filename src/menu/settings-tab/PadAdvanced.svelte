@@ -130,8 +130,8 @@
   }
 
   .set-plot-frame {
-    fill: var(--set-well);
-    stroke: var(--set-line);
+    fill: var(--row);
+    stroke: var(--line);
     stroke-width: 1;
     vector-effect: non-scaling-stroke;
   }
@@ -169,7 +169,7 @@
 
   .set-meter small,
   .set-pad-note {
-    color: var(--set-dim);
+    color: var(--dim);
     font-size: var(--text-sm);
   }
 </style>

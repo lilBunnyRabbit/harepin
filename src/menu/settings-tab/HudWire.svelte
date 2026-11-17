@@ -23,7 +23,7 @@
     width: 100%;
     aspect-ratio: 16 / 9;
     overflow: hidden;
-    border: 1px solid var(--set-line);
+    border: 1px solid var(--line);
     border-radius: var(--radius-xs);
     background: color-mix(in oklch, var(--foreground) 8%, transparent);
   }

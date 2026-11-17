@@ -228,10 +228,10 @@
     gap: var(--space-1);
     height: auto;
     padding: var(--space-2) var(--space-1);
-    border: 1px solid var(--set-line);
+    border: 1px solid var(--line);
     border-radius: var(--radius-sm);
-    background: var(--set-soft);
-    color: var(--set-dim);
+    background: var(--row);
+    color: var(--dim);
     font: inherit;
     font-size: var(--text-sm);
     font-weight: 600;
@@ -249,7 +249,7 @@
 
   .set-lock[aria-pressed="true"] {
     border-color: var(--primary);
-    background: var(--set-raised);
+    background: var(--row-on);
     color: var(--foreground);
   }
 
@@ -258,7 +258,7 @@
     position: relative;
     width: var(--control-h-lg);
     height: var(--control-h-lg);
-    border: 1px solid var(--set-line);
+    border: 1px solid var(--line);
     border-radius: var(--radius-sm);
   }
 
@@ -268,10 +268,10 @@
     bottom: calc(-1 * var(--space-2));
     box-sizing: content-box;
     padding: var(--space-0);
-    border: 1px solid var(--set-line);
+    border: 1px solid var(--line);
     border-radius: 50%;
-    background: var(--set-raised);
-    color: var(--set-dim);
+    background: var(--row-on);
+    color: var(--dim);
   }
 
   .set-lock[aria-pressed="true"] .set-swatch :global(.ui-icon) {

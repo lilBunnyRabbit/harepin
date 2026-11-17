@@ -82,7 +82,7 @@
     display: flex;
     gap: var(--space-2);
     margin: 0;
-    color: var(--set-dim);
+    color: var(--dim);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
   }
@@ -131,7 +131,7 @@
   }
 
   .stories-row-text small {
-    color: var(--set-dim);
+    color: var(--dim);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
   }

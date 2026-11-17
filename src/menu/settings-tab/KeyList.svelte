@@ -50,7 +50,7 @@
   .set-keys-head {
     justify-content: end;
     padding: 0 var(--space-4) var(--space-1);
-    color: var(--set-dim);
+    color: var(--dim);
     font-size: var(--text-sm);
     font-weight: 600;
   }
@@ -63,7 +63,7 @@
   }
 
   .set-keys-sep {
-    color: var(--set-dim);
+    color: var(--dim);
     font-size: var(--text-sm);
   }
 

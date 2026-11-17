@@ -81,7 +81,7 @@
   }
 
   .changelog-update-text small {
-    color: var(--set-dim);
+    color: var(--dim);
     font-size: var(--text-sm);
   }
 
@@ -103,7 +103,7 @@
 
   .changelog-build {
     margin: 0;
-    color: var(--set-dim);
+    color: var(--dim);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
   }
