@@ -29,8 +29,10 @@
     initial-value: 0px;
   }
 
+  /* A scroller clips, so the focus ring of what it holds (outline plus offset) needs its room inside. */
   .ui-scroll {
     --fade: var(--pad);
+    padding: calc(var(--mark-w) + var(--space-0));
     display: var(--scroll-display, block);
     min-width: 0;
     min-height: 0;

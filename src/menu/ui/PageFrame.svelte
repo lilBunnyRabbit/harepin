@@ -159,6 +159,7 @@
   @media (min-height: 501px) and (min-width: 701px) {
     .ui-frame-rows > :global(.ui-frame-body) {
       overflow: visible;
+      padding: 0;
       mask-image: none;
     }
   }
@@ -224,11 +225,6 @@
 
     .ui-frame-stations:empty {
       display: none;
-    }
-
-    /* The body scrolls here, so it clips: a focus ring needs its room inside. */
-    .ui-frame-rows > :global(.ui-frame-body) {
-      padding: calc(var(--mark-w) + var(--space-0));
     }
 
     .ui-frame-bottom,
