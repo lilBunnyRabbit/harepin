@@ -46,13 +46,6 @@
   color: var(--foreground);
 }
 
-/* Touch Classic hangs the aid switches under the buttons, out of the dock's flow. */
-@media (pointer: coarse) {
-  :root[data-hud="classic"] .drive-update {
-    position-anchor: --assists;
-  }
-}
-
 .drive-update[hidden],
 body:has(#chat-panel:not([hidden])) .drive-update {
   display: none;

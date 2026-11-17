@@ -42,6 +42,7 @@ import { TRAVEL_BUTTON, type Action } from "./hud/bindings";
 import { Input, modal_open } from "./hud/input";
 import { Rumble, sense_drive, type RumbleSense } from "./hud/rumble";
 import { show_key_hints } from "./hud/key-hints";
+import { PICTURE_SIDE } from "./hud/minimap";
 import { Lobby, SITTING_OUT, lobby_routes } from "./net/lobby";
 import { MODES, Modes } from "./modes/modes";
 import { local_store } from "./modes/track";
@@ -67,6 +68,7 @@ import { Lighting } from "./render/lighting";
 import { CAMERA_RETURN_SECONDS, CameraView, pad_settings, type SettingsState } from "./menu/prefs";
 import { load_settings, mark_drive, pin_pick, take_drive } from "./menu/prefs-store";
 import { read_saved_pick } from "./menu/saved-pick";
+import { thumb_url } from "./menu/map-thumb";
 import { MenuTab, invite_link } from "./menu/page";
 import { Settings } from "./menu/settings";
 import { BUILD, Updater, show_version } from "./menu/update";
@@ -282,6 +284,7 @@ const remotes = new Remotes(scene, $("labels"), net, world);
 const lobby = new Lobby(net, lobby_routes(world.routes), world.key);
 lobby.start();
 const hud = new Hud(world, race, net, lobby);
+hud.set_place(map_name(built, world.towns), () => thumb_url(built, PICTURE_SIDE));
 /** The map-code note can be an error to read, so it stays up well past a goal toast. */
 const MAP_NOTE_MS = 4500;
 /** A lab that failed to open leaves a plain free-roam page: the toast says so for longer than a passing note. */
@@ -414,11 +417,8 @@ function apply_car_settings(state: SettingsState) {
 
 function apply_settings(state: SettingsState) {
   apply_car_settings(state);
-  hud.set_layout(state.hud);
   document.documentElement.dataset.hudSize = state.hud_size;
-  document.documentElement.dataset.dash = state.dash;
   document.documentElement.dataset.speedo = state.speedo;
-  document.documentElement.dataset.mapCorner = state.map_corner;
   hud.set_map(state.map);
   for (const chip of document.querySelectorAll<HTMLElement>("[data-aid]")) chip.setAttribute("aria-pressed", String(state[chip.dataset.aid as Aid]));
   input.touch.set_steer_mode(state.touch_steer);

@@ -5,41 +5,15 @@
 :root[data-map="pace"] #pace {
   display: grid;
   grid-template-columns: auto 1fr;
+  align-content: center;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
-  align-self: flex-end;
+  gap: var(--gap-sm) var(--gap-md);
+  flex: 1;
+  min-height: 0;
   container-type: inline-size;
-  width: 200px;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--line);
-  background: var(--surface);
 }
 
-/* The card takes the map's width in every layout, so the corner keeps its footprint whichever view is on. */
-@media (pointer: fine) {
-  :root[data-map="pace"] #pace {
-    width: 176px;
-  }
-}
-
-@media (pointer: coarse), (pointer: fine) and (max-width: 600px) {
-  :root[data-map="pace"] #pace {
-    width: var(--map-size);
-    padding: var(--space-2) var(--space-3);
-    column-gap: var(--space-2);
-  }
-}
-
-:root[data-map="pace"][data-hud="minimal"] #pace,
-:root[data-map="pace"][data-hud="compact"] #pace {
-  width: var(--compact-map);
-  padding: var(--space-2) var(--space-3);
-  column-gap: var(--space-2);
-}
-
-:root[data-map="pace"] #minimap,
-:root[data-map="off"] #minimap {
+:root[data-map="pace"] #minimap {
   display: none;
 }
 

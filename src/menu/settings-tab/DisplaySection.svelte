@@ -1,6 +1,6 @@
 <script lang="ts">
   import { THEMES, apply_theme, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../../theme/theme";
-  import { DashPlace, HudSize, MapCorner, MapView, SpeedoStyle } from "../prefs";
+  import { HudSize, MapView, SpeedoStyle } from "../prefs";
   import Button from "../ui/Button.svelte";
   import type { MenuState } from "../ui/menu-state.svelte";
   import HudWire from "./HudWire.svelte";
@@ -8,7 +8,7 @@
   import ChoiceRow from "./rows/ChoiceRow.svelte";
   import LinkRow from "./rows/LinkRow.svelte";
   import StepRow from "./rows/StepRow.svelte";
-  import { BASE_TOKENS, HUD_LAYOUTS, MAP_VIEWS, hud_layout, options, reload_without } from "./sections";
+  import { BASE_TOKENS, MAP_VIEWS, SPEEDO_STYLES, options, reload_without } from "./sections";
 
   interface Props {
     live: MenuState;
@@ -17,25 +17,13 @@
   let { live }: Props = $props();
 
   const nav = use_nav();
-  const LAYOUTS = HUD_LAYOUTS.map(({ value, name }) => ({ value, label: name }));
-  const DASH = options([
-    [DashPlace.RIGHT, "Right"],
-    [DashPlace.CENTER, "Centre"],
-  ]);
   const SIZES = options([
     [HudSize.SMALL, "Small"],
     [HudSize.MEDIUM, "Medium"],
     [HudSize.LARGE, "Large"],
   ]);
-  const SPEEDO = options([
-    [SpeedoStyle.RING, "Ring"],
-    [SpeedoStyle.BAR, "Bar"],
-  ]);
+  const SPEEDO = Object.values(SpeedoStyle).map((style) => ({ value: style, label: SPEEDO_STYLES[style][0] }));
   const MAPS = Object.values(MapView).map((view) => ({ value: view, label: MAP_VIEWS[view][0] }));
-  const CORNERS = options([
-    [MapCorner.BOTTOM_LEFT, "Bottom left"],
-    [MapCorner.TOP_RIGHT, "Top right"],
-  ]);
 
   const saved = load_saved_themes();
   const active = current_theme();
@@ -81,7 +69,7 @@
 </script>
 
 {#snippet wire()}
-  <HudWire hud={live.prefs.hud} map={live.prefs.map} />
+  <HudWire map={live.prefs.map} speedo={live.prefs.speedo} />
 {/snippet}
 
 {#snippet swatches()}
@@ -92,15 +80,13 @@
   {/if}
 {/snippet}
 
-<StepRow
-  label="HUD layout"
-  help={() => {
-    const layout = hud_layout(live.prefs.hud);
-    return `Where speed, laps, map and buttons sit. ${layout.name}: ${layout.note}.`;
-  }}
-  value={live.prefs.hud}
-  options={LAYOUTS}
-  onchange={(value) => live.set("hud", value)}
+<ChoiceRow label="Minimap" help={() => `${MAP_VIEWS[live.prefs.map][1]}.`} value={live.prefs.map} options={MAPS} onchange={(value) => live.set("map", value)} visual={wire} />
+<ChoiceRow
+  label="Speedometer"
+  help={() => `${SPEEDO_STYLES[live.prefs.speedo][1]}. On a phone it sits in the top right, clear of the car.`}
+  value={live.prefs.speedo}
+  options={SPEEDO}
+  onchange={(value) => live.set("speedo", value)}
   visual={wire}
 />
 <ChoiceRow
@@ -109,31 +95,6 @@
   value={live.prefs.hud_size}
   options={SIZES}
   onchange={(value) => live.set("hud_size", value)}
-/>
-<ChoiceRow
-  label="Dash"
-  help="Speed, gear and aids. Racing always centres it, Compact keeps it up top."
-  value={live.prefs.dash}
-  options={DASH}
-  onchange={(value) => live.set("dash", value)}
-  visual={wire}
-/>
-<ChoiceRow
-  label="Speedometer"
-  help="Classic layout. Ring: revs round the speed. Bar: a big speed over a rev bar."
-  value={live.prefs.speedo}
-  options={SPEEDO}
-  onchange={(value) => live.set("speedo", value)}
-/>
-<ChoiceRow label="Map" help={() => `${MAP_VIEWS[live.prefs.map][1]}.`} value={live.prefs.map} options={MAPS} onchange={(value) => live.set("map", value)} visual={wire} />
-<!-- Touch always keeps the map top right, clear of the thumbs, so the choice is a desk one. -->
-<ChoiceRow
-  label="Map corner"
-  help="Classic layout. Bottom left mirrors the speedometer; top right keeps the lower screen clear."
-  value={live.prefs.map_corner}
-  options={CORNERS}
-  onchange={(value) => live.set("map_corner", value)}
-  only="desk"
 />
 <StepRow
   label="Theme"

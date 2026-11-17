@@ -1,17 +1,23 @@
 .bottom-right {
-  bottom: var(--inset-bottom);
-  right: var(--inset-right);
-  width: 264px;
+  right: calc(var(--corner-right) / var(--hud-scale));
+  bottom: calc(var(--corner-bottom) / var(--hud-scale));
+  zoom: var(--hud-scale);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  width: var(--corner-w);
+  height: var(--corner-h);
+  padding: var(--corner-pad);
 }
 
-/* Out of flow above the speedo, so it reserves nothing while hidden; it only shows when the view is orbited away. */
+/* Out of flow, so it reserves nothing while hidden; it only shows when the view is orbited away. */
 #recenter {
   position: absolute;
   right: 0;
-  bottom: calc(100% + var(--space-3));
+  bottom: calc(100% + var(--gap-sm));
   border-color: var(--line);
   background: var(--surface);
-  backdrop-filter: blur(6px);
   opacity: 0;
   visibility: hidden;
   pointer-events: auto;
@@ -29,30 +35,36 @@
   background: var(--background-light);
 }
 
+.dial {
+  display: none;
+}
+
 .speedo {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  justify-items: end;
 }
 
 #speed,
 #gear {
   font-family: var(--font-mono);
-}
-
-/* Room for three digits, so the box keeps one width from 0 to 300 km/h. */
-#speed {
-  min-width: 3ch;
-  text-align: right;
-  font-size: 52px;
   font-weight: 700;
-  line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: var(--cottontail);
+  color: var(--foreground);
 }
 
-:root[data-scheme="light"] #speed {
-  color: var(--foreground);
+#speed {
+  grid-area: 1 / 1 / 3 / 2;
+  justify-self: start;
+  font-size: var(--display-1);
+  line-height: 0.9;
+}
+
+#gear {
+  grid-area: 1 / 2;
+  font-size: var(--type-h2);
+  line-height: 1.2;
 }
 
 .unit {
@@ -60,14 +72,11 @@
   color: var(--dim);
 }
 
-#gear {
-  margin-left: auto;
-  font-size: 34px;
-  font-weight: 700;
-  color: var(--primary);
+.speedo .unit {
+  grid-area: 2 / 2;
 }
 
-/* The classic HUD hides the Auto switch, so the gear itself flips the gearbox. Touch keeps the switch: the gear sits in the pedal zone. */
+/* The Auto switch is not on the card, so the gear itself flips the gearbox. */
 @media (pointer: fine) {
   #gear {
     pointer-events: auto;
@@ -82,22 +91,22 @@
 
 #gear[data-mode="M"]::after {
   content: "M";
-  font-size: var(--text-sm);
   margin-left: 2px;
+  font-size: var(--text-sm);
   color: var(--accent);
 }
 
 .rpm {
   position: relative;
-  height: 8px;
-  margin-top: var(--space-3);
+  height: 10px;
   border-radius: var(--radius-full);
-  background: var(--background-light);
+  background: var(--fill);
   overflow: hidden;
 }
 
 #rpm-fill {
   height: 100%;
+  border-radius: inherit;
   background: var(--primary);
 }
 
@@ -113,22 +122,39 @@
   opacity: 0;
 }
 
+#shift[data-on="true"] {
+  animation: blink 0.12s steps(2) infinite;
+}
+
+@keyframes blink {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 .nitro {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
+  gap: var(--gap-sm);
 }
 
 .nitro[hidden] {
   display: none;
 }
 
+.nitro .unit {
+  font-size: var(--text-2xs);
+  line-height: 1;
+}
+
 .nitro-tank {
   flex: 1;
   height: 6px;
   border-radius: var(--radius-full);
-  background: var(--background-light);
+  background: var(--fill);
   overflow: hidden;
 }
 
@@ -146,278 +172,65 @@
   opacity: 0.45;
 }
 
-#shift[data-on="true"] {
-  animation: blink 0.12s steps(2) infinite;
-}
-
-@keyframes blink {
-  from {
-    opacity: 0.9;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-@media (pointer: coarse) {
-  .bottom-right {
-    right: calc(var(--inset-right) + var(--pedals) + var(--space-3));
-    width: auto;
-    min-width: 120px;
-    height: var(--speedo-h);
-    padding: var(--space-2) var(--space-3);
-    pointer-events: none;
-  }
-
-  #speed {
-    font-size: 28px;
-  }
-
-  .unit {
-    font-size: var(--text-2xs);
-  }
-
-  #gear {
-    font-size: var(--text-2xl);
-  }
-
-  .rpm {
-    height: 5px;
-    margin-top: var(--space-2);
-  }
-
-  /* The nitro key is the tank gauge on touch. */
-  .bottom-right .nitro {
-    display: none;
-  }
-}
-
-#gear {
-  align-self: center;
-  padding: 2px var(--space-3);
-  border-radius: var(--radius-sm);
-  font-size: 22px;
-  background: color-mix(in oklch, var(--foreground) 10%, transparent);
-}
-
-#speed {
-  letter-spacing: -0.03em;
-}
-
-@media (pointer: fine) {
-  #speed {
-    font-size: 48px;
-  }
-}
-
-/* A backdrop blur over the live canvas recomposites every frame, which phones pay for; --surface is near opaque without it. */
-@media (pointer: coarse) {
-  #gear {
-    padding: 0 var(--space-2);
-    font-size: var(--text-xl);
-  }
-
-  #recenter {
-    backdrop-filter: none;
-  }
-
-  #speed {
-    text-align: right;
-  }
-
-  .bottom-right {
-    min-width: 0;
-    height: auto;
-    padding: var(--space-1) var(--space-3) var(--space-2);
-    background: color-mix(in oklch, var(--surface) 55%, transparent);
-  }
-
-  #speed {
-    font-size: 26px;
-  }
-
-  .rpm {
-    height: 3px;
-    margin-top: var(--space-1);
-  }
-}
-
-:root[data-hud="racing"] .bottom-right,
-:root[data-hud="compact"] .bottom-right {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  column-gap: var(--space-3);
-  width: auto;
-  min-height: var(--bar-h);
-  padding: var(--space-2) var(--space-3);
-}
-
-:root[data-hud="racing"] .bottom-right {
-  right: auto;
-  left: 50%;
-  translate: -50% 0;
-  width: var(--racing-speedo);
-}
-
-:root[data-hud="racing"] .speedo,
-:root[data-hud="compact"] .speedo {
-  align-items: center;
-}
-
-:root[data-hud="racing"] #speed {
-  font-size: 36px;
-}
-
-:root[data-hud="racing"] .speedo {
-  flex: 1;
-  justify-content: center;
-}
-
-:root[data-hud="racing"] .rpm,
-:root[data-hud="racing"] .nitro,
-:root[data-hud="compact"] .rpm,
-:root[data-hud="compact"] .nitro {
-  flex-basis: 100%;
-  margin-top: var(--space-1);
-}
-
-:root[data-hud="racing"] .rpm,
-:root[data-hud="compact"] .rpm {
-  height: 4px;
-}
-
-:root[data-hud="minimal"] .bottom-right {
-  width: auto;
-  padding: var(--space-2) var(--space-3);
-}
-
-:root[data-dash="center"]:is([data-hud="classic"], [data-hud="minimal"]) .bottom-right {
-  right: auto;
-  left: 50%;
-  translate: -50% 0;
-}
-
-:root[data-hud="compact"] .bottom-right {
-  inset: var(--inset-top) calc(var(--inset-right) + var(--compact-map) + var(--space-2)) auto auto;
-  width: var(--racing-speedo);
-}
-
-:root[data-hud="compact"] #speed {
-  font-size: 32px;
-}
-
-:root[data-hud="compact"] #recenter {
-  top: calc(100% + var(--space-3));
-  bottom: auto;
-}
-
-@media (pointer: coarse) {
-  :root[data-hud="racing"] .bottom-right {
-    min-height: 0;
-    min-width: 0;
-    padding: var(--space-1) var(--space-3);
-  }
-
-  :root[data-hud="racing"] #speed {
-    font-size: 26px;
-  }
-
-  /* A phone's top band can't hold the bar, the lap strip, the touch buttons, the dash and the map in one row, so on
-     touch Compact keeps the smaller map up top and sets the dash between the thumbs like Racing does. */
-  :root[data-hud="compact"] .bottom-right {
-    inset: auto auto var(--inset-bottom) 50%;
-    translate: -50% 0;
-    width: var(--racing-speedo);
-    min-height: 0;
-    min-width: 0;
-    padding: var(--space-1) var(--space-3);
-  }
-
-  :root[data-hud="compact"] #speed {
-    font-size: 26px;
-  }
-
-  :root[data-hud="compact"] #recenter {
-    top: auto;
-    bottom: calc(100% + var(--space-3));
-  }
-}
-
-/* Classic gauge: one card, a mirror of the map's: a thick rev arc on a slim track round big bold speed, red only past the
-   hot point, the gear in the ring's open foot and the aid switches under it at the card's width. */
-:root[data-hud="classic"] .bottom-right {
-  bottom: calc(var(--corner-bottom) / var(--hud-scale, 1));
-  right: calc(var(--corner-right) / var(--hud-scale, 1));
+:root[data-speedo="dial"] .bottom-right {
+  --dial: calc(var(--corner-w) - 2 * var(--corner-pad) - var(--chip-h-in) - var(--gap-sm) - 2px);
   display: grid;
-  grid-template-columns: var(--dial);
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--dial) auto;
   justify-items: center;
-  align-items: center;
-  row-gap: var(--space-3);
-  width: auto;
-  padding: var(--space-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  row-gap: var(--gap-sm);
+  height: var(--corner-w);
 }
 
-:root[data-hud="classic"] .bottom-right > * {
+:root[data-speedo="dial"] .bottom-right > :is(.dial, .speedo, .nitro) {
   grid-area: 1 / 1;
 }
 
-/* Out of the dial cell, so its offsets measure from the card edge, not from inside the card padding. */
-:root[data-hud="classic"] #recenter {
-  grid-area: auto;
-}
-
-:root[data-hud="classic"] .dial {
+:root[data-speedo="dial"] .dial {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: var(--dial);
+  height: var(--dial);
   overflow: visible;
   fill: none;
-  stroke-linecap: butt;
 }
 
-:root[data-hud="classic"] :is(.dial-track, .dial-zone) {
+.dial-track,
+.dial-zone {
   stroke-width: 3;
 }
 
-:root[data-hud="classic"] .dial-track {
+.dial-track {
   stroke: var(--line-strong);
 }
 
-:root[data-hud="classic"] .dial-zone {
+.dial-zone {
   stroke: var(--error);
 }
 
-:root[data-hud="classic"] :is(.dial-fill, .dial-hot) {
+.dial-fill,
+.dial-hot {
   stroke-width: 14;
   stroke-dasharray: 0 100;
 }
 
-:root[data-hud="classic"] .dial-fill {
+.dial-fill {
   stroke: var(--primary);
 }
 
-:root[data-hud="classic"] .dial-hot {
+.dial-hot {
   stroke: var(--error);
 }
 
-:root[data-hud="classic"] .rpm {
-  display: none;
-}
-
-/* The shift light: the arc and the gear flash together, the way a rev-limiter LED strip reads in the corner of an eye. */
-:root[data-hud="classic"] :is(.dial-fill, .dial-hot)[data-shift="true"],
-:root[data-hud="classic"] #gear[data-shift="true"] {
+:is(.dial-fill, .dial-hot)[data-shift="true"],
+:root[data-speedo="dial"] #gear[data-shift="true"] {
   animation: shift-flash 0.16s steps(2) infinite;
 }
 
-:root[data-hud="classic"] .dial-fill[data-shift="true"],
-:root[data-hud="classic"] #gear[data-shift="true"] {
+.dial-fill[data-shift="true"] {
   stroke: var(--error);
+}
+
+:root[data-speedo="dial"] #gear[data-shift="true"] {
   color: var(--error);
 }
 
@@ -430,263 +243,52 @@
   }
 }
 
-:root[data-hud="classic"] .speedo {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-:root[data-hud="classic"] #speed {
-  min-width: 3ch;
-  font-family: var(--font-sans);
-  font-size: 60px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  line-height: 1;
-  text-align: center;
-}
-
-:root[data-hud="classic"] .speedo .unit {
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-/* The gear speaks the speed's type on a chip of the plate's own tone, so it belongs to the number rather than a box. */
-:root[data-hud="classic"] #gear {
-  position: absolute;
-  left: 50%;
-  top: calc(var(--space-3) + var(--dial) * 0.78);
-  translate: -50% 0;
-  display: grid;
-  place-items: center;
-  min-width: 36px;
-  height: 36px;
-  margin: 0;
-  padding: 0 var(--space-2);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: color-mix(in oklch, var(--foreground) 7%, transparent);
-  font-family: var(--font-sans);
-  font-size: var(--text-2xl);
-  font-weight: 800;
-  line-height: 1;
-  color: var(--cottontail);
-}
-
-:root[data-scheme="light"][data-hud="classic"] #gear {
-  color: var(--foreground);
-}
-
-:root[data-hud="classic"] .bottom-right .nitro {
-  align-self: end;
-  width: 64px;
-  margin-bottom: calc(var(--dial) * 0.24);
-}
-
-:root[data-hud="classic"] .bottom-right .nitro .unit {
+:root[data-speedo="dial"] .rpm {
   display: none;
 }
 
-@media (pointer: fine) and (max-width: 600px) {
-  :root[data-hud="classic"] {
-    --dial: 184px;
-  }
-
-  :root[data-hud="classic"] #speed {
-    font-size: 48px;
-  }
+:root[data-speedo="dial"] .speedo {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto;
+  align-content: center;
+  justify-items: center;
+  row-gap: var(--gap-xs);
+  width: var(--dial);
+  height: var(--dial);
 }
 
-@media (pointer: fine) and (max-height: 500px) {
-  :root[data-hud="classic"] {
-    --dial: 136px;
-  }
-
-  :root[data-hud="classic"] #speed {
-    font-size: 40px;
-  }
+:root[data-speedo="dial"] .speedo .unit {
+  grid-area: auto;
 }
 
-/* Touch keeps its docks at one size: the pedal zone is placed from the speed card's height. */
-@media (pointer: fine) {
-  :root[data-hud="classic"] .bottom-right {
-    zoom: var(--hud-scale, 1);
-  }
+:root[data-speedo="dial"] #speed {
+  grid-area: auto;
+  justify-self: center;
+  font-size: 40px;
+  line-height: 1;
 }
 
-/* Bar speedometer, Forza Horizon's way: a huge thin speed with the gear small at its left and the unit at its top right,
-   the revs one long bar under it with the red zone a block at the end, the aid switches under that. The card keeps the
-   ring's width, so it still mirrors the map. */
-@media (pointer: fine) {
-  :root[data-hud="classic"][data-speedo="bar"] .bottom-right {
-    grid-template-columns: auto 1fr auto;
-    grid-template-rows: none;
-    align-items: end;
-    column-gap: var(--space-2);
-    row-gap: var(--space-3);
-    width: calc(var(--dial) + 2 * var(--space-3) + 2px);
-  }
-
-  :root[data-hud="classic"][data-speedo="bar"] .dial {
-    display: none;
-  }
-
-  :root[data-hud="classic"][data-speedo="bar"] .speedo {
-    display: contents;
-  }
-
-  :root[data-hud="classic"][data-speedo="bar"] #gear {
-    position: static;
-    grid-area: 1 / 1;
-    align-self: end;
-    translate: none;
-    min-width: 28px;
-    height: 28px;
-    margin-bottom: var(--space-2);
-    font-size: var(--text-xl);
-  }
-
-  :root[data-hud="classic"][data-speedo="bar"] #speed {
-    grid-area: 1 / 2;
-    justify-self: end;
-    font-size: calc(var(--dial) * 0.3);
-    font-weight: 200;
-    line-height: 0.86;
-  }
-
-  :root[data-hud="classic"][data-speedo="bar"] .speedo .unit {
-    grid-area: 1 / 3;
-    align-self: start;
-  }
-
-  :root[data-hud="classic"][data-speedo="bar"] .rpm {
-    display: block;
-    grid-area: 2 / 1 / 3 / 4;
-    justify-self: stretch;
-    height: 10px;
-    margin: 0;
-    border-radius: var(--radius-full);
-    background:
-      linear-gradient(90deg, transparent var(--rpm-hot), color-mix(in oklch, var(--error) 35%, transparent) var(--rpm-hot)),
-      var(--line-strong);
-  }
-
-  :root[data-hud="classic"][data-speedo="bar"] #rpm-fill {
-    background: var(--primary);
-  }
-
-  :root[data-hud="classic"][data-speedo="bar"] #rpm-fill[data-hot="true"] {
-    background: var(--error);
-  }
-
-  /* Nitro and the switches take the next free rows, so an unfitted tank leaves no empty row behind. */
-  :root[data-hud="classic"][data-speedo="bar"] :is(.nitro, .assists) {
-    grid-area: auto / 1 / auto / 4;
-  }
-
-  :root[data-hud="classic"][data-speedo="bar"] .bottom-right .nitro {
-    justify-self: stretch;
-    align-self: center;
-    width: auto;
-    margin: 0;
-  }
+:root[data-speedo="dial"] #gear {
+  position: absolute;
+  grid-area: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  text-align: center;
+  line-height: 1;
 }
 
-/* Gear, unit and gaps don't scale with the dial, so at 136px they and a 3ch speed overrun the card. */
-@media (pointer: fine) and (max-height: 500px) {
-  :root[data-hud="classic"][data-speedo="bar"] .bottom-right {
-    column-gap: var(--space-1);
-  }
-
-  :root[data-hud="classic"][data-speedo="bar"] #speed {
-    font-size: calc(var(--dial) * 0.26);
-  }
+:root[data-speedo="dial"] .nitro {
+  align-self: end;
+  width: 56px;
+  margin-bottom: 22%;
 }
 
-/* Touch: the ring would crowd the car and the pedals, so the phone gets a slim readout along the bottom, ending just
-   left of the pedals so it stays clear of the steer hint, the revs a bar beneath it. */
-@media (pointer: coarse) {
-  :root[data-hud="classic"] .bottom-right {
-    bottom: var(--inset-bottom);
-    right: calc(var(--inset-right) + var(--pedals) + var(--space-3));
-    display: grid;
-    grid-template-columns: auto auto;
-    grid-template-rows: auto auto;
-    align-items: center;
-    column-gap: var(--space-4);
-    row-gap: var(--space-2);
-    width: auto;
-    height: auto;
-    min-width: 0;
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    background: var(--surface);
-  }
-
-  :root[data-hud="classic"] .bottom-right > * {
-    grid-area: auto;
-  }
-
-  :root[data-hud="classic"] .dial {
-    display: none;
-  }
-
-  :root[data-hud="classic"] .speedo {
-    grid-area: 1 / 1;
-    flex-direction: row;
-    align-items: baseline;
-    gap: var(--space-2);
-  }
-
-  :root[data-hud="classic"] #speed {
-    font-size: 40px;
-  }
-
-  :root[data-hud="classic"] #gear {
-    position: static;
-    translate: none;
-    grid-area: 1 / 2;
-    min-width: 32px;
-    height: 32px;
-    font-size: var(--text-xl);
-  }
-
-  :root[data-hud="classic"] .rpm {
-    display: block;
-    grid-area: 2 / 1 / 3 / 3;
-    justify-self: stretch;
-    height: 6px;
-    margin: 0;
-    border-radius: var(--radius-full);
-    background: var(--line-strong);
-  }
-
-  :root[data-hud="classic"] #rpm-fill {
-    background: var(--primary);
-  }
-
-  :root[data-hud="classic"] #rpm-fill[data-hot="true"] {
-    background: var(--error);
-  }
+:root[data-speedo="dial"] .nitro .unit {
+  display: none;
 }
 
-/* A small phone: the readout drops its unit to fit. */
-@media (pointer: coarse) and (max-width: 700px) {
-  :root[data-hud="classic"] .bottom-right {
-    column-gap: var(--space-2);
-  }
-
-  :root[data-hud="classic"] #speed {
-    min-width: 0;
-    font-size: 32px;
-  }
-
-  :root[data-hud="classic"] .speedo .unit {
-    display: none;
-  }
+:root[data-speedo="dial"] .assists {
+  justify-self: stretch;
 }

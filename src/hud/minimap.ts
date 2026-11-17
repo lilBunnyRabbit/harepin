@@ -1,56 +1,47 @@
 import type { Car } from "../car/car";
 import type { MapMarker } from "../career/markers";
 import type { Remote } from "../net/net";
+import { brand, dark, lighten, rgba } from "../theme/palette";
 import type { RoadPoint, Route } from "../worldgen/types";
 
 interface Dot {
   x: number;
   z: number;
 }
-import { brand, dark, rgba } from "../theme/palette";
-import { ROAD_HALF } from "../world/world";
 
-const MAP = 200;
-// The disc's own fill (--surface's base): the rings that keep marks off the route and the N off the roads match the plate
-// rather than drawing a halo around them.
-const plate = dark ? brand.background_darkest : brand.background_lighter;
-const INK = {
-  road: rgba(brand.foreground, 0.5),
-  checkpoint: rgba(brand.accent),
-  later: rgba(brand.accent, 0.45),
-  remote: rgba(brand.secondary),
-  // A derived light theme's cottontail is a pale tint of primary that vanished on the light disc; the speed has the same
-  // swap to foreground.
-  you: rgba(dark ? brand.cottontail : brand.foreground),
-  label: rgba(brand.foreground),
-  halo: rgba(plate),
-  route: rgba(brand.primary),
-  faint: rgba(brand.foreground, 0.6),
-  north: rgba(brand.foreground, 0.9),
-  gap: rgba(plate),
-  casing: rgba(plate),
-};
-/** Close-up: about 200 m of road ahead of the car. */
-const CLOSE_CAR_Y = 0.7;
-const CLOSE_SCALE = 0.7;
+const W = 192;
+const H = 104;
+/** Realistic shows the world this many times larger than a map of all of it would, so the card is a window that follows the car. */
+const REAL_ZOOM = 2.3;
+/** CSS px side of the whole world in the Realistic map; the map's picture is painted at this size. */
+export const PICTURE_SIDE = Math.round(W * REAL_ZOOM);
+const LINE_PAD = 14;
+/** Px per metre. */
+const CLOSE_SCALE = 0.6;
+const CLOSE_CAR_Y = 0.76;
 /** Seconds for the heading-up map to follow the car's heading, so a slide doesn't spin it with every twitch. */
 const CLOSE_TURN_LAG = 0.12;
+/** Close-up roads are drawn wider than they are, in px, so the one driven reads as a band and not a hairline. */
+const CLOSE_ROAD = 16;
+const CLOSE_SIDE = 9;
 const PIECE = 32;
-const EDGE = MAP / 2 - 6;
-/** CSS px square the N and its halo are drawn into once. */
-const NORTH_BOX = 24;
-/** CSS px: a car name's bitmap height, and the room its 3 px halo takes on each side. */
-const LABEL_HEIGHT = 14;
-const LABEL_PAD = 2;
-/** Name bitmaps kept before the cache starts over: names come and go with peers. */
-const LABEL_CACHE = 32;
+const EDGE_X = W / 2 - 9;
+const EDGE_Y = H / 2 - 9;
 
-/** Full map: the world x/z at its centre and px per metre. */
-interface FullView {
-  cx: number;
-  cz: number;
-  scale: number;
-}
+// The card's own shade (--deep): the ring round every mark matches it, so two brand colours never touch.
+const deep = dark ? lighten(brand.background_darkest, -0.06) : brand.background_lighter;
+const INK = {
+  ring: rgba(deep),
+  track: rgba(brand.foreground),
+  road: rgba(brand.foreground, 0.5),
+  band: rgba(brand.background_lightest),
+  side: rgba(brand.background_light),
+  ahead: rgba(brand.cottontail),
+  gate: rgba(brand.cottontail),
+  later: rgba(brand.cottontail, 0.55),
+  rival: rgba(brand.accent),
+  you: rgba(brand.info),
+};
 
 /** A polyline cut into close-up pieces of `PIECE` points, each with its bounds, so the close-up skips what is out of reach. */
 interface Line {
@@ -60,34 +51,21 @@ interface Line {
   bounds: Float64Array;
 }
 
-interface Drawn extends FullView, Line {
+interface Drawn extends Line {
   id: string;
   road: Path2D;
+  cx: number;
+  cz: number;
+  scale: number;
+  finish: Dot;
+  finish_dx: number;
+  finish_dz: number;
 }
 
 /** Roads past the routes a streamed world's maps draw too: every plan edge off the circuit, and its towns. */
 export interface MapNetwork {
   roads: readonly (readonly RoadPoint[])[];
   towns: readonly Dot[];
-}
-
-const full_x = (v: FullView, x: number) => MAP / 2 + (x - v.cx) * v.scale;
-const full_y = (v: FullView, z: number) => MAP / 2 + (z - v.cz) * v.scale;
-
-// A lap shows the whole world; an A to B run is a corner of it, so the full map fits that run's span instead.
-function full_view(route: Route, size: number): FullView {
-  if (route.closed) return { cx: 0, cz: 0, scale: (MAP * 1.05) / size };
-  let x0 = Infinity;
-  let z0 = Infinity;
-  let x1 = -Infinity;
-  let z1 = -Infinity;
-  for (const p of route.points) {
-    x0 = Math.min(x0, p.x);
-    z0 = Math.min(z0, p.z);
-    x1 = Math.max(x1, p.x);
-    z1 = Math.max(z1, p.z);
-  }
-  return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, scale: EDGE / Math.max(1, Math.hypot(x1 - x0, z1 - z0) / 2) };
 }
 
 function line(points: readonly RoadPoint[], closed: boolean): Line {
@@ -115,53 +93,78 @@ function line(points: readonly RoadPoint[], closed: boolean): Line {
   return { points, closed, bounds };
 }
 
-function path(view: FullView, points: readonly RoadPoint[], closed: boolean, into = new Path2D()): Path2D {
-  points.forEach((p, i) => (i ? into.lineTo(full_x(view, p.x), full_y(view, p.z)) : into.moveTo(full_x(view, p.x), full_y(view, p.z))));
+function path(points: readonly RoadPoint[], closed: boolean, into = new Path2D()): Path2D {
+  points.forEach((p, i) => (i ? into.lineTo(p.x, p.z) : into.moveTo(p.x, p.z)));
   if (closed) into.closePath();
   return into;
 }
 
-function drawn(route: Route, size: number): Drawn {
-  const view = full_view(route, size);
-  return { id: route.id, road: path(view, route.points, route.closed), ...line(route.points, route.closed), ...view };
+function drawn(route: Route): Drawn {
+  const { points, closed } = route;
+  let x0 = Infinity;
+  let z0 = Infinity;
+  let x1 = -Infinity;
+  let z1 = -Infinity;
+  for (const p of points) {
+    x0 = Math.min(x0, p.x);
+    z0 = Math.min(z0, p.z);
+    x1 = Math.max(x1, p.x);
+    z1 = Math.max(z1, p.z);
+  }
+  // A lap finishes where it starts; an A to B run at its last point.
+  const at = closed ? 0 : points.length - 1;
+  const finish = points[at];
+  const next = points[closed ? 1 : at - 1] ?? finish;
+  const length = Math.hypot(next.x - finish.x, next.z - finish.z) || 1;
+  return {
+    id: route.id,
+    road: path(points, closed),
+    ...line(points, closed),
+    cx: (x0 + x1) / 2,
+    cz: (z0 + z1) / 2,
+    scale: Math.min((W - 2 * LINE_PAD) / Math.max(1, x1 - x0), (H - 2 * LINE_PAD) / Math.max(1, z1 - z0)),
+    finish,
+    finish_dx: (next.x - finish.x) / length,
+    finish_dz: (next.z - finish.z) / length,
+  };
 }
 
 export class Minimap {
   private ctx: CanvasRenderingContext2D;
-  private road_layer = new OffscreenCanvas(1, 1);
+  private real_layer = new OffscreenCanvas(1, 1);
+  private line_layer = new OffscreenCanvas(1, 1);
+  private real_ok = false;
+  private line_ok = false;
   private ratio = 0;
   private drawn: Drawn | null = null;
   private wanted = "";
   private cache = new Map<string, Drawn>();
-  // Setting `font` and drawing text resolves the font against the canvas's style every frame, after the HUD's DOM writes.
-  private north_mark: OffscreenCanvas | null = null;
-  private readonly labels = new Map<string, OffscreenCanvas>();
   private turn = Number.NaN;
   private last = 0;
-  private readonly font: string;
-  private readonly bold: string;
-
+  private picture: CanvasImageSource | null = null;
   private readonly network: Line[];
+  private readonly network_path: Path2D;
   private markers: readonly MapMarker[] = [];
-  /** The floating HUD's disc look: the route bright over faint roads, and an N on the rim. */
-  private disc = false;
+  private bar_x = Number.NaN;
+  private bar_z = Number.NaN;
+  private bar_dx = 0;
+  private bar_dz = 0;
 
   constructor(
     private canvas: HTMLCanvasElement,
     private routes: readonly Route[],
-    /** World side in metres: a lap's full map shows all of it. */
+    /** World side in metres. */
     private readonly size: number,
     private readonly roads: MapNetwork = { roads: [], towns: [] },
   ) {
     this.network = roads.roads.map((points) => line(points, false));
+    this.network_path = roads.roads.reduce((into, points) => path(points, false, into), new Path2D());
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("minimap has no 2d context");
     this.ctx = ctx;
-    this.font = `600 9px ${getComputedStyle(canvas).fontFamily}`;
-    this.bold = `800 13px ${getComputedStyle(canvas).fontFamily}`;
   }
 
-  /** The route both views draw: a lobby race's, else the circuit. Rebuilt only when it changes. */
+  /** The route every view draws: a run's, a lobby race's, else the circuit. Rebuilt only when it changes. */
   show_route(id: string) {
     if (id === this.wanted && this.drawn) return;
     this.wanted = id;
@@ -169,223 +172,203 @@ export class Minimap {
     if (!route) return;
     let next = this.cache.get(route.id);
     if (!next) {
-      next = drawn(route, this.size);
+      next = drawn(route);
       this.cache.set(route.id, next);
     }
     if (next === this.drawn) return;
     this.drawn = next;
-    this.ratio = 0;
+    this.real_ok = false;
+    this.line_ok = false;
+    this.bar_x = Number.NaN;
   }
 
-  // The road only changes with the race route and the theme is fixed per load, so the full map's road is stroked once per route and pixel ratio.
-  private fit() {
-    const ratio = devicePixelRatio;
-    if (ratio === this.ratio) return;
-    this.ratio = ratio;
-    this.north_mark = null;
-    this.labels.clear();
-    const size = Math.round(MAP * ratio);
-    this.canvas.width = size;
-    this.canvas.height = size;
-    this.road_layer = new OffscreenCanvas(size, size);
-    const road = this.road_layer.getContext("2d");
-    if (!road) throw new Error("minimap road layer has no 2d context");
-    // A world with no routes (the dune sea) still sizes the canvas: its map is the cars alone.
-    if (!this.drawn) return;
-    road.scale(ratio, ratio);
-    road.lineJoin = "round";
-    road.strokeStyle = this.disc ? INK.faint : INK.road;
-    const view = this.drawn;
-    if (this.network.length) {
-      road.lineWidth = this.disc ? 2.25 : 1.5;
-      road.stroke(this.roads.roads.reduce((into, points) => path(view, points, false, into), new Path2D()));
-      road.fillStyle = INK.road;
-      for (const town of this.roads.towns) {
-        road.beginPath();
-        road.arc(full_x(view, town.x), full_y(view, town.z), 3, 0, Math.PI * 2);
-        road.fill();
-      }
-    }
-    road.lineWidth = 3;
-    if (this.disc) {
-      // A casing of the plate's shade under the ribbon keeps the route clear of the faint roads it crosses.
-      road.lineCap = "round";
-      road.lineWidth = 7;
-      road.strokeStyle = INK.casing;
-      road.stroke(this.drawn.road);
-      road.lineWidth = 4;
-      road.strokeStyle = INK.route;
-    }
-    road.stroke(this.drawn.road);
-  }
-
-  // `turn`: how far north sits clockwise from the top of the map.
-  private north(turn: number) {
-    if (!this.disc) return;
-    const r = MAP / 2 - 13;
-    const x = MAP / 2 + Math.sin(turn) * r;
-    const y = MAP / 2 - Math.cos(turn) * r;
-    this.north_mark ??= this.draw_north();
-    // Snapped to device pixels: a bitmap drawn between them is resampled and blurs.
-    const left = Math.round((x - NORTH_BOX / 2) * this.ratio) / this.ratio;
-    const top = Math.round((y - NORTH_BOX / 2) * this.ratio) / this.ratio;
-    this.ctx.drawImage(this.north_mark, left, top, this.north_mark.width / this.ratio, this.north_mark.height / this.ratio);
-  }
-
-  private draw_north(): OffscreenCanvas {
-    const mark = new OffscreenCanvas(Math.round(NORTH_BOX * this.ratio), Math.round(NORTH_BOX * this.ratio));
-    const ctx = mark.getContext("2d");
-    if (!ctx) throw new Error("minimap north mark has no 2d context");
-    // A mark drawn before the web font arrives would keep the fallback face: draw it again once the font is in.
-    if (!document.fonts.check(this.bold))
-      void document.fonts.load(this.bold).then(() => {
-        if (this.north_mark === mark) this.north_mark = null;
-      });
-    ctx.scale(this.ratio, this.ratio);
-    ctx.font = this.bold;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.lineJoin = "round";
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = INK.halo;
-    ctx.fillStyle = INK.north;
-    ctx.strokeText("N", NORTH_BOX / 2, NORTH_BOX / 2);
-    ctx.fillText("N", NORTH_BOX / 2, NORTH_BOX / 2);
-    return mark;
+  /** The map's own picture, the whole world on a square: Realistic draws it under the route. Without one it draws the roads it knows. */
+  set_picture(picture: CanvasImageSource) {
+    this.picture = picture;
+    this.real_ok = false;
   }
 
   set_markers(markers: readonly MapMarker[]) {
     this.markers = markers;
   }
 
-  // A diamond, unlike every round mark, so an event start never reads as a gate or a car.
-  private marker(x: number, y: number, ink: string) {
+  reset() {
+    this.turn = Number.NaN;
+  }
+
+  private fit() {
+    const ratio = devicePixelRatio;
+    if (ratio === this.ratio) return;
+    this.ratio = ratio;
+    this.canvas.width = Math.round(W * ratio);
+    this.canvas.height = Math.round(H * ratio);
+    this.real_ok = false;
+    this.line_ok = false;
+  }
+
+  // Each layer changes only with the route, the picture and the pixel ratio, so the frame loop blits it.
+  private paint_real() {
+    this.real_ok = true;
+    const side = Math.round(PICTURE_SIDE * this.ratio);
+    this.real_layer = new OffscreenCanvas(side, side);
+    const ctx = this.real_layer.getContext("2d");
+    if (!ctx) throw new Error("minimap layer has no 2d context");
+    if (this.picture) ctx.drawImage(this.picture, 0, 0, side, side);
+    const k = side / this.size;
+    ctx.setTransform(k, 0, 0, k, side / 2, side / 2);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    if (!this.picture) {
+      ctx.strokeStyle = INK.road;
+      ctx.lineWidth = (1.5 * this.ratio) / k;
+      ctx.stroke(this.network_path);
+      ctx.fillStyle = INK.road;
+      for (const town of this.roads.towns) {
+        ctx.beginPath();
+        ctx.arc(town.x, town.z, (3 * this.ratio) / k, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    if (this.drawn) this.ribbon(ctx, this.drawn.road, (this.ratio * 3) / k);
+  }
+
+  private paint_line(route: Drawn) {
+    this.line_ok = true;
+    const { ratio } = this;
+    this.line_layer = new OffscreenCanvas(Math.round(W * ratio), Math.round(H * ratio));
+    const ctx = this.line_layer.getContext("2d");
+    if (!ctx) throw new Error("minimap layer has no 2d context");
+    const k = route.scale * ratio;
+    ctx.setTransform(k, 0, 0, k, (W / 2) * ratio - route.cx * k, (H / 2) * ratio - route.cz * k);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    this.ribbon(ctx, route.road, 4.5 / route.scale);
+    const half = 6 / route.scale;
+    ctx.beginPath();
+    ctx.moveTo(route.finish.x - route.finish_dz * half, route.finish.z + route.finish_dx * half);
+    ctx.lineTo(route.finish.x + route.finish_dz * half, route.finish.z - route.finish_dx * half);
+    ctx.lineWidth = 6.5 / route.scale;
+    ctx.strokeStyle = INK.ring;
+    ctx.stroke();
+    ctx.lineWidth = 3.5 / route.scale;
+    ctx.strokeStyle = INK.track;
+    ctx.stroke();
+  }
+
+  private ribbon(ctx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D, road: Path2D, width: number) {
+    ctx.lineWidth = width * 2;
+    ctx.strokeStyle = INK.ring;
+    ctx.stroke(road);
+    ctx.lineWidth = width;
+    ctx.strokeStyle = INK.track;
+    ctx.stroke(road);
+  }
+
+  private ringed(ink: string) {
     const { ctx } = this;
-    const r = this.disc ? 6 : 4.5;
+    ctx.lineWidth = 5;
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = INK.ring;
+    ctx.stroke();
+    ctx.fillStyle = ink;
+    ctx.fill();
+  }
+
+  private dot(x: number, y: number, radius: number, ink: string) {
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, radius, 0, Math.PI * 2);
+    this.ringed(ink);
+  }
+
+  private diamond(x: number, y: number, r: number, ink: string) {
+    const { ctx } = this;
     ctx.beginPath();
     ctx.moveTo(x, y - r);
     ctx.lineTo(x + r, y);
     ctx.lineTo(x, y + r);
     ctx.lineTo(x - r, y);
     ctx.closePath();
-    ctx.fillStyle = ink;
-    ctx.lineWidth = 3;
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = INK.gap;
-    ctx.stroke();
-    ctx.fill();
+    this.ringed(ink);
   }
 
-  set_disc(on: boolean) {
-    if (on === this.disc) return;
-    this.disc = on;
-    this.ratio = 0;
-  }
-
-  // On the disc every mark sits on the bright route; a ring of the page shade keeps two brand colours from touching.
-  private dot(x: number, y: number, radius: number) {
+  // The gate aimed at is a ring, hollow to the card's shade, so it never reads as a car.
+  private gate(x: number, y: number) {
     const { ctx } = this;
     ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    if (this.disc) this.gap();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = INK.ring;
+    ctx.stroke();
+    ctx.fillStyle = INK.ring;
     ctx.fill();
-  }
-
-  private gap() {
-    const { ctx } = this;
     ctx.lineWidth = 3;
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = INK.gap;
+    ctx.strokeStyle = INK.gate;
     ctx.stroke();
   }
 
-  // Every car dot carries its name, so it never reads as a map mark.
-  private car(x: number, y: number, name: string) {
-    const { ctx } = this;
-    ctx.fillStyle = INK.remote;
-    this.dot(x, y, 3.5);
-    const mark = this.label(name);
-    const width = mark.width / this.ratio;
-    // Names point inward, so one near the rim stays on the map. Snapped to device pixels, as the N is.
-    const start = x > MAP / 2 ? x - 6 - width + LABEL_PAD : x + 6 - LABEL_PAD;
-    const left = Math.round(start * this.ratio) / this.ratio;
-    const top = Math.round((y - LABEL_HEIGHT / 2) * this.ratio) / this.ratio;
-    ctx.drawImage(mark, left, top, width, mark.height / this.ratio);
+  // A mark past the card's edge rides the edge, so the way to it still shows.
+  private edge(dx: number, dy: number): number {
+    return Math.min(1, EDGE_X / Math.max(1e-6, Math.abs(dx)), EDGE_Y / Math.max(1e-6, Math.abs(dy)));
   }
 
-  // Same reason as the N: text drawn on the HUD canvas resolves its font against the page's style every frame.
-  private label(name: string): OffscreenCanvas {
-    const cached = this.labels.get(name);
-    if (cached) return cached;
-    if (this.labels.size >= LABEL_CACHE) this.labels.clear();
-    const mark = new OffscreenCanvas(1, 1);
-    const ctx = mark.getContext("2d");
-    if (!ctx) throw new Error("minimap name label has no 2d context");
-    if (!document.fonts.check(this.font))
-      void document.fonts.load(this.font).then(() => {
-        if (this.labels.get(name) === mark) this.labels.delete(name);
-      });
-    ctx.font = this.font;
-    mark.width = Math.ceil((ctx.measureText(name).width + LABEL_PAD * 2) * this.ratio);
-    mark.height = Math.round(LABEL_HEIGHT * this.ratio);
-    ctx.scale(this.ratio, this.ratio);
-    ctx.font = this.font;
-    ctx.textBaseline = "middle";
-    ctx.lineJoin = "round";
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = INK.halo;
-    ctx.fillStyle = INK.label;
-    ctx.strokeText(name, LABEL_PAD, LABEL_HEIGHT / 2);
-    ctx.fillText(name, LABEL_PAD, LABEL_HEIGHT / 2);
-    this.labels.set(name, mark);
-    return mark;
+  private clear() {
+    const { ctx, ratio } = this;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, W, H);
   }
 
-  private arrow(x: number, y: number, h: number) {
-    const { ctx } = this;
-    const at = (turn: number, r: number): [number, number] => [x + Math.sin(h + turn) * r, y + Math.cos(h + turn) * r];
-    ctx.beginPath();
-    if (this.disc) {
-      // A long notched chevron: which way you face reads at a glance, even on the phone's small disc.
-      ctx.moveTo(...at(0, 19));
-      ctx.lineTo(...at(2.6, 14));
-      ctx.lineTo(...at(Math.PI, 5));
-      ctx.lineTo(...at(-2.6, 14));
-      ctx.closePath();
-      ctx.fillStyle = INK.you;
-      this.gap();
-      ctx.fill();
-      return;
-    }
-    ctx.fillStyle = INK.you;
-    ctx.moveTo(...at(0, 7));
-    ctx.lineTo(...at(2.5, 5));
-    ctx.lineTo(...at(-2.5, 5));
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  /** `names`: each car's display name by id; a car missing from it shows the name it sent. */
-  full(car: Car, gate: Dot | null, later: readonly Dot[], remotes: Iterable<Remote>, names: ReadonlyMap<string, string>) {
+  real(car: Car, gate: Dot | null, later: readonly Dot[], remotes: Iterable<Remote>) {
     this.fit();
+    if (!this.real_ok) this.paint_real();
+    this.clear();
     const { ctx } = this;
-    const view = this.drawn ?? { cx: 0, cz: 0, scale: (MAP * 1.05) / this.size };
-    ctx.setTransform(this.ratio, 0, 0, this.ratio, 0, 0);
-    ctx.clearRect(0, 0, MAP, MAP);
-    ctx.drawImage(this.road_layer, 0, 0, MAP, MAP);
-    for (const mark of this.markers) this.marker(full_x(view, mark.x), full_y(view, mark.z), mark.ink);
-    ctx.fillStyle = INK.later;
-    for (const mark of later) this.dot(full_x(view, mark.x), full_y(view, mark.z), this.disc ? 4 : 3);
-    if (gate) {
-      ctx.fillStyle = INK.checkpoint;
-      this.dot(full_x(view, gate.x), full_y(view, gate.z), this.disc ? 6 : 4.5);
+    const k = PICTURE_SIDE / this.size;
+    const { x, z } = car.pos;
+    ctx.drawImage(this.real_layer, W / 2 - (x + this.size / 2) * k, H / 2 - (z + this.size / 2) * k, PICTURE_SIDE, PICTURE_SIDE);
+    for (const mark of this.markers) {
+      const mx = (mark.x - x) * k;
+      const my = (mark.z - z) * k;
+      if (Math.abs(mx) <= EDGE_X && Math.abs(my) <= EDGE_Y) this.diamond(W / 2 + mx, H / 2 + my, 4, mark.ink);
     }
-    for (const remote of remotes) this.car(full_x(view, remote.latest.p[0]), full_y(view, remote.latest.p[2]), names.get(remote.id) ?? remote.latest.name);
-    this.arrow(full_x(view, car.pos.x), full_y(view, car.pos.z), car.heading);
-    this.north(0);
+    for (const mark of later) {
+      const mx = (mark.x - x) * k;
+      const my = (mark.z - z) * k;
+      if (Math.abs(mx) <= EDGE_X && Math.abs(my) <= EDGE_Y) this.dot(W / 2 + mx, H / 2 + my, 2.5, INK.later);
+    }
+    if (gate) {
+      const gx = (gate.x - x) * k;
+      const gy = (gate.z - z) * k;
+      const edge = this.edge(gx, gy);
+      this.gate(W / 2 + gx * edge, H / 2 + gy * edge);
+    }
+    for (const remote of remotes) {
+      const rx = (remote.latest.p[0] - x) * k;
+      const ry = (remote.latest.p[2] - z) * k;
+      const edge = this.edge(rx, ry);
+      this.dot(W / 2 + rx * edge, H / 2 + ry * edge, 4, INK.rival);
+    }
+    this.diamond(W / 2, H / 2, 6.5, INK.you);
   }
 
-  close(car: Car, gate: Dot | null, later: readonly Dot[], remotes: Iterable<Remote>, names: ReadonlyMap<string, string>, now: number) {
+  /** The route alone, all of it. False when there is no route to draw, so the caller can show another view. */
+  line(car: Car, gate: Dot | null, remotes: Iterable<Remote>): boolean {
+    const route = this.drawn;
+    if (!route) return false;
+    this.fit();
+    if (!this.line_ok) this.paint_line(route);
+    this.clear();
+    const { ctx } = this;
+    const k = route.scale;
+    const ox = W / 2 - route.cx * k;
+    const oy = H / 2 - route.cz * k;
+    ctx.drawImage(this.line_layer, 0, 0, W, H);
+    if (gate) this.gate(ox + gate.x * k, oy + gate.z * k);
+    for (const remote of remotes) this.dot(ox + remote.latest.p[0] * k, oy + remote.latest.p[2] * k, 4, INK.rival);
+    this.diamond(ox + car.pos.x * k, oy + car.pos.z * k, 6.5, INK.you);
+    return true;
+  }
+
+  close(car: Car, gate: Dot | null, later: readonly Dot[], remotes: Iterable<Remote>, now: number) {
     this.fit();
     const { ctx } = this;
     const heading = car.heading;
@@ -399,78 +382,109 @@ export class Minimap {
     // Rotating by heading - π turns the car's (sin h, cos h) to straight up.
     const cos = Math.cos(this.turn - Math.PI) * CLOSE_SCALE;
     const sin = Math.sin(this.turn - Math.PI) * CLOSE_SCALE;
-    const cx = MAP / 2;
-    const cy = MAP * CLOSE_CAR_Y;
+    const cx = W / 2;
+    const cy = H * CLOSE_CAR_Y;
     const { x, z } = car.pos;
     const r = this.ratio;
-    ctx.setTransform(r, 0, 0, r, 0, 0);
-    ctx.clearRect(0, 0, MAP, MAP);
+    this.clear();
     ctx.setTransform(r * cos, r * sin, -r * sin, r * cos, r * (cx - cos * x + sin * z), r * (cy - sin * x - cos * z));
-    ctx.lineWidth = ROAD_HALF * 2;
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
-    if (this.disc) {
-      ctx.strokeStyle = INK.faint;
+    ctx.beginPath();
+    for (const road of this.network) this.trace_line(road, x, z);
+    ctx.lineWidth = CLOSE_SIDE / CLOSE_SCALE;
+    ctx.strokeStyle = INK.side;
+    ctx.stroke();
+    if (this.drawn) {
       ctx.beginPath();
-      for (const road of this.network) this.trace_line(road, x, z);
+      this.trace_line(this.drawn, x, z);
+      ctx.lineWidth = CLOSE_ROAD / CLOSE_SCALE;
+      ctx.strokeStyle = INK.band;
       ctx.stroke();
-      ctx.beginPath();
-      if (this.drawn) this.trace_line(this.drawn, x, z);
-      ctx.strokeStyle = INK.casing;
-      ctx.lineWidth = ROAD_HALF * 2.6;
-      ctx.stroke();
-      ctx.strokeStyle = INK.route;
-      ctx.lineWidth = ROAD_HALF * 1.6;
-      ctx.stroke();
-    } else {
-      ctx.strokeStyle = INK.road;
-      this.trace(x, z);
+      ctx.lineWidth = 2.5 / CLOSE_SCALE;
+      ctx.strokeStyle = INK.ahead;
       ctx.stroke();
     }
     ctx.setTransform(r, 0, 0, r, 0, 0);
+    const ox = cx - W / 2;
+    const oy = cy - H / 2;
     for (const mark of this.markers) {
-      const mx = cos * (mark.x - x) - sin * (mark.z - z) + cx - MAP / 2;
-      const my = sin * (mark.x - x) + cos * (mark.z - z) + cy - MAP / 2;
-      if (Math.hypot(mx, my) <= EDGE) this.marker(MAP / 2 + mx, MAP / 2 + my, mark.ink);
+      const mx = cos * (mark.x - x) - sin * (mark.z - z) + ox;
+      const my = sin * (mark.x - x) + cos * (mark.z - z) + oy;
+      if (Math.abs(mx) <= EDGE_X && Math.abs(my) <= EDGE_Y) this.diamond(W / 2 + mx, H / 2 + my, 4, mark.ink);
     }
-    ctx.fillStyle = INK.remote;
-    // Out of reach, a car rides the rim like the gate, so you still see which way they are.
+    for (const mark of later) {
+      const mx = cos * (mark.x - x) - sin * (mark.z - z) + ox;
+      const my = sin * (mark.x - x) + cos * (mark.z - z) + oy;
+      if (Math.abs(mx) <= EDGE_X && Math.abs(my) <= EDGE_Y) this.dot(W / 2 + mx, H / 2 + my, 2.5, INK.later);
+    }
+    if (gate) {
+      const gx = cos * (gate.x - x) - sin * (gate.z - z) + ox;
+      const gy = sin * (gate.x - x) + cos * (gate.z - z) + oy;
+      const edge = this.edge(gx, gy);
+      if (edge < 1 || !this.aim_bar(gate)) this.gate(W / 2 + gx * edge, H / 2 + gy * edge);
+      else {
+        // Across the route: the route's direction turned a quarter, then by the map's own turn.
+        const bx = (cos * -this.bar_dz - sin * this.bar_dx) / CLOSE_SCALE;
+        const by = (sin * -this.bar_dz + cos * this.bar_dx) / CLOSE_SCALE;
+        const half = CLOSE_ROAD / 2 + 3;
+        ctx.beginPath();
+        ctx.moveTo(W / 2 + gx - bx * half, H / 2 + gy - by * half);
+        ctx.lineTo(W / 2 + gx + bx * half, H / 2 + gy + by * half);
+        ctx.lineWidth = 7;
+        ctx.strokeStyle = INK.ring;
+        ctx.stroke();
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = INK.gate;
+        ctx.stroke();
+      }
+    }
     for (const remote of remotes) {
       const dx = remote.latest.p[0] - x;
       const dz = remote.latest.p[2] - z;
-      const px = cos * dx - sin * dz + cx - MAP / 2;
-      const py = sin * dx + cos * dz + cy - MAP / 2;
-      const edge = Math.min(1, EDGE / Math.hypot(px, py));
-      this.car(MAP / 2 + px * edge, MAP / 2 + py * edge, names.get(remote.id) ?? remote.latest.name);
+      const px = cos * dx - sin * dz + ox;
+      const py = sin * dx + cos * dz + oy;
+      const edge = this.edge(px, py);
+      this.dot(W / 2 + px * edge, H / 2 + py * edge, 4, INK.rival);
     }
-    // Only the gate aimed at rides the rim: the later ones show once they are in reach.
-    ctx.fillStyle = INK.later;
-    for (const mark of later) {
-      const mx = cos * (mark.x - x) - sin * (mark.z - z) + cx - MAP / 2;
-      const my = sin * (mark.x - x) + cos * (mark.z - z) + cy - MAP / 2;
-      if (Math.hypot(mx, my) <= EDGE) this.dot(MAP / 2 + mx, MAP / 2 + my, this.disc ? 4 : 3);
-    }
-    if (gate) {
-      const gx = cos * (gate.x - x) - sin * (gate.z - z) + cx - MAP / 2;
-      const gy = sin * (gate.x - x) + cos * (gate.z - z) + cy - MAP / 2;
-      const edge = Math.min(1, EDGE / Math.hypot(gx, gy));
-      ctx.fillStyle = INK.checkpoint;
-      this.dot(MAP / 2 + gx * edge, MAP / 2 + gy * edge, this.disc ? 6 : 4.5);
-    }
-    this.arrow(cx, cy, Math.PI);
-    this.north(this.turn - Math.PI);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 10);
+    ctx.lineTo(cx + 7.5, cy + 8);
+    ctx.lineTo(cx, cy + 4);
+    ctx.lineTo(cx - 7.5, cy + 8);
+    ctx.closePath();
+    this.ringed(INK.you);
   }
 
-  // One path for every piece in reach: stroked piece by piece, the half-transparent ink doubled up where they meet.
-  private trace(x: number, z: number) {
-    this.ctx.beginPath();
-    if (this.drawn) this.trace_line(this.drawn, x, z);
-    for (const road of this.network) this.trace_line(road, x, z);
+  // The route's direction at the gate, found once per gate: the nearest route point and the one after it.
+  private aim_bar(gate: Dot): boolean {
+    const route = this.drawn;
+    if (!route) return false;
+    if (gate.x === this.bar_x && gate.z === this.bar_z) return true;
+    const { points, closed } = route;
+    let best = 0;
+    let least = Infinity;
+    for (let i = 0; i < points.length; i++) {
+      const d = (points[i].x - gate.x) ** 2 + (points[i].z - gate.z) ** 2;
+      if (d < least) {
+        least = d;
+        best = i;
+      }
+    }
+    const a = points[best];
+    const b = points[best + 1] ?? (closed ? points[0] : points[best - 1]);
+    if (!b) return false;
+    const length = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    this.bar_x = gate.x;
+    this.bar_z = gate.z;
+    this.bar_dx = (b.x - a.x) / length;
+    this.bar_dz = (b.z - a.z) / length;
+    return true;
   }
 
   private trace_line({ bounds, points, closed }: Line, x: number, z: number) {
     const { ctx } = this;
-    const reach = MAP / CLOSE_SCALE;
+    const reach = W / CLOSE_SCALE;
     const count = bounds.length / 4;
     let joined = false;
     for (let k = 0; k < count; k++) {
@@ -488,9 +502,5 @@ export class Minimap {
       }
       joined = true;
     }
-  }
-
-  reset() {
-    this.turn = Number.NaN;
   }
 }

@@ -115,17 +115,17 @@
 
 <style>
   /* The lab times no laps: its strip takes the lap strip's place. */
-  :global(:root[data-hud] body:has(.lab-strip) #strip) {
+  :global(body:has(.lab-strip) #strip) {
     display: none;
   }
 
-  /* Classic hangs the toast under the lap strip; with that gone its anchor went missing and it sat half off screen. */
-  :global(:root[data-hud="classic"]) .lab-strip {
+  /* The toast hangs under the lap strip; with that gone its anchor went missing and it sat half off screen. */
+  .lab-strip {
     anchor-name: --top-centre;
   }
 
   /* A trial's toast carries its whole task: on one line it ran past the window edge, so it wraps to the strip's width. */
-  :global(:root[data-hud="classic"] body:has(.lab-strip) #toast) {
+  :global(body:has(.lab-strip) #toast) {
     max-width: anchor-size(width);
     white-space: normal;
     text-wrap: balance;

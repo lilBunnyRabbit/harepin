@@ -1,15 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_SETTINGS, HudLayout, MapView } from "../prefs";
+import { DEFAULT_SETTINGS, MapView, SpeedoStyle } from "../prefs";
 import { SettingsNav } from "./nav.svelte";
 import { CHANGES, chips, summary, wire_boxes } from "./sections";
 
 describe("settings tab", () => {
-  test("pace notes halve the map box and Off drops it", () => {
-    const full = wire_boxes(HudLayout.CLASSIC, MapView.FULL).find((box) => box.part === "map");
-    const pace = wire_boxes(HudLayout.CLASSIC, MapView.PACE).find((box) => box.part === "map");
-    expect(full?.card).toBe(false);
-    expect(pace?.card).toBe(true);
-    expect(wire_boxes(HudLayout.CLASSIC, MapView.OFF).some((box) => box.part === "map")).toBe(false);
+  test("the HUD wire draws the picked map and speedometer, and Off drops the map", () => {
+    const boxes = wire_boxes(MapView.LINE, SpeedoStyle.DIAL);
+    expect(boxes.find((box) => box.part === "map")?.look).toBe("line");
+    expect(boxes.find((box) => box.part === "speed")?.look).toBe("dial");
+    expect(wire_boxes(MapView.OFF, SpeedoStyle.BAR).some((box) => box.part === "map")).toBe(false);
+  });
+
+  test("the Display card names the map and the speedometer", () => {
+    expect(summary("display", { ...DEFAULT_SETTINGS, map: "close", speedo: "dial" }, "high", "Brand Dark")).toBe("Close-up map · Dial speedometer · Brand Dark");
   });
 
   test("key list cells split into chips and separators", () => {

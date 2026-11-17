@@ -43,15 +43,6 @@ export const SpeedZoom = {
 } as const;
 export type SpeedZoom = (typeof SpeedZoom)[keyof typeof SpeedZoom];
 
-/** Where the HUD pieces sit; each is a CSS layout keyed on `data-hud` on the root. */
-export const HudLayout = {
-  MINIMAL: "minimal",
-  CLASSIC: "classic",
-  RACING: "racing",
-  COMPACT: "compact",
-} as const;
-export type HudLayout = (typeof HudLayout)[keyof typeof HudLayout];
-
 export const HudSize = {
   SMALL: "small",
   MEDIUM: "medium",
@@ -59,29 +50,17 @@ export const HudSize = {
 } as const;
 export type HudSize = (typeof HudSize)[keyof typeof HudSize];
 
-/** Where the dash (speed, gear, revs, aid switches) sits in Classic and Minimal; Racing always centres it, Compact keeps it up top. */
-export const DashPlace = {
-  RIGHT: "right",
-  CENTER: "center",
-} as const;
-export type DashPlace = (typeof DashPlace)[keyof typeof DashPlace];
-
-/** How Classic draws the speed on a desk: a rev ring round it, or a rev bar under it the way Forza Horizon does. */
+/** How the speed card draws: a big speed over a rev bar, or the speed inside a rev dial. */
 export const SpeedoStyle = {
-  RING: "ring",
   BAR: "bar",
+  DIAL: "dial",
 } as const;
 export type SpeedoStyle = (typeof SpeedoStyle)[keyof typeof SpeedoStyle];
 
-/** Which corner Classic puts the map card in on a desk; touch always keeps it top right, clear of the thumbs. */
-export const MapCorner = {
-  BOTTOM_LEFT: "bottom-left",
-  TOP_RIGHT: "top-right",
-} as const;
-export type MapCorner = (typeof MapCorner)[keyof typeof MapCorner];
-
+/** What the map card shows: the map's picture north up, the run's route alone, the road ahead turning with the car, rally notes, or nothing. */
 export const MapView = {
-  FULL: "full",
+  REAL: "real",
+  LINE: "line",
   CLOSE: "close",
   PACE: "pace",
   OFF: "off",
@@ -136,12 +115,9 @@ export interface SettingsState {
   /** Master volume, 0..1. */
   volume: number;
   muted: boolean;
-  hud: HudLayout;
   hud_size: HudSize;
-  dash: DashPlace;
   speedo: SpeedoStyle;
   map: MapView;
-  map_corner: MapCorner;
   /** Sends the country guessed from the time zone with this player's directory entry. */
   show_country: boolean;
   /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
@@ -227,12 +203,9 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   ai_difficulty: one_of(Object.values(Difficulty), Difficulty.NORMAL),
   volume: { fallback: 0.8, parse: (raw) => (typeof raw === "number" && Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : 0.8) },
   muted: flag(false),
-  hud: one_of(Object.values(HudLayout), HudLayout.CLASSIC),
   hud_size: one_of(Object.values(HudSize), HudSize.MEDIUM),
-  dash: one_of(Object.values(DashPlace), DashPlace.RIGHT),
-  speedo: one_of(Object.values(SpeedoStyle), SpeedoStyle.RING),
-  map: one_of(Object.values(MapView), MapView.FULL),
-  map_corner: one_of(Object.values(MapCorner), MapCorner.BOTTOM_LEFT),
+  speedo: one_of(Object.values(SpeedoStyle), SpeedoStyle.BAR),
+  map: one_of(Object.values(MapView), MapView.REAL),
   show_country: flag(true),
   last_world: { fallback: null, parse: parse_last_world },
   last_seed: { fallback: null, parse: parse_last_seed },

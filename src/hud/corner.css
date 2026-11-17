@@ -1,20 +1,69 @@
 .top-right {
-  top: var(--inset-top);
-  right: var(--inset-right);
-  width: 228px;
+  left: calc(var(--corner-left) / var(--hud-scale));
+  bottom: calc(var(--corner-bottom) / var(--hud-scale));
+  zoom: var(--hud-scale);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-sm);
+  box-sizing: border-box;
+  width: var(--corner-w);
+  height: var(--corner-h);
+  padding: var(--corner-pad);
+}
+
+:root[data-map="off"] .top-right {
+  display: none;
 }
 
 #minimap {
-  width: 200px;
-  height: 200px;
   display: block;
-  margin-bottom: var(--space-2);
+  width: 100%;
+  aspect-ratio: 192 / 104;
+  border-radius: var(--radius-xs);
+  background: var(--row);
 }
 
+#map-note {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--gap-sm);
+  font-size: var(--text-sm);
+  line-height: var(--text-xl);
+  white-space: nowrap;
+}
+
+#map-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 700;
+}
+
+#map-dist {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
+}
+
+/* Beside the card and out of flow, so the map holds still when the players come and go. */
 #players {
-  margin: var(--space-2) 0 0;
-  padding: 0;
+  position: absolute;
+  left: calc(100% + var(--gap-md));
+  bottom: 0;
+  width: max-content;
+  max-width: 220px;
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
   list-style: none;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+#players:has(> li:only-child) {
+  display: none;
 }
 
 #players li {
@@ -41,130 +90,20 @@
   font-size: var(--text-sm);
 }
 
-@media (pointer: coarse) {
-  .top-right {
-    width: auto;
-    padding: var(--space-2);
-  }
-
-  #minimap {
-    width: var(--map-size);
-    height: var(--map-size);
-    margin-bottom: var(--space-1);
-  }
-
-  #players {
-    display: none;
-  }
-}
-
-@media (pointer: fine) {
-  .top-right {
-    width: auto;
-    min-width: 200px;
-    padding: 0;
-    background: none;
-    border: 0;
-    backdrop-filter: none;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-2);
-  }
-
-  #minimap {
-    align-self: flex-end;
-    width: 176px;
-    height: 176px;
-    margin: 0;
-    border-radius: 50%;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    backdrop-filter: blur(6px);
-  }
-
-  #players {
-    margin: 0;
-    padding: var(--space-1) var(--space-3);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--line);
-    background: var(--surface);
-    backdrop-filter: blur(6px);
-  }
-}
-
-/* Narrow desktop window: the key list goes, the strip joins the dock and a smaller map sits under it. */
-@media (pointer: fine) and (max-width: 600px) {
-  .top-right {
-    position-anchor: --top-dock;
-    top: calc(anchor(bottom) + var(--space-2));
-    width: auto;
-  }
-
-  #minimap {
-    width: var(--map-size);
-    height: var(--map-size);
-  }
-}
-
-#players:has(> li:only-child) {
-  display: none;
-}
-
-@media (pointer: coarse) {
-  .top-right {
-    padding: 0;
-    background: none;
-    border: 0;
-    backdrop-filter: none;
-    pointer-events: none;
-  }
-
-  #minimap {
-    margin: 0;
-    border-radius: 50%;
-    background: color-mix(in oklch, var(--surface) 35%, transparent);
-  }
-}
-
-:root[data-hud="minimal"] #players,
-:root[data-hud="compact"] #players {
-  display: none;
-}
-
-@media (pointer: fine) {
-  :root[data-hud="minimal"] #minimap,
-  :root[data-hud="compact"] #minimap {
-    width: var(--compact-map);
-    height: var(--compact-map);
-  }
-
-  :root[data-hud="compact"] .top-right {
-    min-width: 0;
-  }
-}
-
-@media (pointer: coarse) {
-  :root[data-hud="minimal"] #minimap,
-  :root[data-hud="compact"] #minimap {
-    width: var(--compact-map);
-    height: var(--compact-map);
-  }
-}
-
-/* Last in the corner, so showing it or a count changing never moves the map or the player list above it. */
+/* Over the card and out of flow: showing it or a count changing never moves the map. */
 #online-chip {
-  align-self: center;
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--gap-sm));
   display: inline-flex;
   --chip-gap: var(--space-2);
   align-items: center;
   gap: var(--chip-gap);
-  height: 28px;
+  height: var(--chip-h);
   padding: 0 var(--space-3) 0 var(--space-2);
   border-radius: var(--radius-full);
   border: 1px solid var(--line);
   background: var(--surface);
-  backdrop-filter: blur(6px);
   font-size: var(--text-sm);
   font-weight: 400;
   color: var(--dim);
@@ -202,221 +141,4 @@
 #online-chip[data-alone] .online-here,
 #online-chip:not([data-alone], [data-both]) .online-total {
   display: none;
-}
-
-@media (pointer: coarse) {
-  #online-chip {
-    display: flex;
-    width: fit-content;
-    height: 24px;
-    margin: var(--space-1) auto 0;
-    --chip-gap: var(--space-1);
-    padding: 0 var(--space-2);
-    font-size: var(--text-xs);
-    background: color-mix(in oklch, var(--surface) 72%, transparent);
-    backdrop-filter: none;
-  }
-
-  #online-chip svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  #online-chip[data-both] .online-word {
-    display: none;
-  }
-
-  :root[data-calm] #online-chip {
-    opacity: 0.3;
-  }
-}
-
-/* The map fills its card edge to edge, rounded with the card's inner corners, the route a bright ribbon over faint
-   roads; the gate header squares off the corners it meets. */
-:root[data-hud="classic"] #minimap {
-  --map-card: calc(var(--map-disc) + 2 * var(--space-3));
-  width: var(--map-card);
-  height: var(--map-card);
-  border: 0;
-  border-radius: calc(var(--radius-lg) - 1px);
-  background: none;
-  backdrop-filter: none;
-}
-
-:root[data-hud="classic"] #players {
-  border: 1px solid var(--line);
-  background: var(--surface);
-  backdrop-filter: none;
-}
-
-/* The gate distance is the map card's header, inside the same panel. */
-:root[data-hud="classic"] #map-note:not([hidden]) {
-  display: flex;
-  align-self: stretch;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: 0 var(--space-1);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-
-:root[data-hud="classic"] #map-dist {
-  font-family: var(--font-sans);
-  font-size: var(--text-lg);
-  font-weight: 600;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
-  text-transform: none;
-  color: var(--foreground);
-}
-
-/* The online count is the map card's footer, under the map. */
-@media (pointer: fine) {
-  :root[data-hud="classic"] #online-chip {
-    margin: var(--space-1) 0 var(--space-2);
-    border: 0;
-    background: none;
-    backdrop-filter: none;
-  }
-
-  :root[data-hud="classic"] #online-chip:hover {
-    background: var(--background-light);
-  }
-}
-
-:root[data-hud="classic"] #players {
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-md);
-}
-
-/* Bottom left on a desk: one card, the gate distance its header over the map, mirroring the gauge card; the players
-   beside it. */
-@media (pointer: fine) {
-  :root[data-hud="classic"] .top-right {
-    inset: auto auto calc(var(--corner-bottom) / var(--hud-scale, 1)) calc(var(--corner-left) / var(--hud-scale, 1));
-    zoom: var(--hud-scale, 1);
-    width: auto;
-    min-width: 0;
-    gap: 0;
-    padding: 0;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    background: var(--surface);
-  }
-
-  :root[data-hud="classic"] #map-note {
-    order: -1;
-  }
-
-  :root[data-hud="classic"] #map-note:not([hidden]) {
-    padding: var(--space-2) var(--space-4) 0;
-  }
-
-  :root[data-hud="classic"] .top-right:has(#map-note:not([hidden])) #minimap {
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-  }
-
-  /* Beside the card, out of flow, so the map holds still when the players come and go. */
-  :root[data-hud="classic"] #players {
-    position: absolute;
-    left: calc(100% + var(--space-3));
-    bottom: 0;
-    width: max-content;
-    max-width: 220px;
-  }
-}
-
-/* Map corner Top right on a desk: the same card at the same inset as the bottom ones. The players sit beside it on
-   the inner side, level with its foot, so a long list grows up into open sky rather than into the event strip. */
-@media (pointer: fine) {
-  :root[data-hud="classic"][data-map-corner="top-right"] .top-right {
-    inset: calc(var(--corner-top) / var(--hud-scale, 1) + var(--bar-h) + var(--space-3)) calc(var(--corner-right) / var(--hud-scale, 1)) auto auto;
-  }
-
-  :root[data-hud="classic"][data-map-corner="top-right"] #players {
-    left: auto;
-    right: calc(100% + var(--space-3));
-  }
-}
-
-/* Touch: the thumbs own the bottom corners, so the map stays top right. */
-@media (pointer: coarse) {
-  :root[data-hud="classic"] {
-    --map-disc: var(--map-size);
-  }
-
-  :root[data-hud="classic"] .top-right {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0;
-    padding: 0;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    background: var(--surface);
-  }
-
-  :root[data-hud="classic"] #minimap {
-    --map-card: calc(var(--map-disc) + 2 * var(--space-2));
-  }
-
-  :root[data-hud="classic"] #map-note {
-    order: 1;
-  }
-
-  :root[data-hud="classic"] .top-right:has(#map-note:not([hidden])) #minimap {
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-  }
-
-  :root[data-hud="classic"] #map-note:not([hidden]) {
-    justify-content: center;
-    padding: 0 0 var(--space-1);
-  }
-
-  :root[data-hud="classic"] #map-note span {
-    display: none;
-  }
-
-  :root[data-hud="classic"] #map-dist {
-    font-size: var(--text-lg);
-  }
-
-  :root[data-hud="classic"] .touch-buttons {
-    right: calc(var(--inset-right) + var(--map-panel) + var(--space-5));
-  }
-}
-
-@media (pointer: fine) and (max-width: 600px) {
-  :root[data-hud="classic"] {
-    --map-disc: 132px;
-  }
-}
-
-
-@media (pointer: fine) and (min-width: 601px) {
-  :root[data-hud="classic"] {
-    --map-disc: 224px;
-    --dial: 224px;
-  }
-}
-
-/* A short desk window, a phone-sized browser: the corner cards shrink so the road and the event title stay clear. */
-@media (pointer: fine) and (max-height: 500px) {
-  :root[data-hud="classic"] {
-    --map-disc: 136px;
-    --dial: 136px;
-  }
-}
-
-/* The other layouts keep the map top right on a desk, so it starts under the pause button. */
-@media (pointer: fine) {
-  :root:not([data-hud="classic"]) .top-right {
-    top: calc(var(--inset-top) + var(--bar-h) + var(--space-2));
-  }
 }

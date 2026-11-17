@@ -178,6 +178,11 @@
       <symbol id="icon-pedal-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M6 9l6 6 6-6" />
       </symbol>
+      <symbol id="icon-handbrake" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="6.5" />
+        <path d="M4.2 5.5a10 10 0 0 0 0 13M19.8 5.5a10 10 0 0 1 0 13" />
+        <path d="M10.6 15.2V8.8h1.9a1.9 1.9 0 0 1 0 3.8h-1.9" />
+      </symbol>
       <symbol id="icon-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
         <path d="M13 2.5L5 13.5h6l-1 8 8-11h-6z" />
       </symbol>
@@ -373,7 +378,7 @@
       </div>
       <div class="touch-pedals">
         <div class="touch-brake">
-          <div class="touch-key" data-touch="handbrake">Handbrake</div>
+          <div class="touch-key hand-key" data-touch="handbrake" aria-label="Handbrake"><svg aria-hidden="true"><use href="#icon-handbrake" /></svg></div>
           <div class="pedal" data-touch="brake" aria-label="Brake"><svg aria-hidden="true"><use href="#icon-pedal-down" /></svg></div>
         </div>
         <div class="touch-gas">
@@ -400,8 +405,8 @@
     </div>
 
     <div class="hud top-right">
-      <div id="map-note" hidden><span>Next gate</span><b id="map-dist"></b></div>
       <canvas id="minimap"></canvas>
+      <div id="map-note"><span id="map-label"></span><b id="map-dist"></b></div>
       <ol id="players"></ol>
       <button type="button" id="online-chip" hidden>
         <svg aria-hidden="true"><use href="#icon-people" /></svg>

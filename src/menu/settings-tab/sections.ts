@@ -1,7 +1,7 @@
 import { SteerMode } from "../../car/car";
 import { keys_text, pad_text, type Bindable, type Bindings } from "../../hud/bindings";
 import { RumbleLevel } from "../../hud/rumble";
-import { CameraReturn, CameraView, HudLayout, MapView, QualityMode, SpeedZoom, type QualityTier, type SettingKey, type SettingsState } from "../prefs";
+import { CameraReturn, CameraView, MapView, QualityMode, SpeedoStyle, SpeedZoom, type QualityTier, type SettingKey, type SettingsState } from "../prefs";
 import type { ThemeBase } from "../../theme/theme";
 import type { Option } from "../ui/types";
 
@@ -22,7 +22,7 @@ export const CHANGES = "changes";
 
 export const SECTIONS: readonly SectionMeta[] = [
   { id: "graphics", label: "Graphics", icon: "icon-graphics", keys: ["quality"] },
-  { id: "display", label: "Display", icon: "icon-display", keys: ["hud", "hud_size", "dash", "speedo", "map", "map_corner"] },
+  { id: "display", label: "Display", icon: "icon-display", keys: ["hud_size", "speedo", "map"] },
   { id: "driving", label: "Driving", icon: "icon-aids", keys: ["tcs", "abs", "assist", "stability", "auto", "ghost", "ai_difficulty"] },
   { id: "camera", label: "Camera", icon: "icon-camera", keys: ["camera", "camera_return", "speed_zoom", "camera_tilt", "invert_y"] },
   {
@@ -61,90 +61,41 @@ export const SPEED_ZOOM_LABEL: Record<SpeedZoom, string> = { off: "Off", subtle:
 export const RUMBLE_LABEL: Record<RumbleLevel, string> = { off: "Off", subtle: "Subtle", strong: "Strong" };
 export const STEER_LABEL: Record<SteerMode, string> = { snap: "Classic", hold: "Hold", smooth: "Smooth" };
 export const MAP_VIEWS: Record<MapView, [string, string]> = {
-  full: ["Full", "The whole track"],
+  real: ["Realistic", "The map's own picture around you, north up"],
+  line: ["Race line", "Only the route of the run you are in, with the next gate and the other cars. Roaming shows Realistic"],
   close: ["Close-up", "Turns with you and shows the next 200 m"],
   pace: ["Notes", "Rally pace notes instead of a map: the next turn, 1 tightest to 6 fastest, and how far off it is"],
   off: ["Off", "No map"],
+};
+export const SPEEDO_STYLES: Record<SpeedoStyle, [string, string]> = {
+  bar: ["Bar", "A big speed over a rev bar"],
+  dial: ["Dial", "The speed inside a round rev dial"],
 };
 
 export const options = <T extends string | number>(labels: Record<T, string> | readonly (readonly [T, string])[]): Option<T>[] =>
   Array.isArray(labels) ? labels.map(([value, label]) => ({ value, label })) : (Object.entries(labels) as [T, string][]).map(([value, label]) => ({ value, label }));
 
-export type WirePart = "bar" | "title" | "strip" | "map" | "speed" | "dash";
-
-export interface HudLayoutOption {
-  value: HudLayout;
-  name: string;
-  note: string;
-  /** Mini wireframe for the picker: part, then x, y, width, height in percent of a 16:9 frame. */
-  wire: [WirePart, number, number, number, number][];
-}
-
-export const HUD_LAYOUTS: HudLayoutOption[] = [
-  {
-    value: HudLayout.MINIMAL,
-    name: "Minimal",
-    note: "Speed and gear; the rest when it matters",
-    wire: [
-      ["bar", 4, 6, 15, 11],
-      ["map", 86, 6, 10, 18],
-      ["speed", 78, 76, 18, 18],
-    ],
-  },
-  {
-    value: HudLayout.CLASSIC,
-    name: "Classic",
-    note: "Everything in the corners",
-    wire: [
-      ["title", 4, 6, 17, 11],
-      ["bar", 23, 6, 15, 11],
-      ["strip", 40, 6, 24, 11],
-      ["map", 82, 6, 14, 25],
-      ["dash", 4, 85, 24, 9],
-      ["speed", 74, 70, 22, 24],
-    ],
-  },
-  {
-    value: HudLayout.RACING,
-    name: "Racing",
-    note: "Lap timer on top, dash in the middle",
-    wire: [
-      ["title", 4, 6, 13, 11],
-      ["bar", 19, 6, 12, 11],
-      ["strip", 36, 6, 28, 13],
-      ["map", 82, 6, 14, 25],
-      ["speed", 38, 64, 24, 20],
-      ["dash", 38, 86, 24, 8],
-    ],
-  },
-  {
-    value: HudLayout.COMPACT,
-    name: "Compact",
-    note: "One slim top row, bottom left free",
-    wire: [
-      ["bar", 4, 6, 15, 10],
-      ["strip", 21, 6, 15, 10],
-      ["dash", 38, 6, 20, 10],
-      ["speed", 64, 6, 16, 10],
-      ["map", 84, 6, 12, 22],
-    ],
-  },
-];
-
-export const hud_layout = (value: HudLayout) => HUD_LAYOUTS.find((layout) => layout.value === value) ?? HUD_LAYOUTS[0];
+export type WirePart = "title" | "map" | "speed";
 
 export interface WireBox {
   part: WirePart;
   inset: string;
-  card: boolean;
+  /** The speed box is a circle for the dial; the map box draws the picked view. */
+  look: MapView | SpeedoStyle | null;
 }
 
-export function wire_boxes(hud: HudLayout, map: MapView): WireBox[] {
+/** The one HUD as a mini wireframe: part, then x, y, width, height in percent of a 16:9 frame. */
+const WIRE: [WirePart, number, number, number, number][] = [
+  ["title", 36, 6, 28, 12],
+  ["map", 4, 68, 22, 26],
+  ["speed", 74, 68, 22, 26],
+];
+
+export function wire_boxes(map: MapView, speedo: SpeedoStyle): WireBox[] {
   const boxes: WireBox[] = [];
-  for (const [part, x, y, w, tall] of hud_layout(hud).wire) {
+  for (const [part, x, y, w, h] of WIRE) {
     if (part === "map" && map === MapView.OFF) continue;
-    const h = part === "map" && map === MapView.PACE ? tall / 2 : tall;
-    boxes.push({ part, inset: `${y}% ${100 - x - w}% ${100 - y - h}% ${x}%`, card: h !== tall });
+    boxes.push({ part, inset: `${y}% ${100 - x - w}% ${100 - y - h}% ${x}%`, look: part === "map" ? map : part === "speed" ? speedo : null });
   }
   return boxes;
 }
@@ -154,7 +105,7 @@ export function summary(id: string, state: SettingsState, tier: QualityTier, the
     case "graphics":
       return state.quality === QualityMode.AUTO ? `Auto, running ${TIER_LABEL[tier]}` : `Fixed at ${TIER_LABEL[tier]}`;
     case "display":
-      return `${hud_layout(state.hud).name} HUD · ${theme}`;
+      return `${MAP_VIEWS[state.map][0]} map · ${SPEEDO_STYLES[state.speedo][0]} speedometer · ${theme}`;
     case "driving":
       return `${(["tcs", "abs", "assist", "stability"] as const).filter((aid) => state[aid]).length} of 4 aids · ${state.auto ? "auto" : "manual"} gears`;
     case "camera":

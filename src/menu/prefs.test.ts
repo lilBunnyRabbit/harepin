@@ -47,12 +47,9 @@ describe("parse_settings", () => {
       ai_difficulty: "hard",
       volume: 0.25,
       muted: true,
-      hud: "compact",
       hud_size: "large",
-      dash: "center",
-      speedo: "bar",
-      map: "pace",
-      map_corner: "top-right",
+      speedo: "dial",
+      map: "line",
       show_country: false,
       last_world: "sky",
       last_seed: 4294967295,
@@ -66,14 +63,14 @@ describe("parse_settings", () => {
   });
 
   test("wrong types fall back per field", () => {
-    const parsed = parse_settings({ quality: 1, laps: "3", tcs: "no", volume: "0.5", hud: null, bindings: [], last_world: 2, last_seed: "12", name: 7, guide_seen: "yes" });
+    const parsed = parse_settings({ quality: 1, laps: "3", tcs: "no", volume: "0.5", map: null, bindings: [], last_world: 2, last_seed: "12", name: 7, guide_seen: "yes" });
     expect(parsed).toEqual({ ...DEFAULT_SETTINGS, guide_seen: true });
   });
 
   test("out-of-range values fall back or clamp", () => {
     expect(parse_settings({ laps: 4 }).laps).toBe(3);
     expect(parse_settings({ quality: "ultra" }).quality).toBe("auto");
-    expect(parse_settings({ map_corner: "top-left" }).map_corner).toBe("bottom-left");
+    expect(parse_settings({ map: "radar" }).map).toBe("real");
     expect(parse_settings({ hud_size: "huge" }).hud_size).toBe("medium");
     expect(parse_settings({ volume: 3 }).volume).toBe(1);
     expect(parse_settings({ volume: -1 }).volume).toBe(0);
@@ -85,6 +82,14 @@ describe("parse_settings", () => {
     expect(parse_settings({ last_map: "1C000001A" }).last_map).toBeNull();
     expect(parse_settings({ last_map: "1c000001a-e2" }).last_map).toBeNull();
     expect(parse_settings({ last_map: "1Z000001A-E2" }).last_map).toBeNull();
+  });
+
+  test("a save from the four-layout HUD keeps its size and takes the new map and speedometer defaults", () => {
+    const parsed = parse_settings({ hud: "racing", hud_size: "large", dash: "center", speedo: "ring", map: "full", map_corner: "top-right" });
+    expect(parsed).toEqual({ ...DEFAULT_SETTINGS, hud_size: "large", guide_seen: true });
+    expect(parsed.speedo).toBe("bar");
+    expect(parsed.map).toBe("real");
+    expect(parse_settings({ map: "close", speedo: "dial" })).toMatchObject({ map: "close", speedo: "dial" });
   });
 
   test("saved maps keep only named entries with a canonical code, capped", () => {
