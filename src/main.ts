@@ -46,11 +46,11 @@ import { Lobby, SITTING_OUT, lobby_routes } from "./net/lobby";
 import { MODES, Modes } from "./modes/modes";
 import { local_store } from "./modes/track";
 import { GoalId, Goals } from "./goals/goals";
-import { build_goals, proven, saved_entries } from "./goals/catch-up";
+import { build_goals, is_handling, proven, saved_entries } from "./goals/catch-up";
+import { show_first_run } from "./goals/first-run-view.svelte";
 import { ToastQueue } from "./goals/toast-queue";
 import { race_choices } from "./modes/races";
 import { ChunkTrackside, gates, type Gate } from "./car/trackside";
-import { GUIDE_PARAM, ROLLED_VISIT } from "./menu/guide/guide.svelte";
 import { kept_random_name } from "./menu/guide-rules";
 import { PadMenu } from "./menu/pad-menu";
 import { Net, WRONG_PASSWORD } from "./net/net";
@@ -450,6 +450,7 @@ function apply_settings(state: SettingsState) {
 
 settings.on_change = (state, key) => {
   if (key === "camera" && lab_id === null) goals.done(GoalId.CAMERA);
+  if (is_handling(key)) goals.done(GoalId.HANDLING);
   if (key === "quality") {
     quality.set_mode(state.quality);
     render.apply_quality();
@@ -618,6 +619,7 @@ const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), {
   map: () => map_name(built, world.towns),
 });
 const next_ticket = show_next_up({ stars: () => career.stars, here: built, flags: () => markers.map_markers, travel: (id) => start_event(id), blocked: () => input.blocked() });
+const first_run = show_first_run({ goals, flag: next_ticket, bindings: () => settings.state.bindings, touch_steer: () => settings.state.touch_steer, open_steps: () => settings.open("goals") });
 $("toast").after(markers.card.el);
 const road_map = show_map_overlay({
   here: built,
@@ -664,13 +666,7 @@ void Promise.all(series.map((one) => one.load())).then(() => {
   }
 });
 // After `markers`: the Play page reads its map markers as soon as the menu opens.
-const guide_step = params.get(GUIDE_PARAM);
-if (guide_step !== null) {
-  const clean = new URL(location.href);
-  clean.searchParams.delete(GUIDE_PARAM);
-  window.history.replaceState(window.history.state, "", clean);
-  settings.open_guide("look", guide_step === ROLLED_VISIT);
-} else if (!take_drive() && !event && !run && !review && lab_id === null && !ai_level && !series_on) {
+if (!take_drive() && !event && !run && !review && lab_id === null && !ai_level && !series_on) {
   if (prefs.guide_seen) settings.open_title();
   else settings.open_guide();
 }
@@ -986,6 +982,7 @@ function frame(time: number) {
   modes.update(stepped, car);
   markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy);
   next_ticket.update(car.pos.x, car.pos.z, car.heading, !modes.engaged && !lobby.busy && !settings.is_open, input.pad?.buttons[TRAVEL_BUTTON]?.pressed === true);
+  first_run.update(car.vel.length(), car.heading, next_ticket.shown && !input.blocked() && !review && lab_id === null);
   // With peers the sim steps every frame, so the heartbeat sends a fresh pose; the draw side waits for the frame that
   // draws and advances by the time it skipped.
   draw_dt = Math.min(0.1, draw_dt + dt);

@@ -4,6 +4,9 @@ import { read_json, write_json, type Store } from "../modes/track";
 export const GOALS_KEY = "harepin:goals";
 
 export const GoalId = {
+  FLAG: "flag",
+  HANDLING: "handling",
+  THEME: "theme",
   SKY: "sky",
   NEW_MAP: "new_map",
   MAP: "map",
@@ -29,6 +32,9 @@ export const GoTo = {
   MODES: "modes",
   ONLINE: "online",
   CAMERA: "camera",
+  /** Settings sections, by their ids in `settings-tab/sections.ts`. */
+  HANDLING: "driving",
+  THEME: "display",
 } as const;
 export type GoTo = (typeof GoTo)[keyof typeof GoTo];
 
@@ -41,20 +47,24 @@ export interface Goal {
   key?: Bindable;
 }
 
+/** In the order a new player meets them: the first run's flag, a lap, the settings worth a look, then the rest. */
 export const GOALS: readonly Goal[] = [
-  { id: GoalId.SKY, title: "Drive Sky Track", hint: "A floating road above the clouds, with jumps and boost pads", go: GoTo.SKY },
-  { id: GoalId.NEW_MAP, title: "Roll a new map", hint: "Every number is a different island: roll one, or type a friend's", go: GoTo.WORLD },
+  { id: GoalId.FLAG, title: "Reach the first flag", hint: "Follow the arrow to the flag by the road: an event starts under it", go: GoTo.DRIVE },
+  { id: GoalId.LAP, title: "Finish a lap", hint: "Drive through every gate on the circuit back to the start", go: GoTo.DRIVE },
+  { id: GoalId.HANDLING, title: "Tune your handling", hint: "Choose how much the car helps and how the steering feels", go: GoTo.HANDLING },
+  { id: GoalId.THEME, title: "Try a theme", hint: "New colours for the menu, the HUD and the whole world", go: GoTo.THEME },
   { id: GoalId.MAP, title: "Find yourself on the map", hint: "Press {key} while driving to see the whole map", go: GoTo.WORLD, key: "map" },
+  { id: GoalId.CAMERA, title: "Try another camera", hint: "Press {key} for the cockpit view", go: GoTo.CAMERA, key: "camera" },
+  { id: GoalId.REWIND, title: "Rewind a mistake", hint: "Hold {key} to run time back", go: GoTo.DRIVE, key: "rewind" },
+  { id: GoalId.BEST, title: "Beat your best lap", hint: "Your ghost drives your best line: pass it", go: GoTo.DRIVE },
   { id: GoalId.CAR, title: "Change car", hint: "Pick another body in the garage, from hatch to formula", go: GoTo.GARAGE },
-  { id: GoalId.BUS, title: "Take the bus", hint: "The biggest thing in the garage. Mind the corners", go: GoTo.GARAGE },
   { id: GoalId.TUNE, title: "Tune a part", hint: "Swap the engine, tyres, aero or brakes and feel the change", go: GoTo.GARAGE },
   { id: GoalId.PAINT, title: "Paint your car", hint: "Pick a colour, a decal and a race number", go: GoTo.GARAGE },
   { id: GoalId.BUILD, title: "Save a build", hint: "Keep a car you like under a name in the garage's Builds", go: GoTo.GARAGE },
-  { id: GoalId.LAP, title: "Finish a lap", hint: "Drive through every gate on the circuit back to the start", go: GoTo.DRIVE },
-  { id: GoalId.BEST, title: "Beat your best lap", hint: "Your ghost drives your best line: pass it", go: GoTo.DRIVE },
   { id: GoalId.MODES, title: "Play every mode", hint: "Finish one run each of race, gymkhana, parking, drift, gate hunt, ghost duel and jump distance", go: GoTo.MODES },
-  { id: GoalId.REWIND, title: "Rewind a mistake", hint: "Hold {key} to run time back", go: GoTo.DRIVE, key: "rewind" },
-  { id: GoalId.CAMERA, title: "Try another camera", hint: "Press {key} for the cockpit view", go: GoTo.CAMERA, key: "camera" },
+  { id: GoalId.SKY, title: "Drive Sky Track", hint: "A floating road above the clouds, with jumps and boost pads", go: GoTo.SKY },
+  { id: GoalId.NEW_MAP, title: "Roll a new map", hint: "Every number is a different island: roll one, or type a friend's", go: GoTo.WORLD },
+  { id: GoalId.BUS, title: "Take the bus", hint: "The biggest thing in the garage. Mind the corners", go: GoTo.GARAGE },
   { id: GoalId.FRIEND, title: "Drive with a friend", hint: "Join a room, or send your invite link and wait for them here", go: GoTo.ONLINE },
 ];
 
@@ -101,6 +111,11 @@ export class Goals {
 
   get count(): number {
     return GOALS.filter((goal) => this.finished.has(goal.id)).length;
+  }
+
+  /** The first step not done yet, in `GOALS` order. */
+  get next(): Goal | null {
+    return GOALS.find((goal) => !this.finished.has(goal.id)) ?? null;
   }
 
   sorted(): Goal[] {

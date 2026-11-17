@@ -1,12 +1,26 @@
 import { DEFAULT_BUILD, DEFAULT_PARTS, SLOT_NAMES, type Build } from "../car/build";
 import { BUILDS_KEY, parse_builds } from "../car/builds";
+import { DEFAULT_SETTINGS, type SettingKey } from "../menu/prefs";
+import { SETTINGS_KEY } from "../menu/saved-pick";
 import { parse_runs } from "../modes/track";
 import { cached_records } from "../store/cached-store";
+import { THEME_KEY } from "../theme/theme";
 import { WorldKind } from "../worldgen/types";
 import { GoalId, mode_part } from "./goals";
 
 const BEST_PREFIX = "harepin:best:";
 const SKY_MARK = ":sky";
+
+/** The settings "Tune your handling" is about: the driving aids and how the wheel answers. */
+export const HANDLING_KEYS: readonly SettingKey[] = ["tcs", "abs", "assist", "stability", "auto", "steer_mode", "touch_steer", "steer_sensitivity"];
+
+export const is_handling = (key: SettingKey) => HANDLING_KEYS.includes(key);
+
+function tuned(raw: unknown): boolean {
+  if (typeof raw !== "object" || raw === null) return false;
+  const stored = raw as Record<string, unknown>;
+  return HANDLING_KEYS.some((key) => key in stored && stored[key] !== DEFAULT_SETTINGS[key]);
+}
 
 export interface Now {
   kind: WorldKind;
@@ -42,6 +56,8 @@ export function proven(saved: Iterable<[string, string]>, now: Now, mode_ids: re
   const seeds = new Set<string>();
   for (const [key, text] of saved) {
     if (key === BUILDS_KEY && parse_builds(json(text)).length) ids.add(GoalId.BUILD);
+    if (key === THEME_KEY) ids.add(GoalId.THEME);
+    if (key === SETTINGS_KEY && tuned(json(text))) ids.add(GoalId.HANDLING);
     let world: string | null = null;
     if (key.startsWith(BEST_PREFIX) && Number(json(text)) > 0) {
       ids.add(GoalId.LAP);
@@ -51,6 +67,7 @@ export function proven(saved: Iterable<[string, string]>, now: Now, mode_ids: re
       const prefix = `harepin:${mode}:`;
       if (!key.startsWith(prefix) || !Object.keys(parse_runs(json(text))).length) continue;
       ids.add(mode_part(mode));
+      ids.add(GoalId.FLAG);
       world = key.slice(prefix.length);
     }
     if (world === null) continue;

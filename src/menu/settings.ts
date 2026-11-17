@@ -1,9 +1,8 @@
 import { flushSync } from "svelte";
 import { modal_open, typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
-import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide/guide.svelte";
+import WelcomePage from "./guide/WelcomePage.svelte";
 import { SERIES_PAGE } from "../career/series";
-import { unlocks } from "../career/rewards";
 import SeriesPage from "./SeriesPage.svelte";
 import GoalsPage from "./GoalsPage.svelte";
 import GuidePage from "./GuidePage.svelte";
@@ -28,7 +27,6 @@ import { MenuTab, ROAD, STATIONS, type Menu, type MenuPage, type SettingsHost } 
 import type { SettingKey, SettingsState } from "./prefs";
 import type { CarShelf } from "../car/car-pick";
 import { mark_drive, read_saved, write_saved } from "./prefs-store";
-import { picture } from "./widgets";
 import { SettingsNav } from "./settings-tab/nav.svelte";
 import { CHANGES, LIST } from "./settings-tab/sections";
 import WorldPage from "./WorldPage.svelte";
@@ -39,7 +37,7 @@ import TitlePage from "./showroom/TitlePage.svelte";
 import { el, icon } from "./dom";
 import { WorldKind } from "../worldgen/types";
 import { GoTo, GoalId } from "../goals/goals";
-import { mainland_seed, world_query } from "../world/world-pick";
+import { world_query } from "../world/world-pick";
 import { custom_code } from "../worldgen/kinds/map-code";
 import { warm_pick } from "./warm";
 import { CarStage } from "./showroom/car-stage";
@@ -53,6 +51,8 @@ const TITLE = "title";
 /** The car stands on the turntable only where the car is the subject; every other framed page shows the bare scene, no car. */
 const STAGE_ROOMS: Partial<Record<string, StageRoom>> = { [TITLE]: "beside", [MenuTab.PLAY]: "beside", [MenuTab.GARAGE]: "around" };
 /** What the stage frames the car between: a page's own panels, and the frame's rows (their sides are named in `menu.css`). */
+/** The first run's page. */
+const WELCOME = "welcome";
 const STAGE_PANELS = "[data-stage-panel], .ui-frame-top, .ui-frame-bottom";
 
 const View = {
@@ -60,7 +60,6 @@ const View = {
   FRAME: "frame",
   /** A child page not rebuilt yet, under the old Back bar. */
   PAGE: "page",
-  GUIDE: "guide",
 } as const;
 type View = (typeof View)[keyof typeof View];
 
@@ -89,7 +88,6 @@ export class Settings {
   private readonly menu: Menu;
   private readonly page_list: MenuPage[];
   private readonly nav: SettingsNav;
-  private readonly guide: Guide;
   private readonly picker = new CarPicker();
 
   constructor(
@@ -122,6 +120,7 @@ export class Settings {
       svelte_page(this.menu, { id: MenuTab.SUPPORT, label: "Support", parent: MenuTab.SETTINGS, layout: "frame" }, SupportPage),
       svelte_page(this.menu, { id: CAR_PAGE, label: "Car", parent: MenuTab.GARAGE, layout: "frame" }, CarPickPage, { picker: this.picker }),
       svelte_page(this.menu, { id: TITLE, label: "Harepin" }, TitlePage),
+      svelte_page(this.menu, { id: WELCOME, label: "Welcome" }, WelcomePage, { seen: () => this.mark_guide_seen() }),
       svelte_page(this.menu, { id: MAPS_PAGE, label: "Maps", parent: MenuTab.PLAY, layout: "frame" }, MapsPage, { picker: this.picker }),
       svelte_page(this.menu, { id: MAKE_PAGE, label: "Make a map", parent: MenuTab.PLAY, layout: "frame" }, WorldPage),
       svelte_page(this.menu, { id: CAREER_PAGE, label: "Career", parent: MenuTab.EVENTS, layout: "frame" }, CareerPage, { picker: this.picker, tune: new URLSearchParams(location.search).has(TUNE_PARAM) }),
@@ -132,27 +131,6 @@ export class Settings {
       svelte_page(this.menu, { id: SERIES_PAGE, label: "Harepin Series", parent: MenuTab.EVENTS, layout: "frame" }, SeriesPage, { picker: this.picker }),
       svelte_page(this.menu, { id: "room", label: "New room", parent: MenuTab.ONLINE }, RoomPage),
     ];
-    this.guide = new Guide({
-      state: () => this.current,
-      set: (key, value) => this.set(key, value),
-      name: () => this.host.name(),
-      kind: host.kind,
-      picture: (name) => picture(name),
-      car_code: () => host.car_code(),
-      held_cars: () => unlocks(host.career.stars).cars,
-      use_car: (code) => host.use_car(code),
-      skip: () => this.end_guide(),
-      drive: (kind) => {
-        this.end_guide();
-        this.drive(kind === WorldKind.MAINLAND ? mainland_seed(this.host, this.current.last_mainland_seed) : this.host.seed, kind);
-      },
-      reload_on_look: (rolled) => {
-        const params = new URLSearchParams(location.search);
-        params.delete("theme");
-        params.set(GUIDE_PARAM, rolled ? ROLLED_VISIT : "look");
-        location.replace(`${location.pathname}?${params}${location.hash}`);
-      },
-    });
     const canvas = el("canvas", "showroom-stage");
     this.showroom = new Showroom(new CarStage(canvas, { floor: turntable(), slack: TURNTABLE_SLACK }), {
       build: () => host.garage.shown,
@@ -182,24 +160,12 @@ export class Settings {
   }
 
   get guide_open(): boolean {
-    return this.is_open && this.root.dataset.view === View.GUIDE;
+    return this.is_open && this.section === WELCOME;
   }
 
-  /** The first-run guide in the menu shell, on a step with the current choices filled in. */
-  open_guide(step: GuideStep = "you", rolled = false) {
-    if (!this.is_open) this.attach();
-    this.root.dataset.view = View.GUIDE;
-    this.root.dataset.section = "guide";
-    this.hide_pages();
-    this.showroom.hide();
-    this.guide.start(step, rolled);
-    this.panel.focus();
-  }
-
-  private end_guide() {
-    this.mark_guide_seen();
-    this.guide.stop();
-    this.show(MenuTab.PLAY, null);
+  /** The first run: a name, then one step of set up, before the road teaches the rest. */
+  open_guide() {
+    this.open(WELCOME);
   }
 
   // A name left empty would roll a new random one on every reload, so the one shown in the guide sticks.
@@ -208,9 +174,9 @@ export class Settings {
     this.set("guide_seen", true);
   }
 
-  /** Start on the pad: the guide skips to Home. */
+  /** Start on the pad: the first run goes straight to the road. */
   skip_guide() {
-    if (this.guide_open) this.end_guide();
+    if (this.guide_open) this.close();
   }
 
   /** The menu, on Home unless a section is named. */
@@ -252,7 +218,6 @@ export class Settings {
   close() {
     if (!this.is_open) return;
     if (this.guide_open) this.mark_guide_seen();
-    this.guide.stop();
     this.host.updates_closed();
     this.root.hidden = true;
     this.root.removeEventListener("click", this.click);
@@ -273,17 +238,15 @@ export class Settings {
   }
 
   focus_name() {
-    if (this.guide_open) this.guide.focus_name();
+    if (this.guide_open) this.pages.get(WELCOME)?.querySelector("input")?.focus();
   }
 
   page(): HTMLElement {
-    if (this.guide_open) return this.guide.panel;
     return (this.section === MenuTab.SETTINGS ? this.nav.list : null) ?? this.pages.get(this.section) ?? this.body;
   }
 
   /** One level up: a page returns to the page it was opened from (else its station), a station closes the menu. */
   back() {
-    if (this.guide_open) return void this.guide.back();
     if (this.page_of(this.section)?.back?.()) return;
     const deep = this.section === MenuTab.SETTINGS ? this.nav.parent() : null;
     if (deep) return this.nav.show(deep);
@@ -310,7 +273,6 @@ export class Settings {
 
   /** Q / E, LB / RB: the next station. A child page shows no station bar, so the keys stay its own. */
   step_tab(step: number) {
-    if (this.guide_open) return this.guide.step_by(step);
     if (this.section === MenuTab.SETTINGS && this.nav.sub !== LIST) return;
     if (this.section === CAR_PAGE) return this.picker.on_step?.(step);
     const at = STATIONS.findIndex((station) => station.id === this.section);
@@ -333,7 +295,7 @@ export class Settings {
     const name_chip = el("label", "menu-chip menu-name");
     name_chip.title = "Your name: everyone in the room sees it";
     name_chip.append(this.name_field(), icon("icon-edit"));
-    top.append(brand, name_chip, this.guide.skip_button);
+    top.append(brand, name_chip);
 
     const head = el("div", "settings-head");
     this.title.id = "settings-title";
@@ -358,7 +320,7 @@ export class Settings {
       this.body.append(page);
       this.pages.set(section.id, page);
     }
-    this.panel.append(top, this.guide.rail, head, this.body, this.guide.panel);
+    this.panel.append(top, head, this.body);
   }
 
   private build_page(id: string) {
