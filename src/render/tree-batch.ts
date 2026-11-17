@@ -39,7 +39,7 @@ export class TreePool {
   private low = Infinity;
   private high = -1;
 
-  constructor(geometry: THREE.BufferGeometry, material: THREE.Material, room: number, private readonly coloured: boolean) {
+  constructor(geometry: THREE.BufferGeometry, material: THREE.Material, room: number, coloured: boolean) {
     this.room = Math.max(1, room);
     this.mesh = new THREE.InstancedMesh(geometry, material, this.room);
     this.mesh.count = 0;
