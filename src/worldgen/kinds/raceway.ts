@@ -2,7 +2,7 @@ import { generate_raceway } from "../raceway";
 import { SIZE, WorldKind } from "../types";
 import { kind_def, LAND_GRIP } from "./kind-def";
 
-export const RACEWAY_VERSION = 1;
+export const RACEWAY_VERSION = 2;
 
 export const raceway = kind_def({
   kind: WorldKind.RACEWAY,

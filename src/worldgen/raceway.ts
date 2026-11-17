@@ -1,5 +1,6 @@
 import { biome_cuts, plant } from "./biomes";
-import { cell_range, vertex } from "./field";
+import { cell_range, sample, vertex } from "./field";
+import { near_solids, road_lamps } from "./lamps";
 import { length } from "./noise";
 import { loop_heights, road_points, smooth, type Path } from "./path";
 import { raceway_lap } from "./raceway-plan";
@@ -17,6 +18,7 @@ export const RUNOFF = 34;
 export const BANK = 0.04;
 const BANK_RADIUS = 80;
 const BANK_SPAN = 5;
+const GATE_PAD = 2.5;
 // The lift keeps every hill above the island biomes' coast: meshing paints a kind with no recipe from those.
 export const RACEWAY_TERRAIN: TerrainRecipe = [
   { kind: "lift", height: 16 },
@@ -64,6 +66,9 @@ export function generate_raceway(seed: number): WorldData {
   const { checkpoints, posts } = loop_gates(road, at, land.heights);
   const on_runoff = runoff(road);
   const planted = plant(biome_cuts(seed, land.heights, ISLAND.biomes), land, (x, z) => !on_runoff(x, z));
+  const graph = { nodes: [{ id: 0, x: road[0].x, z: road[0].z, y: road[0].y, kind: "end" as const }], edges: [ring] };
+  // A raceway is lit all the way round.
+  const masts = road_lamps(graph, () => true, (x, z) => sample(land.heights, x, z), near_solids(posts, GATE_PAD));
   const loop = { ...circuit_route(road, checkpoints), excludes: EXCLUDES };
   const reverse = reverse_circuit(loop, []);
   return {
@@ -75,10 +80,10 @@ export function generate_raceway(seed: number): WorldData {
     towns: [],
     lots: [],
     buildings: [],
-    props: [],
+    props: masts.props,
     parking: [],
     trees: planted.trees,
-    solids: [...posts, ...planted.solids],
+    solids: [...posts, ...planted.solids, ...masts.solids],
     ramps: [],
     items: [],
     challenges: [],

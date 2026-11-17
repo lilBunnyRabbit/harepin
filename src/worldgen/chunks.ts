@@ -3,6 +3,7 @@ import { CHUNK, CHUNKS, chunk_of } from "./chunk-grid";
 import { sample, vertex_up } from "./field";
 import { KINDS } from "./kinds/kinds";
 import { landmark_mesh, type LandmarkTones } from "./landmark-mesh";
+import { is_lamp, lamp_pools, type Pools, type PoolTones } from "./lamps";
 import { roof_rise } from "./lots";
 import { dress_lot } from "./town-ground";
 import { dress_building, plain_building, type TownTones } from "./town-mesh";
@@ -13,7 +14,7 @@ import { deck_layers, type DeckTones } from "./sky-mesh";
 import type { LavaPool } from "./lava";
 import { LIFT } from "./lifts";
 import { ISLAND } from "./recipe";
-import { CELL, Ground, N, ORIGIN, PropKind, SURFACE_GROUND, type Building, type Lot, type ParkingLot, type Prop, type WorldData } from "./types";
+import { CELL, Ground, N, ORIGIN, SURFACE_GROUND, type Building, type Lot, type ParkingLot, type Prop, type WorldData } from "./types";
 import { sin } from "../sim-math";
 
 const CHUNK_CELLS = CHUNK / CELL;
@@ -68,6 +69,8 @@ export interface MeshTones extends RoadTones {
   town: TownTones;
   landmark: LandmarkTones;
   deck: DeckTones;
+  /** Null by day: no lamp lays light on the ground, so no pool is meshed. */
+  pools: PoolTones | null;
 }
 
 export interface Soup {
@@ -91,6 +94,7 @@ export interface ChunkBuffers {
   parking: Soup | null;
   /** Lake and river surface; left out where a chunk holds none, and on kinds that plan no water. */
   water?: Soup;
+  pools?: Pools;
 }
 
 function jitter(i: number, j: number): number {
@@ -252,7 +256,7 @@ export function town_builders(data: WorldData, parts: TownParts, tones: MeshTone
     if (b.detail) dress_building(out, glass, b, b.detail, tones, seed);
     else plain_building(out, glass, b, data.lots[b.lot].kind === "shop", tones, seed);
   }
-  for (const prop of parts.props) if (prop.kind !== PropKind.STREET_LIGHT) landmark_mesh(of(prop.x, prop.z).big, prop, data.terrain.heights, tones.landmark);
+  for (const prop of parts.props) if (!is_lamp(prop)) landmark_mesh(of(prop.x, prop.z).big, prop, data.terrain.heights, tones.landmark);
   for (const lot of parts.lots) if (lot.ground) dress_lot(of(lot.x, lot.z).parking, of(lot.x, lot.z).small, lot, tones, ground);
   for (const lot of parts.parking) {
     const frame = data.lots[lot.lot];
@@ -324,13 +328,24 @@ export function chunk_meshes(data: WorldData, tones: MeshTones): (index: number)
   if (!KINDS[data.kind].ground) return deck_chunks(data, tones);
   const colors = terrain_colors(data, tones.terrain);
   const roads = road_layers(data, new Roads(grid_ground(data.terrain.heights)), tones);
-  const towns = town_builders(data, data, tones, (x, z) => sample(data.terrain.heights, x, z), (x, z) => chunk_of(x, z));
+  const ground = (x: number, z: number) => sample(data.terrain.heights, x, z);
+  const towns = town_builders(data, data, tones, ground, (x, z) => chunk_of(x, z));
+  const lamps = new Map<number, Prop[]>();
+  if (tones.pools)
+    for (const prop of data.props) {
+      if (!is_lamp(prop)) continue;
+      const key = chunk_of(prop.x, prop.z);
+      const here = lamps.get(key);
+      if (here) here.push(prop);
+      else lamps.set(key, [prop]);
+    }
   return (index) => {
     const ci = index % CHUNKS;
     const cj = Math.floor(index / CHUNKS);
     const surface = roads.surface[index];
     const road = soup([surface, roads.marks[index]]);
     const [x0, z0] = chunk_origin(index);
+    const pools = tones.pools && lamp_pools(lamps.get(index) ?? [], tones.pools, ground);
     return {
       index,
       x0,
@@ -338,6 +353,7 @@ export function chunk_meshes(data: WorldData, tones: MeshTones): (index: number)
       terrain: terrain_chunk(data, colors, ci, cj),
       road: road && { ...road, surface: surface.positions.length / 3 },
       ...town_meshes(towns.get(index)),
+      ...(pools && { pools }),
     };
   };
 }
@@ -359,6 +375,7 @@ export function chunk_transfers(chunks: ChunkBuffers[]): ArrayBuffer[] {
     for (const part of [c.road, c.buildings, c.parking, c.water]) if (part) out.push(part.positions.buffer, part.colors.buffer);
     if (c.buildings?.fill) out.push(c.buildings.fill.buffer);
     if (c.glass) out.push(c.glass.positions.buffer);
+    if (c.pools) out.push(c.pools.positions.buffer, c.pools.colors.buffer, c.pools.index.buffer);
   }
   return out;
 }

@@ -14,7 +14,8 @@ import { kit_sample, type Piece } from "../render/prop-kit";
 import { mesh_tones } from "../render/scene";
 import { prop_sample, tree_sample } from "../render/samples";
 import { car_paints, color, tones } from "../theme/palette";
-import { light_parts, parked_car_geometry, parked_cars, soup_geometry, street_lights, town_materials } from "../world/buildings";
+import { parked_car_geometry, parked_cars, soup_geometry, town_materials } from "../world/buildings";
+import { lamp_kit, lamps } from "../world/road-lights";
 import { item_geometry, item_material, JumpsView } from "../world/jumps";
 import { COMPACT } from "../worldgen/chunk-grid";
 import { ITEMS } from "../worldgen/jumps";
@@ -147,7 +148,8 @@ function loose_item(kind: ItemKind): THREE.Object3D {
 const STREET: Record<string, () => THREE.Object3D> = {
   ...Object.fromEntries((Object.keys(ITEMS) as ItemKind[]).map((kind) => [kind, () => loose_item(kind)])),
   parked_car: () => parked_cars([{ x: 0, y: 0, z: 0, heading: 0, paint: color(car_paints[0]) }], parked_car_geometry(), new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true })),
-  street_light: () => new THREE.Group().add(...street_lights([{ x: 0, y: 0, z: 0, angle: 0, kind: PropKind.STREET_LIGHT, scale: 1 }], light_parts())),
+  street_light: () => new THREE.Group().add(...lamps(lamp_kit(), PropKind.STREET_LIGHT, [{ x: 0, y: 0, z: 0, angle: 0 }])),
+  road_lamp: () => new THREE.Group().add(...lamps(lamp_kit(), PropKind.ROAD_LAMP, [{ x: 0, y: 0, z: 0, angle: 0 }])),
 };
 
 const PARTS: Omit<AssetLook, "build"> = { worlds: none, items: none };
