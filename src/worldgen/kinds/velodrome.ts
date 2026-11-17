@@ -2,6 +2,7 @@ import { generate_sky, SKY, type SkyRecipe } from "../sky";
 import { SIZE, VELODROME_VERSION, WorldKind } from "../types";
 import { kind_def, LAND_GRIP } from "./kind-def";
 import { knob, tune, type Knob } from "./options";
+import { gaps_knob, length_knob, pads_knob } from "./sky-knobs";
 
 const DEG = Math.PI / 180;
 const PIPES = { most: 2, bank: [28 * DEG, 35 * DEG], length: [140, 180] } as const;
@@ -30,9 +31,9 @@ const VELODROME: SkyRecipe = {
 };
 
 const VELODROME_KNOBS: readonly Knob<SkyRecipe>[] = [
-  knob<SkyRecipe, SkyRecipe["length"]>({ field: "E", name: "Length", help: "How long a lap runs.", labels: ["Short", "Normal", "Long"], normal: 1, values: [[2400, 4400], VELODROME.length, [3800, 6400]], set: (r, length) => ({ ...r, length }) }),
-  knob<SkyRecipe, number>({ field: "A", name: "Gaps", help: "Gap jumps across open sky.", labels: ["None", "Normal", "More"], normal: 1, values: [0, VELODROME.gaps, 2], set: (r, gaps) => ({ ...r, gaps }) }),
-  knob<SkyRecipe, number>({ field: "V", name: "Boost pads", help: "Pads that kick the car forward.", labels: ["None", "Normal", "More"], normal: 1, values: [0, VELODROME.pads, 5], set: (r, pads) => ({ ...r, pads }) }),
+  length_knob(VELODROME, [2400, 4400], [3800, 6400]),
+  gaps_knob(VELODROME, 2),
+  pads_knob(VELODROME, 5),
   knob<SkyRecipe, SkyRecipe["pipes"]>({ field: "P", name: "Half-pipes", help: "Straights that swing up one side, then the other.", labels: ["None", "Normal", "More"], normal: 1, values: [null, PIPES, { ...PIPES, most: 4 }], set: (r, pipes) => ({ ...r, pipes }) }),
   knob<SkyRecipe, SkyRecipe["wall"]>({ field: "R", name: "Wall ride", help: "One bowl held steep with its high rail off.", labels: ["Off", "On"], switch: true, normal: 1, values: [null, WALL], set: (r, wall) => ({ ...r, wall }) }),
 ];
