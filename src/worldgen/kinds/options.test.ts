@@ -50,7 +50,7 @@ const read = (text: string, kind?: WorldKind) => {
 
 test("map code field letters and preset chars never move", () => {
   const fields = Object.fromEntries(Object.values(WorldKind).map((kind) => [kind, KINDS[kind].options.map((o) => o.field).join("")]));
-  expect(fields).toEqual({ island: "EQYJCXHTGPZW", sky: "EQAVF", desert: "JCXHDKZW", mainland: "W", alpine: "YJCHTGZW", tundra: "JCHTZ", volcano: "", rooftops: "", dunes: "", icecanyon: "", velodrome: "EAVPR", lab: "", raceway: "" });
+  expect(fields).toEqual({ island: "EQYJCXHTGPZW", sky: "EQAVF", desert: "JCXHDKZW", mainland: "W", alpine: "YJCHTGZW", tundra: "JCHTZ", volcano: "", rooftops: "", dunes: "", icecanyon: "", velodrome: "EAVPR", lab: "", raceway: "EHCR" });
   expect(PRESETS.map((p) => `${p.char}${p.kind}`)).toEqual(["Cisland", "Ssky", "Ddesert", "Mmainland", "Aalpine", "Ttundra", "Vvolcano", "Rrooftops", "Bdunes", "Ficecanyon", "Wvelodrome", "Klab", "Graceway"]);
   for (const kind of Object.values(WorldKind)) {
     expect(new Set(fields[kind]).size).toBe(fields[kind].length);
