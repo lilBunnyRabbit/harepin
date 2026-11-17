@@ -261,3 +261,15 @@ Slice 1 is the first thing to drive and the point to stop and ask whether the la
 - Lap 2.8-4.2 km.
 - Figure-8 / bridge: later (slice 3), on some seeds.
 - Grass run-off. Listed in Play and in custom creation like the other maps.
+
+## Venue: look C "National" (2026-11-17)
+
+The owner picked look C. It is the raceway's normal build, `RACEWAY_VERSION` 4.
+
+- `worldgen/raceway-layout.ts` works out where everything goes from the lap alone: bends by curvature (hairpin, slow, fast), the room beside the road, traps, walls, rail, tyres, the pit lane, terrace modules and garages. Worldgen and the scene both call it, so a drawn wall is always a solid one.
+- `worldgen/raceway-venue.ts` turns the layout into data: box solids chained 4 m at a time for concrete, rail and tyres, one box per terrace module and garage, two posts for the gantry, the lines `Stamp.paint` lays gravel and the pit lane's hardpack along, and the discs trees keep out of.
+- `worlds/raceway-stadium.ts` draws it: 10 draw calls, swept barriers in the same 4 m pieces as their solids.
+- Gravel is `SurfaceId.GRAVEL` (grip 0.66, roll 60): a ground surface like sand, painted on the terrain as `Ground.GRAVEL`. No extra mesh.
+- Tyre walls are box solids with `soft`: the hit takes the speed into the wall and a quarter of the rest, throws nothing back, and reports half the impact.
+- Run-off Narrow carries its own terrace (4 modules, 3 tiers); a module with another stretch of the lap behind it is left out.
+- Review views `grid`, `hairpin`, `pits`, `trap` (raceway only).

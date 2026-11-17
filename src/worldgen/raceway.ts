@@ -2,12 +2,14 @@ import { biome_cuts, plant } from "./biomes";
 import { cell_range, vertex } from "./field";
 import { length } from "./noise";
 import { loop_heights, road_points, smooth, type Path } from "./path";
+import { layout_of, type Stand } from "./raceway-layout";
 import { LAP, raceway_lap, type LapRecipe } from "./raceway-plan";
+import { gravel_lines, lane_lines, venue_discs, venue_solids, type Disc } from "./raceway-venue";
 import { ISLAND, type TerrainRecipe } from "./recipe";
 import { circuit_route, loop_gates, reverse_circuit } from "./routes";
 import { Stamp } from "./stamp";
 import { terrain } from "./terrain";
-import { CELL, N, ORIGIN, ROAD_HALF, WorldKind, type RoadEdge, type RoadPoint, type WorldData } from "./types";
+import { CELL, N, ORIGIN, ROAD_HALF, SurfaceId, WorldKind, type RoadEdge, type RoadPoint, type WorldData } from "./types";
 
 const CHECKPOINTS = 12;
 // scripts/races.ts: the bus runs wide of the hairpins and chicanes on most seeds, and laps a fifth over par.
@@ -22,6 +24,7 @@ export interface RacewayRecipe {
   terrain: TerrainRecipe;
   /** Metres of grass kept clear of trees each side of the road's centre. */
   runoff: number;
+  stand: Stand;
 }
 
 /** The lift keeps every hill above the island biomes' coast: meshing paints a kind with no recipe from those. */
@@ -30,17 +33,17 @@ export const hills = (amp: number): TerrainRecipe => [
   { kind: "fbm", scale: 700, seed: 7, octaves: 3, power: 1, amp },
 ];
 
-export const RACEWAY: RacewayRecipe = { lap: LAP, terrain: hills(50), runoff: 34 };
+export const RACEWAY: RacewayRecipe = { lap: LAP, terrain: hills(50), runoff: 34, stand: { modules: 6, tiers: 6 } };
 
-function runoff(road: readonly RoadPoint[], reach: number): (x: number, z: number) => boolean {
+function cleared(discs: readonly Disc[]): (x: number, z: number) => boolean {
   const grass = new Uint8Array((N + 1) * (N + 1));
-  for (const p of road) {
-    const [i0, i1] = cell_range(p.x - reach, p.x + reach);
-    const [j0, j1] = cell_range(p.z - reach, p.z + reach);
+  for (const [x, z, reach] of discs) {
+    const [i0, i1] = cell_range(x - reach, x + reach);
+    const [j0, j1] = cell_range(z - reach, z + reach);
     for (let j = j0; j <= j1; j++)
       for (let i = i0; i <= i1; i++) {
-        const dx = ORIGIN + i * CELL - p.x;
-        const dz = ORIGIN + j * CELL - p.z;
+        const dx = ORIGIN + i * CELL - x;
+        const dz = ORIGIN + j * CELL - z;
         if (dx * dx + dz * dz <= reach * reach) grass[vertex(i, j)] = 1;
       }
   }
@@ -71,8 +74,11 @@ export function generate_raceway(seed: number, recipe: RacewayRecipe = RACEWAY):
   stamp.blend();
   const at = Array.from({ length: CHECKPOINTS }, (_, i) => Math.floor((i / CHECKPOINTS) * road.length));
   const { checkpoints, posts } = loop_gates(road, at, land.heights);
-  const on_runoff = runoff(road, recipe.runoff);
-  const planted = plant(biome_cuts(seed, land.heights, ISLAND.biomes), land, (x, z) => !on_runoff(x, z));
+  const layout = layout_of(road, recipe.stand);
+  stamp.paint(gravel_lines(road, layout), 0, SurfaceId.GRAVEL);
+  stamp.paint(lane_lines(road, layout), 0, SurfaceId.HARDPACK);
+  const clear = cleared([...road.map((p): Disc => [p.x, p.z, recipe.runoff]), ...venue_discs(road, layout)]);
+  const planted = plant(biome_cuts(seed, land.heights, ISLAND.biomes), land, (x, z) => !clear(x, z));
   const loop = { ...circuit_route(road, checkpoints), excludes: EXCLUDES };
   const reverse = reverse_circuit(loop, []);
   return {
@@ -87,7 +93,7 @@ export function generate_raceway(seed: number, recipe: RacewayRecipe = RACEWAY):
     props: [],
     parking: [],
     trees: planted.trees,
-    solids: [...posts, ...planted.solids],
+    solids: [...posts, ...venue_solids(road, layout, land.heights), ...planted.solids],
     ramps: [],
     items: [],
     challenges: [],
