@@ -1161,6 +1161,7 @@ function frame(time: number) {
   // The menu covers the HUD, so its writes and the minimap wait for the frame the menu closes on.
   if (!settings.is_open) hud.update(car, now, rewinding);
   mirror_frame.show(settings.state.mirror && !quality.mobile && !settings.is_open && !replay.is_open);
+  chat.show_key(!modes.holding && lobby.state.kind !== "countdown" && !replay.is_open);
   lab?.frame();
   // Behind the menu each frame carries the redraw gap, which would read as a slow frame.
   if (!draw_ms && quality.adapt(dt)) render.apply_quality();

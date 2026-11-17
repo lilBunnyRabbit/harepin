@@ -36,7 +36,7 @@
   }
 
   :root[data-map="off"] .dock-left {
-    bottom: var(--corner-bottom);
+    bottom: calc(var(--corner-bottom) + var(--chip-h) * var(--hud-scale) + var(--gap-sm));
   }
 }
 

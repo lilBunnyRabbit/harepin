@@ -2,6 +2,7 @@ import { $ } from "../hud/hud";
 import { typing } from "../hud/input";
 import { opens_chat } from "./chat-key";
 import type { Net } from "./net";
+import "../menu/ui/key-cap.css";
 import "./chat.css";
 
 const BUBBLES = 6;
@@ -18,6 +19,7 @@ export class Chat {
   private empty = $("chat-empty");
   private form = $("chat-form", HTMLFormElement);
   private field = $("chat-input", HTMLInputElement);
+  private key = $("chat-key", HTMLButtonElement);
   private unread = 0;
   private presence: number | null = null;
   private abort: AbortController | null = null;
@@ -50,6 +52,7 @@ export class Chat {
       { signal, capture: true },
     );
     $("chat-close").addEventListener("click", () => this.close(), { signal });
+    this.key.addEventListener("click", () => this.toggle(), { signal });
     this.form.addEventListener(
       "submit",
       (e) => {
@@ -82,9 +85,16 @@ export class Chat {
     return !this.panel.hidden;
   }
 
+  /** The drive screen's chat button: off while a run counts down. Written only on a change, so it can be called each frame. */
+  show_key(on: boolean) {
+    if (this.key.hidden !== on) return;
+    this.key.hidden = !on;
+  }
+
   open(focus: boolean) {
     if (!this.is_open) {
       this.panel.hidden = false;
+      this.key.ariaExpanded = "true";
       this.bubbles.replaceChildren();
       this.set_unread(0);
       this.sync_empty();
@@ -103,6 +113,7 @@ export class Chat {
     if (!this.is_open) return;
     this.field.blur();
     this.panel.hidden = true;
+    this.key.ariaExpanded = "false";
     this.stop_presence();
   }
 
@@ -116,7 +127,7 @@ export class Chat {
     this.empty.dataset.alone = String(this.net.remotes.size === 0);
   }
 
-  /** Unread messages mark the root, so the touch menu button can show a dot. */
+  /** Unread messages mark the root, so the chat and pause buttons can show a dot. */
   private set_unread(count: number) {
     this.unread = count;
     document.documentElement.toggleAttribute("data-unread", count > 0);

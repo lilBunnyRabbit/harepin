@@ -243,3 +243,90 @@
     grid-area: 1 / 1;
   }
 }
+
+/* The way in for those who don't know T: a quiet chip over the map card's right edge, across the row from the online
+   chip. A plain HUD piece, so the menu, a result card and a replay hide it with the rest. */
+#chat-key {
+  left: calc(var(--corner-left) / var(--hud-scale) + var(--corner-w) - 1px);
+  bottom: calc(var(--corner-bottom) / var(--hud-scale) + var(--corner-h) + var(--gap-sm) - 1px);
+  translate: -100% 0;
+  zoom: var(--hud-scale);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--chip-h);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--dim);
+  white-space: nowrap;
+  transition: opacity 0.4s;
+}
+
+#chat-key[hidden] {
+  display: none;
+}
+
+#chat-key:hover,
+#chat-key[aria-expanded="true"] {
+  color: var(--foreground);
+  background: var(--background-light);
+}
+
+#chat-key svg {
+  display: none;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+:root[data-input="pad"] #chat-key kbd {
+  display: none;
+}
+
+:root[data-input="pad"] #chat-key svg {
+  display: block;
+}
+
+:root[data-map="off"] #chat-key {
+  left: calc(var(--corner-left) / var(--hud-scale));
+  bottom: calc(var(--corner-bottom) / var(--hud-scale));
+  translate: none;
+}
+
+:root[data-calm]:not([data-unread]) #chat-key:not([aria-expanded="true"]) {
+  opacity: 0.3;
+}
+
+/* A phone's left column under the map holds restart and rewind; chat takes the third slot of that row. */
+@media (pointer: coarse) {
+  #chat-key {
+    top: var(--phone-under-map);
+    bottom: auto;
+    left: calc(var(--inset-left) + 2 * var(--phone-slot));
+    translate: none;
+    zoom: 1;
+    justify-content: center;
+    width: var(--control-h);
+    height: var(--control-h);
+    padding: 0;
+    color: var(--foreground);
+  }
+
+  :root[data-map="off"] #chat-key {
+    top: var(--inset-top);
+    bottom: auto;
+    left: calc(var(--inset-left) + 2 * var(--phone-slot));
+  }
+
+  #chat-key :is(kbd, .chat-key-label) {
+    display: none;
+  }
+
+  :root #chat-key svg {
+    display: block;
+    width: var(--icon-size);
+    height: var(--icon-size);
+  }
+}
