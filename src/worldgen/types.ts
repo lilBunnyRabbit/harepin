@@ -42,7 +42,7 @@ export const ROOFTOPS_VERSION = 2;
 /** Bump whenever `generate_sky` makes a different velodrome track for the same seed. */
 export const VELODROME_VERSION = 3;
 
-export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine", TUNDRA: "tundra", ROOFTOPS: "rooftops", VOLCANO: "volcano", BIG_DUNES: "dunes", ICE_CANYON: "icecanyon", VELODROME: "velodrome", LAB: "lab" } as const;
+export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine", TUNDRA: "tundra", ROOFTOPS: "rooftops", VOLCANO: "volcano", BIG_DUNES: "dunes", ICE_CANYON: "icecanyon", VELODROME: "velodrome", LAB: "lab", RACEWAY: "raceway" } as const;
 export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];
 /** What a URL or save without a world, or with one this build doesn't know, drives. */
 export const DEFAULT_KIND: WorldKind = WorldKind.ISLAND;
@@ -112,6 +112,8 @@ export interface RoadEdge {
   half: number;
   closed: boolean;
   points: RoadPoint[];
+  /** Cross slope per point, rise per metre toward the left of travel, (-tz, tx): the ground under the road tilts with it. Absent = level across. */
+  banks?: readonly number[];
 }
 
 export interface RoadGraph {
