@@ -8,8 +8,7 @@ import type { RoadSpan } from "../worldgen/types";
 const REACH = 190;
 const BEHIND = 30;
 const INSET = 0.3;
-const LINE = { width: 0.3, opacity: 0.95 };
-const CURTAIN = { tall: 0.7, opacity: 0.3 };
+const LINE = { width: 0.55, opacity: 1 };
 const EDGE_VERTS = 12;
 /** A bend's sign: upright arrowheads standing `off` metres outside the road, their middle `base` over the ground. */
 const SIGN = { count: 3, half: 0.75, depth: 0.9, bar: 0.5, pitch: 1.7, base: 1.6, off: 2 };
@@ -36,7 +35,7 @@ export class Lead {
   private readonly along: number[];
   private readonly half: number[];
   private readonly here = { value: 0 };
-  private readonly edges: THREE.Mesh[];
+  private readonly edges: THREE.Mesh;
   private readonly signs: Row;
   private readonly wrong: Row;
   private first = -1;
@@ -109,27 +108,23 @@ export class Lead {
     return out;
   }
 
-  private lay_edges(): THREE.Mesh[] {
+  private lay_edges(): THREE.Mesh {
     const { marks, along } = this;
     const rim = [-1, 1].map((side) => this.edge_line(side, INSET));
     const inner = [-1, 1].map((side) => this.edge_line(side, INSET + LINE.width));
-    const strip = (low: [number, number][][], high: [number, number][][], tall: number, opacity: number) => {
-      const positions: number[] = [];
-      const rise: number[] = [];
-      const walked: number[] = [];
-      for (let i = 0; i < this.line.length - 1; i++)
-        for (let side = 0; side < 2; side++) {
-          const q = [low[side][i], high[side][i], low[side][i + 1], high[side][i + 1]];
-          for (const k of QUAD) {
-            const up = k % 2 ? tall : 0;
-            positions.push(...marks.drape(q[k][0], q[k][1], up));
-            rise.push(up);
-            walked.push(along[i + (k >> 1)]);
-          }
+    const positions: number[] = [];
+    const rise: number[] = [];
+    const walked: number[] = [];
+    for (let i = 0; i < this.line.length - 1; i++)
+      for (let side = 0; side < 2; side++) {
+        const q = [inner[side][i], rim[side][i], inner[side][i + 1], rim[side][i + 1]];
+        for (const k of QUAD) {
+          positions.push(...marks.drape(q[k][0], q[k][1], 0));
+          rise.push(0);
+          walked.push(along[i + (k >> 1)]);
         }
-      return this.laid(positions, rise, walked, this.fading(marks.paint(brand.accent, opacity)));
-    };
-    return [strip(inner, rim, 0, LINE.opacity), strip(rim, rim, CURTAIN.tall, CURTAIN.opacity)];
+      }
+    return this.laid(positions, rise, walked, this.fading(marks.paint(brand.accent, LINE.opacity)));
   }
 
   private lay_signs(found: readonly Bend[]): Row {
@@ -209,7 +204,7 @@ export class Lead {
     if (first !== this.first || end !== this.end) {
       this.first = first;
       this.end = end;
-      for (const edge of this.edges) edge.geometry.setDrawRange(first * EDGE_VERTS, (end - first) * EDGE_VERTS);
+      this.edges.geometry.setDrawRange(first * EDGE_VERTS, (end - first) * EDGE_VERTS);
     }
     this.here.value = here;
     if (wrong) {
@@ -223,7 +218,7 @@ export class Lead {
 
   hide() {
     this.first = this.end = -1;
-    for (const edge of this.edges) edge.geometry.setDrawRange(0, 0);
+    this.edges.geometry.setDrawRange(0, 0);
     this.window(this.signs, 0, 0);
     this.window(this.wrong, 0, 0);
   }
