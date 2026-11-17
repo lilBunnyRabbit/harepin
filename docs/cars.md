@@ -20,7 +20,7 @@ One registry, `ASSETS` in `viewer/assets.ts` (label, group, seeded), with how ea
 | `tree` | world | one tree of a kind the world's recipe grows, from its tree kit (green or charred) |
 | `prop` | world | a landmark or scattered prop of the world's recipe, through `landmark_mesh` and `LandmarksView` |
 | `piece` | world | a world kit piece (`kit_sample`) |
-| `item` | world | a track item (cone, barrel, hay bale, log, rock, barrier), a parked car or a street light, from the geometry the game instances |
+| `item` | world | a track item (cone, barrel, hay bale, log, rock, barrier), a parked car, a street light or a road lamp, from the geometry the game instances |
 
 A part keeps the car-local frame: pins and cameras land on the same spot with On car pressed, which draws the whole car carrying it. A world asset is moved to the stage centre with its front to yaw 0. A seeded one (building, ground, ramp) comes out of `generate_world(seed, kind)`, so a seed and an item index pick the same thing on every machine until the kind's version moves; the item list holds the first few of each look.
 

@@ -9,7 +9,7 @@ export const desert = kind_def({
   kind: WorldKind.DESERT,
   base: 2000,
   tag: "d",
-  version: 5,
+  version: 6,
   size: SIZE,
   ...land_kind(DESERT, DESERT_KNOBS, WorldKind.DESERT),
   options: DESERT_KNOBS,

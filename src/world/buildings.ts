@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { car_paints, color, dark, glow, tones } from "../theme/palette";
+import { car_paints, color, dark, tones } from "../theme/palette";
 import { cast_instanced } from "../render/shadow-depth";
+import { lamp_kit, lamps, pool_mesh } from "./road-lights";
 import type { World } from "./world";
 import { chunk_of, type Extent } from "../worldgen/chunk-grid";
 import type { ChunkBuffers, Soup } from "../worldgen/chunks";
@@ -9,7 +9,8 @@ import { Builder, type Rgb, type Sphere } from "../worldgen/mesh";
 import { KINDS } from "../worldgen/kinds/kinds";
 import { hash } from "../worldgen/noise";
 import { LIFT } from "../worldgen/lifts";
-import { PropKind, type Prop, type WorldKind } from "../worldgen/types";
+import { is_lamp, LAMPS, type LampKind } from "../worldgen/lamps";
+import type { Prop, WorldKind } from "../worldgen/types";
 
 const PAD_LIFT = LIFT.pad;
 // Lit from inside: a dusk street reads by its shop windows, a day street by glass that stays bright in shade.
@@ -113,36 +114,9 @@ export function parked_cars(cars: ParkedCar[], shape: THREE.BufferGeometry, mate
   return mesh;
 }
 
-export function light_parts(): [THREE.BufferGeometry, THREE.Material][] {
-  // Open ends: the foot is in the ground, and the pole stops inside the arm, which closes its top.
-  const pole = new THREE.CylinderGeometry(0.05, 0.12, 5.9, 5, 1, true).translate(0, 2.95, 0);
-  const arm = new THREE.BoxGeometry(0.08, 0.08, 1.4).translate(0, 5.9, 0.65);
-  const head = new THREE.BoxGeometry(0.3, 0.12, 0.5).translate(0, 5.82, 1.3);
-  return [
-    [mergeGeometries([pole, arm]), new THREE.MeshLambertMaterial({ color: color(tones.post), flatShading: true })],
-    [head, new THREE.MeshLambertMaterial({ color: color(tones.head), emissive: glow(tones.head), emissiveIntensity: 1.2 })],
-  ];
-}
-
-export function street_lights(props: Prop[], parts: [THREE.BufferGeometry, THREE.Material][]): THREE.InstancedMesh[] {
-  const m = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const p = new THREE.Vector3();
-  const s = new THREE.Vector3(1, 1, 1);
-  const up = new THREE.Vector3(0, 1, 0);
-  return parts.map(([geometry, material]) => {
-    const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, props.length));
-    mesh.count = props.length;
-    props.forEach((prop, i) => mesh.setMatrixAt(i, m.compose(p.set(prop.x, prop.y, prop.z), q.setFromAxisAngle(up, prop.angle), s)));
-    cast_instanced(mesh);
-    mesh.instanceMatrix.needsUpdate = true;
-    return mesh;
-  });
-}
-
 export interface TownChunk {
   readonly objects: THREE.Object3D[];
-  /** Far: only buildings of SMALL_BUILDING and up, no glass below that, no parking, parked cars or lights. */
+  /** Far: only buildings of SMALL_BUILDING and up, no glass below that, no parking, parked cars or lamps. */
   far(on: boolean): void;
   /** Frees what this chunk owns (its building, glass and parking soups, its instances), not the shared kit. */
   dispose(): void;
@@ -211,20 +185,20 @@ export class TownChunks {
   private readonly parking: THREE.MeshLambertMaterial;
   private readonly car_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   private readonly car_shape = parked_car_geometry();
-  private readonly parts = light_parts();
+  private readonly lamp_kit = lamp_kit();
   private readonly cars: Map<number, ParkedSpot[]>;
   private readonly lights: Map<number, Prop[]>;
 
   constructor(private readonly world: World) {
     ({ building: this.building, glass: this.glass, parking: this.parking } = town_materials(world.kind));
     this.cars = by_chunk(parked_spots(world), world.tiles.ext);
-    this.lights = by_chunk(world.props.filter((p) => p.kind === PropKind.STREET_LIGHT), world.tiles.ext);
+    this.lights = by_chunk(world.props.filter(is_lamp), world.tiles.ext);
   }
 
   build(chunk: ChunkBuffers): TownChunk | undefined {
     const here_cars = this.cars.get(chunk.index) ?? [];
     const here_lights = this.lights.get(chunk.index) ?? [];
-    if (!chunk.buildings && !chunk.parking && !here_cars.length && !here_lights.length) return undefined;
+    if (!chunk.buildings && !chunk.parking && !chunk.pools && !here_cars.length && !here_lights.length) return undefined;
     const objects: THREE.Object3D[] = [];
     const near: THREE.Object3D[] = [];
     const ranged: [THREE.BufferGeometry, number][] = [];
@@ -250,7 +224,9 @@ export class TownChunks {
     }
     const cars = here_cars.map((car) => ({ ...car, y: this.world.height(car.x, car.z) + PAD_LIFT }));
     if (cars.length) near.push(parked_cars(cars, this.car_shape, this.car_material));
-    if (here_lights.length) near.push(...street_lights(here_lights, this.parts));
+    for (const kind of Object.keys(LAMPS) as LampKind[])
+      near.push(...lamps(this.lamp_kit, kind, here_lights.filter((p) => p.kind === kind).map((p) => ({ x: p.x, y: this.world.height(p.x, p.z), z: p.z, angle: p.angle }))));
+    if (chunk.pools) near.push(pool_mesh(this.lamp_kit, chunk.pools));
     objects.push(...near);
     return {
       objects,
