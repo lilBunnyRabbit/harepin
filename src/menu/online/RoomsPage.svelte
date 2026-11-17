@@ -3,14 +3,13 @@
   import { bare_enter, link_key } from "../drive-picks";
   import MenuFrame from "../MenuFrame.svelte";
   import Card from "../ui/Card.svelte";
-  import Chip from "../ui/Chip.svelte";
   import KeyLink from "../ui/KeyLink.svelte";
   import PrimaryAction from "../ui/PrimaryAction.svelte";
   import ScrollArea from "../ui/ScrollArea.svelte";
   import type { PageProps } from "../ui/svelte-page.svelte";
   import { join_game } from "./join";
   import RoomHead from "./RoomHead.svelte";
-  import { NEW_ROOM_PAGE, ROOMS_PAGE, room_groups, totals, type RoomGroup } from "./rooms";
+  import { NEW_ROOM_PAGE, ROOMS_PAGE, room_groups, type RoomGroup } from "./rooms";
   import UnlockForm from "./UnlockForm.svelte";
 
   const EMPTY = {
@@ -25,7 +24,6 @@
   const players = $derived(live.live(() => host.players_online()));
   const groups = $derived(room_groups(players, host.version));
   const rooms = $derived(groups.filter((group) => !group.here));
-  const online = $derived(totals(groups).players);
   const status = $derived(live.live(() => host.servers_status()));
 
   let picked = $state<string | null>(null);
@@ -82,10 +80,7 @@
 
 <svelte:window onkeydown={key} />
 
-<MenuFrame {menu} id={ROOMS_PAGE} eyebrow="Online" title="Other rooms" veil={0.55} {note}>
-  {#snippet chips()}
-    {#if online > 1}<Chip tone="live">{online} online</Chip>{/if}
-  {/snippet}
+<MenuFrame {menu} id={ROOMS_PAGE} eyebrow="Online" title="Other rooms" season={false} veil={0.55} {note}>
   <div class="rooms">
     <Card list class="rooms-card" label="Other rooms">
       {#if asking}

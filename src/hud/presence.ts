@@ -29,9 +29,15 @@ export class Presence {
   private timer = 0;
   private shown = "";
   private online = 0;
+  private total = 1;
   private last_send = 0;
 
   constructor(private readonly host: PresenceHost) {}
+
+  /** Everyone playing right now, this player included: the count on the HUD chip. */
+  get count(): number {
+    return this.total;
+  }
 
   start() {
     this.chip.addEventListener("click", this.open);
@@ -65,7 +71,8 @@ export class Presence {
     } else {
       this.online = net.leader_online ?? 0;
     }
-    this.draw(here, Math.max(here, this.online));
+    this.total = Math.max(here, this.online);
+    this.draw(here, this.total);
     this.track(net, now);
   }
 

@@ -47,7 +47,7 @@
 
 <svelte:window onkeydown={key} />
 
-<MenuFrame {menu} id={NEW_ROOM_PAGE} eyebrow="Online" title="New room" veil={0.55} note="Leave it all empty for a random code and map.">
+<MenuFrame {menu} id={NEW_ROOM_PAGE} eyebrow="Online" title="New room" season={false} veil={0.55} note="Leave it all empty for a random code and map.">
   <form class="room-form" bind:this={sheet} onsubmit={create}>
     <Card list label="New room">
       <Row label="Room name" help="Empty for a random code" stack>

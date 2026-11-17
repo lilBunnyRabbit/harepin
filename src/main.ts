@@ -379,6 +379,15 @@ const settings = new Settings(document.body, {
     if (lobby.ready) lobby.set_ready({ laps, route });
   },
   ready_status: () => lobby.ready_status(performance.now()),
+  meet_drivers: () => {
+    const now = performance.now();
+    const ids = [net.id, ...net.same_map.keys()];
+    return net.roster(false).map((entry, at) => {
+      const id = ids[at];
+      const state = net.remotes.get(id)?.latest;
+      return { id, name: entry.name, country: entry.country ?? null, car: at === 0 ? garage.code : state && "b" in state ? (state.b ?? null) : null, you: at === 0, ready: at === 0 ? lobby.ready : lobby.peer_ready(id, now) };
+    });
+  },
   race_left_out: (route) => lobby.left_out(route),
   version: BUILD.version, changelog: () => updater.changelog_view(), show_updates: () => updater.open_notes(), updates_closed: () => updater.close_notes(), update_state: () => updater.state,
   servers: () => directory.list(),
@@ -386,6 +395,7 @@ const settings = new Settings(document.body, {
   password_failed: () => net.status === WRONG_PASSWORD,
   browse_servers: (on) => directory.browse(on),
   players_online: () => directory.players(),
+  online_count: () => presence.count,
   net_status: () => net.status,
   peers: () => net.peers,
   version_peers: () => ({ older: net.older_peers, newer: net.newer_peers }),
@@ -416,7 +426,8 @@ const settings = new Settings(document.body, {
 }, prefs);
 // Started once settings and lobby exist: the announce reads both.
 directory.start();
-new Presence({ net, elsewhere: () => directory.elsewhere(), watch: (on) => directory.watch(on), toast: (text) => hud.toast(text), open_online: () => settings.open(MenuTab.ONLINE) }).start();
+const presence = new Presence({ net, elsewhere: () => directory.elsewhere(), watch: (on) => directory.watch(on), toast: (text) => hud.toast(text), open_online: () => settings.open(MenuTab.ONLINE) });
+presence.start();
 
 // Feel A/B from the `?feel` panel, never saved: on is the shipped behaviour, off the old grip-limited drift wheel.
 let drift_full_lock = true;

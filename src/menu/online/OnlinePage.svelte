@@ -6,7 +6,6 @@
   import MenuFrame from "../MenuFrame.svelte";
   import { MenuTab, invite_link } from "../page";
   import Card from "../ui/Card.svelte";
-  import Chip from "../ui/Chip.svelte";
   import KeyLink from "../ui/KeyLink.svelte";
   import PrimaryAction from "../ui/PrimaryAction.svelte";
   import ScrollArea from "../ui/ScrollArea.svelte";
@@ -102,10 +101,7 @@
 
 <svelte:window onkeydown={key} />
 
-<MenuFrame {menu} id={MenuTab.ONLINE} veil={0.55} {note}>
-  {#snippet chips()}
-    {#if sums.players > 1}<Chip tone="live">{sums.players} online</Chip>{/if}
-  {/snippet}
+<MenuFrame {menu} id={MenuTab.ONLINE} season={false} veil={0.55} {note}>
   <div class="online">
     <OnlineRoom {menu} {live} onretry={failed && own?.locked ? () => (asking = own) : undefined} />
     <Card pad="none" class="online-list" label="Players online">

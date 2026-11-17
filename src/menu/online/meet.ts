@@ -1,26 +1,7 @@
 import { NOT_THIS_CAR } from "../../net/lobby";
 import type { ReadyStatus } from "../../net/ready";
 
-export interface MeetDriver {
-  key: string;
-  name: string;
-  initial: string;
-  you: boolean;
-  ready: boolean;
-}
-
-const YOU = "you";
-
-function driver(name: string, at: number, ready: boolean, own: string): MeetDriver {
-  const you = name === YOU;
-  const shown = you ? own : name;
-  return { key: `${ready ? "r" : "w"}${at}`, name: shown, initial: [...shown.trim()][0]?.toUpperCase() ?? "?", you, ready };
-}
-
-export function meet_drivers(status: Pick<ReadyStatus, "names" | "waiting">, own: string): MeetDriver[] {
-  const all = [...status.names.map((name, at) => driver(name, at, true, own)), ...status.waiting.map((name, at) => driver(name, at, false, own))];
-  return all.sort((a, b) => Number(b.you) - Number(a.you));
-}
+export const initial = (name: string) => [...name.trim()][0]?.toUpperCase() ?? "?";
 
 export function meet_note(status: ReadyStatus, busy: boolean, left_out: boolean): string {
   if (busy) return "The race is on.";

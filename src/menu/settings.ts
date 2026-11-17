@@ -139,7 +139,7 @@ export class Settings {
       svelte_page(this.menu, { id: SERIES_PAGE, label: "Harepin Series", parent: MenuTab.EVENTS, layout: "frame" }, SeriesPage, { picker: this.picker, asked: () => this.take_round() }),
       svelte_page(this.menu, { id: NEW_ROOM_PAGE, label: "New room", parent: MenuTab.ONLINE, layout: "frame" }, RoomPage),
       svelte_page(this.menu, { id: ROOMS_PAGE, label: "Other rooms", parent: MenuTab.ONLINE, layout: "frame" }, RoomsPage),
-      svelte_page(this.menu, { id: MEET_PAGE, label: "Race meet", parent: MenuTab.ONLINE, layout: "frame" }, MeetPage),
+      svelte_page(this.menu, { id: MEET_PAGE, label: "Race meet", parent: MenuTab.ONLINE, layout: "frame" }, MeetPage, { picker: this.picker }),
     ];
     const canvas = el("canvas", "showroom-stage");
     this.showroom = new Showroom(new CarStage(canvas, { floor: turntable(), slack: TURNTABLE_SLACK }), {

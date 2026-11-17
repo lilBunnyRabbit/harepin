@@ -1,15 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { car_shelves } from "../car/car-pick";
-  import { load_builds } from "../car/builds";
   import { CARS } from "../car/cars";
   import { rating } from "../car/pi";
-  import { open_presets } from "../career/rewards";
-  import { CAR_PAGE, type CarPicker } from "./car-pick.svelte";
+  import type { CarPicker } from "./car-pick.svelte";
   import type { Garage } from "./garage.svelte";
   import GarageBuilds from "./GarageBuilds.svelte";
   import { slot_icon, type Item, type ItemGroup } from "./garage-items";
   import GarageMeters from "./GarageMeters.svelte";
+  import { change_own_car } from "./own-car";
   import GarageParts from "./GarageParts.svelte";
   import MenuFrame from "./MenuFrame.svelte";
   import { MenuTab } from "./page";
@@ -63,15 +61,7 @@
     return true;
   }
 
-  async function change_car() {
-    const shelves = car_shelves(garage.build, load_builds(), open_presets(garage.held_cars), { cap: null, car_sized_only: false });
-    const asked = picker.open({ title: "Garage", limit: "any class", shelves, note: "Your car from now on.", back: "Garage" });
-    menu.show(CAR_PAGE);
-    const code = await asked;
-    if (!code) return;
-    garage.use_code(code);
-    menu.back();
-  }
+  const change_car = () => void change_own_car(menu, picker, "Garage");
 </script>
 
 {#snippet slot(one: Item)}

@@ -15,6 +15,7 @@
   import PrimaryAction from "../ui/PrimaryAction.svelte";
   import type { PageProps } from "../ui/svelte-page.svelte";
   import { preview } from "../widgets";
+  import DailyBoard from "./DailyBoard.svelte";
   import SeasonBar from "./SeasonBar.svelte";
   import { world_name } from "./run-text";
   import "../events.css";
@@ -88,7 +89,7 @@
 {#if target}
   <StartSheet {menu} {picker} {target} eyebrow="Events" title="Runs" {shown} onclose={() => (target = null)} />
 {:else}
-  <MenuFrame {menu} id={RUNS_PAGE} eyebrow="Events" title="Runs" veil={0.55} note={`Random and built runs earn up to ${FREE_CAP} ★ a day: ${free_left} left today.`} {primary}>
+  <MenuFrame {menu} id={RUNS_PAGE} eyebrow="Events" title="Runs" season={false} veil={0.55} note={`Random and built runs earn up to ${FREE_CAP} ★ a day: ${free_left} left today.`} {primary}>
     <div class="runs">
       <SeasonBar stars={live.live(() => runs.stars)} season={live.live(() => runs.season)} {today} />
       <div class="runs-cards">
@@ -103,6 +104,7 @@
               {#if one.place}<PlaceLine place={one.place} />{:else}<span class="ev-small">A new map every roll</span>{/if}
               <b class="runs-gain">{one.left > 0 ? `+${one.left}★` : "Done"}</b>
             </span>
+            {#if one.id === "daily"}<DailyBoard {menu} {live} />{/if}
           </Card>
         {/each}
         <Card flat class="runs-build" onclick={() => menu.show(RUN_BUILD_PAGE)} label="Build a run">

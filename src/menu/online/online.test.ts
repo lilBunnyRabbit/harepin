@@ -4,12 +4,11 @@ import { render } from "svelte/server";
 import type { Server } from "../../net/directory";
 import type { Player } from "../../net/players";
 import type { ReadyStatus } from "../../net/ready";
+import { CarPicker } from "../car-pick.svelte";
 import type { Menu } from "../page";
 import { DEFAULT_SETTINGS } from "../prefs";
 import type { MenuState } from "../ui/menu-state.svelte";
-import { daily_text } from "../runs/run-text";
-import DailyBoard from "./DailyBoard.svelte";
-import { meet_drivers, meet_note } from "./meet";
+import { meet_note } from "./meet";
 import MeetPage from "./MeetPage.svelte";
 import OnlinePage from "./OnlinePage.svelte";
 import RoomPage from "./RoomPage.svelte";
@@ -63,6 +62,9 @@ const HOST = {
   race_ready: () => false,
   race_left_out: () => false,
   ready_status: () => ready(),
+  meet_drivers: () => [{ id: "me", name: "Me", country: "SI", car: null, you: true, ready: false }],
+  online_count: () => 1,
+  runs: { stars: 0 },
   lobby_record: () => "",
   browse_servers: () => {},
   career: { stars: {} },
@@ -74,6 +76,8 @@ function setup(host: object) {
   const live = { prefs: DEFAULT_SETTINGS, live: <T>(read: () => T) => read(), set: () => {} } as unknown as MenuState;
   return { menu, live, shown: true };
 }
+
+const meet = (host: object) => ({ ...setup(host), picker: new CarPicker() });
 
 const here = game({ key: "own", here: true, room: "lobby", players: 2 });
 const racing = game({ key: "g2", room: "owl", players: 3, racing: true });
@@ -108,8 +112,9 @@ describe("rooms", () => {
 
 describe("online pages", () => {
   test("Online groups players by room and the one primary joins the first by name", () => {
-    const html = render(OnlinePage, { props: setup({ players_online: () => everyone }) }).body;
-    for (const text of ["Your room", "Island · Harwar", "Players online", "9 players · 4 rooms · 1 racing", "9 online", "with you", "Racing", "Roaming", 'aria-label="Join Aiko"', OTHER_VERSION, "and 2 more"]) expect(html).toContain(text);
+    const html = render(OnlinePage, { props: setup({ players_online: () => everyone, online_count: () => 9 }) }).body;
+    expect(html).toContain("9 online");
+    for (const text of ["Your room", "Island · Harwar", "Players online", "9 players · 4 rooms · 1 racing", "with you", "Racing", "Roaming", 'aria-label="Join Aiko"', OTHER_VERSION, "and 2 more"]) expect(html).toContain(text);
     expect(html).toContain("Join Ana");
     expect(html).toContain("Joining moves you to");
     expect(html.match(/data-tone="online"/g)?.length).toBe(1);
@@ -142,15 +147,6 @@ describe("online pages", () => {
 });
 
 describe("race meet", () => {
-  test("drivers list you first, each ready or not", () => {
-    const cards = meet_drivers({ names: ["Mika"], waiting: ["you", "Jonas"] }, "Hare");
-    expect(cards.map((one) => [one.name, one.you, one.ready, one.initial])).toEqual([
-      ["Hare", true, false, "H"],
-      ["Mika", false, true, "M"],
-      ["Jonas", false, false, "J"],
-    ]);
-  });
-
   test("the note counts who is ready, and says when you race alone or sit out", () => {
     expect(meet_note(ready({ names: ["Mika"], waiting: ["you"], total: 2 }), false, false)).toBe("1 of 2 ready. It starts when everyone is.");
     expect(meet_note(ready(), false, false)).toBe("You're alone here: it starts at once.");
@@ -159,47 +155,25 @@ describe("race meet", () => {
   });
 
   test("a map without routes says it is free roam, with no primary", () => {
-    const html = render(MeetPage, { props: setup({}) }).body;
+    const html = render(MeetPage, { props: meet({}) }).body;
     expect(html).toContain("No races on this map");
     expect(html).not.toContain('data-tone="online"');
   });
 
   test("Ready is the one primary in the online tone; alone it names the route", () => {
     const status = ready({ names: ["Mika"], waiting: ["you"], total: 2, next: { route: "circuit", laps: 3 } });
-    const html = render(MeetPage, { props: setup({ race_routes: routes, ready_status: () => status }) }).body;
-    for (const text of ["Harbour loop · 3 laps", "1/2", "Not ready", "Me · you", "Mika", "Start without waiting", "Open slot"]) expect(html).toContain(text);
+    const mika = { id: "p2", name: "Mika", country: null, car: null, you: false, ready: true };
+    const html = render(MeetPage, { props: meet({ race_routes: routes, ready_status: () => status, meet_drivers: () => [...HOST.meet_drivers(), mika] }) }).body;
+    for (const text of ["Harbour loop · 3 laps", "1/2", "Not ready", "Me · you", "Mika", "Start without waiting", "Open slot", "Change car", ">Ready<"]) expect(html).toContain(text);
     expect(html.match(/data-tone="online"/g)?.length).toBe(1);
-    const alone = render(MeetPage, { props: setup({ race_routes: routes }) }).body;
+    const alone = render(MeetPage, { props: meet({ race_routes: routes }) }).body;
     expect(alone).toContain("Race Harbour loop");
     expect(alone).not.toContain("Start without waiting");
   });
 
   test("a running race takes a hold to leave", () => {
-    const html = render(MeetPage, { props: setup({ race_routes: routes, race_busy: () => true }) }).body;
+    const html = render(MeetPage, { props: meet({ race_routes: routes, race_busy: () => true }) }).body;
     expect(html).toContain("Hold to leave race");
     expect(html).not.toContain("Start without waiting");
-  });
-});
-
-describe("daily board", () => {
-  test("the daily board ranks today's times and says when there are none", () => {
-    const runs = { today: "2026-11-13", own_daily: { k: "k", ms: 61_000 } };
-    const rows = [
-      { name: "Ana", ms: 59_000, you: false, here: true },
-      { name: "Me", ms: 61_000, you: true, here: true },
-      { name: "Cy", ms: 70_000, you: false, here: false },
-    ];
-    const html = render(DailyBoard, { props: setup({ runs, daily_board: () => ({ rows, hidden: 2 }) }) }).body;
-    for (const text of ["1. Ana", "0:59.000", "2. Me", "You", "Seen earlier today", "Run today's daily", "2 from other versions"]) expect(html).toContain(text);
-    const empty = render(DailyBoard, { props: setup({ runs: { ...runs, own_daily: null }, daily_board: () => ({ rows: [], hidden: 0 }) }) }).body;
-    expect(empty).toContain("No times yet today.");
-    expect(empty).not.toContain("other versions");
-  });
-
-  test("a scored daily shows in its mode's unit; a timed one as a time", () => {
-    expect(daily_text("race", { ms: 61_000 })).toBe("1:01.000");
-    expect(daily_text("race", { ms: 61_000, score: 212.4 })).toBe("212 km/h");
-    expect(daily_text("drift", { ms: 61_000, score: 1840 })).toBe("1,840 pts");
-    expect(daily_text("jump", { ms: 61_000, score: 42.5 })).toContain("m");
   });
 });

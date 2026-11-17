@@ -48,6 +48,16 @@ export interface QualityStatus {
   shadow_size: number;
 }
 
+export interface MeetDriver {
+  id: string;
+  name: string;
+  country: string | null;
+  /** The build code of the car they drive; null from a peer that sends none. */
+  car: string | null;
+  you: boolean;
+  ready: boolean;
+}
+
 export interface SettingsHost {
   readonly room: string;
   readonly seed: number;
@@ -79,6 +89,8 @@ export interface SettingsHost {
   /** Re-sends a standing ready with a new pick; nothing when not ready. */
   repick_ready(laps: Laps, route: string): void;
   ready_status(): ReadyStatus;
+  /** Everyone on this map for the race meet, this player first. */
+  meet_drivers(): MeetDriver[];
   /** The route leaves out the car being driven. */
   race_left_out(route: string): boolean;
   readonly version: string;
@@ -97,6 +109,8 @@ export interface SettingsHost {
   browse_servers(on: boolean): void;
   /** Everyone in the directory, this player first; filled while `browse_servers` is on. */
   players_online(): Player[];
+  /** Everyone playing right now, this player included, as the HUD chip counts them. */
+  online_count(): number;
   /** `Net.status`: online, searching, connecting, or why it can't connect. */
   net_status(): string;
   /** Peers linked in this room, on any map. */

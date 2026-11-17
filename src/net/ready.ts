@@ -50,6 +50,10 @@ export class ReadySet {
     return heard && now - heard.at <= READY_TTL_MS ? heard : null;
   }
 
+  is_ready(id: string, now: number): boolean {
+    return this.fresh(id, now) !== null;
+  }
+
   everyone(own: RaceCall | null, present: Iterable<string>, now: number): boolean {
     if (!own) return false;
     for (const id of present) if (!this.fresh(id, now)) return false;

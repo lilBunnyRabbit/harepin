@@ -1,20 +1,28 @@
 <script lang="ts">
+  import { parse_build } from "../../car/build";
+  import { flag } from "../../net/country";
+  import type { CarPicker } from "../car-pick.svelte";
+  import CarStill from "../CarStill.svelte";
   import { bare_enter, link_key } from "../drive-picks";
   import MenuFrame from "../MenuFrame.svelte";
+  import { change_own_car } from "../own-car";
   import { LAPS, type Laps } from "../prefs";
   import Card from "../ui/Card.svelte";
-  import Chip from "../ui/Chip.svelte";
   import Icon from "../ui/Icon.svelte";
   import KeyLink from "../ui/KeyLink.svelte";
   import PrimaryAction from "../ui/PrimaryAction.svelte";
   import Segmented from "../ui/Segmented.svelte";
   import type { PageProps } from "../ui/svelte-page.svelte";
-  import { meet_drivers, meet_note } from "./meet";
-  import { MEET_PAGE, drivers as count_text, room_name } from "./rooms";
+  import { initial, meet_note } from "./meet";
+  import { MEET_PAGE, room_name } from "./rooms";
 
   const LEAVE_HOLD_MS = 800;
 
-  let { menu, live, shown }: PageProps = $props();
+  interface Props extends PageProps {
+    picker: CarPicker;
+  }
+
+  let { menu, live, shown, picker }: Props = $props();
 
   const host = $derived(menu.host);
   const routes = $derived(host.race_routes);
@@ -31,9 +39,8 @@
   const ready = $derived(live.live(() => host.race_ready()));
   const status = $derived(live.live(() => host.ready_status()));
   const record = $derived(live.live(() => host.lobby_record()));
-  const own_name = $derived(live.live(() => host.name()));
   const alone = $derived(status.total <= 1);
-  const cards = $derived(meet_drivers(status, own_name));
+  const cards = $derived(live.live(() => host.meet_drivers()).map((one) => ({ ...one, build: parse_build(one.car) })));
   // What an all-ready start runs is the leader's pick; until the leader readies, this player's own shows.
   const called = $derived(status.next ? { route: routes.find((one) => one.id === status.next?.route) ?? route, laps: status.next.laps } : { route, laps });
   const called_text = $derived(called.route ? `${called.route.name} · ${called.route.closed ? `${called.laps} ${called.laps === 1 ? "lap" : "laps"}` : "A to B"}` : "");
@@ -84,6 +91,8 @@
     menu.refresh();
   }
 
+  const change_car = () => void change_own_car(menu, picker, "Race meet");
+
   function key(event: KeyboardEvent) {
     if (!shown || !routes.length) return;
     if (bare_enter(event)) {
@@ -96,6 +105,7 @@
     if (changing || busy) return;
     const link = link_key(event);
     if (link === "r") changing = true;
+    else if (link === "c") change_car();
     else if (link === "s" && !alone && !left_out) toggle_race();
   }
 </script>
@@ -103,7 +113,7 @@
 <svelte:window onkeydown={key} />
 
 {#if changing && route}
-  <MenuFrame {menu} id={MEET_PAGE} eyebrow="Race meet" title="Route" veil={0.55} back_to="Race meet" note={left_out ? "This car can't race here" : loop ? "Everyone in the room starts together." : "A to B routes are one run, start to finish."}>
+  <MenuFrame {menu} id={MEET_PAGE} eyebrow="Race meet" title="Route" season={false} veil={0.55} back_to="Race meet" note={left_out ? "This car can't race here" : loop ? "Everyone in the room starts together." : "A to B routes are one run, start to finish."}>
     <div class="meet-setup">
       <Card label="Route">
         <div class="meet-routes" role="group" aria-label="Route">
@@ -126,10 +136,7 @@
     {/snippet}
   </MenuFrame>
 {:else}
-  <MenuFrame {menu} id={MEET_PAGE} eyebrow="Online" title="Race meet" floor note={routes.length ? meet_note(status, busy, left_out) : ""}>
-    {#snippet chips()}
-      <Chip tone="live">{count_text(status.total)} here</Chip>
-    {/snippet}
+  <MenuFrame {menu} id={MEET_PAGE} eyebrow="Online" title="Race meet" season={false} floor note={routes.length ? meet_note(status, busy, left_out) : ""}>
     <div class="meet">
       {#if called.route}
         <Card pad="sm" class="meet-top" label="Race meet">
@@ -143,12 +150,14 @@
           </span>
         </Card>
         <div class="meet-drivers">
-          {#each cards as one (one.key)}
+          {#each cards as one (one.id)}
             <Card pad="none" class="meet-driver" focused={one.you} label={one.name}>
-              <span class="meet-face" aria-hidden="true">{one.initial}</span>
+              <span class="meet-face" aria-hidden="true">
+                {#if one.build}<CarStill car={one.build.car} build={one.build} />{:else}{initial(one.name)}{/if}
+              </span>
               <span class="meet-cap">
                 <span class="meet-state" data-ready={one.ready ? "" : undefined}>{#if one.ready}<Icon name="icon-check" />{/if}{one.ready ? "Ready" : "Not ready"}</span>
-                <b class="meet-name">{one.name}{one.you ? " · you" : ""}</b>
+                <b class="meet-name">{#if one.country}<span class="meet-flag">{flag(one.country)}</span>{/if}{one.name}{one.you ? " · you" : ""}</b>
               </span>
             </Card>
           {/each}
@@ -166,6 +175,7 @@
     </div>
     {#snippet links()}
       {#if route && !busy}
+        <KeyLink keys={{ key: "C" }} onclick={change_car}>Change car</KeyLink>
         <KeyLink keys={{ key: "R" }} onclick={() => (changing = true)}>Route</KeyLink>
         {#if !alone && !left_out}<KeyLink keys={{ key: "S" }} onclick={toggle_race}>Start without waiting</KeyLink>{/if}
       {/if}
@@ -281,6 +291,15 @@
   .meet-state[data-ready] {
     color: var(--success);
     font-weight: 700;
+  }
+
+  .meet-face > :global(.still) {
+    width: 100%;
+    height: 100%;
+  }
+
+  .meet-flag {
+    margin-right: 0.4em;
   }
 
   .meet-name {
