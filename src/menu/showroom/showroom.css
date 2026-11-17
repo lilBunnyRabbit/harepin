@@ -12,6 +12,11 @@
   display: none;
 }
 
+/* A start sheet covers its page: the car leaves with it, and the sheet stands on the plain dimmed scene. */
+.settings:has(.settings-page:not([hidden]) .start-sheet) .showroom-stage {
+  visibility: hidden;
+}
+
 .showroom-stage:active {
   cursor: grabbing;
 }

@@ -74,7 +74,7 @@
 {/snippet}
 
 <PageFrame {eyebrow} {title} back={{ to: title, go: onclose }} veil={0.82} note={go.note} {primary}>
-  <div class="sheet">
+  <div class="sheet start-sheet">
     <Card picture={shot} wide class="sheet-card" label={view.title}>
       <div class="ev-head">
         <span class="ev-eyebrow">{view.eyebrow}</span>
