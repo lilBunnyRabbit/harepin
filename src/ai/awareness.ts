@@ -321,8 +321,9 @@ export class Awareness {
         return;
       }
     }
-    // A car covering the inside has left the outside open: a bold driver takes it into the braking zone.
-    if (blocker < 0 && cover >= 0 && aggression > OUTSIDE && driver.wary <= 0 && !kicker && !this.trouble[cover] && this.faster(i, cover)) {
+    // A car covering the inside has left the outside open: a bold driver takes it into the braking zone, from the reach a
+    // pass starts at. From as far as it sees one (75 m), the pass was off for the gap on the next tick and on again the tick after.
+    if (blocker < 0 && cover >= 0 && cover_gap < keep + PASS_REACH && aggression > OUTSIDE && driver.wary <= 0 && !kicker && !this.trouble[cover] && this.faster(i, cover)) {
       const outside = -Math.sign(this.lateral[cover]) || 1;
       if (this.side_open(i, cover, outside, lane, room, cover_gap + PASS_WINDOW)) {
         this.passing[i] = cover;
