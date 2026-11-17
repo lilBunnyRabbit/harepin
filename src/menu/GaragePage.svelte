@@ -38,7 +38,7 @@
   const now = $derived(rating(garage.current));
   const next = $derived(rating(garage.shown));
   const groups = $derived(GROUPS.map((group) => garage.items.filter((one) => one.group === group)));
-  const action = $derived(item.kind === "part" ? `Fit ${item.name(garage.cursor)} ${item.label.toLowerCase()}` : `Use ${item.label.toLowerCase()} ${item.name(garage.cursor)}`);
+  const action = $derived(item.kind === "part" ? fit_text(item.name(garage.cursor), item.label.toLowerCase()) : `Use ${item.label.toLowerCase()} ${item.name(garage.cursor)}`);
 
   onMount(() => {
     garage.attach({ sheet: () => side });
@@ -59,6 +59,12 @@
     if (!garage.on_builds) return false;
     garage.toggle_builds();
     return true;
+  }
+
+  // "GT kit" on the aero kit is "Fit GT kit", not "Fit GT kit aero kit"; the empty option takes the part off.
+  function fit_text(name: string, part: string): string {
+    if (name === "None") return `Remove ${part}`;
+    return name.toLowerCase().endsWith(part.split(" ").at(-1) ?? part) ? `Fit ${name}` : `Fit ${name} ${part}`;
   }
 
   const change_car = () => void change_own_car(menu, picker, "Garage");

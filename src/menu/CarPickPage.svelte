@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { CarChoice } from "../car/car-pick";
+  import { CARS } from "../car/cars";
   import { CLASS_FLOORS, type CarClass } from "../car/pi";
   import { CAR_PAGE, type CarPicker } from "./car-pick.svelte";
   import { aim_or_go } from "./drive-picks";
@@ -86,7 +87,9 @@
     if (c.blocked) return c.blocked;
     if (c.own) return "Your car";
     if (c.recommended) return "Best fit";
-    return c.sub;
+    // A preset's blurb runs past the card: the card names the car it is built on, the detail panel has the blurb.
+    const car = CARS[c.build.car].name;
+    return car === c.title ? "" : car;
   }
 </script>
 

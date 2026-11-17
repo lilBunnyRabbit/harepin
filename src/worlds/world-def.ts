@@ -58,8 +58,8 @@ export const shown = (f: WorldFacts | null, value: (f: WorldFacts) => string) =>
 export function lap_facts(f: WorldFacts | null, lap: string): [string, string][] {
   return [
     [shown(f, (f) => `${(f.length / 1000).toFixed(1)} km`), lap],
-    [shown(f, (f) => String(f.corners)), "corners"],
-    [shown(f, (f) => String(f.jumps)), "jumps"],
+    [shown(f, (f) => String(f.corners)), f?.corners === 1 ? "corner" : "corners"],
+    [shown(f, (f) => String(f.jumps)), f?.jumps === 1 ? "jump" : "jumps"],
   ];
 }
 
