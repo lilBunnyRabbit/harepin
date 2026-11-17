@@ -37,7 +37,7 @@ export function linear(lab: Lab): [number, number, number] {
 }
 
 /** `lab` with its chroma cut until it fits sRGB: past the edge `linear` clips per channel, which shifts the hue. */
-function in_gamut(lab: Lab): Lab {
+export function in_gamut(lab: Lab): Lab {
   const scaled = (k: number): Lab => [lab[0], lab[1] * k, lab[2] * k];
   const fits = (k: number) => oklab_to_linear(scaled(k)).every((c) => c >= 0 && c <= 1);
   if (fits(1)) return lab;

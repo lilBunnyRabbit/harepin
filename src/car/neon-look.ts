@@ -3,7 +3,7 @@ import { NEONS, NEON_TONES, type Build, type Neon } from "./build";
 import { DECAL_ORDER, ground_fade, lay_on_ground, type ContactShadow } from "./contact-shadow";
 import type { Design } from "./designs";
 import { paint_lab } from "./paint";
-import { brand, color, dark } from "../theme/palette";
+import { brand, color, dark, in_gamut } from "../theme/palette";
 import type { Lab } from "../theme/theme";
 import type { World } from "../world/world";
 import { exp } from "../sim-math";
@@ -135,8 +135,8 @@ export function rest_neon(neon: NeonView, share = 1) {
   neon.level.value = neon.gain * share;
 }
 
-/** The glow's tone over a light page: its hue and chroma, no darker than `PAGE_GLOW`. */
-export const page_glow = (tone: Lab): Lab => [Math.max(tone[0], PAGE_GLOW), tone[1], tone[2]];
+/** The glow's tone over a light page: its hue, no darker than `PAGE_GLOW`, its chroma cut to what sRGB holds that light. */
+export const page_glow = (tone: Lab): Lab => in_gamut([Math.max(tone[0], PAGE_GLOW), tone[1], tone[2]]);
 
 /** For a stand with no ground to add light to: the glow blends over a light page as `page_glow` of its tone, at `share` of its strength. */
 export function tint_page(neon: NeonView, look: NeonLook, share: number) {
