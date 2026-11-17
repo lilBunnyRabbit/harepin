@@ -164,6 +164,7 @@ export class WorldView {
     this.tree_lists = by_chunk(world.trees, world.tiles.ext);
     this.tree_order = new Map(world.trees.map((tree, i) => [tree, i]));
     this.town_kit = new TownChunks(world);
+    this.root.add(...this.town_kit.primer());
     this.jumps = new JumpsView(world, (x, z) => world.height(x, z), world.tiles.ext);
     this.root.add(this.jumps.root);
     this.landmarks = new LandmarksView(world.props);

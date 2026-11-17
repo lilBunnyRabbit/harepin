@@ -221,6 +221,24 @@ export class TownChunks {
     this.lights = by_chunk(world.props.filter((p) => p.kind === PropKind.STREET_LIGHT), world.tiles.ext);
   }
 
+  /**
+   * One of each object a town chunk brings, never drawn. The link pass at boot reads every mesh in the scene, shown or
+   * not, so the first town to stream in finds its programs linked; linking one in a frame holds that frame 30-90 ms.
+   */
+  primer(): THREE.Object3D[] {
+    const soup = soup_geometry({ positions: new Float32Array(9), colors: new Float32Array(9), sphere: [0, 0, 0, 0] });
+    const spot = { x: 0, y: 0, z: 0 };
+    const objects = [
+      new THREE.Mesh(soup, this.building),
+      new THREE.Mesh(soup, this.glass),
+      new THREE.Mesh(soup, this.parking),
+      parked_cars([{ ...spot, heading: 0, paint: color(car_paints[0]) }], this.car_shape, this.car_material),
+      ...street_lights([{ ...spot, angle: 0, kind: PropKind.STREET_LIGHT, scale: 1 }], this.parts),
+    ];
+    for (const object of objects) object.visible = false;
+    return objects;
+  }
+
   build(chunk: ChunkBuffers): TownChunk | undefined {
     const here_cars = this.cars.get(chunk.index) ?? [];
     const here_lights = this.lights.get(chunk.index) ?? [];
