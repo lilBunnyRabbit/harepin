@@ -332,7 +332,7 @@ export class Driver {
     const square = Math.max(1, speed * speed);
     const slip_lock = 1 - (car.spec.wheelbase * GRAVITY * LOCK_GRIP) / square / grip_lock(car.spec, speed);
     const pressed = (car.spec.downforce * square) / (car.spec.mass * GRAVITY);
-    const hold_bend = ((speed * speed * line.bend[this.index]) / (LOCK_GRIP * GRAVITY)) * (1 - (slip_lock * pressed) / (1 + pressed));
+    const hold_bend = ((speed * speed * line.bend[this.index]) / (LOCK_GRIP * GRAVITY)) * (1 - (slip_lock * pressed) / (1 + pressed)) * AI_TUNING.steer_lead;
     // Wide of its path, the arc back to the aim is far tighter than the plan's bend: on full lock and full throttle
     // over it, cars ran off the far side of the road (seeds 9, 40). The aim's arc (pure pursuit) caps the speed there;
     // on its path the plan already holds the bend, and the cap only cost pace.

@@ -31,6 +31,7 @@ export const PARAMS: readonly Param[] = [
 /** The driver's pedal, aim and grip-band limits and the level 3 personality rows: `scripts/ai-ml` searches them, `ai-tune.ts` keeps to PARAMS. */
 export const DRIVER_PARAMS: readonly Param[] = [
   { name: "aside_grip", lo: 0.7, hi: 1, read: (t) => t.aside_grip, write: (t, v) => (t.aside_grip = v) },
+  { name: "steer_lead", lo: 0.9, hi: 1.2, read: (t) => t.steer_lead, write: (t, v) => (t.steer_lead = v) },
   { name: "brake_max", lo: 0.3, hi: 1, read: (t) => t.brake_max, write: (t, v) => (t.brake_max = v) },
   { name: "late_pedal", lo: 0.5, hi: 1, read: (t) => t.late_pedal, write: (t, v) => (t.late_pedal = v) },
   { name: "brake_slack", lo: 0.2, hi: 2.5, read: (t) => t.brake_slack, write: (t, v) => (t.brake_slack = v) },

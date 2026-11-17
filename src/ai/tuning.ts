@@ -34,6 +34,8 @@ export interface AiTuning {
   aim_per: number;
   /** Wheel per rad the aim sits off where it would on the path, over the wheel the bend itself takes: at 3 a car sat up to 3 m wide of the line through a 200 m bend at 38 m/s and ran off. */
   steer_gain: number;
+  /** Share of the wheel a bend takes that the driver holds: a little over, it sits a hand inside its line, where the road is. At 1 the coupe's fields held 4 to 5 spins and resets in 50 seeds, at 1.04 2 to 3. */
+  steer_lead: number;
   /** Wheel per rad/s the aim error swings at: without it a fast car fishtails, each catch overshooting the last. */
   steer_damp: number;
   /** Pedal limits of the line driver: the most brake off the line, the most diving down the inside, m/s over the plan before the brake comes on, and m/s of overspeed per unit of pedal. */
@@ -76,6 +78,7 @@ export const AI_TUNING: AiTuning = {
   aim_base: 7,
   aim_per: 3,
   steer_gain: 6.5,
+  steer_lead: 1.04,
   steer_damp: 1.25,
   brake_max: 0.95,
   late_pedal: 0.95,

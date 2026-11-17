@@ -10,6 +10,7 @@ import { Driver, pass_room } from "./driver";
 import { plan_for, race_line } from "./line";
 import { UNIT_SCALE } from "./capability";
 import { ring } from "./test-road";
+import { AI_TUNING } from "./tuning";
 
 const DT = 1 / 360;
 const STEPS = 360 * 30;
@@ -147,7 +148,7 @@ describe("AI driver", () => {
 
   test("on its line and along it through a bend, the wheel holds the bend's share of a full wheel, not the aim's whole angle", () => {
     const { controls, line, driver } = on_ring(0, 20, 0, 0, 60);
-    const share = (20 * 20 * Math.abs(line.bend[driver.index])) / (LOCK_GRIP * GRAVITY);
+    const share = ((20 * 20 * Math.abs(line.bend[driver.index])) / (LOCK_GRIP * GRAVITY)) * AI_TUNING.steer_lead;
     expect(share).toBeGreaterThan(0.5);
     expect(Math.abs(controls.steer)).toBeCloseTo(share, 1);
     // A metre wide of it, it turns in harder; a metre inside, less.
