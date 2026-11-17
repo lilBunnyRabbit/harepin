@@ -44,15 +44,20 @@ export class Marks {
     return material;
   }
 
-  private point(p: RoutePoint, u: number, v: number): [number, number, number] {
-    const x = p.x + p.tz * u + p.tx * v;
-    const z = p.z - p.tx * u + p.tz * v;
-    return [x, drawn_height(this.ground, x, z) + LIFT, z];
+  /** The point `u` metres left of `p` and `v` along it, `rise` over the drawn ground. */
+  point(p: RoutePoint, u: number, v: number, rise = 0): [number, number, number] {
+    return this.drape(p.x + p.tz * u + p.tx * v, p.z - p.tx * u + p.tz * v, rise);
   }
 
-  private mesh(positions: number[], material: THREE.Material): THREE.Mesh {
+  drape(x: number, z: number, rise = 0): [number, number, number] {
+    return [x, drawn_height(this.ground, x, z) + LIFT + rise, z];
+  }
+
+  /** `rise`: metres each vertex stands over the ground, for paint that is not flat on it. */
+  mesh(positions: number[], material: THREE.Material, rise?: number[]): THREE.Mesh {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    if (rise) geometry.setAttribute("rise", new THREE.Float32BufferAttribute(rise, 1));
     this.geometries.push(geometry);
     this.laid.push(geometry);
     const mesh = new THREE.Mesh(geometry, material);
@@ -97,11 +102,12 @@ export class Marks {
   relay(inside: (x: number, z: number) => boolean) {
     for (const geometry of this.laid) {
       const at = geometry.getAttribute("position");
+      const rise = geometry.getAttribute("rise");
       const a = at.array;
       let moved = false;
       for (let i = 0; i < a.length; i += 3) {
         if (!inside(a[i], a[i + 2])) continue;
-        a[i + 1] = drawn_height(this.ground, a[i], a[i + 2]) + LIFT;
+        a[i + 1] = drawn_height(this.ground, a[i], a[i + 2]) + LIFT + (rise ? rise.getX(i / 3) : 0);
         moved = true;
       }
       if (!moved) continue;

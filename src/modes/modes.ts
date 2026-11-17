@@ -141,6 +141,7 @@ export class Modes implements CarHooks {
   private notice_until = 0;
   private readonly el = {
     hint: $("mode-hint"),
+    wrong: $("mode-wrong"),
     status: $("mode-status"),
     status_name: $("mode-status-name"),
     status_clock: $("mode-status-clock"),
@@ -528,10 +529,8 @@ export class Modes implements CarHooks {
       spawn,
       spawn_on: (p) => spawn(p.x, p.z, atan2(p.tx, p.tz)),
       chime: () => this.chime(),
-      hint: (turn) => this.show_hint(turn),
-      hide_hint: () => {
-        this.el.hint.hidden = true;
-      },
+      hint: (turn, wrong = false) => this.show_hint(turn, wrong),
+      hide_hint: () => this.hide_hint(),
       exit: () => this.exit(),
     };
   }
@@ -566,7 +565,7 @@ export class Modes implements CarHooks {
     this.current?.run?.dispose();
     this.current = null;
     this.lobby_lap = null;
-    this.el.hint.hidden = true;
+    this.hide_hint();
     this.el.result.hidden = true;
     delete this.el.status.dataset.cup;
     this.noticed = "";
@@ -618,9 +617,15 @@ export class Modes implements CarHooks {
     }
   }
 
-  private show_hint(turn: number) {
+  private show_hint(turn: number, wrong: boolean) {
     this.el.hint.hidden = false;
     this.el.hint.style.setProperty("--turn", `${(-turn * DEG).toFixed(1)}deg`);
+    if (this.el.wrong.hidden === wrong) this.el.wrong.hidden = !wrong;
+  }
+
+  private hide_hint() {
+    this.el.hint.hidden = true;
+    this.el.wrong.hidden = true;
   }
 
   // The status line hides behind the result card, so a refused Next or Retry says why on the card itself.

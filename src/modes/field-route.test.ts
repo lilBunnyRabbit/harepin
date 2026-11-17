@@ -9,6 +9,7 @@ const loop = (radius: number, closed = true): Route => ({
   points: Array.from({ length: 16 }, (_, i) => ({ x: radius * Math.cos((i / 16) * Math.PI * 2), y: 0, z: radius * Math.sin((i / 16) * Math.PI * 2), tx: 0, tz: 1 })),
   checkpoints: [],
   gate_hw: 6,
+  road: [{ from: 0, half: 6 }],
   length: 0,
   par_ms: 0,
   closure: [],

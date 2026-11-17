@@ -75,6 +75,51 @@ export function straights(line: readonly RoutePoint[]): Straight[] {
   return found.sort((a, b) => b.length - a.length);
 }
 
+/** Total turn past which a run of curve is a bend worth a sign: about 35 degrees. */
+const BEND_TURN = 0.6;
+/** Metres of straight inside a bend that do not end it: the run between two arcs of one corner. */
+const BEND_GAP = 40;
+
+export interface Bend {
+  from: number;
+  to: number;
+  /** 1 turns left, -1 right. */
+  side: 1 | -1;
+}
+
+/** Every real bend of an open run of points, in driving order: a stretch tighter than `STRAIGHT_TURN` one way that turns `BEND_TURN` or more. */
+export function bends(line: readonly RoutePoint[]): Bend[] {
+  const found: Bend[] = [];
+  let from = -1;
+  let to = -1;
+  let total = 0;
+  let gap = 0;
+  const close = () => {
+    if (from >= 0 && Math.abs(total) >= BEND_TURN) found.push({ from, to, side: total > 0 ? 1 : -1 });
+    from = -1;
+    total = 0;
+  };
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1];
+    const b = line[i];
+    const step = hypot(b.x - a.x, b.z - a.z);
+    const turn = wrap(atan2(b.tx, b.tz) - atan2(a.tx, a.tz));
+    const curved = step > 0 && Math.abs(turn) / step > STRAIGHT_TURN;
+    if (from >= 0 && curved && turn * total < 0) close();
+    if (curved) {
+      if (from < 0) from = i - 1;
+      to = i;
+      total += turn;
+      gap = 0;
+    } else if (from >= 0) {
+      gap += step;
+      if (gap > BEND_GAP) close();
+    }
+  }
+  close();
+  return found;
+}
+
 // Searches only near the last point, so a stretch of road that doubles back past the car never steals the match.
 export class RouteTracker {
   index = -1;

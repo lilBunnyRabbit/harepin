@@ -143,7 +143,8 @@ export interface ModeCtx {
   spawn(x: number, z: number, heading: number): void;
   spawn_on(p: { x: number; z: number; tx: number; tz: number }): void;
   chime(): void;
-  hint(turn: number): void;
+  /** Points the gate arrow `turn` radians off the car's nose; `wrong` shows the wrong-way card with it. */
+  hint(turn: number, wrong?: boolean): void;
   hide_hint(): void;
   exit(): void;
 }

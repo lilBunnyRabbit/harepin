@@ -109,7 +109,7 @@ class Race implements ModeRun {
     if (was !== RaceStatus.DONE && run.status === RaceStatus.DONE) {
       this.route.gate = null;
       ctx.hide_hint();
-      view.guide(0, 0);
+      view.unguide();
       if (!lobby_lap && this.lap < this.laps) {
         this.banked += run.elapsed();
         this.lap++;
@@ -125,8 +125,7 @@ class Race implements ModeRun {
     this.route.gate = gate;
     if (!gate) return null;
     const { gates } = run.course;
-    view.guide(run.tracker.index, gates[run.next]);
-    ctx.hint(turn_to(car, gate.x, gate.z));
+    ctx.hint(turn_to(car, gate.x, gate.z), view.guide(run.tracker.index, car.heading, run.tracker.offset));
     const { status } = this;
     if (run.status === RaceStatus.READY) {
       status.clock = String(Math.ceil(run.countdown / 1000));

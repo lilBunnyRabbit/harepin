@@ -42,7 +42,7 @@ class Duel implements ModeRun {
     const gates = duel_gates(route, ctx.world.checkpoints);
     const circuit = ctx.world.routes.find((r) => r.id === CIRCUIT);
     const line = route.points.slice(DUEL_LEAD);
-    this.view = new RaceView({ line, gates: gates.map((at) => at - DUEL_LEAD), route: { closed: false, gate_hw: circuit?.gate_hw ?? ROAD_HALF, closure: [] } }, ctx.ground);
+    this.view = new RaceView({ line, gates: gates.map((at) => at - DUEL_LEAD), route: { closed: false, gate_hw: circuit?.gate_hw ?? ROAD_HALF, road: [{ from: 0, half: circuit?.gate_hw ?? ROAD_HALF }], closure: [] } }, ctx.ground);
     ctx.scene.add(this.view.root);
     const ghost = ghost_for(ctx, route.level.id);
     this.ghost = ghost;
@@ -78,7 +78,7 @@ class Duel implements ModeRun {
     if (was !== DuelStatus.DONE && run.status === DuelStatus.DONE) {
       this.route.gate = null;
       ctx.hide_hint();
-      view.guide(0, 0);
+      view.unguide();
       ghost.record(run.elapsed(), car);
       this.finish();
       return null;
@@ -86,8 +86,7 @@ class Duel implements ModeRun {
     const gate = run.gate;
     this.route.gate = gate;
     if (!gate) return null;
-    view.guide(Math.max(0, run.tracker.index - DUEL_LEAD), run.gates[run.next] - DUEL_LEAD);
-    ctx.hint(turn_to(car, gate.x, gate.z));
+    ctx.hint(turn_to(car, gate.x, gate.z), view.guide(run.tracker.index - DUEL_LEAD, car.heading, run.tracker.offset));
     const { status } = this;
     status.gates = `${run.next + 1}/${run.gates.length}`;
     if (run.status === DuelStatus.READY) {

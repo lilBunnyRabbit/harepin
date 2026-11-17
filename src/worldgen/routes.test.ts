@@ -71,6 +71,13 @@ test.each(SEEDS)("seed %i: every route is whole, on the road, and gated to its f
   expect(ids[0]).toBe("circuit");
   for (const route of world.routes) {
     contiguous(route);
+    expect(route.road[0].from).toBe(0);
+    route.road.forEach((span, i) => {
+      expect(span.from).toBeLessThan(route.points.length);
+      if (i > 0) expect(span.from).toBeGreaterThan(route.road[i - 1].from);
+      if (i > 0) expect(span.half).not.toBe(route.road[i - 1].half);
+      if (route.kind !== RouteKind.OFFROAD) expect(world.graph.edges.some((edge) => edge.half === span.half)).toBe(true);
+    });
     expect(route.par_ms).toBeGreaterThan(0);
     expect(route.par_ms % 500).toBe(0);
     const end = route.closed ? route.points[0] : route.points[route.points.length - 1];

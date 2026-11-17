@@ -91,6 +91,38 @@
   pointer-events: none;
 }
 
+#mode-wrong {
+  position: fixed;
+  position-anchor: --mode-status;
+  top: calc(anchor(bottom) + var(--space-8) + var(--space-4));
+  left: anchor(center);
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-color: var(--error);
+  color: var(--error);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+#mode-wrong i {
+  width: 28px;
+  height: 28px;
+  background: currentColor;
+  clip-path: polygon(0 100%, 0 30%, 30% 0, 62% 0, 92% 30%, 92% 60%, 100% 60%, 81% 84%, 62% 60%, 70% 60%, 70% 36%, 56% 22%, 36% 22%, 22% 36%, 22% 100%);
+}
+
+#mode-wrong[hidden],
+#mode-status[hidden] ~ #mode-wrong,
+body:has(#mode-result:not([hidden])) #mode-wrong {
+  display: none;
+}
+
 #mode-hint[hidden],
 #mode-status[hidden] ~ #mode-hint,
 body:has(#mode-result:not([hidden])) #mode-hint {

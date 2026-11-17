@@ -337,6 +337,12 @@ export interface Canyon {
 export const RouteKind = { CIRCUIT: "circuit", STREET: "street", OFFROAD: "offroad", SPRINT: "sprint" } as const;
 export type RouteKind = (typeof RouteKind)[keyof typeof RouteKind];
 
+/** From point `from` of a route on, the road drawn under it is `half` metres wide each side of its line. */
+export interface RoadSpan {
+  from: number;
+  half: number;
+}
+
 /** A closed route's lap ends back on `points[0]`. */
 export interface Route {
   id: string;
@@ -346,6 +352,8 @@ export interface Route {
   /** Gates in driving order; the last one is the finish line. */
   checkpoints: Checkpoint[];
   gate_hw: number;
+  /** The drawn road's half width along the route, ascending from point 0; a trail with no road takes its gate's. */
+  road: RoadSpan[];
   /** Metres, one lap for a closed route. */
   length: number;
   par_ms: number;
