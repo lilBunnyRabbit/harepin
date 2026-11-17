@@ -43,15 +43,15 @@
 <style>
   .unlock {
     display: grid;
-    gap: var(--space-4);
-    padding: var(--space-4);
-    border-radius: var(--radius-md);
-    background: var(--set-soft);
+    gap: var(--gap);
+    padding: var(--gap);
+    border-radius: var(--radius-sm);
+    background: var(--row);
   }
 
   .unlock-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
   }
 </style>

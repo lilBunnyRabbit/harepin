@@ -19,7 +19,11 @@ import CareerPage from "./CareerPage.svelte";
 import EventsPage from "./EventsPage.svelte";
 import { CAREER_PAGE, MODES_PAGE, RUNS_PAGE, RUN_BUILD_PAGE } from "./events-view";
 import { TUNE_PARAM } from "../career/career";
+import MeetPage from "./online/MeetPage.svelte";
+import OnlinePage from "./online/OnlinePage.svelte";
 import RoomPage from "./online/RoomPage.svelte";
+import RoomsPage from "./online/RoomsPage.svelte";
+import { MEET_PAGE, NEW_ROOM_PAGE, ROOMS_PAGE } from "./online/rooms";
 import EmptyPage from "./EmptyPage.svelte";
 import GaragePage from "./GaragePage.svelte";
 import CarPickPage from "./CarPickPage.svelte";
@@ -117,7 +121,7 @@ export class Settings {
       () => this.current,
     );
     this.page_list = [
-      ...STATIONS.map(({ id, label }) => (id === MenuTab.PLAY ? svelte_page(this.menu, { id, label }, HomePage, { picker: this.picker }) : id === MenuTab.GARAGE ? svelte_page(this.menu, { id, label }, GaragePage, { garage: host.garage, picker: this.picker }) : id === MenuTab.EVENTS ? svelte_page(this.menu, { id, label }, EventsPage, { picker: this.picker }) : id === MenuTab.SETTINGS ? svelte_page(this.menu, { id, label }, SettingsPage, { nav: this.nav }) : svelte_page(this.menu, { id, label }, EmptyPage, { id }))),
+      ...STATIONS.map(({ id, label }) => (id === MenuTab.PLAY ? svelte_page(this.menu, { id, label }, HomePage, { picker: this.picker }) : id === MenuTab.GARAGE ? svelte_page(this.menu, { id, label }, GaragePage, { garage: host.garage, picker: this.picker }) : id === MenuTab.EVENTS ? svelte_page(this.menu, { id, label }, EventsPage, { picker: this.picker }) : id === MenuTab.SETTINGS ? svelte_page(this.menu, { id, label }, SettingsPage, { nav: this.nav }) : id === MenuTab.ONLINE ? svelte_page(this.menu, { id, label }, OnlinePage) : svelte_page(this.menu, { id, label }, EmptyPage, { id }))),
       svelte_page(this.menu, { id: GUIDE_PAGE, label: "Guide", parent: MenuTab.SETTINGS, layout: "frame" }, GuidePage, { open: (id: string) => this.open(id) }),
       svelte_page(this.menu, { id: CHANGES, label: "What's new", parent: MenuTab.SETTINGS, layout: "frame" }, ChangesPage),
       svelte_page(this.menu, { id: MenuTab.SUPPORT, label: "Support", parent: MenuTab.SETTINGS, layout: "frame" }, SupportPage),
@@ -133,7 +137,9 @@ export class Settings {
       svelte_page(this.menu, { id: MODES_PAGE, label: "Free modes", parent: MenuTab.EVENTS, layout: "frame" }, ModesPage),
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.EVENTS, layout: "frame" }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
       svelte_page(this.menu, { id: SERIES_PAGE, label: "Harepin Series", parent: MenuTab.EVENTS, layout: "frame" }, SeriesPage, { picker: this.picker, asked: () => this.take_round() }),
-      svelte_page(this.menu, { id: "room", label: "New room", parent: MenuTab.ONLINE }, RoomPage),
+      svelte_page(this.menu, { id: NEW_ROOM_PAGE, label: "New room", parent: MenuTab.ONLINE, layout: "frame" }, RoomPage),
+      svelte_page(this.menu, { id: ROOMS_PAGE, label: "Other rooms", parent: MenuTab.ONLINE, layout: "frame" }, RoomsPage),
+      svelte_page(this.menu, { id: MEET_PAGE, label: "Race meet", parent: MenuTab.ONLINE, layout: "frame" }, MeetPage),
     ];
     const canvas = el("canvas", "showroom-stage");
     this.showroom = new Showroom(new CarStage(canvas, { floor: turntable(), slack: TURNTABLE_SLACK }), {
