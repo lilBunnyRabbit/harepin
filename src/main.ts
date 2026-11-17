@@ -110,8 +110,8 @@ const lab_id = params.get(LAB_PARAM);
 // `?airace` (dev and review builds): free-play races on a circuit run against an AI field; `?airace=<level>` starts one.
 const ai_race = REVIEW_BUILD && params.has(AI_RACE_PARAM);
 const ai_level = ai_race ? params.get(AI_RACE_PARAM) : null;
-// `?series` (dev and review builds): the Harepin Series page; `?series=<event>` starts that event on its map.
-const series_on = REVIEW_BUILD && params.has(SERIES_PARAM);
+// `?series`: the Harepin Series page; `?series=<event>` starts that event on its map.
+const series_on = params.has(SERIES_PARAM);
 const series_pick = series_on ? series_event(params.get(SERIES_PARAM)) : null;
 // Any peer on the map can call a lobby race, and that ends a mode run: an event link without a room of its own runs
 // alone in an unlisted room, as does a review shot, which no peer should drive into. The menu still names `room`, so
@@ -234,7 +234,7 @@ const chat = new Chat(net);
 chat.start();
 const build = load_build(params.get("car"));
 const career = new Career(local_store());
-const series = series_on ? series_list(new SeriesDb(), new Wallet(new WalletDb())) : null;
+const series = series_list(new SeriesDb(), new Wallet(new WalletDb()));
 const runs = new Runs(local_store());
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
@@ -558,10 +558,10 @@ function go_event(id: string) {
   void driver.place_near(flag.x, flag.z, () => markers.arrive(flag));
 }
 function start_series(id: string) {
-  const at = series?.findIndex((one) => one.event(id)) ?? -1;
-  const one = series?.[at];
+  const one = series.find((each) => each.event(id));
   const to = one?.ready ? one.event(id) : null;
-  if (!series || !one || !to) return;
+  if (!one || !to) return;
+  const at = series.indexOf(one);
   const { season } = one;
   if (!series_open(series)[at] || !is_open(season, one.progress, to)) return settings.open(SERIES_PAGE);
   const fault = one.car_fault(garage.build);
@@ -617,7 +617,8 @@ else if (run) goal_toasts.push("This run's map did not load", MAP_NOTE_MS);
 if (ai_level) modes.play(ai_level);
 // A link without its map reloads onto it; one that names a map which fell back would reload onto itself forever.
 // An event's opening rule reads saved progress, so a link starts once it has loaded.
-if (series) void Promise.all(series.map((one) => one.load())).then(() => {
+void Promise.all(series.map((one) => one.load())).then(() => {
+  if (!series_on) return;
   const one = series.find((each) => each.base === series_pick?.season);
   const pick = series_pick && one?.event(series_pick.event.id);
   if (one && pick && (!names_world(params) || on_series_map(one.season, pick, built))) start_series(pick.id);
