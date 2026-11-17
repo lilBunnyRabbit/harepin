@@ -383,18 +383,21 @@ export function stats(spec: CarSpec): Stats {
 export function stat_range(cars: readonly CarId[]): { low: Stats; high: Stats } {
   const low: Stats = { power: Infinity, grip: Infinity, braking: Infinity, top_speed: Infinity };
   const high: Stats = { power: 0, grip: 0, braking: 0, top_speed: 0 };
-  for (const car of cars.filter((id) => car_sized(CARS[id])))
+  for (const car of cars.filter((id) => car_sized(CARS[id]))) {
+    const of = (parts: Record<Slot, number>) => stats(build_spec({ ...DEFAULT_BUILD, car, parts }));
+    // One build per part: every stat picks its best and worst from the same rows.
+    const rows = SLOT_NAMES.map((slot) => SLOTS[slot].parts.map((_, i) => of({ ...DEFAULT_PARTS, [slot]: i })));
     for (const key of STATS)
       for (const sign of [-1, 1]) {
-        const score = (parts: Record<Slot, number>) => sign * stats(build_spec({ ...DEFAULT_BUILD, car, parts }))[key];
         const parts = { ...DEFAULT_PARTS };
-        for (const slot of SLOT_NAMES) {
-          const pick = (i: number) => score({ ...DEFAULT_PARTS, [slot]: i });
-          parts[slot] = SLOTS[slot].parts.reduce((best, _, i) => (pick(i) > pick(best) ? i : best), DEFAULT_PARTS[slot]);
-        }
-        const value = sign * score(parts);
+        SLOT_NAMES.forEach((slot, at) => {
+          const row = rows[at];
+          parts[slot] = row.reduce((best, part, i) => (sign * part[key] > sign * row[best][key] ? i : best), DEFAULT_PARTS[slot]);
+        });
+        const value = of(parts)[key];
         low[key] = Math.min(low[key], value);
         high[key] = Math.max(high[key], value);
       }
+  }
   return { low, high };
 }
