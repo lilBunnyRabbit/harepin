@@ -70,5 +70,5 @@ export function field_builds(player: Build, own: Rating, count: number, excludes
   const pool = pool_of(eligible, own, count, rivals);
   const free = Array.from({ length: MAX_PAINT + 1 }, (_, k) => (k * PAINT_STRIDE) % (MAX_PAINT + 1)).filter((paint) => paint !== player.paint);
   const numbers = Array.from({ length: count + 1 }, (_, i) => FIRST_NUMBER + i).filter((n) => n !== player.number);
-  return Array.from({ length: count }, (_, i) => ({ ...pool[i % pool.length], paint: free[i % free.length], number: numbers[i] }));
+  return Array.from({ length: count }, (_, i) => ({ ...pool[i % pool.length], paint: free[i % free.length], number: numbers[i], neon: 0, neon_tone: 0 }));
 }

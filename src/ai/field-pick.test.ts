@@ -15,6 +15,13 @@ describe("AI field cars", () => {
     expect(builds.some((b) => b.paint === DEFAULT_BUILD.paint || b.number === DEFAULT_BUILD.number)).toBe(false);
   });
 
+  test("AI race cars never wear neon, even when their preset has it", () => {
+    const glowing = PRESETS.map((p) => parse_build(p.code)).find((b) => b && b.neon > 0);
+    if (!glowing) throw new Error("no preset with neon");
+    const builds = field_builds(glowing, rating(glowing), 6, [], { pick: RivalPick.ANY });
+    expect(builds.every((b) => b.neon === 0 && b.neon_tone === 0)).toBe(true);
+  });
+
   test("the closest preset in rating comes first, and a route's left-out cars never race", () => {
     const rally = parse_build(PRESETS[2].code);
     if (!rally) throw new Error("no rally preset");
