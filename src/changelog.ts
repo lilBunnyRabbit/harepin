@@ -51,6 +51,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.64.3",
+    date: "2026-11-17",
+    title: "Smooth at speed",
+    changes: [
+      { kind: FIXED, text: "No more stutter driving fast through forests: trees draw in a few calls instead of one per tree (Mainland 103 -> 143 fps on desktop)" },
+      { kind: FIXED, text: "No hitch when the first town or flag comes into view" },
+    ],
+  },
+  {
     version: "0.64.2",
     date: "2026-11-17",
     title: "No hitch on Home",
