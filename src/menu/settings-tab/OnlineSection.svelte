@@ -1,10 +1,14 @@
 <script lang="ts">
   import { country_name, flag, own_country } from "../../net/country";
+  import { clean_name } from "../../net/net";
+  import { NAME_LENGTH } from "../../net/room-name";
   import { clean_tint, clean_title } from "../../runs/season";
   import type { Menu } from "../page";
   import { code_text } from "../runs/run-text";
   import type { MenuState } from "../ui/menu-state.svelte";
+  import TextField from "../ui/TextField.svelte";
   import type { Option } from "../ui/types";
+  import SettingRow from "./SettingRow.svelte";
   import StepRow from "./rows/StepRow.svelte";
   import ToggleRow from "./rows/ToggleRow.svelte";
 
@@ -27,6 +31,14 @@
   const tints = $derived(options(owned.filter((code) => clean_tint(code) !== null)));
   const earn = "Earn more on the Runs season track.";
 
+  let typed = $state<string | null>(null);
+
+  function commit() {
+    if (typed === null) return;
+    live.set("name", typed.trim() ? clean_name(typed) : null);
+    typed = null;
+  }
+
   function wear(part: "title" | "tint", value: string) {
     runs.wear({ ...tag, [part]: value || undefined });
     menu.refresh();
@@ -37,6 +49,17 @@
   {#if tag?.tint}<span class="set-tint" style:--swatch={`var(--${tag.tint})`} aria-hidden="true"></span>{/if}
 {/snippet}
 
+<SettingRow label="Name" help="Everyone in your room sees it. Leave it empty for a new bunny name on every load." custom stack>
+  <TextField
+    bind:value={() => typed ?? live.prefs.name ?? "", (value) => (typed = value)}
+    maxlength={NAME_LENGTH}
+    enterkeyhint="done"
+    aria-label="Your name"
+    placeholder={live.live(() => menu.host.name())}
+    onchange={commit}
+    onkeydown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+  />
+</SettingRow>
 <ToggleRow label="Show my country" help={hint} checked={live.prefs.show_country} onchange={(value) => live.set("show_country", value)} />
 <StepRow
   label="Name tag title"

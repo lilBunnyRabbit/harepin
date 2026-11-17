@@ -48,11 +48,11 @@
 
   const doors = $derived([
     ...SECTIONS.map((section) => ({ id: section.id, label: section.label, icon: section.icon, values: summary(section.id, live.prefs, summary_live), open: () => nav.show(section.id) })),
-    { id: GUIDE_PAGE, label: "Guide", icon: "icon-idea", values: [`${TOPICS.length} topics`, `${goals_done} of ${GOALS.length} first steps`], open: () => menu.show(GUIDE_PAGE) },
+    { id: GUIDE_PAGE, label: "Guide", icon: "icon-book", values: [`${TOPICS.length} topics`, `${goals_done} of ${GOALS.length} first steps`], open: () => menu.show(GUIDE_PAGE) },
     {
       id: CHANGES,
       label: "What's new",
-      icon: "icon-bolt",
+      icon: "icon-spark",
       values: [...(update_ready ? ["Update ready"] : []), `v${host.version}`, `${latest.changes.length} ${latest.changes.length === 1 ? "change" : "changes"}`],
       open: () => menu.show(CHANGES),
     },
