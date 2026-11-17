@@ -182,7 +182,7 @@ export class AiRace implements ModeRun, FieldRace {
     const gate = run.gate;
     this.route.gate = gate;
     if (!gate) return null;
-    ctx.hint(turn_to(car, gate.x, gate.z), view.guide(run.tracker.index, car.heading, run.tracker.offset));
+    ctx.hint(turn_to(car, gate.x, gate.z), view.guide(run.tracker.index, car.heading, run.tracker.offset, this.lap < this.laps));
     const { status } = this;
     if (run.status === RaceStatus.READY) {
       status.clock = String(Math.ceil(run.countdown / 1000));

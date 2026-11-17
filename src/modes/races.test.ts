@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test";
 import { generate_world, plain_map } from "../worldgen/kinds/kinds";
 import { WorldKind, type Route } from "../worldgen/types";
-import { bends, straights } from "./route";
+import { bends, run_on, straights } from "./route";
 import { GATE_REACH, RaceRun, RaceStatus, TRAP_BACK, TRAP_CLEAR, TRAP_GAP, TRAP_SPAN, TrapRun, gate_shown, race_choices, race_course, race_levels, trap_points } from "./races";
 
 const N = 1000;
@@ -223,4 +223,17 @@ test("bends: each real corner once with the side it turns to; a kink under the t
   expect(bends(kink)).toEqual([]);
   const right = bent().map((p) => ({ x: -p.x, z: p.z, tx: -p.tx, tz: p.tz }));
   expect(bends(right).map((b) => b.side)).toEqual([-1, -1]);
+});
+
+test("run_on: a lap's line carries on into the next lap by the metres asked, and a corner across the line is one bend", () => {
+  const lap = Array.from({ length: 101 }, (_, i) => {
+    const heading = ((i + 50) / 100) * 2 * Math.PI;
+    return { x: -Math.cos(heading) * 30, z: Math.sin(heading) * 30, tx: Math.sin(heading), tz: Math.cos(heading) };
+  });
+  const line = run_on(lap, 20);
+  expect(line.slice(0, lap.length)).toEqual(lap);
+  expect(line.length).toBeGreaterThan(lap.length);
+  expect(line.at(-1)).toBe(lap[line.length - lap.length]);
+  expect(run_on(lap, 1e6).length).toBe(lap.length * 2 - 2);
+  expect(bends(line)).toEqual([{ from: 0, to: line.length - 1, side: 1 }]);
 });

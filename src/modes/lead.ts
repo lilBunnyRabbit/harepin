@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { brand } from "../theme/palette";
 import { CHEVRON_VERTS, type Marks } from "./marks";
-import { bends, type Bend, type RoutePoint } from "./route";
+import { bends, run_on, type Bend, type RoutePoint } from "./route";
 import { hypot } from "../sim-math";
 import type { RoadSpan } from "../worldgen/types";
 
@@ -42,19 +42,29 @@ export class Lead {
   private first = -1;
   private end = -1;
 
+  private readonly line: readonly RoutePoint[];
+  /** The lap's last line index; past it the line runs on into the next lap. */
+  private readonly lap_end: number;
+
+  /** `closed`: `lap` ends on its first point, so the lead runs on over the line while another lap follows. */
   constructor(
     private readonly marks: Marks,
-    private readonly line: readonly RoutePoint[],
+    lap: readonly RoutePoint[],
     road: readonly RoadSpan[],
+    closed: boolean,
   ) {
+    const line = closed ? run_on(lap, REACH) : lap;
+    this.line = line;
+    this.lap_end = lap.length - 1;
     this.along = [0];
     for (let i = 1; i < line.length; i++) this.along.push(this.along[i - 1] + hypot(line[i].x - line[i - 1].x, line[i].z - line[i - 1].z));
     this.half = [];
     let span = 0;
-    for (let i = 0; i < line.length; i++) {
+    for (let i = 0; i < lap.length; i++) {
       while (span + 1 < road.length && road[span + 1].from <= i) span++;
       this.half.push(road[span].half);
     }
+    for (let i = lap.length; i < line.length; i++) this.half.push(this.half[i - this.lap_end]);
     this.edges = this.lay_edges();
     this.signs = this.lay_signs(bends(line));
     this.wrong = this.lay_wrong();
@@ -190,11 +200,12 @@ export class Lead {
     row.mesh.geometry.setDrawRange(first * row.verts, (end - first) * row.verts);
   }
 
-  show(at: number, wrong: boolean) {
+  /** `more`: another lap follows this one, so a closed route's lead carries on over the line. */
+  show(at: number, wrong: boolean, more: boolean) {
     const { along } = this;
     const here = along[at];
     const first = Math.max(0, after(along, here - BEHIND) - 1);
-    const end = Math.min(this.line.length - 1, after(along, here + REACH));
+    const end = Math.min(more ? this.line.length - 1 : this.lap_end, after(along, here + REACH));
     if (first !== this.first || end !== this.end) {
       this.first = first;
       this.end = end;

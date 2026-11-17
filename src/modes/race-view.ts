@@ -52,7 +52,7 @@ export class RaceView {
     this.root.add(this.closure);
     this.line = line;
     this.half = route.gate_hw;
-    this.lead = new Lead(this.marks, line, route.road);
+    this.lead = new Lead(this.marks, line, route.road, route.closed);
     this.aim(0);
   }
 
@@ -98,11 +98,11 @@ export class RaceView {
     this.beams.relay(inside);
   }
 
-  /** Lights the route from line index `at`, where the car heading `heading` stands `offset` metres off the line; true while it faces the wrong way. */
-  guide(at: number, heading: number, offset: number): boolean {
+  /** Lights the route from line index `at`, where the car heading `heading` stands `offset` metres off the line, and on over the line when `more` laps follow; true while it faces the wrong way. */
+  guide(at: number, heading: number, offset: number, more = false): boolean {
     const i = Math.max(0, Math.min(this.line.length - 1, at));
     const wrong = this.wrong.update(this.line[i], heading, offset, this.half);
-    this.lead.show(i, wrong);
+    this.lead.show(i, wrong, more);
     return wrong;
   }
 

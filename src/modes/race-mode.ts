@@ -125,7 +125,7 @@ class Race implements ModeRun {
     this.route.gate = gate;
     if (!gate) return null;
     const { gates } = run.course;
-    ctx.hint(turn_to(car, gate.x, gate.z), view.guide(run.tracker.index, car.heading, run.tracker.offset));
+    ctx.hint(turn_to(car, gate.x, gate.z), view.guide(run.tracker.index, car.heading, run.tracker.offset, !lobby_lap && this.lap < this.laps));
     const { status } = this;
     if (run.status === RaceStatus.READY) {
       status.clock = String(Math.ceil(run.countdown / 1000));

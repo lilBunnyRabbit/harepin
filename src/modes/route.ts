@@ -75,6 +75,17 @@ export function straights(line: readonly RoutePoint[]): Straight[] {
   return found.sort((a, b) => b.length - a.length);
 }
 
+/** A lap's line (its first point again at the end) run on into the next lap by `metres`, never as far as a second lap. */
+export function run_on(line: readonly RoutePoint[], metres: number): RoutePoint[] {
+  const out = [...line];
+  let walked = 0;
+  for (let i = 1; i < line.length - 1 && walked < metres; i++) {
+    walked += hypot(line[i].x - line[i - 1].x, line[i].z - line[i - 1].z);
+    out.push(line[i]);
+  }
+  return out;
+}
+
 /** Total turn past which a run of curve is a bend worth a sign: about 35 degrees. */
 const BEND_TURN = 0.6;
 /** Metres of straight inside a bend that do not end it: the run between two arcs of one corner. */
