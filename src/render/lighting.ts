@@ -117,12 +117,21 @@ export class Lighting {
   readonly bloom: { strength: number; radius: number; threshold: number };
   private readonly spec: MoodSpec;
   private headlight: THREE.SpotLight | null = null;
+  /** Carries the headlight at the car's pose from outside its root: hiding the car must not take a light out of the scene. */
+  private readonly rig = new THREE.Group();
+  private car_root: THREE.Object3D | null = null;
+  private lit = false;
+  private shown = true;
   /** Where the shadow is cast from: the sun's bearing, never lower than `SHADOW_SUN_Y`. */
   private readonly shadow_dir = new THREE.Vector3();
   private readonly shadow_from = new THREE.Object3D();
 
   /** `radial` fogs on distance instead of view depth, so a phone's streamed chunks cover all the fog leaves visible. */
-  constructor(scene: THREE.Scene, mood: MoodDelta, radial = false) {
+  constructor(
+    private readonly scene: THREE.Scene,
+    mood: MoodDelta,
+    radial = false,
+  ) {
     const spec = (this.spec = { ...(dark ? DUSK : DAY), ...mood });
     this.bloom = { strength: spec.bloom, radius: spec.bloom_radius, threshold: spec.bloom_threshold };
     sky_ceiling.value = spec.bloom_threshold * SKY_CEILING;
@@ -151,19 +160,39 @@ export class Lighting {
 
   /** `nose` is how far ahead of the car's origin its front ends, metres. */
   mount(car_root: THREE.Object3D, on: boolean, nose: number) {
-    const headlight = (this.headlight = new THREE.SpotLight(glow(tones.head), 0, this.spec.head_range, HEAD_CONE, HEAD_SOFT, HEAD_DECAY));
-    headlight.position.set(0, HEAD_LIFT, nose);
-    headlight.target.position.set(0, HEAD_LIFT - Math.sin(HEAD_TILT), nose + Math.cos(HEAD_TILT));
-    car_root.add(headlight, headlight.target);
+    this.car_root = car_root;
+    if (!this.headlight) {
+      this.headlight = new THREE.SpotLight(glow(tones.head), 0, this.spec.head_range, HEAD_CONE, HEAD_SOFT, HEAD_DECAY);
+      this.rig.add(this.headlight, this.headlight.target);
+      this.scene.add(this.rig);
+    }
+    this.headlight.position.set(0, HEAD_LIFT, nose);
+    this.headlight.target.position.set(0, HEAD_LIFT - Math.sin(HEAD_TILT), nose + Math.cos(HEAD_TILT));
     this.beam(on);
   }
 
   // Dimmed rather than hidden: a hidden light changes the scene's light count, which recompiles every shader.
   beam(on: boolean) {
-    if (this.headlight) this.headlight.intensity = on ? this.spec.head_intensity : 0;
+    this.lit = on;
+    this.dim();
+  }
+
+  /** A hidden car casts no beam. */
+  show(shown: boolean) {
+    if (shown === this.shown) return;
+    this.shown = shown;
+    this.dim();
+  }
+
+  private dim() {
+    if (this.headlight) this.headlight.intensity = this.lit && this.shown ? this.spec.head_intensity : 0;
   }
 
   follow(at: THREE.Vector3) {
+    if (this.car_root) {
+      this.rig.position.copy(this.car_root.position);
+      this.rig.quaternion.copy(this.car_root.quaternion);
+    }
     this.sun.position.copy(at).addScaledVector(SUN_DIR, 400);
     this.sun.target.position.copy(at);
     this.shadow_from.position.copy(at).addScaledVector(this.shadow_dir, 400);

@@ -1163,6 +1163,7 @@ function frame(time: number) {
   dome.position.copy(camera.position);
   world_view.update(camera, quality.tier.fog_far, world_time);
   driver.view.root.visible = driver.shadow.mesh.visible = !settings.staged;
+  light.show(!settings.staged);
   if (driver.view.neon) driver.view.neon.mesh.visible = !settings.staged;
   if (!draw_ms || now - last_draw >= draw_ms) {
     last_draw = now;
