@@ -7,7 +7,7 @@
   import { aim_or_go, bare_enter, link_key } from "../drive-picks";
   import { GUIDE_PAGE, TOPICS } from "../guide-topics";
   import MenuFrame from "../MenuFrame.svelte";
-  import { MenuTab } from "../page";
+  import { MenuTab, ROAD } from "../page";
   import Card from "../ui/Card.svelte";
   import Icon from "../ui/Icon.svelte";
   import KeyLink from "../ui/KeyLink.svelte";
@@ -65,6 +65,8 @@
 
   const on_list = $derived(nav.sub === LIST);
   const parent = $derived(nav.parent());
+  const opener = $derived(live.live(() => menu.up_of(MenuTab.SETTINGS)));
+  const up = $derived(parent ? nav.label(parent) : opener === ROAD ? STATION : opener);
   const resettable = $derived(nav.keys().length > 0);
   const help = $derived(nav.help);
 
@@ -138,7 +140,7 @@
   </MenuFrame>
 {/if}
 <div class="set-step" hidden={on_list}>
-  <PageFrame eyebrow={parent ? nav.label(parent) : STATION} title={nav.label(nav.sub)} back={{ to: parent ? nav.label(parent) : STATION, go: () => menu.back() }} links={section_links} veil={0.6}>
+  <PageFrame eyebrow={parent ? nav.label(parent) : STATION} title={nav.label(nav.sub)} back={{ to: up, go: () => menu.back() }} links={section_links} veil={0.6}>
     <div class="set-page">
       <Card list class="set-rows" label={nav.label(nav.sub)}>
         <ScrollArea class="set-scroll">

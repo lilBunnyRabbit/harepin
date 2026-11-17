@@ -36,8 +36,15 @@
     return true;
   }
 
+  // A topic's door leads back here on Back: the topic stays open behind it.
+  let through_door = false;
+
   $effect(() => {
-    if (shown) return () => (reading = null);
+    if (!shown) return;
+    return () => {
+      if (!through_door) reading = null;
+      through_door = false;
+    };
   });
 
   function enter(one: Topic) {
@@ -47,8 +54,10 @@
   }
 
   function act() {
-    if (topic) open(topic.door);
-    else if (picked === STEPS) open(GOALS_PAGE);
+    if (topic) {
+      through_door = true;
+      open(topic.door);
+    } else if (picked === STEPS) open(GOALS_PAGE);
     else enter(focus);
   }
 

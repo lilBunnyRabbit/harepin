@@ -91,6 +91,8 @@ export class Settings {
   private section: string = MenuTab.PLAY;
   /** The page each child page was opened from on this visit: Back returns there, not to the page's station. */
   private readonly openers = new Map<string, string>();
+  /** The page a door was opened from (a Guide topic's "Open Driving settings"): Back on the door's page leads there again. */
+  private door_from: string | null = null;
   private readonly menu: Menu;
   private readonly page_list: MenuPage[];
   private readonly nav: SettingsNav;
@@ -122,7 +124,7 @@ export class Settings {
     );
     this.page_list = [
       ...STATIONS.map(({ id, label }) => (id === MenuTab.PLAY ? svelte_page(this.menu, { id, label }, HomePage, { picker: this.picker }) : id === MenuTab.GARAGE ? svelte_page(this.menu, { id, label }, GaragePage, { garage: host.garage, picker: this.picker }) : id === MenuTab.EVENTS ? svelte_page(this.menu, { id, label }, EventsPage, { picker: this.picker }) : id === MenuTab.SETTINGS ? svelte_page(this.menu, { id, label }, SettingsPage, { nav: this.nav }) : id === MenuTab.ONLINE ? svelte_page(this.menu, { id, label }, OnlinePage) : svelte_page(this.menu, { id, label }, EmptyPage, { id }))),
-      svelte_page(this.menu, { id: GUIDE_PAGE, label: "Guide", parent: MenuTab.SETTINGS, layout: "frame" }, GuidePage, { open: (id: string) => this.open(id) }),
+      svelte_page(this.menu, { id: GUIDE_PAGE, label: "Guide", parent: MenuTab.SETTINGS, layout: "frame" }, GuidePage, { open: (id: string) => this.open_door(id) }),
       svelte_page(this.menu, { id: CHANGES, label: "What's new", parent: MenuTab.SETTINGS, layout: "frame" }, ChangesPage),
       svelte_page(this.menu, { id: MenuTab.SUPPORT, label: "Support", parent: MenuTab.SETTINGS, layout: "frame" }, SupportPage),
       svelte_page(this.menu, { id: CAR_PAGE, label: "Car", parent: MenuTab.GARAGE, layout: "frame" }, CarPickPage, { picker: this.picker }),
@@ -213,6 +215,14 @@ export class Settings {
     this.panel.focus();
   }
 
+  private open_door(id: string) {
+    const from = this.section;
+    this.open(id);
+    if (this.section === from) return;
+    this.door_from = from;
+    this.refresh();
+  }
+
   // The guide covers the pages, so opening on it leaves every page unbuilt and hidden.
   private attach() {
     if (!this.root.isConnected) this.parent.append(this.root);
@@ -269,6 +279,9 @@ export class Settings {
 
   /** One level up: a page returns to the page it was opened from (else its station), a station closes the menu. */
   back() {
+    const door = this.door_from;
+    // A settings section takes Back itself, to the list: one reached through a door goes back through it instead.
+    if (door && this.section === MenuTab.SETTINGS && this.nav.sub !== LIST && !this.nav.parent()) return this.show(door, null);
     if (this.page_of(this.section)?.back?.()) return;
     const deep = this.section === MenuTab.SETTINGS ? this.nav.parent() : null;
     if (deep) return this.nav.show(deep);
@@ -278,7 +291,7 @@ export class Settings {
   }
 
   private up_id(section: string): string | undefined {
-    return this.openers.get(section) ?? this.page_of(section)?.parent;
+    return (section === this.section ? this.door_from : null) ?? this.openers.get(section) ?? this.page_of(section)?.parent;
   }
 
   private up_of(section: string): string {
@@ -400,6 +413,7 @@ export class Settings {
 
   /** `opener` is the page this one is reached from, null when going back, stepping stations or opening the menu. */
   private show(section: string, opener: string | null = this.section) {
+    this.door_from = null;
     this.note_opener(section, opener);
     this.build_page(section);
     this.section = section;
