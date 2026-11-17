@@ -422,3 +422,4 @@ Things in the mockups that need a new state layer, new data or engine work. The 
   - on another map the taken car becomes the player's own and `travel_query` gets `taken = true`; a run that arrives still asks through `modes.pick_car` (2c, with the travel briefing);
   - Series styles (`SeriesFlow`, `SeriesCard`, `SeriesHead`, `SeriesSeasons`, `SeriesStandings`) still size from `--space-*` / `--set-*`: batch 3;
   - Things to try has no door on Events: the Guide (2b) links it; `car_note` in `series-view.ts` stays for Home only.
+- 1b done b75843d..6a18792: Events opens on the Series; Career, Runs, Series, Free modes rebuilt; no tabs. Every start goes StartSheet, then picker, then start. D5 is lighter than planned: each page holds its own sheet `target`, and there's no shared launch module. Home and Maps render StartSheet the same way (1b follow-up). Batch 3: Series CSS and `ui/Progress` still on `--space-*` / `--set-*`; the Guide (2b) links Things to try.
