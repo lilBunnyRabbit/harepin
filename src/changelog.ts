@@ -51,6 +51,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.63.0",
+    date: "2026-11-17",
+    title: "Custom race",
+    changes: [
+      { kind: NEW, text: "Custom race: set up your own race against the AI (map, route, laps or minutes, knockout, grid slot, rival count, their cars and how they drive) from Free modes or Make a map" },
+      { kind: IMPROVED, text: "Menus share one type and spacing scale everywhere" },
+    ],
+  },
+  {
     version: "0.62.0",
     date: "2026-11-17",
     title: "Replays",
