@@ -229,6 +229,13 @@ export class Modes implements CarHooks {
     return this.current?.run ? this.current.mode.def.name : null;
   }
 
+  /** The run on now as its top card names it: the series or career event, else the level; null with no run. */
+  get run_name(): string | null {
+    const active = this.current;
+    if (!active?.run) return null;
+    return active.series?.event?.name ?? active.event?.name ?? active.level.name;
+  }
+
   /** The route the running mode drives, null when it drives none of its own. */
   get route(): RouteRun | null {
     return this.current?.run?.route ?? null;
@@ -307,12 +314,19 @@ export class Modes implements CarHooks {
     return true;
   }
 
+  /** Why `series_race` on route `id` would refuse before any car is fitted, or null. */
+  series_refusal(id: string): string | null {
+    const mode = this.modes.find((m) => m.def === RACE_MODE);
+    if (!mode?.levels.some((l) => l.id === id) || !this.world.routes.find((r) => r.id === id)?.closed) return NO_EVENT;
+    return this.race_busy() ? mode.def.busy_notice : null;
+  }
+
   /** A series event's race on route `id` against `field`, past free play's unlock order. The caller has checked this map is the event's. */
   series_race(id: string, field: FieldHost) {
     const mode = this.modes.find((m) => m.def === RACE_MODE);
     const level = mode?.levels.find((l) => l.id === id);
-    if (!mode || !level || !this.world.routes.find((r) => r.id === id)?.closed) return this.notice(NO_EVENT);
-    if (this.race_busy()) return this.notice(mode.def.busy_notice);
+    const refusal = this.series_refusal(id);
+    if (!mode || !level || refusal) return this.notice(refusal ?? NO_EVENT);
     if (this.too_big(mode)) return this.notice(TOO_BIG);
     if (this.left_out(id)) return this.notice(NOT_THIS_CAR);
     this.clear();
@@ -320,22 +334,30 @@ export class Modes implements CarHooks {
     this.begin(mode, level, mode.track, null, null, null, 1, field);
   }
 
-  /** The caller has checked this map is the event's. Career levels are all open: the mode's own unlock order is free play's. */
-  play_event(asked: CareerEvent, play: RunPlay | null = null) {
+  /** Why `play_event` on this map would refuse before its car is asked for, or null. */
+  event_refusal(asked: CareerEvent, play: RunPlay | null = null): string | null {
     const event = held_car(asked, unlocks(this.career.stars).cars);
     // A stand-in runs one level on another map; a championship's stages name their levels on its own map only.
-    if (event.stages && event.stand_in) return this.notice(NO_EVENT);
+    if (event.stages && event.stand_in) return NO_EVENT;
     const legs = this.event_legs(event);
-    if (!legs) return this.notice(NO_EVENT);
-    if (this.world.tiles.streamed && legs.some((leg) => !leg.mode.def.streams)) return this.notice(STREAMED);
-    const [{ mode, level }] = legs;
+    if (!legs) return NO_EVENT;
+    if (this.world.tiles.streamed && legs.some((leg) => !leg.mode.def.streams)) return STREAMED;
     const tier = tier_of(event);
     const before = TIERS[TIERS.indexOf(tier) - 1];
     // `?tune` opens every tier so the owner can set the non-race stars before any are earnable.
     const tune = new URLSearchParams(location.search).has(TUNE_PARAM);
-    if (!play && !tune && !tier_open(this.career.stars, tier)) return this.notice(`${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`);
-    if (legs.some((leg) => leg.mode.def.needs_ground) && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
-    if (this.race_busy()) return this.notice(mode.def.busy_notice);
+    if (!play && !tune && !tier_open(this.career.stars, tier)) return `${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`;
+    if (legs.some((leg) => leg.mode.def.needs_ground) && !KINDS[this.world.kind].open_ground) return NO_GROUND_NOTICE;
+    return this.race_busy() ? legs[0].mode.def.busy_notice : null;
+  }
+
+  /** The caller has checked this map is the event's. Career levels are all open: the mode's own unlock order is free play's. */
+  play_event(asked: CareerEvent, play: RunPlay | null = null) {
+    const event = held_car(asked, unlocks(this.career.stars).cars);
+    const legs = this.event_legs(event);
+    const refusal = this.event_refusal(asked, play);
+    if (!legs || refusal) return this.notice(refusal ?? NO_EVENT);
+    const [{ mode, level }] = legs;
     if (this.car.picking) return;
     this.clear();
     void this.car.ready(event, (cap) => this.limit(cap, legs)).then((ready) => {
@@ -387,11 +409,16 @@ export class Modes implements CarHooks {
     this.restart();
   }
 
-  /** What a class-capped event's car must meet on this map; null for a fixed car or a level this map lacks. */
+  /**
+   * What a class-capped event's car must meet; null for a fixed car. Off its map the routes are not loaded, so the
+   * cars a route leaves out are not known until it arrives.
+   */
   event_limit(event: CareerEvent): CarLimit | null {
     if (!("cap" in event.car)) return null;
     const legs = this.event_legs(event);
-    return legs && this.limit(event.car.cap, legs);
+    if (legs) return this.limit(event.car.cap, legs);
+    const stages = event.stages ?? [event];
+    return { cap: event.car.cap, car_sized_only: stages.some((stage) => this.modes.find((m) => m.def.id === stage.mode)?.def.car_sized_only) };
   }
 
   private limit(cap: CarClass, legs: readonly Leg[]): CarLimit {
@@ -440,7 +467,8 @@ export class Modes implements CarHooks {
     return this.excludes(id).includes(this.spec().id);
   }
 
-  private excludes(id: string): readonly string[] {
+  /** The car ids route-level `id` on this map leaves out. */
+  excludes(id: string): readonly string[] {
     const route = level_route(this.world.routes, id);
     return this.world.routes.find((r) => r.id === route)?.excludes ?? [];
   }
