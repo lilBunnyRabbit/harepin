@@ -129,9 +129,13 @@ let stage: Stage | null = null;
 let waiting = 0;
 let turn: Promise<void> = Promise.resolve();
 
+/** Resolves after the next frame is on screen: whatever asked for a still paints first, and its stills land one a frame. */
+const painted = () => new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done)));
+
 /**
  * A picture of the car, drawn once and kept for the session: an object URL of a clear-backed image. Stills draw one per
- * task on a renderer of their own, which closes when none is waiting, so no loop runs and no context stays open.
+ * frame on a renderer of their own, which opens in a frame of its own and closes when none is waiting, so no loop runs
+ * and no context stays open.
  */
 export function car_still(build: Build, view: StillView = StillView.QUARTER): Promise<string> {
   const key = `${build_code(build)} ${view}`;
@@ -140,26 +144,24 @@ export function car_still(build: Build, view: StillView = StillView.QUARTER): Pr
   waiting++;
   const still = new Promise<string>((resolve, reject) => {
     // The next still waits for this one's draw, not for its image to encode.
-    turn = turn.then(
-      () =>
-        new Promise<void>((next) =>
-          setTimeout(() => {
-            try {
-              // WebGL can refuse a context: the still fails, and whatever asked for it shows its empty slot.
-              stage ??= new Stage();
-              resolve(stage.draw(build, view));
-            } catch (error) {
-              reject(error);
-            } finally {
-              if (--waiting === 0) {
-                stage?.dispose();
-                stage = null;
-              }
-              next();
-            }
-          }),
-        ),
-    );
+    turn = turn.then(async () => {
+      await painted();
+      try {
+        // WebGL can refuse a context: the still fails, and whatever asked for it shows its empty slot.
+        if (!stage) {
+          stage = new Stage();
+          await painted();
+        }
+        resolve(stage.draw(build, view));
+      } catch (error) {
+        reject(error);
+      } finally {
+        if (--waiting === 0) {
+          stage?.dispose();
+          stage = null;
+        }
+      }
+    });
   });
   stills.set(key, still);
   return still;

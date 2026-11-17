@@ -162,11 +162,11 @@
     min-height: 0;
   }
 
-  /* Rows are a share of the body, never of the content: a card's picture gets the room left over its caption and shows whole. */
+  /* A card is as tall as its picture and caption: the picture is 3:2, the shape a car fills, and the grid scrolls past the body. */
   .pick-cars {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-auto-rows: calc((100% - var(--gap)) / 2);
+    align-content: start;
     gap: var(--gap);
     min-height: 0;
     margin: 0;
@@ -182,7 +182,6 @@
   .pick-cars > li {
     display: grid;
     min-width: 0;
-    min-height: 0;
     scroll-snap-align: start;
   }
 
@@ -193,7 +192,6 @@
     align-items: stretch;
     gap: 0;
     min-width: 0;
-    min-height: 0;
     height: auto;
     padding: 0;
     overflow: hidden;
@@ -226,9 +224,15 @@
 
   .pick-shot {
     display: grid;
-    flex: 1;
-    min-height: 0;
+    flex: none;
+    aspect-ratio: 3 / 2;
     padding: var(--gap-sm) var(--gap-sm) 0;
+  }
+
+  /* Until its still is drawn a card holds a quiet block, so the grid never jumps. */
+  .pick-shot > :global(.still:not([data-ready])) {
+    border-radius: var(--radius-sm);
+    background: color-mix(in oklch, var(--foreground) 5%, transparent);
   }
 
   .pick-shot > :global(.still),
@@ -271,13 +275,13 @@
   }
 
   .pick > :global(.pick-detail) {
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 
   .pick-big {
     display: grid;
-    flex: 1;
-    min-height: 0;
+    flex: none;
+    aspect-ratio: 3 / 2;
   }
 
   .pick-info {
@@ -347,12 +351,6 @@
     align-items: center;
     gap: var(--gap-sm) var(--gap-md);
     font-size: var(--type-small);
-  }
-
-  @media (min-height: 900px) {
-    .pick-cars {
-      grid-auto-rows: calc((100% - 2 * var(--gap)) / 3);
-    }
   }
 
   @media (max-height: 500px) {
