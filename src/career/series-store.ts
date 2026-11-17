@@ -1,4 +1,5 @@
 import type { Build } from "../car/build";
+import type { CarLimit } from "../car/car-pick";
 import type { CarId } from "../car/cars";
 import { event_credits } from "./credits";
 import { better, car_fault, empty_progress, event_of, parse_progress, season_done, season_round, type EventResult, type Season, type SeriesEvent, type SeriesProgress } from "./series";
@@ -59,6 +60,11 @@ export class Series {
 
   car_fault(build: Build): string | null {
     return car_fault(this.season_, build, this.wallet.state.cars);
+  }
+
+  /** The picker's side of `car_fault`. */
+  car_limit(): CarLimit {
+    return { cap: this.season_.cap, car_sized_only: false, only: this.wallet.state.cars };
   }
 
   record(event: SeriesEvent, result: EventResult): Payout {
