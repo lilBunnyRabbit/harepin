@@ -1,6 +1,6 @@
 import { NO_P2P } from "./net";
 
-const WARM_DOC = "<script>try{new RTCPeerConnection().close()}catch{}parent.postMessage(0,'*')</script>";
+const WARM_DOC = "<script>try{new RTCPeerConnection().close()}finally{parent.postMessage(0,'*')}</script>";
 
 /**
  * Chrome sets WebRTC up inside the first `RTCPeerConnection` of a browser launch and holds the calling thread for
