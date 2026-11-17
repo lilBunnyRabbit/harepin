@@ -45,7 +45,8 @@ import { modal_open, watch_modals } from "./hud/modals";
 import { Rumble, sense_drive, type RumbleSense } from "./hud/rumble";
 import { show_key_hints } from "./hud/key-hints";
 import { PICTURE_SIDE } from "./hud/minimap";
-import { Lobby, SITTING_OUT, lobby_routes } from "./net/lobby";
+import { COUNTDOWN_MS as LOBBY_COUNTDOWN_MS, Lobby, SITTING_OUT, lobby_routes } from "./net/lobby";
+import { GREEN_MS, StartSteps } from "./modes/start-steps";
 import { MODES, Modes } from "./modes/modes";
 import { local_store } from "./modes/track";
 import { GoalId, Goals } from "./goals/goals";
@@ -152,6 +153,8 @@ const travelling = travel_here(params, saved_pick);
 const brief = travelling && new Brief($("loading"), travelling, load_build(params.get("car")));
 brief?.step("Building the map", 0.3);
 const audio = new Audio();
+// Each client beeps its lobby start off its own clock, on the frame its countdown digit changes.
+const lobby_start = new StartSteps(LOBBY_COUNTDOWN_MS / 1000);
 // Built and unlocked before the island loads, so the first taps on the loading screen already count.
 audio.prepare();
 // A touch only counts as a user gesture on release, so pointerdown alone never unlocked sound on phones.
@@ -520,7 +523,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, z, he
   driver.park(x, z, heading);
   reset_lap();
   // The lab runs no mode: a mode's records and stars would key to the lab world, and its spawns fight the trial's.
-}, () => lobby.busy || lab_id !== null, () => audio.chime(), camera, () => driver.car.spec, career);
+}, () => lobby.busy || lab_id !== null, () => audio.chime(), (beep) => audio.beep(beep), camera, () => driver.car.spec, career);
 modes.route_at = Math.max(0, debug_at);
 chunk_in = (index) => modes.chunk_in(index);
 if (lab_id !== null) modes.closed = "Not in the lab: the lab keeps no records or stars";
@@ -1008,6 +1011,9 @@ function frame(time: number) {
   const car = driver.car;
 
   lobby.update(now);
+  const { state: lobby_state } = lobby;
+  const lobby_beep = lobby_start.next(lobby_state.kind === "countdown" ? lobby_state.go - now : 0, lobby_state.kind === "racing" ? now - lobby_state.go : GREEN_MS);
+  if (lobby_beep) audio.beep(lobby_beep);
   // A lab card holds the trial under it, as the menu does: the clock and the car wait for the answers.
   const menu_hold = (settings.is_open || pause.is_open || road_map.is_open || (lab_id !== null && modal_open())) && net.remotes.size === 0;
   const draw_ms = menu_hold ? MENU_DRAW_MS : settings.is_open ? COVERED_DRAW_MS : 0;

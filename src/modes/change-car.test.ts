@@ -85,6 +85,7 @@ function rig(routes: readonly unknown[] = [], busy = false): Rig {
     () => {},
     () => busy,
     () => {},
+    () => {},
     {} as never,
     () => CARS[parse_build(r.car)!.car],
     new Career(null),

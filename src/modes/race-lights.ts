@@ -1,31 +1,31 @@
 import { $ } from "../hud/hud";
+import { StartSteps, type Beep } from "./start-steps";
 import "./race-lights.css";
-
-/** Ms the lights stay green once the race is on. */
-const GREEN_MS = 1000;
 
 /** The start gantry over the grid: one red more each second of the countdown, all green at the go. */
 export class RaceLights {
   private readonly el = $("race-lights");
   private readonly lamps = [...this.el.querySelectorAll("i")];
-  private key = "";
+  private readonly steps = new StartSteps(this.lamps.length);
 
-  /** `countdown`: ms left before the go; `since_go`: ms since it, negative before. */
-  update(countdown: number, since_go: number) {
-    const lit = countdown > 0 ? this.lamps.length - Math.ceil(countdown / 1000) + 1 : 0;
-    const key = countdown > 0 ? `red${lit}` : since_go < GREEN_MS ? "green" : "off";
-    if (key === this.key) return;
-    this.key = key;
-    this.el.hidden = key === "off";
+  /** `countdown`: ms left before the go; `since_go`: ms since it, negative before. Returns the beep of a lamp change. */
+  update(countdown: number, since_go: number): Beep | null {
+    const from = this.steps.step;
+    const beep = this.steps.next(countdown, since_go);
+    const step = this.steps.step;
+    if (step === from) return null;
+    const green = step > this.steps.reds;
+    this.el.hidden = step === 0;
     this.lamps.forEach((lamp, i) => {
-      if (key === "green") lamp.dataset.on = "green";
-      else if (i < lit) lamp.dataset.on = "red";
+      if (green) lamp.dataset.on = "green";
+      else if (i < step) lamp.dataset.on = "red";
       else delete lamp.dataset.on;
     });
+    return beep;
   }
 
   hide() {
-    this.key = "off";
+    this.steps.reset();
     this.el.hidden = true;
   }
 }

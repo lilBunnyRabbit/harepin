@@ -35,6 +35,7 @@ import { RunTape } from "../replay/run-tape";
 import type { FieldView } from "../ai/field-view";
 import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
+import type { Beep } from "./start-steps";
 import { atan2 } from "../sim-math";
 
 export type { Driven } from "./mode";
@@ -199,6 +200,7 @@ export class Modes implements CarHooks {
     private readonly park: (x: number, z: number, heading: number) => void,
     private readonly race_busy: () => boolean,
     private readonly chime: () => void,
+    private readonly beep: (beep: Beep) => void,
     private readonly camera: THREE.Camera,
     private readonly spec: () => CarSpec,
     private readonly career: Career,
@@ -572,6 +574,7 @@ export class Modes implements CarHooks {
       spawn,
       spawn_on: (p) => spawn(p.x, p.z, atan2(p.tx, p.tz)),
       chime: () => this.chime(),
+      beep: (beep) => this.beep(beep),
       hint: (turn, wrong = false) => this.show_hint(turn, wrong),
       hide_hint: () => this.hide_hint(),
       exit: () => this.exit(),

@@ -2,6 +2,7 @@ import type { EngineSound } from "../car/cars";
 import engine_worklet from "./engine.worklet.ts?worker&url";
 import { RETURN_TIME, return_rpm } from "./held-sound";
 import { NITRO, rush_target, type RushTarget } from "./nitro-sound";
+import type { Beep } from "../modes/start-steps";
 
 export interface SoundFrame {
   rpm: number;
@@ -38,6 +39,13 @@ const VIEW_MIX = {
   chase: { intake: [0.45, 1250], exhaust: [1, 7000] },
   hood: { intake: [1, 4500], exhaust: [0.55, 900] },
 } as const;
+
+/** Start-light beeps: a pure sine held `hold` s, kept well under the chime so they sit under the engine. */
+const BEEPS: Record<Beep, { hz: number; level: number; hold: number }> = {
+  red: { hz: 740, level: 0.05, hold: 0.12 },
+  go: { hz: 1480, level: 0.06, hold: 0.4 },
+};
+const BEEP_EDGE = 0.008;
 
 export class Audio {
   private volume = 1;
@@ -309,6 +317,25 @@ export class Audio {
     const now = ctx.currentTime;
     this.tone(659.25, "sine", now, 0.12, 0.35);
     this.tone(987.77, "sine", now + 0.09, 0.1, 0.5);
+  }
+
+  /** Silent while the context is locked or suspended: a beep queued there would sound late, off its light. */
+  beep(beep: Beep) {
+    const { ctx, master } = this;
+    if (!ctx || !master || ctx.state !== "running") return;
+    const { hz, level, hold } = BEEPS[beep];
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = hz;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(level, now + BEEP_EDGE);
+    gain.gain.setValueAtTime(level, now + hold);
+    gain.gain.linearRampToValueAtTime(0, now + hold + BEEP_EDGE);
+    osc.connect(gain).connect(master);
+    osc.start(now);
+    osc.stop(now + hold + BEEP_EDGE * 2);
   }
 
   private tone(hz: number, type: OscillatorType, at: number, level: number, decay: number) {
