@@ -57,7 +57,7 @@
   }
 
   :root:has(.first-steps) {
-    --mirror-first: calc(var(--top-h) + var(--space-2));
+    --mirror-first: calc(var(--top-h) + 2px + var(--space-2));
   }
 }
 
