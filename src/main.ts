@@ -99,7 +99,7 @@ import { show_map_overlay } from "./hud/map-overlay.svelte";
 import { show_next_up } from "./hud/next-up-view.svelte";
 import { roam_card, run_card } from "./hud/pause-card";
 import { show_pause, type PauseAct } from "./hud/pause-view.svelte";
-import { map_name } from "./worlds/map-name";
+import { map_name, short_name } from "./worlds/map-name";
 import { StuckPrompt } from "./hud/stuck-prompt";
 import { pushing } from "./hud/stuck";
 import { LocalSim, SIM_WORKER_PARAM, WorkerSim, type Sim } from "./sim/sim-client";
@@ -555,7 +555,7 @@ replay.on_close = () => {
 modes.watch = (tape, field) =>
   replay.open(tape, field, () => {
     const at = Date.now();
-    return save_replay(pack_replay(tape, { id: at.toString(36), at, name: tape.name, mode: tape.mode, map: map_code(built), place: map_name(built, world.towns), car: garage.code, cars: field?.builds.map(build_code) ?? [] }));
+    return save_replay(pack_replay(tape, { id: at.toString(36), at, name: tape.name, mode: tape.mode, map: map_code(built), place: short_name(built, world.towns), car: garage.code, cars: field?.builds.map(build_code) ?? [] }));
   });
 function watch_saved(saved: SavedReplay): string {
   if (lobby.busy || (modes.engaged && !modes.result_done)) return "Finish the run first.";

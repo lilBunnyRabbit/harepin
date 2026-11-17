@@ -5,7 +5,7 @@ import { GHOST_EVERY_MS, STRIDE, is_lap } from "../car/ghost-cap";
 import { Playback, SPEEDS } from "./playback";
 import { DEFAULT_BUILD, build_code } from "../car/build";
 import { RunTape, on_tape } from "./run-tape";
-import { MAX_REPLAYS, MAX_REPLAY_NUMBERS, MAX_SAVED_NUMBERS, capped, pack_replay, parse_replay, watched, type SavedReplay } from "./saved";
+import { MAX_REPLAYS, MAX_REPLAY_NUMBERS, MAX_SAVED_NUMBERS, MAX_TEXT, capped, pack_replay, parse_replay, watched, type SavedReplay } from "./saved";
 
 const car = (x: number) => ({ pos: { x, y: 1, z: 0 }, quat: { x: 0, y: 0, z: 0, w: 1 } });
 
@@ -121,6 +121,9 @@ test("a saved replay is a rounded copy of the tape that reads back whole; an AI 
   expect(packed.lap[STRIDE + 1]).toBe(1.235);
   expect(packed.lap).not.toBe(tape.frames);
   expect(parse_replay(structuredClone(packed))).toEqual(packed);
+  const long = pack_replay(tape, { ...META, place: "Island · Harwar · Short, Smooth, Hairpins none, Jumps less, Towns less, Winter, and then some more words" });
+  expect(long.place.length).toBe(MAX_TEXT);
+  expect(parse_replay(structuredClone(long))).toEqual(long);
   const again = watched(packed);
   expect([again.end_ms, again.field.length, again.frames.length]).toEqual([100, 1, 2 * STRIDE]);
 });

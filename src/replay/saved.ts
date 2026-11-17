@@ -8,7 +8,7 @@ export const MAX_REPLAYS = 6;
 export const MAX_REPLAY_NUMBERS = 400_000;
 /** Numbers every saved replay may hold together, about 8 MB: past it the oldest go. */
 export const MAX_SAVED_NUMBERS = 1_000_000;
-const MAX_TEXT = 80;
+export const MAX_TEXT = 80;
 
 export interface SavedCar {
   /** A build code. */
@@ -46,7 +46,8 @@ const rounded = (lap: readonly number[]) => lap.map((v) => Math.round(v * 1000) 
 /** A copy of the tape as it is saved; an AI car that never took a frame is left out. */
 export function pack_replay(tape: Watched, { cars, ...meta }: ReplayMeta): SavedReplay {
   const field = tape.field.flatMap((lap, i) => (lap.length && cars[i] !== undefined ? [{ car: cars[i], lap: rounded(lap) }] : []));
-  return { ...meta, lap: rounded(tape.frames), field };
+  // Clipped to what `parse_replay` reads back: a name too long must not cost the replay.
+  return { ...meta, name: meta.name.slice(0, MAX_TEXT), mode: meta.mode.slice(0, MAX_TEXT), place: meta.place.slice(0, MAX_TEXT), lap: rounded(tape.frames), field };
 }
 
 export function replay_numbers(replay: SavedReplay): number {
