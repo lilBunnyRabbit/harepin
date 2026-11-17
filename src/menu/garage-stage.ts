@@ -91,14 +91,12 @@ export class GarageStage {
     const sun = new THREE.DirectionalLight(color(light), 2.4);
     sun.position.set(4, 6, 3);
     this.scene.add(sun);
-    // The game's patch multiplies the ground under it; here there is no ground, only the page behind a clear canvas. As an
-    // alpha map the blob reads its green channel, which is solid out to the rim; as a map its alpha fades it out. It blends
-    // only as a transparent mesh: the game draws the patch in the opaque pass.
+    // The game's patch multiplies the ground under it; here there is no ground, only the page behind a clear canvas, so
+    // it blends over the page by the blob's fade. It blends only as a transparent mesh: the game draws the patch in the
+    // opaque pass.
     this.shadow.material.blending = THREE.NormalBlending;
     this.shadow.material.transparent = true;
     this.shadow.material.premultipliedAlpha = false;
-    this.shadow.material.map = this.shadow.material.alphaMap;
-    this.shadow.material.alphaMap = null;
     this.scene.add(this.shadow.mesh);
   }
 
