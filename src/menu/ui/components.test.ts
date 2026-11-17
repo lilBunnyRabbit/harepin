@@ -2,6 +2,7 @@ import "../../../scripts/fake-dom";
 import { describe, expect, test } from "bun:test";
 import { createRawSnippet, type Component } from "svelte";
 import { render } from "svelte/server";
+import BackPill from "./BackPill.svelte";
 import Badge from "./Badge.svelte";
 import Button from "./Button.svelte";
 import Card from "./Card.svelte";
@@ -12,10 +13,13 @@ import Glyph from "./Glyph.svelte";
 import IconButton from "./IconButton.svelte";
 import Kbd from "./Kbd.svelte";
 import KeyButton from "./KeyButton.svelte";
+import KeyLink from "./KeyLink.svelte";
 import Link from "./Link.svelte";
 import NameChip from "./NameChip.svelte";
-import PageHead from "./PageHead.svelte";
+import PageFrame from "./PageFrame.svelte";
 import PlaceChip from "./PlaceChip.svelte";
+import PlaceLine from "./PlaceLine.svelte";
+import PrimaryAction from "./PrimaryAction.svelte";
 import Progress from "./Progress.svelte";
 import Row from "./Row.svelte";
 import RowList from "./RowList.svelte";
@@ -25,6 +29,7 @@ import Segmented from "./Segmented.svelte";
 import Select from "./Select.svelte";
 import Slider from "./Slider.svelte";
 import SpecCard from "./SpecCard.svelte";
+import Stations from "./Stations.svelte";
 import Stepper from "./Stepper.svelte";
 import Tabs from "./Tabs.svelte";
 import TextField from "./TextField.svelte";
@@ -133,8 +138,30 @@ describe("ui components", () => {
   });
 
   test("Card is a section, or a button with onclick", () => {
-    expect(html(Card, { variant: "well", children: text("body") })).toMatch(/^<section[^>]+data-variant="well"/);
+    expect(html(Card, { children: text("body") })).toMatch(/^<section[^>]+data-pad="md"/);
     expect(html(Card, { onclick: () => {}, children: text("body") })).toMatch(/^<button type="button"/);
+  });
+
+  test("Card marks the cursor, drops its shadow when flat and sets a picture over its caption", () => {
+    const plain = html(Card, { children: text("body") });
+    expect(plain).not.toContain("data-focused");
+    expect(plain).not.toContain("data-flat");
+    expect(plain).not.toContain("ui-card-pic");
+    const out = html(Card, { focused: true, flat: true, pad: "sm", picture: text("shot"), children: text("caption") });
+    expect(out).toContain('data-focused=""');
+    expect(out).toContain('data-flat=""');
+    expect(out).toContain('data-pad="sm"');
+    expect(out).toMatch(/ui-card-pic[^>]*><span>shot<\/span><\/div>\s*<div class="ui-card-cap[^>]*><span>caption/);
+  });
+
+  test("Row fills, marks the cursor and swaps its chevron for a trailing value", () => {
+    const out = html(Row, { label: "Sand trail", fill: true, focused: true, onclick: () => {} });
+    expect(out).toContain("ui-fill");
+    expect(out).toContain('data-focused=""');
+    expect(out).toContain("ui-end");
+    const valued = html(Row, { label: "Best lap", onclick: () => {}, control: text("1:12.4") });
+    expect(valued).toContain("1:12.4");
+    expect(valued).not.toContain("ui-end");
   });
 
   test("Tile shows its title, meta and selection", () => {
@@ -175,9 +202,48 @@ describe("ui components", () => {
     expect(out).toContain(">3<");
   });
 
-  test("PageHead shows Back only with onback", () => {
-    expect(html(PageHead, { title: "Modes" })).not.toContain("Back");
-    expect(html(PageHead, { title: "Modes", onback: () => {} })).toContain("Back");
+  test("PageFrame draws the title block, the one Back pill and the veil only when asked", () => {
+    const bare = html(PageFrame, { children: text("body") });
+    expect(bare).not.toContain("<h1");
+    expect(bare).not.toContain("ui-back");
+    expect(bare).not.toContain("ui-frame-veil");
+    expect(bare).not.toContain("ui-frame-floor");
+    const out = html(PageFrame, { eyebrow: "Home", title: "Maps", back: { to: "Home", go: () => {} }, note: "A tap only selects", veil: 0.55, floor: true, stations: text("bar"), chips: text("chip"), links: text("link"), primary: text("go"), children: text("body") });
+    expect(out).toMatch(/ui-frame-eyebrow[^>]*>Home<\/span>\s*<h1[^>]*>Maps<\/h1>/);
+    expect(out).toMatch(/opacity: 0.55/);
+    expect(out).toContain("ui-frame-floor");
+    expect(out.match(/ui-back/g)).toHaveLength(1);
+    expect(out.indexOf("ui-back")).toBeLessThan(out.indexOf("<span>link</span>"));
+    expect(out.indexOf("A tap only selects")).toBeLessThan(out.indexOf("<span>go</span>"));
+  });
+
+  test("BackPill is a quiet key button naming where it lands", () => {
+    const out = html(BackPill, { to: "Road", onclick: () => {} });
+    expect(out).toContain('data-variant="quiet"');
+    expect(out).toMatch(/<kbd[^>]*>Esc<\/kbd>/);
+    expect(out).toContain("#icon-back");
+    expect(out).toContain("Road");
+  });
+
+  test("PrimaryAction is the Enter key button and takes the online tone", () => {
+    const out = html(PrimaryAction, { tone: "online", disabled: true, children: text("Join Aiko") });
+    expect(out).toMatch(/<kbd[^>]*>Enter<\/kbd>/);
+    expect(out).toContain('data-tone="online"');
+    expect(out).toContain("disabled");
+    expect(html(KeyLink, { keys: { key: "M" }, onclick: () => {}, children: text("Maps") })).toMatch(/^<button type="button" class="ui-key-link[^>]*>.*<kbd[^>]*>M<\/kbd>/s);
+  });
+
+  test("Stations marks the current one and ends in its two caps", () => {
+    const items = [
+      { id: "home", label: "Home" },
+      { id: "garage", label: "Garage" },
+    ];
+    const out = html(Stations, { items, value: "garage", label: "Stations" });
+    expect(out).toMatch(/^<nav[^>]+aria-label="Stations"/);
+    expect(out.match(/aria-current="page"/g)).toHaveLength(1);
+    expect(out).toMatch(/aria-current="page"[^>]*>Garage/);
+    expect(out.indexOf(">Q<")).toBeLessThan(out.indexOf("Home"));
+    expect(out.indexOf(">E<")).toBeGreaterThan(out.indexOf("Garage"));
   });
 
   test("Badge and ClassBadge", () => {
@@ -187,6 +253,7 @@ describe("ui components", () => {
     const cap = html(ClassBadge, { cap: "c" });
     expect(cap).toContain('aria-label="Class C or lower"');
     expect(cap).toMatch(/>max</);
+    expect(html(ClassBadge, { rating: { pi: 921, class: "s2" } })).toContain('data-class="s2"');
   });
 
   test("TierBadge names its tier unless it is decorative", () => {
@@ -202,6 +269,11 @@ describe("ui components", () => {
   test("Chip toggles carry aria-pressed and status chips a dot", () => {
     expect(html(Chip, { variant: "toggle", pressed: true, children: text("Ghost") })).toContain('aria-pressed="true"');
     expect(html(Chip, { tone: "live", children: text("Room 4") })).toContain('data-tone="live"');
+    expect(html(Chip, { children: text("2 450 cr") })).not.toContain("ui-dot");
+    const inner = html(Chip, { inner: true, icon: "icon-check", focused: true, children: text("Fitted") });
+    expect(inner).toContain("ui-inner");
+    expect(inner).toContain("#icon-check");
+    expect(inner).toContain('data-focused=""');
     expect(html(NameChip, { value: "Ana", label: "Your name" })).toContain('value="Ana"');
   });
 
@@ -238,9 +310,9 @@ describe("ui components", () => {
 
   test("Glyph draws one cap per input it is given, shaped by the pad label", () => {
     const out = html(Glyph, { key: "Enter", pad: "A", touch: "icon-play" });
-    expect(out).toMatch(/<kbd class="ui-glyph-cap" data-glyph="key">Enter</);
+    expect(out).toMatch(/<kbd class="ui-cap ui-glyph-cap" data-glyph="key">Enter</);
     expect(out).toMatch(/data-glyph="pad" data-shape="round">A</);
-    expect(out).toMatch(/data-glyph="touch" data-shape="round"><svg[^>]*><use href="#icon-play"/);
+    expect(out).toMatch(/data-glyph="touch"><svg[^>]*><use href="#icon-play"/);
     expect(html(Glyph, { pad: "RT" })).toContain('data-shape="bumper"');
     expect(html(Glyph, { key: "C" })).not.toContain("data-glyph=\"pad\"");
   });
@@ -275,6 +347,19 @@ describe("ui components", () => {
     expect(away).not.toContain("data-here");
     expect(away).toContain("#icon-globe");
     expect(away).toContain("Dune sea · Lowhol");
+  });
+
+  test("PlaceLine reads Here with a flag, else the map name with a globe, and a tail after either", () => {
+    const here = html(PlaceLine, { place: { here: true }, tail: "340 m ahead" });
+    expect(here).toContain("data-here");
+    expect(here).toContain("#icon-flag");
+    expect(here).toMatch(/<b[^>]*>Here<\/b>/);
+    expect(here).toContain("340 m ahead");
+    const away = html(PlaceLine, { place: { here: false, name: "Dune sea · Lowhol", kind: "dunes" } });
+    expect(away).not.toContain("data-here");
+    expect(away).toContain("#icon-globe");
+    expect(away).toContain("Dune sea · Lowhol");
+    expect(away).not.toContain("ui-place-tail");
   });
 
   test("Ticket shows its tier edge, stars and at most three reasons", () => {

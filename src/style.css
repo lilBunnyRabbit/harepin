@@ -91,7 +91,7 @@
   --bar-thick: 8px;
 
   --card-radius: var(--radius-lg);
-  --focus-w: 3px;
+  --mark-w: 3px;
 
   --type-h1: var(--text-3xl);
   --type-h2: var(--text-2xl);
@@ -118,9 +118,9 @@
 :root[data-scheme="light"] {
   --deep: var(--background-lighter);
   --surface: color-mix(in oklch, var(--deep) 94%, transparent);
-  --row: var(--background);
-  --row-on: var(--background-dark);
-  --fill: var(--background-dark);
+  --row: var(--background-dark);
+  --row-on: var(--background-darker);
+  --fill: var(--background);
   --line: color-mix(in oklch, var(--foreground) 16%, transparent);
   --dim: color-mix(in oklch, var(--foreground) 72%, transparent);
   --panel-well: var(--background-dark);
@@ -154,7 +154,7 @@
     --bar-thick: 6px;
 
     --card-radius: var(--radius-md);
-    --focus-w: 2px;
+    --mark-w: 2px;
 
     --type-h1: var(--text-2xl);
     --type-h2: var(--text-xl);

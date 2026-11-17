@@ -17,45 +17,64 @@
 </span>
 
 <style>
-  /* The edge is --dim, not a hairline: a faint rounded edge on a fractional pixel vanished beside the crisp divider and
-     read as a cut-off badge. */
+  /* A plate: the class letter on a block of the class colour, the PI beside it. Sized in em, so it follows the line it sits in. */
   .ui-class-badge {
-    --class-edge: var(--dim);
+    --class-fill: var(--tertiary);
+    --class-ink: var(--on-primary);
     display: inline-flex;
     flex: none;
     align-items: stretch;
+    height: 1.7em;
     overflow: hidden;
-    border: 1.5px solid var(--class-edge);
-    border-radius: var(--radius-sm);
-    background: var(--surface);
+    border: 1px solid var(--class-fill);
+    border-radius: var(--radius-xs);
+    background: var(--deep);
     color: var(--foreground);
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    font-weight: 700;
+    font: 700 0.74em / 1 var(--font-mono);
     font-variant-numeric: tabular-nums;
-    line-height: 1.5;
     white-space: nowrap;
   }
 
-  [data-class="x"] {
-    --class-edge: var(--primary);
+  [data-size="lg"] {
+    font-size: 1em;
   }
 
-  [data-size="lg"] {
-    font-size: var(--text-lg);
+  [data-class="c"] {
+    --class-fill: var(--primary);
+  }
+
+  [data-class="b"] {
+    --class-fill: var(--accent);
+    --class-ink: var(--on-accent);
+  }
+
+  [data-class="a"] {
+    --class-fill: var(--error);
+  }
+
+  [data-class="s1"] {
+    --class-fill: var(--secondary);
+    --class-ink: var(--on-secondary);
+  }
+
+  [data-class="s2"] {
+    --class-fill: var(--info);
+  }
+
+  [data-class="x"] {
+    --class-fill: var(--cottontail);
+    --class-ink: var(--on-cottontail);
   }
 
   .ui-letter,
   .ui-pi {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 var(--space-1);
+    display: grid;
+    place-items: center;
+    padding: 0 0.5em;
   }
 
   .ui-letter {
-    min-width: 2.4ch;
-    border-right: 1.5px solid var(--class-edge);
-    background: var(--panel-raised);
+    background: var(--class-fill);
+    color: var(--class-ink);
   }
 </style>

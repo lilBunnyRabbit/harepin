@@ -31,19 +31,19 @@
     display: flex;
     align-items: end;
     justify-content: space-between;
-    gap: var(--space-3);
+    gap: var(--gap-md);
     min-width: 0;
   }
 
   .ui-text {
     display: grid;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
     min-width: 0;
   }
 
   .ui-eyebrow {
-    color: var(--set-dim);
-    font-size: var(--text-xs);
+    color: var(--dim);
+    font-size: var(--type-eyebrow);
     font-weight: 700;
     letter-spacing: 0.08em;
     line-height: 1.2;
@@ -52,30 +52,24 @@
 
   .ui-title {
     margin: 0;
-    font-size: var(--text-xl);
-    font-weight: 700;
-    line-height: 1.2;
+    font-size: var(--type-h2);
+    font-weight: 800;
+    line-height: 1.15;
     text-wrap: balance;
   }
 
   [data-role="page"] {
-    font-size: var(--text-2xl);
+    font-size: var(--type-h1);
+    line-height: 1.1;
   }
 
   .ui-count {
-    margin-left: var(--space-1);
-    color: var(--set-dim);
+    margin-left: var(--gap-xs);
+    color: var(--dim);
     font-weight: 600;
   }
 
   .ui-action {
     flex: none;
-  }
-
-  /* Short screens drop an eyebrow over a title; an eyebrow on its own is the group's label and stays. */
-  @media (max-height: 500px) {
-    .ui-over {
-      display: none;
-    }
   }
 </style>
