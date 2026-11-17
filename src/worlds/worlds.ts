@@ -12,10 +12,11 @@ import { ice_canyon } from "./ice-canyon";
 import { velodrome } from "./velodrome";
 import { wall_ride } from "./wall-ride";
 import { lab } from "./lab";
+import { raceway } from "./raceway";
 import type { WorldDef } from "./world-def";
 
 /** In menu order. */
-export const WORLDS: Record<WorldKind, WorldDef> = { mainland, island, sky, desert, alpine, tundra, volcano, rooftops, dunes: big_dunes, icecanyon: ice_canyon, velodrome, wallride: wall_ride, lab };
+export const WORLDS: Record<WorldKind, WorldDef> = { mainland, island, sky, desert, alpine, tundra, volcano, rooftops, dunes: big_dunes, icecanyon: ice_canyon, velodrome, wallride: wall_ride, lab, raceway };
 
 /** The worlds a player can pick, in menu order. */
 export const LISTED = Object.values(WORLDS).filter((w) => w.listed);

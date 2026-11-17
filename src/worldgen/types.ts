@@ -45,7 +45,7 @@ export const VELODROME_VERSION = 2;
 /** Bump whenever `generate_sky` makes a different wall-ride track for the same seed. */
 export const WALL_RIDE_VERSION = 1;
 
-export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine", TUNDRA: "tundra", ROOFTOPS: "rooftops", VOLCANO: "volcano", BIG_DUNES: "dunes", ICE_CANYON: "icecanyon", VELODROME: "velodrome", WALL_RIDE: "wallride", LAB: "lab" } as const;
+export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine", TUNDRA: "tundra", ROOFTOPS: "rooftops", VOLCANO: "volcano", BIG_DUNES: "dunes", ICE_CANYON: "icecanyon", VELODROME: "velodrome", WALL_RIDE: "wallride", LAB: "lab", RACEWAY: "raceway" } as const;
 export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];
 /** What a URL or save without a world, or with one this build doesn't know, drives. */
 export const DEFAULT_KIND: WorldKind = WorldKind.ISLAND;
