@@ -1,6 +1,7 @@
 import type { Chat } from "../net/chat";
 import { $ } from "../hud/hud";
 import type { Nav } from "../hud/input";
+import { ROTATE_QUERY, rotate_shown } from "../hud/orientation";
 import { ADJUST_EVENT, HOLD_EVENT } from "./dom";
 import type { Settings } from "./settings";
 
@@ -11,8 +12,6 @@ const OVERLAP_PX = 4;
 const SIDE_WEIGHT = 2;
 /** Share of the visible height one up or down press scrolls a focused block taller than its scroller. */
 const SCROLL_STEP = 0.4;
-// Mirrors the query that shows #rotate in overlays.css, so the check needs no style read.
-const ROTATE_QUERY = "(orientation: portrait) and (pointer: coarse)";
 /** The pad button behind `accept` in `PAD_NAV` (`hud/input.ts`): a hold button stays pressed while it is down. */
 const ACCEPT_BUTTON = 0;
 
@@ -334,6 +333,6 @@ export class PadMenu {
   }
 
   private rotated(): boolean {
-    return this.rotate.matches;
+    return rotate_shown(this.rotate.matches, this.host.settings.is_open);
   }
 }

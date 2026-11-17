@@ -2,6 +2,7 @@ import { $ } from "./hud";
 import type { Action } from "./bindings";
 import { SteerSensitivity, TouchSteer } from "../menu/prefs";
 import { drag_steer, FULL_LOCK_PX } from "./drag-steer";
+import { ScreenTurn } from "./screen-turn";
 import "./touch.css";
 import "./phone.css";
 
@@ -44,6 +45,7 @@ export class Touch {
   private steer_mode: TouchSteer = TouchSteer.DRAG;
   private full_lock = FULL_LOCK_PX[SteerSensitivity.MEDIUM];
   private nitro_key = $("nitro-key");
+  private readonly turn = new ScreenTurn();
 
   constructor(private root: HTMLElement) {}
 
@@ -88,24 +90,13 @@ export class Touch {
     this.root.addEventListener("pointermove", (e) => this.move(e), { signal });
     this.root.addEventListener("lostpointercapture", (e) => this.release(e.pointerId), { signal });
     this.root.addEventListener("contextmenu", (e) => e.preventDefault(), { signal });
-    const first_touch = new AbortController();
-    signal.addEventListener("abort", () => first_touch.abort());
-    document.addEventListener(
-      "pointerdown",
-      (e) => {
-        if (e.pointerType !== "touch") return;
-        // Entering fullscreen closes any open popover, so a first tap on a menu button would open and lose it at once.
-        if (e.target instanceof Element && e.target.closest("button, [popover]")) return;
-        first_touch.abort();
-        void this.fullscreen();
-      },
-      { signal: first_touch.signal },
-    );
+    this.turn.start();
   }
 
   stop() {
     this.abort?.abort();
     this.abort = null;
+    this.turn.stop();
     for (const id of [...this.fingers.keys()]) this.release(id);
   }
 
@@ -218,16 +209,6 @@ export class Touch {
       if (held.length || zone_held) el.dataset.held = "true";
       else delete el.dataset.held;
       if (el.classList.contains("pedal")) el.style.setProperty("--level", String(Math.max(0, ...held.map((f) => f.value))));
-    }
-  }
-
-  // Android honours the lock only in fullscreen; iOS has neither, which is what the portrait overlay is for.
-  private async fullscreen() {
-    try {
-      await document.documentElement.requestFullscreen({ navigationUI: "hide" });
-      await screen.orientation.lock("landscape");
-    } catch (error) {
-      console.warn("fullscreen or orientation lock refused", error);
     }
   }
 }

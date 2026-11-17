@@ -152,6 +152,17 @@ body:has(> .settings:not([hidden])) #toast[data-road] {
     color: var(--primary);
   }
 
+  /* Only where a tap can turn the screen: an installed app can come back upright with the phone's rotation off. */
+  #rotate .rotate-tap {
+    color: var(--dim);
+    font-size: var(--text-md);
+    font-weight: 500;
+  }
+
+  #rotate:not([data-tap]) .rotate-tap {
+    display: none;
+  }
+
   /* The menu works upright, and the prompt showed through between its cards: it waits for the road. */
   body:has(> .settings:not([hidden])) > #rotate {
     display: none;
