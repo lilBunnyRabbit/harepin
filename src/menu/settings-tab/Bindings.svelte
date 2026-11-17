@@ -126,14 +126,14 @@
   .set-bind {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--gap-md);
     min-width: 0;
   }
 
   .set-bind-note {
     min-width: 0;
     color: var(--dim);
-    font-size: var(--text-md);
+    font-size: var(--type-body);
     text-align: right;
   }
 
@@ -145,12 +145,12 @@
     display: flex;
     flex: none;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--gap-md);
   }
 
   .set-bind-keys :global(.ui-key) {
-    padding: var(--space-1) var(--space-2);
-    font-size: var(--text-sm);
+    padding: var(--gap-xs) var(--gap-sm);
+    font-size: var(--type-small);
     font-weight: 600;
   }
 

@@ -44,14 +44,14 @@
   .set-keys-row {
     display: grid;
     grid-template-columns: 11rem 9rem;
-    gap: var(--space-4);
+    gap: var(--gap);
   }
 
   .set-keys-head {
     justify-content: end;
-    padding: 0 var(--space-4) var(--space-1);
+    padding: 0 var(--gap) var(--gap-xs);
     color: var(--dim);
-    font-size: var(--text-sm);
+    font-size: var(--type-small);
     font-weight: 600;
   }
 
@@ -59,16 +59,16 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
   }
 
   .set-keys-sep {
     color: var(--dim);
-    font-size: var(--text-sm);
+    font-size: var(--type-small);
   }
 
   .set-keys-row :global(.ui-key) {
-    font-size: var(--text-sm);
+    font-size: var(--type-small);
   }
 
   @media (pointer: coarse) {

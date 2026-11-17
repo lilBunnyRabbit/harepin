@@ -30,9 +30,9 @@
   .set-effect {
     display: grid;
     grid-template-columns: 3ch minmax(0, 1fr);
-    gap: var(--space-1) var(--space-2);
+    gap: var(--gap-xs) var(--gap-sm);
     max-width: 56ch;
-    margin-top: var(--space-1);
+    margin-top: var(--gap-xs);
   }
 
   .set-effect b {

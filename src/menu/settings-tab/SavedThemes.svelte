@@ -40,13 +40,13 @@
   .set-saved-end {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--gap-md);
   }
 
   .set-empty {
     margin: 0;
-    padding: var(--space-4);
+    padding: var(--gap);
     color: var(--dim);
-    font-size: var(--text-md);
+    font-size: var(--type-body);
   }
 </style>

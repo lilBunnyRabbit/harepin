@@ -19,7 +19,7 @@
 <style>
   .set-info {
     color: var(--dim);
-    font-size: var(--text-md);
+    font-size: var(--type-body);
     text-align: right;
   }
 </style>

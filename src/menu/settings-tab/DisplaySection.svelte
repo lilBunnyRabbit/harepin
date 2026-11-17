@@ -122,7 +122,7 @@
   .set-swatches {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
   }
 
   .set-swatches i {

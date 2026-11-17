@@ -23,12 +23,12 @@
 
 <style>
   .set-link {
-    --icon-size: var(--text-xl);
+    --icon-size: var(--type-h3);
     display: flex;
     align-items: center;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
     color: var(--dim);
-    font-size: var(--text-md);
+    font-size: var(--type-body);
     text-align: right;
   }
 

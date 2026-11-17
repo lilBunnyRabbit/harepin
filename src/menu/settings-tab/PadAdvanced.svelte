@@ -118,7 +118,7 @@
   .set-pad {
     display: flex;
     align-items: stretch;
-    gap: var(--space-5);
+    gap: var(--pad);
     width: 14rem;
   }
 
@@ -164,12 +164,12 @@
 
   .set-meter {
     display: grid;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
   }
 
   .set-meter small,
   .set-pad-note {
     color: var(--dim);
-    font-size: var(--text-sm);
+    font-size: var(--type-small);
   }
 </style>

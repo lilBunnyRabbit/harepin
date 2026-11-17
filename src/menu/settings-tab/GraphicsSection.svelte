@@ -55,11 +55,11 @@
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: var(--space-2) var(--space-4);
-    padding: var(--space-3) var(--space-4);
+    gap: var(--gap-sm) var(--gap);
+    padding: var(--gap-md) var(--gap);
     border-radius: var(--radius-md);
     background: var(--row);
-    font-size: var(--text-md);
+    font-size: var(--type-body);
     font-weight: 600;
   }
 
@@ -69,7 +69,7 @@
 
   .set-stat {
     display: inline-flex;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     color: var(--dim);
     font-weight: 400;
   }

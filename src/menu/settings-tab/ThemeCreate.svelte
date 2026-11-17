@@ -146,7 +146,7 @@
     position: relative;
     flex: none;
     height: 8rem;
-    margin: 0 var(--space-4) var(--space-2);
+    margin: 0 var(--gap) var(--gap-sm);
     overflow: hidden;
     border: 1px solid color-mix(in oklch, var(--foreground) 16%, transparent);
     border-radius: var(--radius-md);
@@ -176,7 +176,7 @@
 
   .set-scene-lane {
     inset: 56% calc(50% - 1px) 0;
-    background: repeating-linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 70%, transparent) 0 var(--space-2), transparent var(--space-2) var(--space-4));
+    background: repeating-linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 70%, transparent) 0 var(--gap-sm), transparent var(--gap-sm) var(--gap));
   }
 
   .set-scene-car {
@@ -185,32 +185,32 @@
     width: 22%;
     height: 26%;
     translate: -50% 0;
-    border-radius: var(--radius-xs) var(--radius-xs) var(--space-1) var(--space-1);
+    border-radius: var(--radius-xs) var(--radius-xs) var(--gap-xs) var(--gap-xs);
     background: var(--primary);
     box-shadow: inset 0 9px 0 -2px color-mix(in oklch, var(--background-darkest) 70%, var(--primary));
   }
 
   .set-scene-pill {
-    top: var(--space-2);
-    right: var(--space-2);
+    top: var(--gap-sm);
+    right: var(--gap-sm);
     display: flex;
     align-items: baseline;
-    gap: var(--space-1);
-    padding: var(--space-0) var(--space-2);
+    gap: var(--gap-xs);
+    padding: var(--space-0) var(--gap-sm);
     border-radius: var(--radius-sm);
     background: color-mix(in oklch, var(--background-darkest) 88%, transparent);
     color: var(--foreground);
     font-family: var(--font-mono);
-    font-size: var(--text-xs);
+    font-size: var(--type-eyebrow);
   }
 
   .set-scene-pill b {
-    font-size: var(--text-xl);
+    font-size: var(--type-h3);
     font-weight: 700;
   }
 
   .set-scene-pill i {
-    margin-left: var(--space-1);
+    margin-left: var(--gap-xs);
     color: var(--primary);
     font-style: normal;
     font-weight: 700;
@@ -219,21 +219,21 @@
   .set-locks {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: var(--space-2);
+    gap: var(--gap-sm);
   }
 
   .set-lock {
     display: grid;
     justify-items: center;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
     height: auto;
-    padding: var(--space-2) var(--space-1);
+    padding: var(--gap-sm) var(--gap-xs);
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
     background: var(--row);
     color: var(--dim);
     font: inherit;
-    font-size: var(--text-sm);
+    font-size: var(--type-small);
     font-weight: 600;
     cursor: pointer;
   }
@@ -254,7 +254,7 @@
   }
 
   .set-swatch {
-    --icon-size: var(--text-lg);
+    --icon-size: var(--type-body);
     position: relative;
     width: var(--control-h-lg);
     height: var(--control-h-lg);
@@ -264,8 +264,8 @@
 
   .set-swatch :global(.ui-icon) {
     position: absolute;
-    right: calc(-1 * var(--space-2));
-    bottom: calc(-1 * var(--space-2));
+    right: calc(-1 * var(--gap-sm));
+    bottom: calc(-1 * var(--gap-sm));
     box-sizing: content-box;
     padding: var(--space-0);
     border: 1px solid var(--line);
@@ -282,7 +282,7 @@
   .set-save {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--gap-md);
   }
 
   .set-save :global(.ui-field) {

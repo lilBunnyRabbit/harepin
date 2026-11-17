@@ -81,8 +81,8 @@
 <style>
   .set-tint {
     flex: none;
-    width: var(--space-4);
-    height: var(--space-4);
+    width: var(--gap);
+    height: var(--gap);
     border-radius: var(--radius-full);
     background: var(--swatch);
   }
