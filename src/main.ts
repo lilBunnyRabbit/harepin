@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Audio, type SoundFrame } from "./audio/audio";
 import { idle_sound } from "./audio/held-sound";
 import { EVENTS, EVENT_PARAM, TUNE_PARAM, event_of, type CareerEvent } from "./career/career";
-import { SERIES_PAGE, SERIES_PARAM, is_open, season_done } from "./career/series";
+import { SERIES_PAGE, SERIES_PARAM, is_open, next_open, season_done } from "./career/series";
 import { series_event } from "./career/series-seasons";
 import { Wallet } from "./career/wallet";
 import { WalletDb } from "./career/wallet-db";
 import { series_list, series_open } from "./career/series-store";
 import { SeriesDb } from "./career/series-db";
-import { on_series_map, series_host } from "./career/series-run";
+import { on_series_map, series_host, series_map, series_ticket } from "./career/series-run";
 import { Career, event_map } from "./career/career-store";
 import { place_of } from "./career/place";
 import { EventMarkers } from "./career/event-markers";
@@ -594,7 +594,24 @@ function start_series(id: string, car: string | null = null) {
   if (!on_series_map(season, to, built)) return travel({ [SERIES_PARAM]: to.id, seed: String(to.seed), world: season.world }, car);
   settings.close();
   const base = { sim, build: () => garage.build, rating: () => rating(garage.build), autopilot: params.has(AI_DRIVE_PARAM), difficulty: () => settings.state.ai_difficulty };
-  const host = series_host(base, one, to, { label: "Series", go: () => settings.open(to.final && season_done(one.season, one.progress) ? FINAL_PAGE : SERIES_PAGE) });
+  const won = () => Boolean(to.final) && season_done(one.season, one.progress);
+  const after = () => (won() ? null : next_open(one.season, one.progress, to));
+  const next = {
+    get label() {
+      const up = after();
+      return up ? `Next: Round ${one.season.events.indexOf(up) + 1}` : won() ? "Season podium" : "Back to Series";
+    },
+    ticket() {
+      const up = after();
+      return up && series_ticket(one.season, up, place_of(series_map(one.season, up), built));
+    },
+    go() {
+      const up = after();
+      if (up) settings.open_round(up.id);
+      else settings.open(won() ? FINAL_PAGE : SERIES_PAGE);
+    },
+  };
+  const host = series_host(base, one, to, next);
   modes.series_race(to.route, host);
 }
 // A run's map is the plain map of its kind and seed (world-pick.ts).

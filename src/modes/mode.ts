@@ -11,6 +11,7 @@ import type { Thresholds, Track } from "./track";
 import type { Bindable } from "../hud/bindings";
 import type { Hits } from "./hits";
 import type { DrawnGround } from "./marks";
+import type { NextCard } from "./result";
 import type { RoutePoint } from "./route";
 import { atan2, cos, hypot, sin } from "../sim-math";
 
@@ -91,8 +92,8 @@ export interface FieldEvent {
   readonly grid?: number;
   /** Called once as the player's race ends; returns lines for the result card. */
   finish(outcome: FieldOutcome): HTMLElement[];
-  /** What the result card's Next does. */
-  readonly next: { label: string; go(): void };
+  /** What the result card's Next does; read once the result has scored, so it can name what the result opened. */
+  readonly next: { readonly label: string; go(): void; ticket?(): NextCard | null };
 }
 
 /** A car's place in a field race now. */

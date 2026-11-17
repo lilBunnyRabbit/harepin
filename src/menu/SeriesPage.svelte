@@ -14,9 +14,11 @@
 
   interface Props extends PageProps {
     picker: CarPicker;
+    /** The round a road result's Next asked for, handed over once: the page opens on its start sheet. */
+    asked: () => string | null;
   }
 
-  let { menu, live, shown, picker }: Props = $props();
+  let { menu, live, shown, picker, asked }: Props = $props();
 
   const list = $derived(menu.host.series);
   const ready = $derived(live.live(() => list.length > 0 && list.every((one) => one.ready)));
@@ -48,6 +50,14 @@
     const event = series?.event(id);
     if (event) target = { kind: "series", series, event };
   }
+
+  $effect(() => {
+    if (!shown || !ready) return;
+    const id = asked();
+    const one = id === null ? undefined : list.find((each) => each.event(id));
+    const event = one?.event(id);
+    if (one && event) target = { kind: "series", series: one, event };
+  });
 
   function reset() {
     series?.reset();

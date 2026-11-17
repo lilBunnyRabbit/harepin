@@ -713,7 +713,7 @@ export class Modes implements CarHooks {
       if (!cup.cleared) result_next.note = STAGE_NEEDS_STAR;
     } else if (active.play) this.show_play(active.play, card, cup?.total);
     else if (active.event) this.show_event(active.event, card);
-    else if (active.series?.event) result_next.show(active.series.event.next.label);
+    else if (active.series?.event) result_next.show(active.series.event.next.label, false, active.series.event.next.ticket?.() ?? null);
     else {
       const index = levels.findIndex((level) => level.id === active.level.id);
       const after = levels[index + 1]?.id;

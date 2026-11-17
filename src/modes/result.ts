@@ -54,13 +54,19 @@ export function time_lines(ms: number, hits: Hits | null): HTMLElement[] {
   return [line("time", format(ms)), line(`hits ×${hits.count}`, `+${hits.penalty_ms / 1000} s`), line("total", format(ms + hits.penalty_ms))];
 }
 
-/** The career event a result's Next goes to, as its card shows it. */
-export interface NextTicket extends EventTicket {
+/** Where a result's Next goes, as its card shows it. */
+export interface NextCard {
+  eyebrow: string;
+  title: string;
+  place: Place;
   /** The event's mode name. */
   mode: string;
   /** The world kind its map picture shows. */
   kind: WorldKind;
 }
+
+/** The career event a result's Next goes to. */
+export interface NextTicket extends EventTicket, NextCard {}
 
 export function next_ticket(event: CareerEvent, here: MapSpec, mode: string): NextTicket {
   const map = event_map(event);
@@ -68,7 +74,7 @@ export function next_ticket(event: CareerEvent, here: MapSpec, mode: string): Ne
 }
 
 /** The primary names where it leads: the next event on this map, or the map a Travel loads. */
-export const next_label = (ticket: NextTicket) => (ticket.place.here ? `Next: ${ticket.title}` : `Travel to ${ticket.place.name}`);
+export const next_label = (ticket: NextCard) => (ticket.place.here ? `Next: ${ticket.title}` : `Travel to ${ticket.place.name}`);
 
 /** A championship's stages as table rows: points and stars for each one run, and the total under them. */
 export function stage_rows(cup: Cup, names: readonly string[]): HTMLElement[] {

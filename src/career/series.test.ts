@@ -7,6 +7,7 @@ import { rating } from "../car/pi";
 import { CREDITS_PER_POINT, FINAL_FACTOR } from "./credits";
 import { Bonus, OPEN_AT_START, PODIUM, SeriesKind, better, car_fault, empty_progress, event_field, event_line, event_result, event_states, grid_slot, next_open, parse_progress, player_of, result_points, season_done, season_round, standings, type EventResult, type Season, type SeriesProgress } from "./series";
 import type { SeriesSaves } from "./series-db";
+import { series_ticket } from "./series-run";
 import { SEASON_1, SEASON_4, SEASONS, completed, seasons_open, series_event } from "./series-seasons";
 import { build_world, KINDS, plain_map } from "../worldgen/kinds/kinds";
 import { field_races } from "../modes/field-route";
@@ -321,4 +322,8 @@ test("Next after a result is the first open event after it, then one before it, 
   expect(next_open(season, podiums, first)?.id).toBe(season.events[3].id);
   const all: SeriesProgress = { ...empty_progress(season), results: Object.fromEntries(season.events.map((e) => [e.id, at(1)])) };
   expect(next_open(season, all, first)).toBeNull();
+});
+
+test("the Next card names the round and its kind", () => {
+  expect(series_ticket(season, season.events[3], { here: true })).toEqual({ eyebrow: "Next · Round 4 of 6", title: "Rival duel", mode: "Head to head", place: { here: true }, kind: season.world });
 });

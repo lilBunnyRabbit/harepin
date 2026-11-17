@@ -1,6 +1,6 @@
 import { mount } from "svelte";
 import ResultNext from "./ResultNext.svelte";
-import type { NextTicket } from "./result";
+import type { NextCard } from "./result";
 
 /** A finish order or a cup's stages: rows the run keeps current while the card shows. */
 export interface ResultTable {
@@ -41,7 +41,7 @@ export class ResultNextView {
   label = $state("");
   shown = $state(false);
   disabled = $state(false);
-  ticket = $state<NextTicket | null>(null);
+  ticket = $state<NextCard | null>(null);
   /** Counts shows, so a card shown again takes focus again. */
   opened = $state(0);
 
@@ -51,7 +51,7 @@ export class ResultNextView {
     this.host.go();
   }
 
-  show(label: string, disabled = false, ticket: NextTicket | null = null) {
+  show(label: string, disabled = false, ticket: NextCard | null = null) {
     this.label = label;
     this.disabled = disabled;
     this.ticket = ticket;

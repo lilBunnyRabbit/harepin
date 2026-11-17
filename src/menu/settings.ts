@@ -91,6 +91,7 @@ export class Settings {
   private readonly page_list: MenuPage[];
   private readonly nav: SettingsNav;
   private readonly picker = new CarPicker();
+  private round: string | null = null;
 
   constructor(
     private readonly parent: HTMLElement,
@@ -131,7 +132,7 @@ export class Settings {
       svelte_page(this.menu, { id: RUN_BUILD_PAGE, label: "Build a run", parent: MenuTab.EVENTS, layout: "frame" }, RunBuilder, { picker: this.picker }),
       svelte_page(this.menu, { id: MODES_PAGE, label: "Free modes", parent: MenuTab.EVENTS, layout: "frame" }, ModesPage),
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.EVENTS, layout: "frame" }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
-      svelte_page(this.menu, { id: SERIES_PAGE, label: "Harepin Series", parent: MenuTab.EVENTS, layout: "frame" }, SeriesPage, { picker: this.picker }),
+      svelte_page(this.menu, { id: SERIES_PAGE, label: "Harepin Series", parent: MenuTab.EVENTS, layout: "frame" }, SeriesPage, { picker: this.picker, asked: () => this.take_round() }),
       svelte_page(this.menu, { id: "room", label: "New room", parent: MenuTab.ONLINE }, RoomPage),
     ];
     const canvas = el("canvas", "showroom-stage");
@@ -180,6 +181,18 @@ export class Settings {
   /** Start on the pad: the first run goes straight to the road. */
   skip_guide() {
     if (this.guide_open) this.close();
+  }
+
+  /** The Series page on a round's start sheet: a road result's Next. */
+  open_round(id: string) {
+    this.round = id;
+    this.open(SERIES_PAGE);
+  }
+
+  private take_round(): string | null {
+    const id = this.round;
+    this.round = null;
+    return id;
   }
 
   /** The menu, on Home unless a section is named. */

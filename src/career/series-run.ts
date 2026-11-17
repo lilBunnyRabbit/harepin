@@ -1,15 +1,17 @@
 import { CARS } from "../car/cars";
 import type { FieldEvent, FieldHost } from "../modes/mode";
-import { line } from "../modes/result";
+import { line, type NextCard } from "../modes/result";
 import { plain_map } from "../worldgen/kinds/kinds";
 import { map_code } from "../worldgen/kinds/map-code";
 import type { MapSpec } from "../worldgen/kinds/kinds";
+import type { Place } from "./place";
 import {
   BONUS_NAMES,
   BONUS_POINTS,
   event_field,
   event_result,
   grid_slot,
+  KIND_NAMES,
   ordinal,
   place_of,
   place_points,
@@ -24,6 +26,17 @@ import type { Payout, Series } from "./series-store";
 import { credits_text } from "./wallet";
 
 export const series_map = (season: Season, event: SeriesEvent): MapSpec => plain_map(season.world, event.seed);
+
+/** The round a result's Next starts, for its card. */
+export function series_ticket(season: Season, event: SeriesEvent, place: Place): NextCard {
+  return {
+    eyebrow: `Next · Round ${season.events.indexOf(event) + 1} of ${season.events.length}`,
+    title: event.name,
+    place,
+    mode: KIND_NAMES[event.kind],
+    kind: season.world,
+  };
+}
 
 export const on_series_map = (season: Season, event: SeriesEvent, built: MapSpec) => map_code(series_map(season, event)) === map_code(built);
 
