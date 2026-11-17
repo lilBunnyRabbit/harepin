@@ -300,9 +300,12 @@ hud.field = () => sim.field_cars;
 const MAP_NOTE_MS = 4500;
 /** A lab that failed to open leaves a plain free-roam page: the toast says so for longer than a passing note. */
 const LAB_FAIL_MS = 20_000;
-// A note waits for the road: one that lands while a menu is open shows once it closes.
-const goal_toasts = new ToastQueue((text, hold) => hud.toast(text, "", hold), () => input.blocked() || $("toast").dataset.shown !== undefined);
-if (note) goal_toasts.push(note, MAP_NOTE_MS);
+const toast_up = () => $("toast").dataset.shown !== undefined;
+// These say why a map or a page came up, so they show over a menu too.
+const notes = new ToastQueue((text, hold) => hud.toast(text, "", hold), toast_up);
+// A goal waits for the road: one done while a menu is open shows once it closes.
+const goal_toasts = new ToastQueue((text) => hud.toast(text), () => input.blocked() || toast_up());
+if (note) notes.push(note, MAP_NOTE_MS);
 goals.on_done = (goal) => goal_toasts.push(`Goal done: ${goal.title}`);
 const ghost = new Ghost(scene, world, `harepin:ghost:${world.key}`, world.routes.find((r) => r.id === "circuit")?.length);
 requestIdleCallback(() => void sweep_ghosts());
@@ -602,8 +605,7 @@ function start_series(id: string, car: string | null = null) {
   if (!series_open(series)[at] || !is_open(season, one.progress, to)) return settings.open(SERIES_PAGE);
   const fault = one.car_fault(garage.build);
   if (fault) {
-    // Says why the Series page opened, so it shows over the menu rather than wait in the queue for the road.
-    hud.toast(fault, "", MAP_NOTE_MS);
+    notes.push(fault, MAP_NOTE_MS);
     return settings.open(SERIES_PAGE);
   }
   if (!on_series_map(season, to, built)) return travel({ [SERIES_PARAM]: to.id, seed: String(to.seed), world: season.world }, car);
@@ -685,9 +687,9 @@ markers.place(world, SPAWN_INDEX, lab_id === null ? EVENTS.filter(on_this_map) :
 // The briefing named the car above Start, so the start asks again only when that car does not fit.
 const briefed = briefed_car(travelling, garage.code);
 if (event && on_this_map(event)) play_taken(briefed, () => modes.play_event(event));
-else if (event) goal_toasts.push("This event's map did not load", MAP_NOTE_MS);
+else if (event) notes.push("This event's map did not load", MAP_NOTE_MS);
 if (run && run_on_map(run)) play_taken(briefed, () => play_run(run));
-else if (run) goal_toasts.push("This run's map did not load", MAP_NOTE_MS);
+else if (run) notes.push("This run's map did not load", MAP_NOTE_MS);
 if (ai_level) modes.play(ai_level);
 // A link without its map reloads onto it; one that names a map which fell back would reload onto itself forever.
 // An event's opening rule reads saved progress, so a link starts once it has loaded.
@@ -697,7 +699,7 @@ void Promise.all(series.map((one) => one.load())).then(() => {
   const pick = series_pick && one?.event(series_pick.event.id);
   if (one && pick && (!names_world(params) || on_series_map(one.season, pick, built))) start_series(pick.id);
   else {
-    if (series_pick) goal_toasts.push("This series event's map did not load", MAP_NOTE_MS);
+    if (series_pick) notes.push("This series event's map did not load", MAP_NOTE_MS);
     settings.open(SERIES_PAGE);
   }
 });
