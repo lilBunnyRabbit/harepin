@@ -172,7 +172,7 @@
   }
 
   .ui-frame-top > *,
-  .ui-frame-body,
+  .ui-frame-body > :global(*),
   .ui-frame-links > :global(*),
   .ui-frame-action > :global(*) {
     pointer-events: auto;
