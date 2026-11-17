@@ -8,7 +8,8 @@
     icon?: string;
     href?: string;
     external?: boolean;
-    onclick?: () => void;
+    onclick?: (event: MouseEvent) => void;
+    onfocus?: () => void;
     control?: Snippet;
     detail?: Snippet;
     badge?: Snippet;
@@ -20,7 +21,7 @@
     top?: boolean;
   }
 
-  let { label, help, icon, href, external = false, onclick, control, detail, badge, fill = false, focused = false, stack = false, top = false }: Props = $props();
+  let { label, help, icon, href, external = false, onclick, onfocus, control, detail, badge, fill = false, focused = false, stack = false, top = false }: Props = $props();
 </script>
 
 {#snippet text()}
@@ -39,7 +40,7 @@
     {#if !control}<span class="ui-end"><Icon name={external ? "icon-external" : "icon-back"} flip={!external} /></span>{/if}
   </a>
 {:else if onclick}
-  <button type="button" class="ui-row ui-action" class:ui-fill={fill} data-focused={focused ? "" : undefined} {onclick}>
+  <button type="button" class="ui-row ui-action" class:ui-fill={fill} data-focused={focused ? "" : undefined} {onclick} {onfocus}>
     {@render text()}
     {#if !control}<span class="ui-end"><Icon name="icon-back" flip /></span>{/if}
   </button>

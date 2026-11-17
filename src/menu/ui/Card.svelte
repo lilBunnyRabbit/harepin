@@ -7,7 +7,8 @@
     flat?: boolean;
     picture?: Snippet;
     wide?: boolean;
-    onclick?: () => void;
+    onclick?: (event: MouseEvent) => void;
+    onfocus?: () => void;
     /** Holds a `RowList`: the rows bring their own padding. */
     list?: boolean;
     label?: string;
@@ -18,7 +19,7 @@
     children: Snippet;
   }
 
-  let { pad = "md", focused = false, flat = false, picture, wide = false, onclick, list = false, label, selected, class: extra, children }: Props = $props();
+  let { pad = "md", focused = false, flat = false, picture, wide = false, onclick, onfocus, list = false, label, selected, class: extra, children }: Props = $props();
 
   const classes = $derived(["ui-card", list && "ui-list", picture && "ui-pictured", wide && "ui-wide", extra]);
 </script>
@@ -33,7 +34,7 @@
 {/snippet}
 
 {#if onclick}
-  <button type="button" class={[classes, "ui-tile"]} data-pad={pad} data-focused={focused ? "" : undefined} data-flat={flat ? "" : undefined} aria-label={label} aria-pressed={selected} {onclick}>{@render body()}</button>
+  <button type="button" class={[classes, "ui-tile"]} data-pad={pad} data-focused={focused ? "" : undefined} data-flat={flat ? "" : undefined} aria-label={label} aria-pressed={selected} {onclick} {onfocus}>{@render body()}</button>
 {:else}
   <section class={classes} data-pad={pad} data-focused={focused ? "" : undefined} data-flat={flat ? "" : undefined} aria-label={label}>{@render body()}</section>
 {/if}
