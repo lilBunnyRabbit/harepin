@@ -446,3 +446,4 @@ Things in the mockups that need a new state layer, new data or engine work. The 
 - Portrait menus are supported; fix the Android PWA reload that lands in portrait and sticks on the rotate prompt.
 - Toasts (lead call): join/leave hidden while a menu is open; goal toasts queue until it closes.
 - Replays get an option to save (new IndexedDB store, owner OK).
+- 2026-11-17 token migration (3a6c6de..7890787): menus now on frame tokens. The HUD keeps its own fixed scale for now (lead call b): moving it to the frame's phone scale is a phone HUD redesign that needs a device pass, so it gets its own task. The lab, viewer and review keep the old tokens. Small leftovers: the Slider's local --fill shadows the colour token; Garage Builds 'Save this car' label sits under the panel title at 1280.
