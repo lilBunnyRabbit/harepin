@@ -1,5 +1,6 @@
 import { $ } from "../hud/hud";
 import { typing } from "../hud/input";
+import { opens_chat } from "./chat-key";
 import type { Net } from "./net";
 import "./chat.css";
 
@@ -22,6 +23,8 @@ export class Chat {
   private abort: AbortController | null = null;
   /** While true (garage or settings open) T, Enter and Escape belong to that panel. */
   blocked: () => boolean = () => false;
+  /** While true (a result card up) Enter is that card's primary; T still opens the chat. */
+  enter_taken: () => boolean = () => false;
 
   constructor(private net: Net) {}
 
@@ -40,7 +43,7 @@ export class Chat {
           this.close();
           return;
         }
-        if (e.repeat || typing(e.target) || (e.target instanceof Element && e.target.closest("button, [role=button]")) || (e.code !== "Enter" && e.code !== "KeyT")) return;
+        if (e.repeat || typing(e.target) || (e.target instanceof Element && e.target.closest("button, [role=button]")) || !opens_chat(e.code, this.enter_taken())) return;
         e.preventDefault();
         this.open(true);
       },

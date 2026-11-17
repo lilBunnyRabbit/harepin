@@ -76,6 +76,22 @@ export function next_ticket(event: CareerEvent, here: MapSpec, mode: string): Ne
 /** The primary names where it leads: the next event on this map, or the map a Travel loads. */
 export const next_label = (ticket: NextCard) => (ticket.place.here ? `Next: ${ticket.title}` : `Travel to ${ticket.place.name}`);
 
+export type ResultPress = "leave" | "next";
+/** Where focus sits when a key lands on the results page: on nothing, on one of the page's own controls, or away under a menu or in another panel. */
+export type ResultFocus = "none" | "page" | "away";
+
+/**
+ * What a key on the results page does. Escape leaves from anywhere on the page. Enter is Next's key whenever nothing has
+ * focus (a click on the scene, a card closed over the page): the primary shows Enter, so it never falls through to the
+ * chat. A focused control takes its own Enter, and a page under a menu takes no key at all.
+ */
+export function result_press(event: Pick<KeyboardEvent, "code" | "repeat" | "ctrlKey" | "metaKey" | "altKey">, focus: ResultFocus, next: boolean): ResultPress | null {
+  if (event.repeat || focus === "away") return null;
+  if (event.code === "Escape") return "leave";
+  const enter = event.code === "Enter" || event.code === "NumpadEnter";
+  return enter && focus === "none" && next && !event.ctrlKey && !event.metaKey && !event.altKey ? "next" : null;
+}
+
 /** A championship's stages as table rows: points and stars for each one run, and the total under them. */
 export function stage_rows(cup: Cup, names: readonly string[]): HTMLElement[] {
   const rows = names.map((stage, i) => {

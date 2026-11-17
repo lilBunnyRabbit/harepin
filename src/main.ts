@@ -535,6 +535,8 @@ if (ai_race) {
 }
 modes.start();
 modes.result_next.mount($("mode-result"));
+chat.enter_taken = () => modes.result_up;
+modes.covered = () => garage.is_open || settings.is_open || pause.is_open || map_open();
 updater.start();
 const system_back = new SystemBack(
   {

@@ -32,6 +32,8 @@ export interface ResultHost {
   retry(): void;
   change_car(): void;
   try_on(): void;
+  /** A menu is open over the page: its keys are the menu's. */
+  covered(): boolean;
 }
 
 export class ResultNextView {

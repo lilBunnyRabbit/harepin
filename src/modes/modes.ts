@@ -154,7 +154,10 @@ export class Modes implements CarHooks {
     retry: () => this.restart(),
     change_car: () => void this.change_car(),
     try_on: () => this.reward && this.try_reward?.(this.reward),
+    covered: () => this.covered(),
   });
+  /** A menu is open over the results page, so the page's keys wait. */
+  covered: () => boolean = () => false;
 
   /** `?debug&at=`: the point along its route a race run starts on. */
   route_at = 0;
@@ -212,6 +215,10 @@ export class Modes implements CarHooks {
 
   get active(): boolean {
     return (this.current?.run ?? null) !== null;
+  }
+
+  get result_up(): boolean {
+    return !this.el.result.hidden;
   }
 
   /** An event is up in any state: waiting on chunks, on the grid, running or on its results. */

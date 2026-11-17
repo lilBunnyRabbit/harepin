@@ -5,6 +5,7 @@
   import PageFrame from "../menu/ui/PageFrame.svelte";
   import PlaceLine from "../menu/ui/PlaceLine.svelte";
   import PrimaryAction from "../menu/ui/PrimaryAction.svelte";
+  import { result_press } from "./result";
   import type { ResultNextView } from "./result-next.svelte";
   import { MAX_STARS } from "./track";
 
@@ -35,12 +36,15 @@
   // Capture, ahead of the menu's Escape: while the card waits, Escape keeps driving.
   function key(event: KeyboardEvent) {
     const page = root?.closest<HTMLElement>("#mode-result");
-    if (event.code !== "Escape" || event.repeat || !page || page.hidden) return;
+    if (!page || page.hidden) return;
     const at = document.activeElement;
-    if (at && at !== document.body && !page.contains(at)) return;
+    const focus = view.host.covered() ? "away" : !at || at === document.body ? "none" : page.contains(at) ? "page" : "away";
+    const press = result_press(event, focus, view.shown && !view.disabled);
+    if (!press) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    view.host.leave();
+    if (press === "leave") view.host.leave();
+    else view.go();
   }
 </script>
 
