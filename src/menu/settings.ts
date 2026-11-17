@@ -90,6 +90,7 @@ export class Settings {
   private warm_handle = 0;
   private readonly syncs: (() => void)[] = [];
   private readonly showroom: Showroom;
+  private readonly stage: CarStage;
   private readonly title = el("h2", "settings-title");
   private readonly name_input = el("input");
   private saved: SettingsState;
@@ -152,7 +153,8 @@ export class Settings {
       svelte_page(this.menu, { id: MEET_PAGE, label: "Race meet", parent: MenuTab.ONLINE, layout: "frame" }, MeetPage, { picker: this.picker }),
     ];
     const canvas = el("canvas", "showroom-stage");
-    this.showroom = new Showroom(new CarStage(canvas, { floor: turntable(), slack: TURNTABLE_SLACK }), {
+    this.stage = new CarStage(canvas, { floor: turntable(), slack: TURNTABLE_SLACK });
+    this.showroom = new Showroom(this.stage, {
       build: () => host.garage.shown,
       panels: () => [...this.root.querySelectorAll<HTMLElement>(STAGE_PANELS)],
     });
@@ -177,6 +179,11 @@ export class Settings {
   /** The showroom's car stands on the turntable, or a bare room shows no car: either way the world's own car hides. */
   get staged(): boolean {
     return this.showroom.hides_world_car;
+  }
+
+  /** The player is turning the car on its stand. */
+  get stage_held(): boolean {
+    return this.stage.held;
   }
 
   get guide_open(): boolean {
@@ -382,7 +389,8 @@ export class Settings {
     const ids = this.page_list.map((p) => p.id);
     // One page per idle slot, and only when the slot outlasts its build, so a drive never drops a frame for it.
     const next = (deadline: IdleDeadline) => {
-      const pick = warm_pick(ids, this.built, MenuTab.SETTINGS, deadline.timeRemaining());
+      // A page built in a frame of a drag is a dropped frame: the pages wait for the car to be let go.
+      const pick = this.stage.held ? "wait" : warm_pick(ids, this.built, MenuTab.SETTINGS, deadline.timeRemaining());
       if (pick === "done") {
         this.warm_handle = 0;
         return;

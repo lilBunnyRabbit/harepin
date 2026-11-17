@@ -1234,4 +1234,4 @@ $("loading").remove();
 // The Updated card waits out a run as the update's reload does, its car picker, and a series link's start, which loads its progress first.
 when_idle(() => run_busy() || modes.engaged || modes.holding || series_starting, () => show_updated(updater.open_notes));
 settings.warm();
-requestIdleCallback(() => void import("./menu/car-still").then(({ warm_stills }) => warm_stills()));
+requestIdleCallback(() => void import("./menu/car-still").then(({ warm_stills }) => warm_stills(() => settings.stage_held)));

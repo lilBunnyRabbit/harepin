@@ -244,6 +244,11 @@ export class CarStage {
     return true;
   }
 
+  /** A pointer is down on the car: idle work anywhere would cost the drag its frames. */
+  get held(): boolean {
+    return this.pointers.size > 0;
+  }
+
   private warm() {
     cancelIdleCallback(this.warm_handle);
     this.warm_handle = 0;

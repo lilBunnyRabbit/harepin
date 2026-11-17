@@ -154,17 +154,22 @@ const idle = () => new Promise<void>((done) => requestIdleCallback(() => done(),
 
 /**
  * Opens the stills' renderer and compiles a stock car's shaders in idle time, so the first stills a page asks for pay
- * for neither. A load that has already drawn a still has both.
+ * for neither. A load that has already drawn a still has both. It waits while `held`: a step in a frame of a drag
+ * is a dropped frame.
  */
-export function warm_stills() {
+export function warm_stills(held: () => boolean) {
+  const free = async () => {
+    do await idle();
+    while (held());
+  };
   turn = turn.then(async () => {
     if (stage) return;
-    await idle();
+    await free();
     try {
       stage = new Stage();
-      await idle();
-      const car = await stage.build(DEFAULT_BUILD, idle);
-      await idle();
+      await free();
+      const car = await stage.build(DEFAULT_BUILD, free);
+      await free();
       await stage.place(car, StillView.QUARTER);
       stage.rest(car);
     } catch (error) {
