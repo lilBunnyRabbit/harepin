@@ -72,6 +72,7 @@ import { Settings } from "./menu/settings";
 import { BUILD, Updater, show_version } from "./menu/update";
 import { card_closed_now, show_updated } from "./menu/updated-card";
 import { LAB_PARAM, names_world, pick_world } from "./world/world-pick";
+import { travel_query } from "./world/travel";
 import type { Lab } from "./lab/lab";
 import { GUARD_STATE, SystemBack, type Watcher } from "./menu/system-back";
 import { SPAWN_INDEX } from "./world/world";
@@ -118,8 +119,6 @@ const series_pick = series_on ? series_event(params.get(SERIES_PARAM)) : null;
 const solo = (event !== null || run !== null || lab_id !== null || series_on || review_wanted(params)) && !params.has("room");
 // getRandomValues, not randomUUID: the latter only exists in a secure context, and a phone on the LAN dev server is not one.
 const net_room = solo ? `solo-${[...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, "0")).join("")}` : room;
-// A room the player chose stays theirs across events; without one the event runs solo.
-const KEPT_ON_EVENT = ["room", "car", TUNE_PARAM];
 const RECORDS_WAIT_MS = 1500;
 const saved_pick = read_saved_pick();
 const pick = pick_world(params, room, saved_pick);
@@ -543,12 +542,7 @@ function start_event(id: string) {
   if (!to) return;
   if (!on_this_map(to)) {
     mark_drive();
-    const query = new URLSearchParams({ [EVENT_PARAM]: to.id });
-    for (const kept of KEPT_ON_EVENT) {
-      const value = params.get(kept);
-      if (value !== null) query.set(kept, value);
-    }
-    location.search = `?${query}`;
+    location.search = `?${travel_query({ [EVENT_PARAM]: to.id }, params, false)}`;
     return;
   }
   settings.close();
@@ -577,12 +571,7 @@ function start_series(id: string) {
   }
   if (!on_series_map(season, to, built)) {
     mark_drive();
-    const query = new URLSearchParams({ [SERIES_PARAM]: to.id, seed: String(to.seed), world: season.world });
-    for (const kept of KEPT_ON_EVENT) {
-      const value = params.get(kept);
-      if (value !== null) query.set(kept, value);
-    }
-    location.search = `?${query}`;
+    location.search = `?${travel_query({ [SERIES_PARAM]: to.id, seed: String(to.seed), world: season.world }, params, false)}`;
     return;
   }
   settings.close();
@@ -598,12 +587,7 @@ function start_run(id: string) {
   if (!to) return;
   if (!run_on_map(to)) {
     mark_drive();
-    const query = new URLSearchParams({ [RUN_PARAM]: to.id });
-    for (const kept of KEPT_ON_EVENT) {
-      const value = params.get(kept);
-      if (value !== null) query.set(kept, value);
-    }
-    location.search = `?${query}`;
+    location.search = `?${travel_query({ [RUN_PARAM]: to.id }, params, false)}`;
     return;
   }
   settings.close();
