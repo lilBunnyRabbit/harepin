@@ -1,3 +1,5 @@
+import type { World } from "../world/world";
+import { KINDS } from "../worldgen/kinds/kinds";
 import type { Route } from "../worldgen/types";
 
 /**
@@ -14,3 +16,5 @@ export function field_races(route: Route, streamed: boolean, rails: boolean): bo
   const [first] = route.points;
   return route.points.every((p) => Math.hypot(p.x - first.x, p.z - first.z) <= STREAMED_FIELD_REACH);
 }
+
+export const field_routes = (world: Pick<World, "routes" | "tiles" | "kind">): Route[] => world.routes.filter((route) => field_races(route, world.tiles.streamed, KINDS[world.kind].rails));

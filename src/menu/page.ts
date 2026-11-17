@@ -81,6 +81,10 @@ export interface SettingsHost {
   readonly runs: Runs;
   /** Starts a `?run=` pick now on this map, or reloads onto its map, in the `car` taken on the start sheet. */
   start_run(id: string, car?: string | null): void;
+  /** The circuits of this map an AI field can race. */
+  readonly custom_routes: readonly RaceChoice[];
+  /** Starts the custom race kept in prefs on this map, or reloads onto its map; `car`, taken on the start sheet, becomes the player's own first. */
+  start_custom(car: string | null): void;
   /** Plays a saved replay over the road and closes the menu, or says why it can't now. */
   watch_replay(replay: SavedReplay): string;
   name(): string;

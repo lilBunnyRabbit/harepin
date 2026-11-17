@@ -8,6 +8,7 @@ import { clean_name } from "../net/net";
 import { parse_last_seed, parse_last_world } from "./saved-pick";
 import type { WorldKind } from "../worldgen/types";
 import { clean_map_code } from "../worldgen/kinds/map-code";
+import { DEFAULT_CUSTOM, parse_custom_race, type CustomRace } from "../modes/custom-race";
 
 export const QualityMode = {
   AUTO: "auto",
@@ -128,6 +129,8 @@ export interface SettingsState {
   last_mainland_seed: number | null;
   /** Set by Drive, Skip or the last step of the first-run guide; never by an invite link. */
   guide_seen: boolean;
+  /** The last race set up on the Custom race page. */
+  custom_race: CustomRace;
   /** Set once Classic, the old default steer mode, has been moved to Smooth; a later pick of Classic sticks. */
   smooth_steer: boolean;
 }
@@ -187,6 +190,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   last_map: { fallback: null, parse: clean_map_code },
   last_mainland_seed: { fallback: null, parse: parse_last_seed },
   guide_seen: { fallback: false, parse: seen_flag },
+  custom_race: { fallback: DEFAULT_CUSTOM, parse: parse_custom_race },
   smooth_steer: flag(true),
 };
 

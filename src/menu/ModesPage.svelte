@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { LevelEntry } from "../modes/modes";
   import { MAX_STARS } from "../modes/track";
-  import { aim_or_go, bare_enter } from "./drive-picks";
-  import { MODES_PAGE } from "./events-view";
+  import { aim_or_go, bare_enter, link_key } from "./drive-picks";
+  import { CUSTOM_PAGE, MODES_PAGE } from "./events-view";
   import MenuFrame from "./MenuFrame.svelte";
   import Card from "./ui/Card.svelte";
   import Chip from "./ui/Chip.svelte";
@@ -53,7 +53,9 @@
   }
 
   function key(event: KeyboardEvent) {
-    if (!shown || event.defaultPrevented || !bare_enter(event)) return;
+    if (!shown || event.defaultPrevented) return;
+    if (link_key(event) === "c") return menu.show(CUSTOM_PAGE);
+    if (!bare_enter(event)) return;
     event.preventDefault();
     play();
   }
@@ -62,6 +64,7 @@
 <svelte:window onkeydown={key} />
 
 {#snippet links()}
+  <KeyLink keys={{ key: "C", pad: "Y" }} onclick={() => menu.show(CUSTOM_PAGE)}>Custom race</KeyLink>
   {#if running !== null}<KeyLink onclick={quit}>Quit {running}</KeyLink>{/if}
 {/snippet}
 

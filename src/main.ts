@@ -51,6 +51,9 @@ import { show_first_run } from "./goals/first-run-view.svelte";
 import { FINAL_PAGE, FINAL_PARAM } from "./modes/final";
 import { ToastQueue } from "./goals/toast-queue";
 import { race_choices } from "./modes/races";
+import { CUSTOM_PARAM, custom_host, custom_route, custom_travel } from "./modes/custom-race";
+import { field_routes } from "./modes/field-route";
+import { CUSTOM_PAGE } from "./menu/events-view";
 import { ChunkTrackside, gates, type Gate } from "./car/trackside";
 import { kept_random_name } from "./menu/guide-rules";
 import { PadMenu } from "./menu/pad-menu";
@@ -124,10 +127,11 @@ const ai_level = ai_race ? params.get(AI_RACE_PARAM) : null;
 const series_on = params.has(SERIES_PARAM);
 const series_pick = series_on ? series_event(params.get(SERIES_PARAM)) : null;
 let series_starting = series_on;
+const custom_on = params.has(CUSTOM_PARAM);
 // Any peer on the map can call a lobby race, and that ends a mode run: an event link without a room of its own runs
 // alone in an unlisted room, as does a review shot, which no peer should drive into. The menu still names `room`, so
 // the next world picked lands back in it.
-const solo = (event !== null || run !== null || lab_id !== null || series_on || review_wanted(params)) && !params.has("room");
+const solo = (event !== null || run !== null || lab_id !== null || series_on || custom_on || review_wanted(params)) && !params.has("room");
 // getRandomValues, not randomUUID: the latter only exists in a secure context, and a phone on the LAN dev server is not one.
 const net_room = solo ? `solo-${[...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, "0")).join("")}` : room;
 const RECORDS_WAIT_MS = 1500;
@@ -368,6 +372,7 @@ function quit_mode() {
   if (lobby.busy) lobby.leave();
   modes.exit();
 }
+const custom_routes = race_choices(field_routes(world));
 const settings = new Settings(document.body, {
   room,
   seed,
@@ -382,6 +387,8 @@ const settings = new Settings(document.body, {
   start_series: (id, car) => start_series(id, car),
   runs,
   start_run: (id, car) => start_run(id, car),
+  custom_routes,
+  start_custom: (car) => start_custom(car),
   watch_replay: (saved) => watch_saved(saved),
   name: () => net.name,
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
@@ -661,6 +668,16 @@ function start_series(id: string, car: string | null = null) {
   const host = series_host(base, one, to, next);
   modes.series_race(to.route, host);
 }
+function start_custom(car: string | null = null) {
+  const setup = settings.state.custom_race;
+  if (setup.map && custom_travel(setup, built)) return travel({ [CUSTOM_PARAM]: "1", map: setup.map }, car);
+  const route = custom_route(custom_routes, setup.route);
+  if (!route) return notes.push("No circuit on this map for an AI field", MAP_NOTE_MS);
+  if (car) garage.use_code(car);
+  settings.close();
+  const base = { sim, build: () => garage.build, rating: () => rating(garage.build), autopilot: params.has(AI_DRIVE_PARAM) };
+  modes.series_race(route.id, custom_host(base, setup, route.name, { label: "Custom race", go: () => settings.open(CUSTOM_PAGE) }));
+}
 // A run's map is the plain map of its kind and seed (world-pick.ts).
 const run_on_map = (to: RunPick) => place_of(plain_map(to.kind, to.seed), built).here;
 
@@ -721,6 +738,9 @@ else if (event) notes.push("This event's map did not load", MAP_NOTE_MS);
 if (run && run_on_map(run)) play_taken(briefed, () => play_run(run));
 else if (run) notes.push("This run's map did not load", MAP_NOTE_MS);
 if (ai_level) modes.play(ai_level);
+// A code that fell back to its plain map would travel to itself forever, so a load starts the race only where it landed.
+if (custom_on && custom_travel(settings.state.custom_race, built)) notes.push("This race's map did not load", MAP_NOTE_MS);
+else if (custom_on) start_custom();
 // A link without its map reloads onto it; one that names a map which fell back would reload onto itself forever.
 // An event's opening rule reads saved progress, so a link starts once it has loaded.
 void Promise.all(series.map((one) => one.load())).then(() => {
@@ -736,7 +756,7 @@ void Promise.all(series.map((one) => one.load())).then(() => {
 });
 // After `markers`: the Play page reads its map markers as soon as the menu opens.
 if (REVIEW_BUILD && params.has(FINAL_PARAM)) settings.open(FINAL_PAGE);
-else if (!take_drive() && !event && !run && !review && lab_id === null && !ai_level && !series_on) {
+else if (!take_drive() && !event && !run && !review && lab_id === null && !ai_level && !series_on && !custom_on) {
   if (prefs.guide_seen) settings.open_title();
   else settings.open_guide();
 }

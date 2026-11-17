@@ -10,6 +10,7 @@ import { series_map } from "../career/series-run";
 import type { Series } from "../career/series-store";
 import { next_up } from "../hud/next-up";
 import { WEEK_STARS } from "../modes/championship";
+import { RaceFormat, grid_of, type CustomRace } from "../modes/custom-race";
 import { MODES, mode_name } from "../modes/modes";
 import { RunSource, run_of, type RunPick } from "../runs/runs";
 import { plain_map, type MapSpec } from "../worldgen/kinds/kinds";
@@ -22,6 +23,7 @@ export const CAREER_PAGE = "tiers";
 export const RUNS_PAGE = "runs";
 export const RUN_BUILD_PAGE = "run-build";
 export const MODES_PAGE = "modes";
+export const CUSTOM_PAGE = "custom-race";
 
 export const in_map_order = (groups: readonly MapGroup[]) => groups.flatMap((group) => group.events);
 
@@ -40,13 +42,14 @@ export function tier_line(view: TierView, maps: number): string {
 
 export const tier_eyebrow = (view: TierView) => `Tier ${view.index + 1} of ${TIERS.length}${view.state === "current" ? " · now" : view.have === view.max ? " · done" : ""}`;
 
-export type StartTarget = { kind: "event"; event: CareerEvent } | { kind: "series"; series: Series; event: SeriesEvent } | { kind: "run"; pick: RunPick };
+export type StartTarget = { kind: "event"; event: CareerEvent } | { kind: "series"; series: Series; event: SeriesEvent } | { kind: "run"; pick: RunPick } | { kind: "custom"; setup: CustomRace; map: MapSpec; route: string };
 
 export function target_of(host: SettingsHost, kind: StartTarget["kind"], id: string): StartTarget | null {
   if (kind === "event") {
     const event = event_of(id);
     return event && { kind, event };
   }
+  if (kind === "custom") return null;
   if (kind === "run") {
     const pick = run_of(id);
     return pick && { kind, pick };
@@ -117,6 +120,24 @@ export function start_view(target: StartTarget, here: MapSpec): StartView {
       lent: null,
     };
   }
+  if (target.kind === "custom") {
+    const { setup, map } = target;
+    return {
+      img: preview(map.kind),
+      eyebrow: `Custom race · ${FORMAT_NAMES[setup.format]}`,
+      title: target.route,
+      place: place_of(map, here),
+      marks: [
+        { head: "Rivals", text: String(setup.rivals) },
+        { head: setup.format === RaceFormat.TIMED ? "Time" : "Laps", text: length_text(setup) },
+        { head: "Grid", text: `P${grid_of(setup) + 1}` },
+      ],
+      facts: "Any car you own · nothing is recorded",
+      limit: { cap: null, car_sized_only: false },
+      limit_text: "Any car",
+      lent: null,
+    };
+  }
   const { pick } = target;
   const weekly = pick.stages !== null;
   return {
@@ -132,6 +153,10 @@ export function start_view(target: StartTarget, here: MapSpec): StartView {
   };
 }
 
+export const FORMAT_NAMES: Record<RaceFormat, string> = { laps: "Race", knockout: "Knockout", timed: "Timed" };
+
+export const length_text = (setup: CustomRace) => (setup.format === RaceFormat.TIMED ? `${setup.minutes} min` : setup.laps ? String(setup.laps) : "Auto");
+
 export interface GoLine {
   verb: string;
   note: string;
@@ -143,12 +168,13 @@ export function go_line(view: StartView, short: string): GoLine {
   return { verb: `Travel to ${view.place.name}`, note: pick ? `${pick}, then ${view.place.name} loads.` : `Loads ${view.place.name}.` };
 }
 
-export const target_name = (target: StartTarget) => (target.kind === "run" ? pick_text(target.pick) : target.event.name);
+export const target_name = (target: StartTarget) => (target.kind === "run" ? pick_text(target.pick) : target.kind === "custom" ? target.route : target.event.name);
 
 export function start_target(host: SettingsHost, target: StartTarget, car: string | null) {
   if (target.kind === "event") host.start_event(target.event.id, car);
   else if (target.kind === "series") host.start_series(target.event.id, car);
-  else host.start_run(target.pick.id, car);
+  else if (target.kind === "run") host.start_run(target.pick.id, car);
+  else host.start_custom(car);
 }
 
 export function complete_line(views: readonly TierView[]): string | null {

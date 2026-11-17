@@ -13,13 +13,14 @@ import SettingsPage from "./settings-tab/SettingsPage.svelte";
 import ChangesPage from "./settings-tab/ChangesPage.svelte";
 import { GUIDE_PAGE } from "./guide-topics";
 import ModesPage from "./ModesPage.svelte";
+import CustomRacePage from "./CustomRacePage.svelte";
 import RunsPage from "./runs/RunsPage.svelte";
 import ReplaysPage from "../replay/ReplaysPage.svelte";
 import { REPLAYS_PAGE } from "../replay/saved";
 import RunBuilder from "./runs/RunBuilder.svelte";
 import CareerPage from "./CareerPage.svelte";
 import EventsPage from "./EventsPage.svelte";
-import { CAREER_PAGE, MODES_PAGE, RUNS_PAGE, RUN_BUILD_PAGE } from "./events-view";
+import { CAREER_PAGE, CUSTOM_PAGE, MODES_PAGE, RUNS_PAGE, RUN_BUILD_PAGE } from "./events-view";
 import { TUNE_PARAM } from "../career/career";
 import MeetPage from "./online/MeetPage.svelte";
 import OnlinePage from "./online/OnlinePage.svelte";
@@ -141,6 +142,7 @@ export class Settings {
       svelte_page(this.menu, { id: REPLAYS_PAGE, label: "Replays", parent: MenuTab.EVENTS, layout: "frame" }, ReplaysPage, { watch: (replay: SavedReplay) => host.watch_replay(replay) }),
       svelte_page(this.menu, { id: RUN_BUILD_PAGE, label: "Build a run", parent: MenuTab.EVENTS, layout: "frame" }, RunBuilder, { picker: this.picker }),
       svelte_page(this.menu, { id: MODES_PAGE, label: "Free modes", parent: MenuTab.EVENTS, layout: "frame" }, ModesPage),
+      svelte_page(this.menu, { id: CUSTOM_PAGE, label: "Custom race", parent: MenuTab.EVENTS, layout: "frame" }, CustomRacePage, { picker: this.picker }),
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.EVENTS, layout: "frame" }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
       svelte_page(this.menu, { id: SERIES_PAGE, label: "Harepin Series", parent: MenuTab.EVENTS, layout: "frame" }, SeriesPage, { picker: this.picker, asked: () => this.take_round() }),
       svelte_page(this.menu, { id: NEW_ROOM_PAGE, label: "New room", parent: MenuTab.ONLINE, layout: "frame" }, RoomPage),

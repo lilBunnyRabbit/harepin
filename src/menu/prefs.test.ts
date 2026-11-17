@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { SteerMode } from "../car/car";
 import { DEFAULT_BINDINGS, rebind_key } from "../hud/bindings";
 import { DEFAULT_PAD_RESPONSE } from "../hud/pad-curve";
+import { DEFAULT_CUSTOM } from "../modes/custom-race";
 import { DEFAULT_SETTINGS, pad_settings, parse_settings, type SettingsState } from "./prefs";
 
 describe("parse_settings", () => {
@@ -56,6 +57,7 @@ describe("parse_settings", () => {
       last_map: "1S3ZZZZZZ-A0",
       last_mainland_seed: 12,
       guide_seen: false,
+      custom_race: { ...DEFAULT_CUSTOM, rivals: 2, laps: 6 },
       smooth_steer: true,
     };
     expect(parse_settings(stored)).toEqual(stored);

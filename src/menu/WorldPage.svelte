@@ -9,6 +9,7 @@
   import { LISTED, WORLDS } from "../worlds/worlds";
   import { bare_enter, link_key } from "./drive-picks";
   import { FALLBACK } from "./map-note";
+  import { CUSTOM_PAGE } from "./events-view";
   import { kind_map, MAKE_PAGE } from "./maps";
   import MenuFrame from "./MenuFrame.svelte";
   import { invite_link } from "./page";
@@ -25,7 +26,7 @@
   import WorldMap from "./WorldMap.svelte";
   import { WorldMap as MapView } from "./world-map.svelte";
 
-  let { menu, shown }: PageProps = $props();
+  let { menu, live, shown }: PageProps = $props();
 
   const NEWER = "Made in a newer Harepin: update to drive it";
   const BAD = "Not a map code";
@@ -109,6 +110,12 @@
   function drive() {
     if (bad) return;
     menu.drive(chosen.seed, chosen.kind, chosen.levels);
+  }
+
+  function race() {
+    if (bad) return;
+    live.set("custom_race", { ...live.prefs.custom_race, map: here ? null : code, route: "" });
+    menu.show(CUSTOM_PAGE);
   }
 
   async function copy(what: CopyKind) {
@@ -214,6 +221,7 @@
 
   {#snippet links()}
     {#if custom}<KeyLink onclick={() => choose(plain_map(chosen.kind, chosen.seed), true)}>Reset values</KeyLink>{/if}
+    <KeyLink onclick={race}>Race it with AI</KeyLink>
     <KeyLink onclick={() => copy("link")}>{copied.link ?? COPY.link}</KeyLink>
   {/snippet}
   {#snippet primary()}
