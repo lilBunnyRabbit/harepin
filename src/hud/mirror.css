@@ -1,40 +1,84 @@
 :root {
   --mirror-w: calc(256px * var(--hud-scale));
   --mirror-h: calc(var(--mirror-w) / 4);
+  /* What holds the top row, with the gap under it. Not anchored: an anchored box is laid out again with every frame's
+     HUD write (docs/plan/perf-2026-11.md, cause 2). */
+  --mirror-panel: 0px;
+  --mirror-card: 0px;
+  --mirror-first: 0px;
+  --mirror-drop: calc(var(--mirror-panel) + max(var(--mirror-card), var(--mirror-first)));
 }
 
-/* The frame alone: the picture is drawn on the canvas under it (render/mirror.ts). */
+/* The drop is top padding, so a card coming or going resizes the box and its observer reads the new spot. The picture
+   is drawn on the canvas under the `::after` frame (render/mirror.ts). */
 #mirror {
   box-sizing: border-box;
-  top: var(--inset-top);
+  top: var(--corner-top);
   left: 50%;
   translate: -50% 0;
   width: var(--mirror-w);
-  height: var(--mirror-h);
-  padding: 0;
-  border: var(--space-1) solid var(--surface);
-  border-radius: var(--radius-md);
+  height: calc(var(--mirror-drop) + var(--mirror-h));
+  padding: var(--mirror-drop) 0 0;
+  border: 0;
+  border-radius: 0;
   background: none;
   pointer-events: none;
+}
+
+#mirror::after {
+  content: "";
+  position: absolute;
+  inset: var(--mirror-drop) 0 0;
+  border: var(--space-1) solid var(--surface);
+  border-radius: var(--radius-md);
 }
 
 #mirror[hidden] {
   display: none;
 }
 
-/* The mirror keeps the top edge; the run's card, the race panel and the toast take the row under it. */
-:root[data-mirror] :is(#strip, #mode-status, #race-panel, #toast, .first-steps) {
-  --inset-top: calc(var(--inset) + env(safe-area-inset-top) + var(--mirror-h) + var(--space-2));
-  --corner-top: var(--inset-top);
+/* Run card heights at hud scale 1 (run-card.css): clock and name rows, a cup's extra row, the name alone. */
+@media (pointer: fine) {
+  :root:has(#mode-status:not([hidden])),
+  :root:has(#strip:not([data-idle])) {
+    --mirror-card: calc(69px * var(--hud-scale) + var(--space-2));
+  }
+
+  :root:has(#mode-status[data-cup]:not([hidden])) {
+    --mirror-card: calc(78px * var(--hud-scale) + var(--space-2));
+  }
+
+  :root:has(#mode-status[data-clockless]:not([hidden])) {
+    --mirror-card: calc(45px * var(--hud-scale) + var(--space-2));
+  }
+
+  :root:has(#race-panel:not([hidden])) {
+    --mirror-panel: calc(42px + var(--space-2));
+  }
+
+  :root:has(.first-steps) {
+    --mirror-first: calc(var(--top-h) + var(--space-2));
+  }
 }
 
-/* A narrow window keeps its top row for the dock and the title. */
+/* What hangs under the run card goes under the mirror instead; a narrow window has no mirror. */
+@media (min-width: 761px) {
+  :root[data-mirror] #toast {
+    top: calc(var(--corner-top) + var(--mirror-drop) + var(--mirror-h) + var(--space-2));
+    margin-top: 0;
+  }
+
+  :root[data-mirror] #mode-hint {
+    top: calc(anchor(bottom) + var(--mirror-h) + 2 * var(--space-2));
+  }
+
+  :root[data-mirror] #mode-wrong {
+    top: calc(anchor(bottom) + var(--mirror-h) + var(--space-2) + var(--space-8) + var(--space-4));
+  }
+}
+
 @media (max-width: 760px) {
   #mirror {
     display: none;
-  }
-
-  :root[data-mirror] :is(#strip, #mode-status, #race-panel, #toast, .first-steps) {
-    --inset-top: calc(var(--inset) + env(safe-area-inset-top));
   }
 }

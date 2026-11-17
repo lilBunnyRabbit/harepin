@@ -4,7 +4,7 @@ import "./mirror.css";
 export class MirrorFrame {
   // Read in the observer, where layout is fresh, so no frame forces one. The frame is centred, so a window resize moves
   // it without resizing it: the app is observed too.
-  private readonly observer = new ResizeObserver(() => this.read());
+  private readonly observer = new ResizeObserver(() => this.read());
 
   constructor(
     private readonly el: HTMLElement,
@@ -13,7 +13,7 @@ export class MirrorFrame {
   ) {}
 
   start() {
-    this.observer.observe(this.el);
+    this.observer.observe(this.el, { box: "border-box" });
     this.observer.observe(this.app);
   }
 
@@ -27,13 +27,17 @@ export class MirrorFrame {
     document.documentElement.toggleAttribute("data-mirror", on);
   }
 
+  // The box reaches up to the top edge and its top padding is the drop under the cards there (mirror.css), so a card
+  // coming or going resizes it; the frame itself is the `::after` under that padding.
   private read() {
     const { el } = this;
     const rect = el.getBoundingClientRect();
-    const border = el.clientLeft;
+    const drop = parseFloat(getComputedStyle(el).paddingTop);
+    const frame = getComputedStyle(el, "::after");
+    const border = parseFloat(frame.borderTopWidth);
     const width = Math.max(0, rect.width - 2 * border);
-    const height = Math.max(0, rect.height - 2 * border);
-    const radius = Math.max(0, parseFloat(getComputedStyle(el).borderTopLeftRadius) - border);
-    this.place(rect.left + border, rect.top + border, width, height, radius);
+    const height = Math.max(0, rect.height - drop - 2 * border);
+    const radius = Math.max(0, parseFloat(frame.borderTopLeftRadius) - border);
+    this.place(rect.left + border, rect.top + drop + border, width, height, radius);
   }
 }
