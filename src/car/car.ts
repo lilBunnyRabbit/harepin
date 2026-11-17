@@ -357,6 +357,8 @@ export class Car {
   assist = true;
   /** Stability (STM): the yaw damper that stops a slide growing into a spin. */
   stability = true;
+  /** Share of its drag the wake of a car ahead takes off (`slipstream`); 0 in clean air. */
+  tow = 0;
   tcs_factor = NaN;
   braking = NaN;
   throttle = NaN;
@@ -747,7 +749,7 @@ export class Car {
       tmp.copy(ang).addScaledVector(up, -yaw);
       ang.addScaledVector(tmp, -Math.min(1, spec.air_settle * dt)).addScaledVector(level, dt);
     }
-    body.force.addScaledVector(vel, -spec.drag * speed);
+    body.force.addScaledVector(vel, -spec.drag * (1 - this.tow) * speed);
     const lift = any_contact(this.wheels) ? 1 : 1 - spec.ground_effect;
     const press = spec.downforce * lift * vf * vf;
     body.force.addScaledVector(up, -press);
