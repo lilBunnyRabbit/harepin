@@ -41,7 +41,7 @@
   --text-lg: 14px;
   --text-xl: 16px;
   --text-2xl: 20px;
-  --text-3xl: 28px;
+  --text-3xl: 32px;
 
   --control-h: 32px;
   --control-h-sm: 28px;
@@ -49,7 +49,7 @@
   --icon-size: 18px;
   --bar-h: 56px;
 
-  --inset: 16px;
+  --inset: 32px;
   --inset-top: calc(var(--inset) + env(safe-area-inset-top));
   --inset-right: calc(var(--inset) + env(safe-area-inset-right));
   --inset-bottom: calc(var(--inset) + env(safe-area-inset-bottom));
@@ -57,16 +57,54 @@
 
   --line: color-mix(in oklch, var(--foreground) 12%, transparent);
   --line-strong: color-mix(in oklch, var(--foreground) 22%, transparent);
-  --dim: color-mix(in oklch, var(--foreground) 62%, transparent);
+  --faint: color-mix(in oklch, var(--foreground) 32%, transparent);
+  --dim: color-mix(in oklch, var(--foreground) 68%, transparent);
 
-  /* Opaque enough that the sun glow behind a HUD panel never washes its text out. */
-  --surface: color-mix(in oklch, var(--background-darkest) 92%, transparent);
+  /* The surface ladder: cards sit darker than the page, rows and inner fills step back up from them. Opaque enough that
+     the sun glow behind a HUD panel never washes its text out. */
+  --deep: oklch(from var(--background-darkest) calc(l - 0.06) calc(c * 0.8) h);
+  --surface: color-mix(in oklch, var(--deep) 96%, transparent);
+  --row: var(--background-darker);
+  --row-on: var(--background-dark);
+  --fill: var(--background);
+  --shadow: 0 18px 44px color-mix(in oklch, var(--background-darkest) 55%, transparent);
   --panel: var(--background-light);
   --panel-well: var(--background-darker);
   --panel-raised: var(--background-lightest);
   --panel-shadow: 0 24px 64px color-mix(in oklch, var(--background-darkest) 50%, transparent);
 
   --hud-scale: 1;
+
+  /* The frame scale (docs/plan/ux-mockups/frames.css): every size a phone changes, set again in the one
+     `(max-height: 500px)` block below. Pages and shared pieces size from these, never from a breakpoint of their own. */
+  --pad: 20px;
+  --gap: 16px;
+  --gap-md: 12px;
+  --gap-sm: 8px;
+  --gap-xs: 4px;
+
+  --top-h: 44px;
+  --primary-h: 52px;
+  --chip-h: 32px;
+  --chip-h-in: 24px;
+  --row-h: 36px;
+  --bar-thick: 8px;
+
+  --card-radius: var(--radius-lg);
+  --focus-w: 3px;
+
+  --type-h1: var(--text-3xl);
+  --type-h2: var(--text-2xl);
+  --type-h3: var(--text-xl);
+  --type-body: var(--text-lg);
+  --type-small: var(--text-sm);
+  --type-eyebrow: var(--text-xs);
+  --type-primary: 18px;
+
+  --display-1: 48px;
+  --display-2: 64px;
+  --display-3: 96px;
+  --display-4: 144px;
 }
 
 :root[data-hud-size="small"] {
@@ -78,7 +116,11 @@
 }
 
 :root[data-scheme="light"] {
-  --surface: color-mix(in oklch, var(--background-lighter) 94%, transparent);
+  --deep: var(--background-lighter);
+  --surface: color-mix(in oklch, var(--deep) 94%, transparent);
+  --row: var(--background);
+  --row-on: var(--background-dark);
+  --fill: var(--background-dark);
   --line: color-mix(in oklch, var(--foreground) 16%, transparent);
   --dim: color-mix(in oklch, var(--foreground) 72%, transparent);
   --panel-well: var(--background-dark);
@@ -92,6 +134,40 @@
     --icon-size: 20px;
     --bar-h: 0px;
     --inset: 12px;
+  }
+}
+
+@media (max-height: 500px) {
+  :root {
+    --inset: 16px;
+    --pad: 12px;
+    --gap: 10px;
+    --gap-md: 8px;
+    --gap-sm: 6px;
+    --gap-xs: 2px;
+
+    --top-h: 32px;
+    --primary-h: 44px;
+    --chip-h: 26px;
+    --chip-h-in: 20px;
+    --row-h: 28px;
+    --bar-thick: 6px;
+
+    --card-radius: var(--radius-md);
+    --focus-w: 2px;
+
+    --type-h1: var(--text-2xl);
+    --type-h2: var(--text-xl);
+    --type-h3: var(--text-md);
+    --type-body: var(--text-sm);
+    --type-small: 10.5px;
+    --type-eyebrow: 9.5px;
+    --type-primary: 15px;
+
+    --display-1: 30px;
+    --display-2: 36px;
+    --display-3: 52px;
+    --display-4: 64px;
   }
 }
 
