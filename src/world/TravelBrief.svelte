@@ -33,12 +33,14 @@
 
   function key(press: KeyboardEvent) {
     if (press.key !== "Enter" || press.repeat || !view.ready) return;
+    // The chat opens on Enter too, in the capture phase of the same window: this listener is older, so it stops there.
     press.preventDefault();
+    press.stopImmediatePropagation();
     onstart();
   }
 </script>
 
-<svelte:window onkeydown={key} />
+<svelte:window onkeydowncapture={key} />
 
 <section class="travel" aria-label={`Travelling to ${travel.to}`}>
   <PageFrame eyebrow={travel.from ? `Travelling · ${travel.from} to` : "Travelling to"} title={travel.to} note={view.ready ? undefined : "Lights up when the map is ready."}>

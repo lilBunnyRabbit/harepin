@@ -36,7 +36,7 @@ export function brief_of(travel: Travel): BriefFacts {
   if ("series" in travel) {
     const { season, event } = travel.series;
     const eyebrow = `${season.name} Series · Round ${season.events.indexOf(event) + 1} of ${season.events.length}`;
-    return { eyebrow, name: event.name, goal: goal_of("race"), marks: [], specs: [{ label: "Class", value: limit_text(season.cap) }], lent: null, start: "Starts on the grid, engine running" };
+    return { eyebrow, name: event.name, goal: goal_of("race"), marks: [], specs: [{ label: "Car", value: limit_text(season.cap) }], lent: null, start: "Starts on the grid, engine running" };
   }
   const { event } = travel;
   const preset = "preset" in event.car ? PRESETS.find((one) => "preset" in event.car && one.name === event.car.preset) : undefined;
