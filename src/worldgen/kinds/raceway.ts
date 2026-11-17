@@ -4,7 +4,7 @@ import { SIZE, WorldKind } from "../types";
 import { kind_def, LAND_GRIP } from "./kind-def";
 import { knob, tune, type Knob } from "./options";
 
-export const RACEWAY_VERSION = 4;
+export const RACEWAY_VERSION = 5;
 
 const lap = <V>(set: (lap: LapRecipe, value: V) => LapRecipe) => (r: RacewayRecipe, value: V): RacewayRecipe => ({ ...r, lap: set(r.lap, value) });
 

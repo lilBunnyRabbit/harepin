@@ -122,7 +122,7 @@ test("unknown ids and names fall back to the island", () => {
 
 test("a plain map of every kind keeps its id and records key; levels at normal are plain", () => {
   const keys = Object.fromEntries(Object.values(WorldKind).map((kind) => [kind, [world_key(42, kind), map_id(plain_map(kind, 42))]]));
-  expect(keys).toEqual({ island: ["42:w14", 14], sky: ["42:sky5", 1005], desert: ["42:d7", 2007], mainland: ["42:m13", 3013], alpine: ["42:a7", 4007], tundra: ["42:t7", 5007], volcano: ["42:v8", 6008], rooftops: ["42:roof2", 8002], dunes: ["42:bd17", 9017], icecanyon: ["42:ic9", 7009], velodrome: ["42:velo3", 10003], lab: ["42:lab2", 11002], raceway: ["42:rw4", 13004] });
+  expect(keys).toEqual({ island: ["42:w14", 14], sky: ["42:sky5", 1005], desert: ["42:d7", 2007], mainland: ["42:m13", 3013], alpine: ["42:a7", 4007], tundra: ["42:t7", 5007], volcano: ["42:v8", 6008], rooftops: ["42:roof2", 8002], dunes: ["42:bd17", 9017], icecanyon: ["42:ic9", 7009], velodrome: ["42:velo3", 10003], lab: ["42:lab2", 11002], raceway: ["42:rw5", 13005] });
   for (const kind of Object.values(WorldKind)) {
     const normal = KINDS[kind].options.map((o) => o.normal);
     expect(world_key(42, kind, normal)).toBe(world_key(42, kind));

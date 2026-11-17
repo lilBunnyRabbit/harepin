@@ -8,7 +8,7 @@ import { tune } from "./kinds/options";
 import { RACEWAY_KNOBS } from "./kinds/raceway";
 import { RACEWAY } from "./raceway";
 import { BAYS, GRAVEL_NEAR, layout_of, side_index, STAND_FRONT, stand_depth, WALL } from "./raceway-layout";
-import { BAY_HEIGHT, TYRE_HEIGHT, WALL_HEIGHT } from "./raceway-venue";
+import { BAY_HEIGHT, BURY, TYRE_HEIGHT, WALL_HEIGHT } from "./raceway-venue";
 import { CELL, ROAD_HALF, SurfaceId, WorldKind, type Solid, type WorldData } from "./types";
 
 type Box = Extract<Solid, { kind: "box" }>;
@@ -53,6 +53,14 @@ test("a barrier stands on the ground along its whole length and never much over 
       expect(box.hd).toBeLessThan(4.5);
       expect(box.y).toBeLessThanOrEqual(sample(data.terrain.heights, box.x, box.z) + 1e-6);
       expect(box.height).toBeLessThan(Math.max(WALL_HEIGHT, TYRE_HEIGHT) + 1);
+    }
+});
+
+test("a barrier's ground rises at most BURY over its base, so no end of it sits sunk in a slope", () => {
+  for (const data of plain)
+    for (const box of boxes(data).filter((b) => b.hw < 0.5)) {
+      const ys = [-1, 1].flatMap((sx) => [-1, 1].map((sz) => sample(data.terrain.heights, box.x + sx * box.hw * box.cos + sz * box.hd * box.sin, box.z - sx * box.hw * box.sin + sz * box.hd * box.cos)));
+      expect(Math.max(...ys) - box.y).toBeLessThanOrEqual(BURY);
     }
 });
 
