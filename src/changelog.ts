@@ -51,6 +51,19 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.63.1",
+    date: "2026-11-17",
+    title: "Phone and menu fixes",
+    changes: [
+      { kind: FIXED, text: "The road lamps from 0.60 are gone again: they cost too much for what they gave" },
+      { kind: FIXED, text: "Race guidance is a lit line on the ground only, no glowing walls" },
+      { kind: FIXED, text: "The first run no longer gets stuck when your first flag is on another map, and you can skip it" },
+      { kind: FIXED, text: "Phone HUD fits every phone width, the minimap is bigger and always top-left, the round speedometer is its old size again" },
+      { kind: FIXED, text: "A mouse click opens doors and settings, a double-click picks a part or car; arrow keys stay inside the page" },
+      { kind: FIXED, text: "Drag, tilt and zoom the car on Title, Home, Garage and the podium" },
+    ],
+  },
+  {
     version: "0.63.0",
     date: "2026-11-17",
     title: "Custom race",
