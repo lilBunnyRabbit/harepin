@@ -394,3 +394,9 @@ Things in the mockups that need a new state layer, new data or engine work. The 
 - D9: drop the HUD layouts and `dash` / `map_corner`; keep one HUD with Minimap, Speedometer and HUD size settings.
 - D12: no part prices. Garage shows Fitted / Fits / Over class only.
 - D13: drop the 7-step guide tour, teach on the road. The owner still wants a guided pass through the key settings, so the first run gets one skippable "Set up" step after the name: theme, handling (assists / steering feel), controls. Each choice previews live. The first-steps goals then include "Try a theme" and "Tune your handling", which point into Settings.
+
+### 8.7 Batch 0 notes (2026-11-17)
+- 0a done d3cf15a..53d82f3 (`?showcase=ui`). Lanes size from the frame tokens (`--pad`, `--gap*`, `--row-h`, `--type-*`), never raw `--space-*`. KeyButton `size` and Card `variant`, plus PlaceChip, stay only until 2c/2d move their callers; delete them in batch 3.
+- 0c done 1c37564..e42b1ab: travel, Series always on, gate preselect, pause door. Left for the UI lanes: travel-card.ts + its boot hook (2c), the result card lines in modes.ts (2d), the Series door (1b), the AI difficulty row (2b).
+- D2 decided: no "start on arrival". Lane 2c drops `GO_PARAM` / `travel.go`; Enter (hold) starts.
+- D5: `travel_query(…, taken)` passes `false` until the launch work (1b) passes `true` after the picker.
