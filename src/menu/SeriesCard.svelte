@@ -1,6 +1,6 @@
 <script lang="ts">
   import { KIND_NAMES, KIND_RULES, type EventState, type SeriesEvent } from "../career/series";
-  import { event_art, lock_line, place_text, type CarNote, type EventScore } from "./series-view";
+  import { event_art, lock_line, place_text, type EventScore } from "./series-view";
   import Icon from "./ui/Icon.svelte";
 
   interface Props {
@@ -13,14 +13,10 @@
     reward?: string | null;
     /** Shown on a locked card in place of what opens the event: a shut season's reason. */
     lock?: string | null;
-    /** Why the player's car can't race it: the card offers the garage in place of Race. */
-    car?: CarNote | null;
-    ongarage?: () => void;
-    onstart: (id: string) => void;
     onpick?: () => void;
   }
 
-  let { event, n, state, score, front, reward = null, lock = null, car = null, ongarage, onstart, onpick }: Props = $props();
+  let { event, n, state, score, front, reward = null, lock = null, onpick }: Props = $props();
 </script>
 
 <article class="sc" data-state={state} data-front={front} data-final={event.final === true}>
@@ -34,22 +30,14 @@
   <div class="sc-body">
     <h3>{event.name}</h3>
     {#if reward}<span class="sc-reward"><Icon name="icon-car" />{reward}</span>{/if}
-    {#if !(car && state !== "locked")}<p class="sc-front">{KIND_RULES[event.kind]}</p>{/if}
+    <p class="sc-front">{KIND_RULES[event.kind]}</p>
     {#if state === "locked"}
       <span class="sc-lock"><Icon name="icon-lock" />{lock ?? lock_line(event)}</span>
-    {:else if car}
-      <p class="sc-car sc-front"><Icon name="icon-car" /><span>{car.why} <span class="sc-rule">{car.rule}</span></span></p>
-      <div class="sc-act">
-        <button type="button" class="sc-go sc-front" tabindex="-1" onclick={() => ongarage?.()}><Icon name="icon-car" />Change car</button>
-      </div>
-    {:else}
-      <div class="sc-act">
-        {#if score}<span class="sc-pts">{score.points} pts</span>{/if}
-        <button type="button" class="sc-go sc-front" tabindex="-1" onclick={() => onstart(event.id)}><Icon name="icon-play" />{score ? "Again" : "Race"}</button>
-      </div>
+    {:else if score}
+      <span class="sc-pts">{score.points} pts</span>
     {/if}
   </div>
-  {#if onpick}<button type="button" class="sc-pick" tabindex="-1" aria-label={`Show ${event.name}`} onclick={onpick}></button>{/if}
+  {#if onpick}<button type="button" class="sc-pick" tabindex="-1" aria-label={front && state !== "locked" ? `Race ${event.name}` : `Show ${event.name}`} onclick={onpick}></button>{/if}
 </article>
 
 <style>
@@ -183,25 +171,7 @@
     white-space: nowrap;
   }
 
-  .sc-car {
-    --icon-size: 1.1em;
-    display: flex;
-    align-items: start;
-    gap: var(--space-2);
-    color: var(--warning);
-    font-weight: 700;
-    text-shadow:
-      0 0 2px var(--background-darkest),
-      0 1px 8px var(--background-darkest);
-  }
-
-  .sc-car :global(svg) {
-    flex: none;
-    margin-top: 0.1em;
-  }
-
-  .sc-lock,
-  .sc-act {
+  .sc-lock {
     display: flex;
     align-items: center;
     gap: var(--space-2);
@@ -213,45 +183,21 @@
     font-weight: 600;
   }
 
-  .sc-act {
-    justify-content: space-between;
-  }
-
   .sc-pts {
     color: var(--set-dim);
     font-weight: 700;
     white-space: nowrap;
   }
 
-  .sc-go {
-    --icon-size: 1em;
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    height: max(var(--control-h-lg), 18cqmin);
-    margin-left: auto;
-    padding: 0 max(var(--space-5), 9cqmin);
-    border: 0;
-    border-radius: var(--radius-full);
-    background: var(--primary);
-    color: var(--on-primary);
-    font: inherit;
-    font-size: max(var(--text-lg), 6.5cqmin);
-    font-weight: 800;
-    cursor: pointer;
-  }
-
   @container (max-height: 14rem) {
-    p:not(.sc-car),
-    .sc-rule {
+    p {
       display: none;
     }
   }
 
   /* Every card lays out the front card's lines and buttons, shown only on the front one: a snap then changes paint, not
      layout, and a layout of this page costs a whole frame on a slow phone. Titles sit at one height along the rail. */
-  [data-front="false"] .sc-front,
-  [data-front="true"] .sc-pick {
+  [data-front="false"] .sc-front {
     visibility: hidden;
   }
 

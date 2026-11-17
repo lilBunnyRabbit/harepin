@@ -15,7 +15,7 @@
 </script>
 
 <div class="sw" role="group" aria-label="Seasons" data-state={tab.done ? "done" : tab.open ? "open" : "locked"}>
-  <span class="sw-of"><span class="sw-brand">Harepin Series · </span>Season {at + 1} of {seasons.length}{tab.done ? " · finished" : ""}</span>
+  <span class="sw-of">Season {at + 1} of {seasons.length}{tab.done ? " · finished" : ""}</span>
   <div class="sw-row">
     <h2 aria-live="polite">
       {#if !tab.open}<Icon name="icon-lock" />{/if}<span class="sw-name">{tab.name} series</span>
@@ -84,12 +84,6 @@
     display: flex;
     flex: none;
     gap: var(--space-2);
-  }
-
-  @media (max-width: 760px) {
-    .sw-brand {
-      display: none;
-    }
   }
 
   @media (max-height: 500px) {

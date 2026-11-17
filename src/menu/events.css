@@ -1,0 +1,74 @@
+/* Text and picture pieces the Events pages share (Events, Career, Runs, the start sheet), sized from the frame tokens. */
+.ev-eyebrow {
+  overflow: hidden;
+  color: var(--dim);
+  font-size: var(--type-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ev-h1,
+.ev-h2,
+.ev-h3 {
+  margin: 0;
+  min-width: 0;
+  font-weight: 800;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.ev-h1 {
+  font-size: var(--type-h1);
+}
+
+.ev-h2 {
+  font-size: var(--type-h2);
+}
+
+.ev-h3 {
+  font-size: var(--type-h3);
+  font-weight: 700;
+}
+
+.ev-small {
+  color: var(--dim);
+  font-size: var(--type-small);
+  font-weight: 500;
+}
+
+.ev-head {
+  display: grid;
+  justify-items: start;
+  gap: var(--gap-sm);
+  min-width: 0;
+}
+
+.ev-stars {
+  color: var(--warning);
+  font-size: var(--type-small);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.ev-stars > i {
+  color: var(--line-strong);
+  font-style: normal;
+}
+
+.ev-pic {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+}
+
+.ev-nowrap {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

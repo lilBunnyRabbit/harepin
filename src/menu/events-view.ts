@@ -1,0 +1,144 @@
+import type { CarLimit } from "../car/car-pick";
+import { CLASS_LABELS } from "../car/pi";
+import { MAX_EVENT_STARS, TIERS, type CareerEvent, type Stars } from "../career/career";
+import type { TierView } from "../career/career-model";
+import { event_map } from "../career/career-store";
+import { event_place, marks_of } from "../career/gate";
+import { place_of, type MapGroup, type Place } from "../career/place";
+import { KIND_NAMES, KIND_POINTS, KIND_RULES, PODIUM, ordinal, type SeriesEvent } from "../career/series";
+import { series_map } from "../career/series-run";
+import type { Series } from "../career/series-store";
+import { next_up } from "../hud/next-up";
+import { WEEK_STARS } from "../modes/championship";
+import { MODES, mode_name } from "../modes/modes";
+import { RunSource, type RunPick } from "../runs/runs";
+import { plain_map, type MapSpec } from "../worldgen/kinds/kinds";
+import type { SettingsHost } from "./page";
+import { car_text, pick_text, stage_text } from "./runs/run-text";
+import { cap_line, event_art } from "./series-view";
+import { preview } from "./widgets";
+
+export const CAREER_PAGE = "tiers";
+export const RUNS_PAGE = "runs";
+export const RUN_BUILD_PAGE = "run-build";
+export const MODES_PAGE = "modes";
+
+export const in_map_order = (groups: readonly MapGroup[]) => groups.flatMap((group) => group.events);
+
+export function tier_front(stars: Stars, order: readonly CareerEvent[], here: MapSpec): CareerEvent {
+  const up = next_up(stars, here)?.event;
+  if (up && order.includes(up)) return up;
+  return order.find((event) => (stars[event.id] ?? 0) < MAX_EVENT_STARS) ?? order[0];
+}
+
+const maps_text = (view: TierView, maps: number) => `${view.tier.events.length} events on ${maps} ${maps === 1 ? "map" : "maps"}`;
+
+export function tier_line(view: TierView, maps: number): string {
+  if (view.state === "locked") return `Opens at ${view.tier.opens_at} ★ in ${TIERS[view.index - 1].name}`;
+  return `${view.have} of ${view.max} ★ · ${maps_text(view, maps)}`;
+}
+
+export const tier_eyebrow = (view: TierView) => `Tier ${view.index + 1} of ${TIERS.length}${view.state === "current" ? " · now" : view.have === view.max ? " · done" : ""}`;
+
+export type StartTarget = { kind: "event"; event: CareerEvent } | { kind: "series"; series: Series; event: SeriesEvent } | { kind: "run"; pick: RunPick };
+
+export interface StartMark {
+  head: string;
+  text: string;
+}
+
+export interface StartView {
+  img: string;
+  eyebrow: string;
+  title: string;
+  place: Place;
+  marks: readonly StartMark[];
+  facts: string;
+  /** What the car must meet in the picker; null when the event lends its own. */
+  limit: CarLimit | null;
+  limit_text: string;
+  lent: string | null;
+}
+
+const RUN_EYEBROWS: Record<RunSource, string> = { [RunSource.DAILY]: "Daily run", [RunSource.WEEKLY]: "Weekly championship", [RunSource.RANDOM]: "Random run", [RunSource.CUSTOM]: "Built run" };
+
+const car_sized_only = (modes: readonly string[]) => modes.some((id) => MODES.find((mode) => mode.id === id)?.car_sized_only);
+
+// Off its map an event's routes are not loaded, so the cars a route leaves out show only at its start.
+function event_limit(event: CareerEvent): CarLimit | null {
+  if (!("cap" in event.car)) return null;
+  return { cap: event.car.cap, car_sized_only: car_sized_only((event.stages ?? [event]).map((stage) => stage.mode)) };
+}
+
+export function start_view(target: StartTarget, here: MapSpec): StartView {
+  if (target.kind === "event") {
+    const { event } = target;
+    const map = event_map(event);
+    const limit = event_limit(event);
+    const car = "cap" in event.car ? `Class ${CLASS_LABELS[event.car.cap]} max` : null;
+    return {
+      img: preview(map.kind),
+      eyebrow: `${event_place(event)} · ${mode_name(event)}`,
+      title: event.name,
+      place: place_of(map, here),
+      marks: marks_of(event).map((mark) => ({ head: "★".repeat(mark.stars), text: mark.text })),
+      facts: [event.stages ? `${event.stages.length} stages` : null, event.off_tarmac ? "Leaves the tarmac" : null, car].filter(Boolean).join(" · "),
+      limit,
+      limit_text: car ?? "",
+      lent: "preset" in event.car ? event.car.preset : null,
+    };
+  }
+  if (target.kind === "series") {
+    const { series, event } = target;
+    const { season } = series;
+    return {
+      img: event_art(event),
+      eyebrow: `${season.name} series · Round ${season.events.indexOf(event) + 1} of ${season.events.length} · ${KIND_NAMES[event.kind]}`,
+      title: event.name,
+      place: place_of(series_map(season, event), here),
+      marks: KIND_POINTS[event.kind].slice(0, PODIUM).map((points, i) => ({ head: ordinal(i + 1), text: `${points} pts` })),
+      facts: `${KIND_RULES[event.kind]} · ${cap_line(season)}`,
+      limit: series.car_limit(),
+      limit_text: cap_line(season),
+      lent: null,
+    };
+  }
+  const { pick } = target;
+  const weekly = pick.stages !== null;
+  return {
+    img: preview(pick.kind),
+    eyebrow: RUN_EYEBROWS[pick.source],
+    title: pick_text(pick),
+    place: place_of(plain_map(pick.kind, pick.seed), here),
+    marks: (pick.stages ?? []).map((stage, i) => ({ head: String(i + 1), text: stage_text(stage.type, undefined) })),
+    facts: [weekly ? `Up to ${WEEK_STARS} season ★` : "Up to 3 season ★", "cap" in pick.car ? car_text(pick.car) : null].filter(Boolean).join(" · "),
+    limit: "cap" in pick.car ? { cap: pick.car.cap, car_sized_only: false } : null,
+    limit_text: car_text(pick.car),
+    lent: "preset" in pick.car ? pick.car.preset : null,
+  };
+}
+
+export interface GoLine {
+  verb: string;
+  note: string;
+}
+
+export function go_line(view: StartView, short: string): GoLine {
+  const pick = view.limit ? "Pick a car" : null;
+  if (view.place.here) return { verb: `Race ${short}`, note: pick ? `${pick}, then it starts. No loading.` : "Starts now. No loading." };
+  return { verb: `Travel to ${view.place.name}`, note: pick ? `${pick}, then ${view.place.name} loads.` : `Loads ${view.place.name}.` };
+}
+
+export const target_name = (target: StartTarget) => (target.kind === "run" ? pick_text(target.pick) : target.event.name);
+
+export function start_target(host: SettingsHost, target: StartTarget, car: string | null) {
+  if (target.kind === "event") host.start_event(target.event.id, car);
+  else if (target.kind === "series") host.start_series(target.event.id, car);
+  else host.start_run(target.pick.id, car);
+}
+
+export function complete_line(views: readonly TierView[]): string | null {
+  if (!views.every((view) => view.have === view.max && view.rewards.every((reward) => reward.got))) return null;
+  const trophies = views.reduce((sum, view) => sum + view.rewards.length, 0);
+  return `${views[views.length - 1].tier.name} rank and all ${trophies} trophies won`;
+}

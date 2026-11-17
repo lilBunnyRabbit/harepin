@@ -7,7 +7,6 @@ import type { Menu } from "../page";
 import { DEFAULT_SETTINGS } from "../prefs";
 import type { MenuState } from "../ui/menu-state.svelte";
 import { daily_text } from "../runs/run-text";
-import SeasonBar from "../runs/SeasonBar.svelte";
 import DailyBoard from "./DailyBoard.svelte";
 import OnlineGames from "./OnlineGames.svelte";
 import OnlinePlayers from "./OnlinePlayers.svelte";
@@ -101,11 +100,5 @@ describe("online cards", () => {
     expect(daily_text("race", { ms: 61_000, score: 212.4 })).toBe("212 km/h");
     expect(daily_text("drift", { ms: 61_000, score: 1840 })).toBe("1,840 pts");
     expect(daily_text("jump", { ms: 61_000, score: 42.5 })).toContain("m");
-  });
-
-  test("the season bar names its steps and the next one", () => {
-    const html = render(SeasonBar, { props: { stars: 31, season: "2026-10-26", today: "2026-11-13" } }).body;
-    for (const text of ["Season 1", "31 ★", "Accent tint", "S1 Regular", "Next: Info tint at 45 ★"]) expect(html).toContain(text);
-    expect(render(SeasonBar, { props: { stars: 500, season: "2026-10-26", today: "2026-11-13", compact: true } }).body).toContain("Every step reached");
   });
 });

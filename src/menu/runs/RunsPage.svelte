@@ -1,230 +1,179 @@
 <script lang="ts">
+  import { place_of, type Place } from "../../career/place";
   import { WEEK_STARS } from "../../modes/championship";
-  import { points_text } from "../../modes/result";
-  import { local_store } from "../../modes/track";
-  import { FREE_CAP, weekly_best } from "../../runs/runs-store";
-  import { daily, iso_week, new_seed, random, weekly } from "../../runs/runs";
-  import Button from "../ui/Button.svelte";
+  import { FREE_CAP } from "../../runs/runs-store";
+  import { daily, iso_week, new_seed, random, type_of, weekly, type RunPick } from "../../runs/runs";
+  import { plain_map } from "../../worldgen/kinds/kinds";
+  import type { CarPicker } from "../car-pick.svelte";
+  import { bare_enter } from "../drive-picks";
+  import { RUNS_PAGE, RUN_BUILD_PAGE, type StartTarget } from "../events-view";
+  import MenuFrame from "../MenuFrame.svelte";
+  import StartSheet from "../StartSheet.svelte";
   import Card from "../ui/Card.svelte";
-  import ClassBadge from "../ui/ClassBadge.svelte";
-  import Progress from "../ui/Progress.svelte";
-  import Row from "../ui/Row.svelte";
-  import RowList from "../ui/RowList.svelte";
-  import SectionHead from "../ui/SectionHead.svelte";
-  import Tabs from "../ui/Tabs.svelte";
+  import Icon from "../ui/Icon.svelte";
+  import PlaceLine from "../ui/PlaceLine.svelte";
+  import PrimaryAction from "../ui/PrimaryAction.svelte";
   import type { PageProps } from "../ui/svelte-page.svelte";
-  import RunBuilder from "./RunBuilder.svelte";
+  import { preview } from "../widgets";
   import SeasonBar from "./SeasonBar.svelte";
-  import { car_text, pick_text, stage_text, star_text, world_name } from "./run-text";
+  import { world_name } from "./run-text";
+  import "../events.css";
 
-  let { menu, live }: PageProps = $props();
+  interface Props extends PageProps {
+    picker: CarPicker;
+  }
 
-  type View = "today" | "build";
-  const VIEWS: { id: View; label: string }[] = [
-    { id: "today", label: "Today" },
-    { id: "build", label: "Build an event" },
-  ];
+  interface RunCard {
+    id: "daily" | "weekly" | "random";
+    img: string;
+    eyebrow: string;
+    title: string;
+    place: Place | null;
+    left: number;
+    verb: string;
+    pick: () => RunPick;
+  }
+
+  let { menu, live, shown, picker }: Props = $props();
 
   const host = $derived(menu.host);
+  const here = $derived({ kind: host.kind, seed: host.seed, levels: host.levels });
   const runs = $derived(host.runs);
   const today = $derived(live.live(() => runs.today));
-  const pick = $derived(daily(today));
-  const got = $derived(live.live(() => runs.daily(today)));
-  const season = $derived(live.live(() => runs.stars));
-  const season_id = $derived(live.live(() => runs.season));
-  const free = $derived(FREE_CAP - live.live(() => runs.free_left));
-  const stars = $derived(star_text(got));
   const week = $derived(iso_week(today));
-  const cup = $derived(weekly(week));
-  const plan = $derived(live.live(() => runs.week_plan(week)));
-  // Planned types until the weekly's map has loaded, then what it really plays; a dropped stage leaves the list.
-  const cup_stages = $derived((cup.stages ?? []).flatMap((stage, i) => (plan && plan[i] === null ? [] : [stage_text(stage.type, plan?.[i] ?? undefined)])));
-  const week_got = $derived(live.live(() => runs.weekly(week)));
-  const week_stars = $derived(star_text(week_got, WEEK_STARS));
-  const week_best = $derived(live.live(() => weekly_best(cup, local_store())));
+  const free_left = $derived(live.live(() => runs.free_left));
+  const where = (pick: RunPick) => place_of(plain_map(pick.kind, pick.seed), here);
 
-  let view = $state<View>("today");
+  const cards = $derived.by<RunCard[]>(() => {
+    const day = daily(today);
+    const cup = weekly(week);
+    const day_name = type_of(day.type).name;
+    return [
+      { id: "daily", img: preview(day.kind), eyebrow: "Daily · same for everyone today", title: day_name, place: where(day), left: 3 - live.live(() => runs.daily(today)), verb: `Run today's ${day_name.toLowerCase()}`, pick: () => day },
+      { id: "weekly", img: preview(cup.kind), eyebrow: `Weekly · ${cup.stages?.length ?? 1} stages`, title: `${world_name(cup.kind)} cup`, place: where(cup), left: WEEK_STARS - live.live(() => runs.weekly(week)), verb: `Run the ${world_name(cup.kind)} cup`, pick: () => cup },
+      { id: "random", img: preview("raceway"), eyebrow: "Random · any mode", title: "Roll a run", place: null, left: Math.min(1, free_left), verb: "Roll a run", pick: () => random(new_seed()) },
+    ];
+  });
+
+  let chosen = $state<RunCard["id"]>("daily");
+  const card = $derived(cards.find((one) => one.id === chosen) ?? cards[0]);
+  let target = $state.raw<StartTarget | null>(null);
+
+  export function back(): boolean {
+    if (!target) return false;
+    target = null;
+    return true;
+  }
+
+  const open = (one: RunCard) => (target = { kind: "run", pick: one.pick() });
+
+  function choose(one: RunCard) {
+    if (one.id === chosen) open(one);
+    else chosen = one.id;
+  }
+
+  function key(event: KeyboardEvent) {
+    if (!shown || target || event.defaultPrevented || !bare_enter(event)) return;
+    event.preventDefault();
+    open(card);
+  }
 </script>
 
-<div class="runs">
-  <div class="views"><Tabs items={VIEWS} bind:value={view} label="Runs" /></div>
+<svelte:window onkeydown={key} />
 
-  {#if view === "today"}
-    <div class="cols">
-      <Card list label="Today's runs">
-        <div class="head"><SectionHead title="Today" count={today} /></div>
-        <RowList divided label="Today's runs">
-          <Row label={`Daily · ${pick_text(pick)}`} help="The same event for everyone today, on a map picked by the date" top>
-            {#snippet control()}
-              <span class="end">
-                <span class="facts">
-                  {#if "cap" in pick.car}<ClassBadge cap={pick.car.cap} />{:else}<span class="preset">{car_text(pick.car)}</span>{/if}
-                  <span class="star-row" aria-label={`${got} of 3 stars today`}>{stars.on}<i>{stars.off}</i></span>
-                </span>
-                <Button size="sm" variant="primary" aria-label="Go: today's daily" onclick={() => host.start_run(pick.id)}>Go</Button>
-              </span>
-            {/snippet}
-          </Row>
-          <Row label={`Weekly championship · ${world_name(cup.kind)}`} help={`${cup_stages.length} stages on one map, the same for everyone until Sunday`} top>
-            {#snippet detail()}
-              <span class="stages">
-                {#each cup_stages as name, i (i)}<span class="stage"><b>{i + 1}</b>{name}</span>{/each}
-              </span>
-            {/snippet}
-            {#snippet control()}
-              <span class="end">
-                <span class="facts">
-                  {#if "cap" in cup.car}<ClassBadge cap={cup.car.cap} />{:else}<span class="preset">{car_text(cup.car)}</span>{/if}
-                  <span class="best">{week_best === null ? "No finish" : `Best ${points_text(week_best)}`}</span>
-                  <span class="star-row" aria-label={`${week_got} of ${WEEK_STARS} stars this week`}>{week_stars.on}<i>{week_stars.off}</i></span>
-                </span>
-                <Button size="sm" variant="primary" aria-label="Go: this week's championship" onclick={() => host.start_run(cup.id)}>Go</Button>
-              </span>
-            {/snippet}
-          </Row>
-          <Row label="Endless" help="A new event on a new map every run: any mode, any world" top>
-            {#snippet control()}
-              <Button size="sm" aria-label="Go: endless run" onclick={() => host.start_run(random(new_seed()).id)}>Go</Button>
-            {/snippet}
-          </Row>
-        </RowList>
-      </Card>
+{#snippet primary()}
+  <PrimaryAction onclick={() => open(card)}>{card.verb}</PrimaryAction>
+{/snippet}
 
-      <Card label="Season">
-        <div class="season">
-          <SeasonBar stars={season} season={season_id} {today} />
-          <p class="dim">Runs earn season stars, never career stars. Wear a title or tint on your name tag in Settings, Online.</p>
-          <div class="cap">
-            <span class="cap-label"><span>Endless and built runs today</span><b>{free} / {FREE_CAP} ★</b></span>
-            <Progress value={free} max={FREE_CAP} label={`${free} of ${FREE_CAP} season stars from endless and built runs today`} />
-          </div>
-          <p class="dim">The daily's and the weekly's stars count on top of the cap.</p>
-        </div>
-      </Card>
+{#if target}
+  <StartSheet {menu} {picker} {target} eyebrow="Events" title="Runs" {shown} onclose={() => (target = null)} />
+{:else}
+  <MenuFrame {menu} id={RUNS_PAGE} eyebrow="Events" title="Runs" veil={0.55} note={`Random and built runs earn up to ${FREE_CAP} ★ a day: ${free_left} left today.`} {primary}>
+    <div class="runs">
+      <SeasonBar stars={live.live(() => runs.stars)} season={live.live(() => runs.season)} {today} />
+      <div class="runs-cards">
+        {#each cards as one (one.id)}
+          {#snippet shot()}
+            <img class="ev-pic" src={one.img} alt="" />
+          {/snippet}
+          <Card picture={shot} flat class="runs-card" focused={one.id === chosen} selected={one.id === chosen} onclick={() => choose(one)} onfocus={() => (chosen = one.id)} label={one.title}>
+            <span class="ev-eyebrow">{one.eyebrow}</span>
+            <b class="ev-h2 ev-nowrap">{one.title}</b>
+            <span class="runs-foot">
+              {#if one.place}<PlaceLine place={one.place} />{:else}<span class="ev-small">A new map every roll</span>{/if}
+              <b class="runs-gain">{one.left > 0 ? `+${one.left}★` : "Done"}</b>
+            </span>
+          </Card>
+        {/each}
+        <Card flat class="runs-build" onclick={() => menu.show(RUN_BUILD_PAGE)} label="Build a run">
+          <span class="runs-plus"><Icon name="icon-dice" /></span>
+          <b>Build a run</b>
+          <span class="ev-small">Map, mode, car</span>
+        </Card>
+      </div>
     </div>
-  {:else}
-    <RunBuilder {menu} {live} />
-  {/if}
-</div>
+  </MenuFrame>
+{/if}
 
 <style>
   .runs {
     display: grid;
-    align-content: start;
-    gap: var(--space-5);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: var(--gap);
+    height: 100%;
+    min-height: 0;
   }
 
-  .views {
+  .runs-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 0.7fr);
+    gap: var(--gap);
+    min-height: 0;
+  }
+
+  .runs-foot {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-sm);
     min-width: 0;
   }
 
-  .cols {
-    display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-    align-items: start;
-    gap: var(--space-5);
+  .runs-gain {
+    flex: none;
+    color: var(--warning);
+    font-size: var(--type-small);
+    font-weight: 500;
   }
 
-  .head {
-    padding: var(--space-4) var(--space-4) var(--space-2);
-  }
-
-  .season {
-    display: grid;
-    gap: var(--space-4);
-  }
-
-  .cap {
-    display: grid;
-    gap: var(--space-2);
-  }
-
-  .cap-label {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--space-3);
-    color: var(--set-dim);
-    font-size: var(--text-sm);
-  }
-
-  .cap-label b {
-    color: var(--foreground);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .dim {
-    margin: 0;
-    color: var(--set-dim);
-    text-wrap: pretty;
-  }
-
-  .end,
-  .facts {
-    display: flex;
+  .runs-cards > :global(.runs-build) {
     align-items: center;
-    gap: var(--space-4);
+    justify-content: center;
+    gap: var(--gap-xs);
+    border-style: dashed;
+    text-align: center;
   }
 
-  .stages {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    margin-top: var(--space-2);
+  .runs-plus {
+    --icon-size: 1.6em;
+    display: grid;
+    color: var(--dim);
   }
 
-  .stage {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-1) var(--space-2);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    color: var(--foreground);
-    font-size: var(--text-sm);
-    white-space: nowrap;
-  }
-
-  .stage b {
-    color: var(--set-dim);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .best {
-    color: var(--set-dim);
-    font-size: var(--text-sm);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-
-  .preset {
-    color: var(--set-dim);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    white-space: nowrap;
-  }
-
-  .star-row {
-    color: var(--accent);
-    letter-spacing: 0.15em;
-  }
-
-  .star-row i {
-    color: var(--line-strong);
-    font-style: normal;
-  }
-
-  @media (max-width: 900px) {
-    .cols {
-      grid-template-columns: minmax(0, 1fr);
+  @media (max-height: 500px) {
+    /* The phone body scrolls, so it clips: the focus ring needs its room inside. */
+    .runs {
+      padding: calc(var(--mark-w) + var(--space-0));
     }
-  }
 
-  @media (max-width: 600px) {
-    .facts {
-      flex-direction: column;
-      align-items: end;
-      gap: var(--space-1);
+    .runs,
+    .runs-cards {
+      gap: var(--gap-sm);
+    }
+
+    .runs-cards :global(.ui-card-cap) {
+      gap: var(--gap-xs);
+      padding: var(--gap-sm) var(--gap-md);
     }
   }
 </style>

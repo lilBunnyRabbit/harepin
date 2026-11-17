@@ -19,7 +19,8 @@ export interface SeriesView {
   done: boolean;
   wallet: WalletState;
   onstart: (id: string) => void;
-  onback: () => void;
+  /** The card in front changed: an index into the season's events, or one past them for the standings. */
+  onfront?: (at: number) => void;
   onreset: () => void;
   /** Every season, the one shown at `at`; switching shows another. */
   seasons: readonly SeasonTab[];
@@ -27,9 +28,6 @@ export interface SeriesView {
   onseason: (at: number) => void;
   /** Why the season shown is shut, or null once it is open. */
   lock: string | null;
-  /** Why the car in the garage can't race this season, or null when it can. */
-  car: CarNote | null;
-  ongarage: () => void;
 }
 
 export interface EventScore {

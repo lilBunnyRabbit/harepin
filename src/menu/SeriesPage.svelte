@@ -1,13 +1,22 @@
 <script lang="ts">
-  import { event_states, season_done, standings, type EventState, type Season, type SeriesProgress } from "../career/series";
+  import { SERIES_PAGE, event_states, season_done, standings, type EventState, type Season, type SeriesProgress } from "../career/series";
   import { series_front, series_open } from "../career/series-store";
   import type { WalletState } from "../career/wallet";
-  import { MenuTab } from "./page";
+  import type { CarPicker } from "./car-pick.svelte";
+  import { bare_enter } from "./drive-picks";
+  import type { StartTarget } from "./events-view";
+  import MenuFrame from "./MenuFrame.svelte";
   import SeriesFlow from "./SeriesFlow.svelte";
-  import { car_note, season_lock, type SeasonTab } from "./series-view";
+  import { season_lock, type SeasonTab } from "./series-view";
+  import StartSheet from "./StartSheet.svelte";
+  import PrimaryAction from "./ui/PrimaryAction.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
 
-  let { menu, live }: PageProps = $props();
+  interface Props extends PageProps {
+    picker: CarPicker;
+  }
+
+  let { menu, live, shown, picker }: Props = $props();
 
   const list = $derived(menu.host.series);
   const ready = $derived(live.live(() => list.length > 0 && list.every((one) => one.ready)));
@@ -24,14 +33,46 @@
   const states = $derived<EventState[]>(season && progress ? (lock ? season.events.map(() => "locked") : event_states(season, progress)) : []);
   const done = $derived(season && progress ? season_done(season, progress) : false);
   const wallet = $derived<WalletState | null>(live.live(() => (ready ? series.wallet.state : null)));
-  const car = $derived(live.live(() => (season && wallet ? car_note(season, menu.host.garage.build, wallet.cars) : null)));
+
+  let front = $state(0);
+  const front_event = $derived(season && states[front] !== "locked" ? (season.events[front] ?? null) : null);
+  let target = $state.raw<StartTarget | null>(null);
+
+  export function back(): boolean {
+    if (!target) return false;
+    target = null;
+    return true;
+  }
+
+  function start(id: string) {
+    const event = series?.event(id);
+    if (event) target = { kind: "series", series, event };
+  }
 
   function reset() {
     series?.reset();
     menu.refresh();
   }
+
+  function key(event: KeyboardEvent) {
+    if (!shown || target || !front_event || event.defaultPrevented || !bare_enter(event)) return;
+    event.preventDefault();
+    start(front_event.id);
+  }
 </script>
 
-{#if season && progress && wallet}
-  <SeriesFlow {season} {progress} {states} {table} {done} {wallet} {seasons} {at} {lock} {car} ongarage={() => menu.show(MenuTab.GARAGE)} onseason={(i: number) => (picked = i)} onstart={(id: string) => menu.host.start_series(id)} onback={() => menu.show(MenuTab.PLAY)} onreset={reset} />
+<svelte:window onkeydown={key} />
+
+{#snippet primary()}
+  <PrimaryAction disabled={!front_event} onclick={() => front_event && start(front_event.id)}>{front_event ? `Race ${front_event.name}` : front >= (season?.events.length ?? 0) ? "Pick a round" : "Locked"}</PrimaryAction>
+{/snippet}
+
+{#if target}
+  <StartSheet {menu} {picker} {target} eyebrow="Events" title="Harepin Series" {shown} onclose={() => (target = null)} />
+{:else}
+  <MenuFrame {menu} id={SERIES_PAGE} eyebrow="Events" title="Harepin Series" veil={0.3} {primary}>
+    {#if season && progress && wallet}
+      <SeriesFlow {season} {progress} {states} {table} {done} {wallet} {seasons} {at} {lock} onseason={(i: number) => (picked = i)} onstart={start} onfront={(i: number) => (front = i)} onreset={reset} />
+    {/if}
+  </MenuFrame>
 {/if}
