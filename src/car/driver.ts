@@ -6,7 +6,7 @@ import { oversize, type CarSpec, type Size } from "./cars";
 import type { Lighting } from "../render/lighting";
 import { dark } from "../theme/palette";
 import { contact_shadow, fit_contact_shadow, place_contact_shadow } from "./contact-shadow";
-import { lamps_lit, set_lights, show_flame, snap_lights, swing_popups } from "./lights";
+import { BRAKE_REST, lamps_lit, set_lights, show_flame, snap_lights, swing_popups } from "./lights";
 import { build_view, dispose_car_view, sync_car_view, type CarView } from "./models";
 import { stand_on_drawn } from "./drawn-stand";
 import type { Race } from "../race";
@@ -227,7 +227,12 @@ export class Driver {
     drawn.quat.copy(pose.quat);
     drawn.vel.copy(pose.vel);
     sync_car_view(view, this.car);
-    for (const wheel of view.wheels) wheel.children[0].rotation.x = roll;
+    // The tape holds no steer or brake: straight wheels and resting lamps, not the held car's as it crossed the line.
+    for (const wheel of view.wheels) {
+      wheel.rotation.y = 0;
+      wheel.children[0].rotation.x = roll;
+    }
+    view.brake.emissiveIntensity = BRAKE_REST;
     view.root.position.copy(drawn.pos);
     view.root.quaternion.copy(drawn.quat);
     stand_on_drawn(view, this.world);

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { format } from "../hud/hud";
+  import { typing } from "../hud/input";
   import Button from "../menu/ui/Button.svelte";
   import IconButton from "../menu/ui/IconButton.svelte";
   import Slider from "../menu/ui/Slider.svelte";
@@ -14,7 +15,7 @@
   const SCRUB_STEP_MS = 100;
 
   function key(event: KeyboardEvent) {
-    if (!view.shown || event.code !== "Space" || event.repeat) return;
+    if (!view.shown || event.code !== "Space" || event.repeat || typing(event.target)) return;
     event.preventDefault();
     view.acts.toggle();
   }
@@ -61,9 +62,21 @@
     visibility: hidden;
   }
 
+  :global(body:has(.replay-bar) #hud-menu-btn) {
+    display: none;
+  }
+
   .replay-scrub {
     flex: 1;
     min-width: 0;
+  }
+
+  /* The touch pedals and stick fly the free camera from the bottom corners. */
+  @media (pointer: coarse) {
+    .replay-bar {
+      top: var(--inset-top);
+      bottom: auto;
+    }
   }
 
   @media (max-width: 600px) {
