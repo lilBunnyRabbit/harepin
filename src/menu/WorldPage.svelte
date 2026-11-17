@@ -9,7 +9,7 @@
   import { LISTED, WORLDS } from "../worlds/worlds";
   import { bare_enter, link_key } from "./drive-picks";
   import { FALLBACK } from "./map-note";
-  import { MAKE_PAGE } from "./maps";
+  import { kind_map, MAKE_PAGE } from "./maps";
   import MenuFrame from "./MenuFrame.svelte";
   import { invite_link } from "./page";
   import Button from "./ui/Button.svelte";
@@ -38,6 +38,8 @@
     const { seed, kind, levels } = menu.host;
     return { seed, kind, levels: KINDS[kind].options.map((o, i) => levels[i] ?? o.normal) };
   });
+
+  const kept = new Map<WorldKind, readonly number[]>([[start.kind, start.levels]]);
 
   let chosen = $state.raw(start);
   let ready = $state.raw<MapData | null>(null);
@@ -75,6 +77,7 @@
 
   function choose(next: MapSpec, now: boolean) {
     chosen = next;
+    kept.set(next.kind, next.levels);
     ready = null;
     bad = null;
     note = null;
@@ -94,10 +97,10 @@
     bad = read.why === "newer" ? NEWER : BAD;
   }
 
-  // Focus only aims: a tap or Enter picks the kind, so walking across the cards keeps the custom values. Enter on the
-  // kind already picked is the primary's.
+  // Focus only aims: a tap or Enter picks the kind, so walking across the cards keeps the custom values. Each kind
+  // comes back with the values it was left on. Enter on the kind already picked is the primary's.
   function press_kind(click: MouseEvent, kind: WorldKind) {
-    if (kind !== chosen.kind) choose(plain_map(kind, chosen.seed), true);
+    if (kind !== chosen.kind) choose(kind_map(kept, kind, chosen.seed), true);
     else if (click.detail === 0) drive();
   }
 

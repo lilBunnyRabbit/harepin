@@ -4,8 +4,9 @@ import { event_map } from "../career/career-store";
 import { by_map, place_of, type Place } from "../career/place";
 import { mode_name } from "../modes/modes";
 import type { TierBadge } from "../net/net";
-import type { MapSpec } from "../worldgen/kinds/kinds";
+import { plain_map, type MapSpec } from "../worldgen/kinds/kinds";
 import { map_code } from "../worldgen/kinds/map-code";
+import type { WorldKind } from "../worldgen/types";
 import { name_of } from "../worlds/map-name";
 
 export const MAPS_PAGE = "maps";
@@ -14,6 +15,9 @@ export const MAKE_PAGE = "world";
 const KM = 1000;
 const METRE_STEP = 10;
 const NAMED_MAPS = 2;
+
+/** Make a map: a kind picked again comes back with the values it was left on, a kind not yet touched plain. */
+export const kind_map = (kept: ReadonlyMap<WorldKind, readonly number[]>, kind: WorldKind, seed: number): MapSpec => ({ ...plain_map(kind, seed), levels: kept.get(kind) ?? plain_map(kind, seed).levels });
 
 export interface MapEvent {
   id: string;

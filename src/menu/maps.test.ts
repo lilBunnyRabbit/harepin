@@ -4,7 +4,7 @@ import { EVENTS, MAX_EVENT_STARS, TIERS, event_of, type CareerEvent, type Stars 
 import { event_map } from "../career/career-store";
 import { plain_map } from "../worldgen/kinds/kinds";
 import { WorldKind } from "../worldgen/types";
-import { distance_text, elsewhere, first_pick, map_event, map_stops } from "./maps";
+import { distance_text, elsewhere, first_pick, kind_map, map_event, map_stops } from "./maps";
 
 const at = (id: string): CareerEvent => event_of(id)!;
 const island = event_map(at("r1"));
@@ -60,4 +60,12 @@ test("elsewhere counts open unfinished events on other maps", () => {
 test("distances read in metres, then kilometres", () => {
   expect(distance_text(423)).toBe("420 m");
   expect(distance_text(1130)).toBe("1.1 km");
+});
+
+test("Make a map: a kind comes back with the values it was left on, another kind plain", () => {
+  const plain = plain_map(WorldKind.VELODROME, 7);
+  const custom = plain.levels.map((level, at) => (at === 0 ? level + 1 : level));
+  const kept = new Map([[WorldKind.VELODROME, custom]]);
+  expect(kind_map(kept, WorldKind.VELODROME, 7)).toEqual({ kind: WorldKind.VELODROME, seed: 7, levels: custom });
+  expect(kind_map(kept, WorldKind.RACEWAY, 7)).toEqual(plain_map(WorldKind.RACEWAY, 7));
 });
