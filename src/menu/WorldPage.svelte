@@ -7,7 +7,7 @@
   import type { WorldKind } from "../worldgen/types";
   import { map_name } from "../worlds/map-name";
   import { LISTED, WORLDS } from "../worlds/worlds";
-  import { bare_enter, link_key } from "./drive-picks";
+  import { aim_or_go, bare_enter, link_key } from "./drive-picks";
   import { FALLBACK } from "./map-note";
   import { CUSTOM_PAGE } from "./events-view";
   import { kind_map, MAKE_PAGE } from "./maps";
@@ -99,10 +99,19 @@
   }
 
   // Focus only aims: a tap or Enter picks the kind, so walking across the cards keeps the custom values. Each kind
-  // comes back with the values it was left on. Enter on the kind already picked is the primary's.
+  // comes back with the values it was left on. Enter, a double-click or a second tap on the kind already picked is the
+  // primary's.
   function press_kind(click: MouseEvent, kind: WorldKind) {
-    if (kind !== chosen.kind) choose(kind_map(kept, kind, chosen.seed), true);
-    else if (click.detail === 0) drive();
+    const on = kind === chosen.kind;
+    aim_or_go(
+      click,
+      () => {
+        if (!on) choose(kind_map(kept, kind, chosen.seed), true);
+      },
+      () => {
+        if (on) drive();
+      },
+    );
   }
 
   const roll = () => choose({ ...chosen, seed: random_seed() }, true);

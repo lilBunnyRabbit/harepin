@@ -45,6 +45,7 @@ import MapsPage from "./MapsPage.svelte";
 import { MAKE_PAGE, MAPS_PAGE } from "./maps";
 import TitlePage from "./showroom/TitlePage.svelte";
 import { el, icon } from "./dom";
+import { tap_moved } from "./drive-picks";
 import { WorldKind } from "../worldgen/types";
 import { GoTo, GoalId } from "../goals/goals";
 import { world_query } from "../world/world-pick";
@@ -234,6 +235,7 @@ export class Settings {
     if (!this.root.isConnected) this.parent.append(this.root);
     this.root.hidden = false;
     this.root.addEventListener("click", this.click);
+    this.root.addEventListener("focusin", this.focused);
     addEventListener("keydown", this.key);
     this.timer = window.setInterval(() => this.refresh(), STATUS_MS);
     this.refresh();
@@ -259,6 +261,7 @@ export class Settings {
     this.host.updates_closed();
     this.root.hidden = true;
     this.root.removeEventListener("click", this.click);
+    this.root.removeEventListener("focusin", this.focused);
     removeEventListener("keydown", this.key);
     clearInterval(this.timer);
     this.hide_pages();
@@ -419,6 +422,7 @@ export class Settings {
 
   /** `opener` is the page this one is reached from, null when going back, stepping stations or opening the menu. */
   private show(section: string, opener: string | null = this.section) {
+    tap_moved();
     this.door_from = null;
     this.note_opener(section, opener);
     this.build_page(section);
@@ -515,6 +519,8 @@ export class Settings {
     if (action === "close") this.close();
     else if (action === "back") this.back();
   };
+
+  private readonly focused = (event: FocusEvent) => tap_moved(event.target);
 
   private readonly key = (event: KeyboardEvent) => {
     if (event.key === "Escape") {

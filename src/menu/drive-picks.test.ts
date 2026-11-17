@@ -8,7 +8,7 @@ import { series_map } from "../career/series-run";
 import { SEASON_1 } from "../career/series-seasons";
 import { daily } from "../runs/runs";
 import { map_code } from "../worldgen/kinds/map-code";
-import { aim_or_go, career_pick, roam_pick, run_pick, series_pick } from "./drive-picks";
+import { aim_or_go, career_pick, roam_pick, run_pick, series_pick, tap_moved } from "./drive-picks";
 
 const island = event_map(event_of("r1")!);
 const rookie = TIERS[0].events;
@@ -89,6 +89,22 @@ test("a tap selects, a second tap on the same item acts, and the tap after that 
     expect(log.slice(5)).toEqual(["aim a"]);
     press("b", pointer);
   }
+});
+
+test("a tap starts over once focus moved to another item or the page changed", () => {
+  const { log, press } = presses();
+  press("a", "touch");
+  tap_moved("a");
+  press("a", "touch");
+  expect(log).toEqual(["aim a", "aim a", "go a"]);
+  press("a", "touch");
+  tap_moved("b");
+  press("a", "touch");
+  tap_moved();
+  press("a", "touch");
+  expect(log.slice(3)).toEqual(["aim a", "aim a", "aim a"]);
+  press("a", "touch");
+  expect(log.slice(6)).toEqual(["aim a", "go a"]);
 });
 
 test("Enter and the pad's A, a click with no pointer, always act", () => {

@@ -45,6 +45,11 @@ export function aim_or_go(press: Press, aim: () => void, go: () => void) {
   if (press.detail === 0 || again) go();
 }
 
+/** Focus went to `to`, or the page changed: a tap on the item tapped before starts over, unless focus is on that item. */
+export function tap_moved(to: unknown = null) {
+  if (to !== tapped) tapped = null;
+}
+
 /** A page's link key ("m", "c"): a plain press outside a text field, lowercased; null otherwise. */
 export function link_key(event: KeyboardEvent): string | null {
   if (!plain(event) || (event.target instanceof Element && event.target.closest("input:not([type='range']), textarea, select"))) return null;
