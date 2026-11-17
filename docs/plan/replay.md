@@ -54,7 +54,7 @@ Option A of the gate below: no new format.
 ## Saved replays (built)
 
 - Save on the replay's bar writes the tape to IndexedDB, store `replays` (`HAREPIN_DB` version 5), through `replay/replay-store.ts`. `replay/saved.ts` is the pure side: `pack_replay` (laps rounded to 3 decimals, as ghosts are), `parse_replay` (any part out of shape: none), `capped`.
-- A saved replay holds its name, mode, the map's code and name, the player's build code, the player's lap and each AI car's build code and lap.
+- A saved replay holds its name, mode, the map's code and short name (the list's row; the code is the identity), the player's build code, the player's lap and each AI car's build code and lap.
 - Caps: the newest `MAX_REPLAYS` (6) keep, and together they hold at most `MAX_SAVED_NUMBERS` (1 000 000 numbers, about 8 MB); the oldest go with the save that passes either. One replay over `MAX_REPLAY_NUMBERS` (400 000; a ten minute run with six AI cars is 336 000) does not load.
 - Events > Runs > Replays lists them. Watch closes the menu and plays over the open road; a run under way refuses it, a results page is left first. A replay plays only on the map it was driven on: elsewhere its row says so.
 - Not built: travelling to a replay's map to watch it, and drawing the car that drove. The player's car in a saved replay is the one fitted now; the saved build code is there for when it is drawn.
