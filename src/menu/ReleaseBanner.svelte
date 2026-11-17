@@ -25,7 +25,7 @@
     position: relative;
     aspect-ratio: 3 / 1;
     overflow: hidden;
-    background: var(--panel-well);
+    background: var(--row);
   }
 
   .banner-tease,
@@ -55,8 +55,8 @@
 
   .banner-tag {
     position: absolute;
-    top: var(--space-3);
-    left: var(--space-3);
+    top: var(--gap-md);
+    left: var(--gap-md);
     display: flex;
   }
 

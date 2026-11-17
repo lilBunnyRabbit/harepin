@@ -107,20 +107,20 @@
 
   .updated-notes {
     display: grid;
-    gap: var(--space-6);
-    padding: var(--space-4);
+    gap: calc(2 * var(--gap-md));
+    padding: var(--gap);
     border-radius: var(--radius-md);
-    background: var(--set-well);
+    background: var(--row);
   }
 
   .updated-tops {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
-    gap: var(--space-3);
+    gap: var(--gap-md);
     margin: 0;
     padding: 0;
     list-style: none;
-    font-size: var(--text-lg);
+    font-size: var(--type-body);
   }
 
   .updated-tops li {
@@ -142,13 +142,6 @@
 
   .updated-kind {
     display: flex;
-  }
-
-  @media (max-height: 500px) {
-    .updated-tops {
-      gap: var(--space-2);
-      font-size: var(--text-md);
-    }
   }
 
   .updated-notes:focus-visible {

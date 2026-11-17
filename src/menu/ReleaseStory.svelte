@@ -113,25 +113,25 @@
 <style>
   .story {
     display: grid;
-    gap: var(--space-8);
+    gap: calc(2 * var(--gap));
     min-width: 0;
   }
 
   .story-head,
   .story-block {
     display: grid;
-    gap: var(--space-4);
+    gap: var(--gap);
     min-width: 0;
   }
 
   .story-meta {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     margin: 0;
     color: var(--dim);
     font-family: var(--font-mono);
-    font-size: var(--text-sm);
+    font-size: var(--type-small);
   }
 
   .story-title,
@@ -144,40 +144,40 @@
   }
 
   .story-title {
-    font-size: var(--text-3xl);
+    font-size: var(--type-h1);
   }
 
   .story-heading {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-2) var(--space-3);
-    font-size: var(--text-2xl);
+    gap: var(--gap-sm) var(--gap-md);
+    font-size: var(--type-h2);
   }
 
   h5 {
-    font-size: var(--text-2xl);
+    font-size: var(--type-h2);
   }
 
   .story-text {
     max-width: 65ch;
     margin: 0;
     color: var(--dim);
-    font-size: var(--text-lg);
+    font-size: var(--type-body);
     line-height: 1.5;
     text-wrap: pretty;
   }
 
   figure {
     display: grid;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
     min-width: 0;
     margin: 0;
   }
 
   figcaption {
     color: var(--dim);
-    font-size: var(--text-sm);
+    font-size: var(--type-small);
     font-weight: 600;
   }
 
@@ -185,8 +185,8 @@
     display: grid;
     grid-auto-columns: minmax(0, 1fr);
     grid-auto-flow: column;
-    gap: var(--space-2);
-    padding: var(--space-4) var(--space-3) var(--space-3);
+    gap: var(--gap-sm);
+    padding: var(--gap) var(--gap-md) var(--gap-md);
     border-radius: var(--radius-lg);
     background: var(--row);
   }
@@ -198,15 +198,15 @@
   .story-cars {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-4);
+    gap: var(--gap);
   }
 
   .story-car {
     display: grid;
     align-content: start;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     min-width: 0;
-    padding: var(--space-5);
+    padding: var(--pad);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     background: var(--surface);
@@ -223,7 +223,7 @@
   .story-pairs {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-3);
+    gap: var(--gap-md);
   }
 
   .story-pair {
@@ -231,8 +231,8 @@
     grid-auto-columns: minmax(0, 1fr);
     grid-auto-flow: column;
     align-items: end;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
+    gap: var(--gap-md);
+    padding: var(--gap-md) var(--gap);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--surface);
@@ -242,13 +242,13 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     line-height: 1.5;
   }
 
   .story-pair b {
     color: var(--foreground);
-    font-size: var(--text-lg);
+    font-size: var(--type-body);
   }
 
   .story-was img {
@@ -259,15 +259,15 @@
   }
 
   .story-was figcaption {
-    line-height: calc(var(--text-lg) * 1.5);
+    line-height: calc(var(--type-body) * 1.5);
   }
 
   .story-tease {
     display: grid;
     grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
     align-items: center;
-    gap: var(--space-6);
-    padding: var(--space-5) var(--space-6);
+    gap: calc(2 * var(--gap-md));
+    padding: var(--pad);
     border-radius: var(--radius-lg);
     background: var(--row);
   }
@@ -275,13 +275,13 @@
   .story-tease-text {
     display: grid;
     justify-items: start;
-    gap: var(--space-3);
+    gap: var(--gap-md);
   }
 
   .story-also {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-3);
+    gap: var(--gap-md);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -290,20 +290,20 @@
   .story-also li {
     display: grid;
     align-content: start;
-    gap: var(--space-1);
-    padding: var(--space-4);
+    gap: var(--gap-xs);
+    padding: var(--gap);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--surface);
   }
 
   .story-also b {
-    font-size: var(--text-xl);
+    font-size: var(--type-h3);
     font-weight: 700;
   }
 
   .story-also .story-text {
-    font-size: var(--text-md);
+    font-size: var(--type-body);
   }
 
   @media (max-width: 600px) {

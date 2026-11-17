@@ -22,14 +22,14 @@
     position: fixed;
     z-index: 40;
     position-anchor: --top-dock;
-    top: calc(anchor(bottom) + var(--space-2));
+    top: calc(anchor(bottom) + var(--gap-sm));
     left: 50%;
     translate: -50% 0;
     animation: update-in 0.3s ease-out;
   }
 
   .update-more {
-    color: var(--set-dim);
+    color: var(--dim);
     font-weight: 400;
   }
 

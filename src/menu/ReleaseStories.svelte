@@ -62,7 +62,7 @@
 <style>
   .stories {
     display: grid;
-    gap: var(--space-4);
+    gap: var(--gap);
   }
 
   .stories > :global(.stories-lead) {
@@ -74,30 +74,30 @@
   .stories-lead-body {
     display: grid;
     justify-items: start;
-    gap: var(--space-3);
-    padding: var(--space-4) var(--space-5) var(--space-5);
+    gap: var(--gap-md);
+    padding: var(--gap) var(--pad) var(--pad);
   }
 
   .stories-meta {
     display: flex;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     margin: 0;
     color: var(--dim);
     font-family: var(--font-mono);
-    font-size: var(--text-xs);
+    font-size: var(--type-eyebrow);
   }
 
   .stories-title {
     margin: 0;
-    font-size: var(--text-xl);
+    font-size: var(--type-h3);
     font-weight: 700;
   }
 
   .stories-tops {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
-    gap: var(--space-2) var(--space-3);
-    margin: 0 0 var(--space-2);
+    gap: var(--gap-sm) var(--gap-md);
+    margin: 0 0 var(--gap-sm);
     padding: 0;
     list-style: none;
   }
@@ -120,8 +120,8 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-2) var(--space-4);
-    padding: var(--space-3) var(--space-1);
+    gap: var(--gap-sm) var(--gap);
+    padding: var(--gap-md) var(--gap-xs);
   }
 
   .stories-row-text {
@@ -133,7 +133,7 @@
   .stories-row-text small {
     color: var(--dim);
     font-family: var(--font-mono);
-    font-size: var(--text-xs);
+    font-size: var(--type-eyebrow);
   }
 
   @media (max-width: 600px) {

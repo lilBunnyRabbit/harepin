@@ -57,12 +57,12 @@
 <style>
   .changelog-page {
     display: grid;
-    gap: var(--space-5);
-    font-size: var(--text-md);
+    gap: var(--pad);
+    font-size: var(--type-body);
   }
 
   .changelog-page > :global(.changelog-pending) {
-    gap: var(--space-5);
+    gap: var(--pad);
   }
 
   .changelog-update {
@@ -70,7 +70,7 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-3) var(--space-4);
+    gap: var(--gap-md) var(--gap);
   }
 
   .changelog-update-text {
@@ -79,19 +79,19 @@
   }
 
   .changelog-update-text b {
-    font-size: var(--text-lg);
+    font-size: var(--type-body);
     font-weight: 600;
   }
 
   .changelog-update-text small {
     color: var(--dim);
-    font-size: var(--text-sm);
+    font-size: var(--type-small);
   }
 
   .changelog {
     display: grid;
-    gap: var(--space-6);
-    padding: var(--space-2) var(--space-4) var(--space-4);
+    gap: calc(2 * var(--gap-md));
+    padding: var(--gap-sm) var(--gap) var(--gap);
     border-radius: var(--radius-md);
     outline: none;
   }
@@ -108,6 +108,6 @@
     margin: 0;
     color: var(--dim);
     font-family: var(--font-mono);
-    font-size: var(--text-xs);
+    font-size: var(--type-eyebrow);
   }
 </style>

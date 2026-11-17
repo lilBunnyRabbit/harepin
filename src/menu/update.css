@@ -1,6 +1,6 @@
 .version-tag {
-  margin-top: calc(-1 * var(--space-2));
-  font: 400 var(--text-xs) var(--font-mono);
+  margin-top: calc(-1 * var(--gap-sm));
+  font: 400 var(--type-eyebrow) var(--font-mono);
   color: var(--dim);
 }
 
@@ -9,24 +9,24 @@
   position: fixed;
   z-index: 5;
   position-anchor: --top-dock;
-  top: calc(anchor(bottom) + var(--space-2));
+  top: calc(anchor(bottom) + var(--gap-sm));
   left: var(--inset-left);
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--gap-sm);
   height: var(--control-h);
-  padding: 0 var(--space-3);
+  padding: 0 var(--gap-md);
   border-radius: var(--radius-full);
   border: 1px solid var(--line);
-  background: var(--panel);
+  background: var(--surface);
   color: var(--foreground);
-  font-size: var(--text-md);
+  font-size: var(--type-body);
   font-weight: 600;
   white-space: nowrap;
 }
 
 .drive-update:hover {
-  background: var(--panel);
+  background: var(--surface);
   border-color: var(--line-strong);
 }
 
@@ -42,7 +42,7 @@
 }
 
 :root[data-scheme="light"] .drive-update[data-state="ready"] {
-  background: var(--panel-raised);
+  background: var(--fill);
   color: var(--foreground);
 }
 

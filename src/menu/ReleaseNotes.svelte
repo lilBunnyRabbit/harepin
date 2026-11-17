@@ -31,14 +31,14 @@
 <style>
   .release {
     display: grid;
-    gap: var(--space-3);
+    gap: var(--gap-md);
   }
 
   .release-line {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-1) var(--space-2);
+    gap: var(--gap-xs) var(--gap-sm);
     margin: 0;
   }
 
@@ -55,13 +55,13 @@
     margin-left: auto;
     color: var(--dim);
     font-family: var(--font-mono);
-    font-size: var(--text-xs);
+    font-size: var(--type-eyebrow);
   }
 
   .release-changes {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
-    gap: var(--space-3);
+    gap: var(--gap-md);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -72,7 +72,7 @@
     grid-column: 1 / -1;
     grid-template-columns: subgrid;
     align-items: baseline;
-    gap: var(--space-3);
+    gap: var(--gap-md);
     line-height: 1.45;
     text-wrap: pretty;
   }
