@@ -233,10 +233,15 @@ export class Driver {
    */
   lateral_at(car: Car, j: number): number {
     if (!Number.isNaN(this.launch)) return pass_clamp(car, this.line, j, this.launch);
+    return pass_clamp(car, this.line, j, this.line.offset[j] + this.aside_at(car, j));
+  }
+
+  /** Metres off the line its easing has it at road point `j`: `aside` now, moved toward what it eases to by the time it gets there. */
+  private aside_at(car: Car, j: number): number {
     const n = this.line.road.length;
     const ahead = ((j - this.index + n + (n >> 1)) % n) - (n >> 1);
     const move = ahead > 0 ? (LATERAL_RATE * ahead * this.line.step[this.index]) / Math.max(EASE_SPEED, hypot(car.vel.x, car.vel.z)) : 0;
-    return pass_clamp(car, this.line, j, this.line.offset[j] + this.aside + Math.max(-move, Math.min(move, this.easing_to - this.aside)));
+    return this.aside + Math.max(-move, Math.min(move, this.easing_to - this.aside));
   }
 
   // Off the line it plans on the bend of the path it drives, the line shifted and clamped to the road: where the line
@@ -254,9 +259,13 @@ export class Driver {
       const i = (this.index + k) % n;
       const a = (i - CURVE_SPAN + n) % n;
       const c = (i + CURVE_SPAN) % n;
-      const la = this.lateral_at(car, a);
+      // Back onto the line it drifts at LATERAL_RATE, no bend of its own: read along the ramp, the kink where the easing
+      // starts at the car was a bend on top of the line's, and a car let out of its grid lane into the first bend planned
+      // 28 m/s where the line holds 41, the field queued behind it.
+      const drift = this.easing_to === 0 && Number.isNaN(this.launch);
       const li = this.lateral_at(car, i);
-      const lc = this.lateral_at(car, c);
+      const la = drift ? pass_clamp(car, line, a, line.offset[a] + this.aside_at(car, i)) : this.lateral_at(car, a);
+      const lc = drift ? pass_clamp(car, line, c, line.offset[c] + this.aside_at(car, i)) : this.lateral_at(car, c);
       const bend = inverse_radius(road[a].x + road[a].tz * la, road[a].z - road[a].tx * la, road[i].x + road[i].tz * li, road[i].z - road[i].tx * li, road[c].x + road[c].tz * lc, road[c].z - road[c].tx * lc);
       // Onto a kicker's pin the path steps to the centre: no bend to slow for, and a lane braked for it met the lip at 16 m/s (seed 49).
       const pinned = line.room[a] === 0 || line.room[i] === 0 || line.room[c] === 0;

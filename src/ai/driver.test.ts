@@ -166,6 +166,11 @@ describe("AI driver", () => {
     expect(driver.lateral_at(car, 160)).toBeCloseTo(0, 6);
   });
 
+  test("easing back onto the line through a bend, it plans on the line's bend, not on the kink where the easing starts", () => {
+    const { driver, line } = on_ring(3, 40, 0, 3, 250);
+    expect(driver.target).toBeGreaterThan(0.9 * line.speed[driver.index]);
+  });
+
   test("held off the line past the edge of its room, it aims back inside by as much as it is over, not along the edge", () => {
     const room = pass_room(new Car(COUPE), race_line(ring(800), [], COUPE.radius), 100);
     // Fast, so the aim is far ahead and the wheel stays off full lock; on the ring's outside, so its bend steers against.
