@@ -1,4 +1,5 @@
 /// <reference types="bun" />
+import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { GHOST_EVERY_MS, STRIDE, is_lap } from "../car/ghost-cap";
 import { Playback, SPEEDS } from "./playback";
@@ -25,6 +26,27 @@ test("a tape takes a frame every 100 ms of stepped time, none while the sim hold
   tape.start();
   expect(tape.frames.length).toBe(0);
   expect(tape.end_ms).toBe(0);
+});
+
+test("a placement mid-run is a cut on the tape: the pose jumps there, it never slides", async () => {
+  const THREE = await import("three");
+  const { lap_pose } = await import("../car/ghost");
+  const tape = new RunTape();
+  tape.start();
+  tape.record(0, car(0));
+  tape.record(0.1, car(3));
+  tape.record(0.1, car(500));
+  tape.record(0.1, car(503));
+  expect(tape.frames.length / STRIDE).toBe(5);
+  expect(is_lap(tape.frames)).toBe(true);
+  const pos = new THREE.Vector3();
+  const quat = new THREE.Quaternion();
+  lap_pose(tape.frames, 99, pos, quat);
+  expect(pos.x).toBeCloseTo(2.97, 6);
+  lap_pose(tape.frames, 150, pos, quat);
+  expect(pos.x).toBe(500);
+  lap_pose(tape.frames, 250, pos, quat);
+  expect(pos.x).toBeCloseTo(501.5, 6);
 });
 
 test("playback runs at its speed, pauses on the tape's end and starts over from there", () => {

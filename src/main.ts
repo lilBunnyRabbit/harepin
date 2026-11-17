@@ -528,6 +528,7 @@ const system_back = new SystemBack(
     if (settings.is_open) settings.back();
     else if (popover) popover.hidePopover();
     else if (chat.is_open) chat.close();
+    else if (replay.is_open) replay.close();
     else settings.open();
     wake();
   },

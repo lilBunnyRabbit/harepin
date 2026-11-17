@@ -7,7 +7,7 @@ import type { World } from "../world/world";
 import { FreeCamera } from "./free-camera";
 import { Playback } from "./playback";
 import { ReplayView } from "./replay-view.svelte";
-import type { RunTape } from "./run-tape";
+import { TELEPORT_MPS, type RunTape } from "./run-tape";
 
 const VEL_MS = 50;
 const TURN = Math.PI * 2;
@@ -78,16 +78,19 @@ export class Replay {
   draw(dt: number, driver: Driver) {
     const { tape, clock, pose, before, view } = this;
     if (!tape) return;
+    const from_ms = clock.ms;
     clock.advance(dt);
     before.copy(pose.pos);
     lap_pose(tape, Math.max(0, clock.ms - VEL_MS), pose.vel, this.before_quat);
     lap_pose(tape, clock.ms, pose.pos, pose.quat);
     pose.vel.subVectors(pose.pos, pose.vel).divideScalar(VEL_MS / 1000);
-    if (clock.jumped) {
+    before.sub(pose.pos).negate();
+    // A cut on the tape moves the car as a seek does.
+    if (clock.jumped || before.length() > (TELEPORT_MPS * Math.abs(clock.ms - from_ms)) / 1000) {
       clock.jumped = false;
       if (!this.free) this.chase.snap(pose);
     } else {
-      const rolled = this.ahead.set(0, 0, 1).applyQuaternion(pose.quat).dot(before.sub(pose.pos).negate());
+      const rolled = this.ahead.set(0, 0, 1).applyQuaternion(pose.quat).dot(before);
       this.roll = (this.roll + rolled / driver.car.spec.wheel.radius) % TURN;
     }
     driver.draw_at(pose, this.roll);

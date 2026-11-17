@@ -18,7 +18,7 @@ So only the ghost lap format is a replay source, and outside the duel a finished
 ## Slice 1 (built): your own run
 
 - `replay/run-tape.ts`: `RunTape` records the player's car on every mode run in the ghost lap layout (8 numbers, 10 Hz, same `lap_pose` reader), at the car's own height. `Modes` starts it when a run goes, feeds it stepped time, closes it on the finish. In memory only, until the next run starts. Cap: ten minutes (`lap_cap_ms`).
-- The results card gets a Watch replay button (hidden when the tape has under two frames).
+- The results card gets a Watch replay button (hidden while the tape has no length).
 - `replay/playback.ts`: the clock (pause, seek, speeds 0.25 / 0.5 / 1 / 2 / 4).
 - `replay/replay.ts`: each frame it advances the clock, reads the pose from the tape and hands it to `Driver.draw_at`.
 - `replay/free-camera.ts`: drag turns, the driving controls fly (throttle / brake along the view, steer sideways), the wheel sets the pace. The camera key swaps chase and free; Escape closes; Space pauses.
@@ -38,6 +38,8 @@ No per-frame allocation: `lap_pose` now writes its span into one object instead 
 - Engine sound idles (the sim holds).
 - A scrub on the streamed mainland lands before its chunks do: the car stands on stand-in ground for a moment.
 - The tape ends at the finish line, not a few seconds after.
+
+A reset or a fall put back mid-run is a cut, not a slide: the tape takes a second frame at the last one's time (two poses farther apart than 150 m/s allows), `lap_pose` has nothing to blend across it, and the chase camera snaps as on a seek. Same layout, still a valid lap.
 
 ## Memory per minute
 
