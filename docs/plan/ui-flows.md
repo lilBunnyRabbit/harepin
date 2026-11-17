@@ -401,3 +401,10 @@ Things in the mockups that need a new state layer, new data or engine work. The 
 - D2 decided: no "start on arrival". Lane 2c drops `GO_PARAM` / `travel.go`; Enter (hold) starts.
 - D5: `travel_query(…, taken)` passes `false` until the launch work (1b) passes `true` after the picker.
 - 1d done 65fae17..8bcb4f6: one HUD; Minimap Realistic / Race line / Close-up / Notes / Off; Speedometer Bar / Dial; phone keeps the centre third clear; round 52 px handbrake pad. Left for later lanes: AI rivals on the minimap (only net cars today) and close-up lighting only the route ahead (needs `RouteRun` progress), both in 2c; top card restyle to `hud-top` in batch 3. Every lane builds its preview into its own scratch folder (`scratchpad/<task>/dist`), never a shared `dist`.
+- 0b done 5de4a3c..9d74d87. **Page contract for every lane:**
+  - a page renders `src/menu/MenuFrame.svelte` (`menu`, its own `id`, frame snippets);
+  - a child page registers with `layout: "frame"`;
+  - stage panels are marked `data-stage-panel` + `--stage-side`;
+  - use `Menu.back()` / `up_of()` / `MenuPage.back`;
+  - Title needs only its page (room `title` is in `STAGE_ROOMS`).
+  Old Play/Garage/Online/Settings/Support/Career are unmounted until their lanes land, so nothing ships from master before batch 2 ends. Garage's old `<canvas class="garage-canvas">` goes with 1c. Owners still needed: the frame chips (name, room, update).
