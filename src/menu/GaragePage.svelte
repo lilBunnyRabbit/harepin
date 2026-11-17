@@ -104,13 +104,16 @@
             {/if}
           </span>
         </header>
-        <ScrollArea class="garage-scroll">
-          {#if garage.on_builds}
-            <div class="garage-builds"><GarageBuilds {garage} sheet={side} /></div>
-          {:else}
-            <GarageParts {garage} />
-          {/if}
-        </ScrollArea>
+        <!-- Keyed: the builds open at their top, not where the parts list was scrolled to. -->
+        {#key garage.on_builds}
+          <ScrollArea class="garage-scroll">
+            {#if garage.on_builds}
+              <div class="garage-builds"><GarageBuilds {garage} sheet={side} /></div>
+            {:else}
+              <GarageParts {garage} />
+            {/if}
+          </ScrollArea>
+        {/key}
         {#if !garage.on_builds}
           <div class="garage-stats"><GarageMeters current={garage.current} shown={garage.shown} /></div>
         {/if}
