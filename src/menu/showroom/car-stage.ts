@@ -1,11 +1,11 @@
 import * as THREE from "three";
 import { ConvexHull } from "three/examples/jsm/math/ConvexHull.js";
-import { DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, SLOT_NAMES, WHOLE_CAR, build_code, build_spec, type Build, type Part, type SlotView } from "../car/build";
-import { CARS, is_car, type CarId } from "../car/cars";
-import { ride_height } from "../car/car";
-import { contact_shadow } from "../car/contact-shadow";
-import { build_view, dispose_car_view, rest_wheels, type CarView } from "../car/models";
-import { brand, color, dark } from "../theme/palette";
+import { DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, SLOT_NAMES, WHOLE_CAR, build_code, build_spec, type Build, type Part, type SlotView } from "../../car/build";
+import { CARS, is_car, type CarId } from "../../car/cars";
+import { ride_height } from "../../car/car";
+import { contact_shadow } from "../../car/contact-shadow";
+import { build_view, dispose_car_view, rest_wheels, type CarView } from "../../car/models";
+import { brand, color, dark } from "../../theme/palette";
 
 const EYE_AZIMUTH = Math.atan2(4.6, 5.4);
 const EYE_ELEVATION = Math.atan2(2.8, Math.hypot(4.6, 5.4));
@@ -28,6 +28,9 @@ const GROUND = -0.6;
 const FIT_TURNS = 24;
 /** Grid the stand's outline points snap to, metres: fewer points for the fit, nothing a pixel would show. */
 const OUTLINE_GRID = 0.04;
+/** Floor radius over the car's half diagonal, so the car clears the rim at every turn. */
+const FLOOR_ROOM = 1.12;
+const FLOOR_POINTS = 32;
 
 export const ease = (u: number) => 1 - (1 - u) ** 3;
 const turn = (from: number, to: number) => ((((to - from + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
@@ -48,16 +51,28 @@ interface Outline {
   half: THREE.Vector3;
 }
 
+export interface StageLook {
+  /** A unit-radius floor the stand scales to the car; its rim joins the fit, so the whole floor stays in frame. */
+  floor?: THREE.Object3D;
+  /** Camera distance over the tightest fit. */
+  slack?: number;
+}
+
 interface Fit {
   distance: number;
   aim: THREE.Vector3;
 }
 
-export class GarageStage {
+export class CarStage {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(32, 1, 0.1, 80);
   private readonly shadow = contact_shadow();
   private renderer: THREE.WebGLRenderer | null = null;
+  /** Set while stopped: the stage gives its GL context back, and the next start asks for it again. */
+  private lost: WEBGL_lose_context | null = null;
+  private running = false;
+  private restoring = false;
+  private panels: readonly HTMLElement[] = [];
   private view: CarView | null = null;
   private shown_code = "";
   private frame = 0;
@@ -80,27 +95,42 @@ export class GarageStage {
   private moved = 0;
   private readonly calm = matchMedia("(prefers-reduced-motion: reduce)");
   private readonly pointers = new Map<number, { x: number; y: number }>();
+  private readonly floor: THREE.Object3D | null;
+  private readonly slack: number;
 
-  constructor(readonly canvas: HTMLCanvasElement) {
+  constructor(
+    readonly canvas: HTMLCanvasElement,
+    look: StageLook = {},
+  ) {
+    this.floor = look.floor ?? null;
+    this.slack = look.slack ?? FIT_SLACK;
+    if (this.floor) this.scene.add(this.floor);
+    // A lost context comes back only when its loss event is cancelled.
+    canvas.addEventListener("webglcontextlost", (event) => event.preventDefault());
+    this.shadow.mesh.renderOrder = 2;
     // Light themes have a dark foreground, which would light the car like dusk; their light comes from the page white.
     const light = dark ? brand.foreground : brand.background_lightest;
     this.scene.add(new THREE.HemisphereLight(color(light), color(brand.background_darkest), 2.2));
     const sun = new THREE.DirectionalLight(color(light), 2.4);
     sun.position.set(4, 6, 3);
     this.scene.add(sun);
-    // The game's patch multiplies the ground under it; here there is no ground, only the page behind a clear canvas. As an
-    // alpha map the blob reads its green channel, which is solid out to the rim; as a map its alpha fades it out. It blends
-    // only as a transparent mesh: the game draws the patch in the opaque pass.
+    // The game's patch multiplies the ground under it; here there is no ground, only the page behind a clear canvas, so it
+    // blends as a transparent mesh. The blob is opaque greys on black: its fade is in the green channel the alpha map reads,
+    // and used as a colour map it drew a hard dark square.
     this.shadow.material.blending = THREE.NormalBlending;
     this.shadow.material.transparent = true;
     this.shadow.material.premultipliedAlpha = false;
-    this.shadow.material.map = this.shadow.material.alphaMap;
-    this.shadow.material.alphaMap = null;
     this.scene.add(this.shadow.mesh);
   }
 
   start(view: SlotView) {
-    this.renderer ??= new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
+    this.running = true;
+    if (this.lost) {
+      this.canvas.addEventListener("webglcontextrestored", this.restored, { once: true });
+      this.restoring = true;
+      this.lost.restoreContext();
+      this.lost = null;
+    } else if (!this.restoring) this.renderer ??= this.make();
     this.canvas.addEventListener("pointerdown", this.grab);
     this.canvas.addEventListener("pointermove", this.drag);
     this.canvas.addEventListener("lostpointercapture", this.release);
@@ -110,7 +140,30 @@ export class GarageStage {
     this.shown_code = "";
   }
 
+  private make(): THREE.WebGLRenderer {
+    return new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
+  }
+
+  // Restoring is async: a stop that came first gives the context straight back.
+  private readonly restored = () => {
+    this.restoring = false;
+    this.renderer = this.make();
+    if (this.running) this.resize(this.panels);
+    else this.release_context();
+  };
+
+  private release_context() {
+    const renderer = this.renderer;
+    if (!renderer) return;
+    this.lost = renderer.getContext().getExtension("WEBGL_lose_context");
+    renderer.dispose();
+    this.renderer = null;
+    this.lost?.loseContext();
+  }
+
   stop() {
+    this.running = false;
+    this.release_context();
     this.canvas.removeEventListener("pointerdown", this.grab);
     this.canvas.removeEventListener("pointermove", this.drag);
     this.canvas.removeEventListener("lostpointercapture", this.release);
@@ -144,6 +197,8 @@ export class GarageStage {
     const { center, half } = this.outline(build);
     this.shadow.mesh.position.set(center.x, GROUND + 0.02, center.z);
     this.shadow.mesh.scale.set(half.x, 1, half.z / 2);
+    this.floor?.position.set(0, GROUND, 0);
+    this.floor?.scale.setScalar(floor_radius(center, half));
     this.frame_car();
   }
 
@@ -172,7 +227,7 @@ export class GarageStage {
         const car = queue[0];
         const outline = this.outlines.get(car);
         if (outline) {
-          if (!this.fits.has(car)) this.fits.set(car, this.fit(outline.points));
+          if (!this.fits.has(car)) this.fits.set(car, this.fit(this.fit_points(outline)));
           queue.shift();
           continue;
         }
@@ -259,6 +314,7 @@ export class GarageStage {
 
   /** Frames the car in the part of the screen the `panels` leave clear. */
   resize(panels: readonly HTMLElement[]) {
+    this.panels = panels;
     const renderer = this.renderer;
     if (!renderer) return;
     const width = this.canvas.clientWidth;
@@ -268,12 +324,12 @@ export class GarageStage {
     const area = { left: 0, top: 0, right: width, bottom: height };
     // The stage sits inside the menu, so panel rects are taken relative to the canvas, not the window.
     const stage = this.canvas.getBoundingClientRect();
-    // Each panel names the side of the stage it takes in `--garage-side`: the layouts move panels between sides.
+    // Each panel names the side of the stage it takes in `--stage-side`: the layouts move panels between sides.
     for (const panel of panels) {
       const box = panel.getBoundingClientRect();
       if (!box.width || !box.height) continue;
       const r = { left: box.left - stage.left, right: box.right - stage.left, top: box.top - stage.top, bottom: box.bottom - stage.top };
-      const side = getComputedStyle(panel).getPropertyValue("--garage-side").trim();
+      const side = getComputedStyle(panel).getPropertyValue("--stage-side").trim();
       if (side === "top") area.top = Math.max(area.top, r.bottom + FREE_PAD);
       else if (side === "left") area.left = Math.max(area.left, r.right + FREE_PAD);
       else if (side === "right") area.right = Math.min(area.right, r.left - FREE_PAD);
@@ -299,10 +355,20 @@ export class GarageStage {
     const car = this.stand_car;
     const outline = car && this.outlines.get(car);
     if (!car || !outline) return;
-    const fit = this.fits.get(car) ?? this.fit(outline.points);
+    const fit = this.fits.get(car) ?? this.fit(this.fit_points(outline));
     this.fits.set(car, fit);
     this.fit_distance = fit.distance;
     this.aim_at.copy(fit.aim);
+  }
+
+  private fit_points(outline: Outline): readonly THREE.Vector3[] {
+    if (!this.floor) return outline.points;
+    const r = floor_radius(outline.center, outline.half);
+    const rim = Array.from({ length: FLOOR_POINTS }, (_, i) => {
+      const a = (i / FLOOR_POINTS) * 2 * Math.PI;
+      return new THREE.Vector3(Math.cos(a) * r, GROUND, Math.sin(a) * r);
+    });
+    return [...outline.points, ...rim];
   }
 
   /**
@@ -348,7 +414,7 @@ export class GarageStage {
       if (slide(mid)) far = mid;
       else near = mid;
     }
-    const distance = far * FIT_SLACK;
+    const distance = far * this.slack;
     const range = slide(distance) ?? { x0: 0, x1: 0, y0: 0, y1: 0 };
     const aim = new THREE.Vector3().addScaledVector(side, (range.x0 + range.x1) / 2).addScaledVector(up, (range.y0 + range.y1) / 2);
     return { distance, aim };
@@ -407,6 +473,9 @@ function* outline_steps(build: Build): Generator<void, Outline> {
   const corners = new ConvexHull().setFromPoints(points).vertices.map((corner) => corner.point);
   return { points: corners, center: box.getCenter(new THREE.Vector3()), half: box.getSize(new THREE.Vector3()).multiplyScalar(0.5) };
 }
+
+// The car turns about the stand's origin, not its outline's centre, so the floor centres there too.
+const floor_radius = (center: THREE.Vector3, half: THREE.Vector3) => Math.hypot(Math.abs(center.x) + half.x, Math.abs(center.z) + half.z) * FLOOR_ROOM;
 
 /** The car on its stand: unturned, tyres on the floor, so a lower ride shows as the body dropping. */
 function stand_view(build: Build): CarView {

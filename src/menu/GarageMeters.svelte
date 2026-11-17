@@ -3,7 +3,7 @@
   import { DEFAULT_PARTS, STATS, build_spec, stats, type Build, type Stats } from "../car/build";
   import { CLASS_LABELS, rating } from "../car/pi";
   import { STAT_NAMES, bar_of, signed, stat_rating, trend } from "./garage-meters";
-  import { ease } from "./garage-stage";
+  import { ease } from "./showroom/car-stage";
   import ClassBadge from "./ui/ClassBadge.svelte";
   import Progress from "./ui/Progress.svelte";
   import SectionHead from "./ui/SectionHead.svelte";

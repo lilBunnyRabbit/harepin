@@ -1,5 +1,5 @@
 import { tick } from "svelte";
-import { DECALS, DEFAULT_BUILD, MAX_NUMBER, build_code, parse_build, type Build } from "../car/build";
+import { DECALS, DEFAULT_BUILD, MAX_NUMBER, WHOLE_CAR, build_code, parse_build, type Build, type SlotView } from "../car/build";
 import { free_build_name, load_builds, store_builds, with_build, without_build, type SavedBuild } from "../car/builds";
 import { CARS, type CarId } from "../car/cars";
 import { PRESETS } from "../car/presets";
@@ -7,7 +7,6 @@ import { NO_UNLOCKS, type Reward, type Unlocks } from "../career/rewards";
 import { modal_open, typing, type Nav } from "../hud/input";
 import { save_build } from "./garage-builds";
 import { BUILDS_TAB, TABS, car_value, type Item } from "./garage-items";
-import { GarageStage } from "./garage-stage";
 import { strip_key } from "./garage-strip-key";
 
 const KEY_NAV: Record<string, Nav> = {
@@ -22,9 +21,14 @@ const KEY_NAV: Record<string, Nav> = {
 export type GarageInput = "pad" | "keys";
 
 export interface GarageView {
-  canvas: HTMLCanvasElement;
-  panels(): HTMLElement[];
   sheet(): HTMLElement | null;
+}
+
+/** The showroom's stage the garage stands its car on: it draws `Garage.shown` and frames it between the page's panels. */
+export interface GarageStage {
+  aim(view: SlotView): void;
+  sync(): void;
+  reframe(): void;
 }
 
 export class Garage {
@@ -91,8 +95,10 @@ export class Garage {
 
   attach(view: GarageView) {
     this.view = view;
-    this.stage = new GarageStage(view.canvas);
-    if (this.opened) this.start();
+  }
+
+  stand_on(stage: GarageStage) {
+    this.stage = stage;
   }
 
   use_code(code: string, save = true) {
@@ -106,20 +112,22 @@ export class Garage {
     this.relist++;
     this.input = navigator.getGamepads?.().some((pad) => pad?.connected) ? "pad" : "keys";
     addEventListener("keydown", this.key);
-    addEventListener("resize", this.resized);
     const items = this.items;
     this.item = items.find((item) => item.id === this.item.id) ?? items[0] ?? this.item;
     this.builds = load_builds();
     this.cursor = this.item.at(this.current);
-    this.start();
+    this.stage?.aim(this.item.view);
+    this.reframe();
   }
 
+  /** Leaves the stage on the fitted car, turned to the whole of it, for the stations that stand it next. */
   close() {
     if (!this.opened) return;
     this.opened = false;
-    this.stage?.stop();
+    this.cursor = this.item.at(this.current);
+    this.stage?.aim(WHOLE_CAR);
+    this.stage?.sync();
     removeEventListener("keydown", this.key);
-    removeEventListener("resize", this.resized);
   }
 
   try_reward(reward: Reward) {
@@ -204,15 +212,8 @@ export class Garage {
     this.store(without_build(this.builds, name));
   }
 
-  private start() {
-    if (!this.stage || !this.opened) return;
-    this.stage.start(this.item.view);
-    this.stage.show(this.shown);
-    this.reframe();
-  }
-
   draw() {
-    if (this.opened) this.stage?.show(this.shown);
+    if (this.opened) this.stage?.sync();
   }
 
   private act(nav: Nav) {
@@ -268,10 +269,8 @@ export class Garage {
   }
 
   private reframe() {
-    void tick().then(this.resized);
+    void tick().then(() => {
+      if (this.opened) this.stage?.reframe();
+    });
   }
-
-  private readonly resized = () => {
-    if (this.opened && this.view) this.stage?.resize(this.view.panels());
-  };
 }

@@ -36,7 +36,7 @@ class Stage {
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(1);
     this.renderer.setSize(STILL_WIDTH, STILL_HEIGHT, false);
-    // The garage stand's light (garage-stage.ts): a still is the car as the garage shows it.
+    // The garage stand's light (showroom/car-stage.ts): a still is the car as the garage shows it.
     const light = dark ? brand.foreground : brand.background_lightest;
     this.scene.add(new THREE.HemisphereLight(color(light), color(brand.background_darkest), 2.2));
     const sun = new THREE.DirectionalLight(color(light), 2.4);

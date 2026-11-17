@@ -1,0 +1,17 @@
+.showroom-stage {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+.showroom-stage[hidden] {
+  display: none;
+}
+
+.showroom-stage:active {
+  cursor: grabbing;
+}

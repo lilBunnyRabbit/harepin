@@ -35,7 +35,7 @@
   const slots = $derived(items.map((item) => ({ id: item.id, label: item.label })));
 
   onMount(() => {
-    garage.attach({ canvas, panels: () => [top, rail, stats, bottom].filter((panel) => !!panel), sheet: () => rail });
+    garage.attach({ sheet: () => rail });
   });
 
   $effect(() => {
