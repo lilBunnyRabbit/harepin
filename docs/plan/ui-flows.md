@@ -425,3 +425,8 @@ Things in the mockups that need a new state layer, new data or engine work. The 
 - 1b done b75843d..6a18792: Events opens on the Series; Career, Runs, Series, Free modes rebuilt; no tabs. Every start goes StartSheet, then picker, then start. D5 is lighter than planned: each page holds its own sheet `target`, and there's no shared launch module. Home and Maps render StartSheet the same way (1b follow-up). Batch 3: Series CSS and `ui/Progress` still on `--space-*` / `--set-*`; the Guide (2b) links Things to try.
 - 1b round 2 8d3ad4e: Home and Maps starts open StartSheet. Batch 3: hide the showroom stage while a sheet is open (plain dim scene).
 - 1c done 70cbb7e 7794a41 6caa8e5: Garage parts cards, Builds rows, picker page; road asks use Settings.pick_car; CarPick deleted. Batch 3: phone heights for Button/TextField (Builds); delete SpecCard if unused; QA a capped event from the road.
+- 2c done fe3fda8..b16f608: ticket, pause, gate, road map (callouts with leader lines, F pages past 8), travel briefing; AI field on the minimap; Close-up from `RouteRun.progress`; GO_PARAM gone. Batch 3:
+  - PageFrame Back takes pad B (keys override);
+  - Go to flag while parked at that flag reopens its gate card (`event-markers.ts` `arrive`);
+  - delete Ticket, PlaceChip, KeyButton `size`;
+  - the road map card is filled with the map's edge colour (sea blue), not the mockup's dark fade: owner check.
