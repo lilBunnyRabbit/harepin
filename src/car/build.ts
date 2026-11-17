@@ -199,6 +199,8 @@ export interface Build {
   ink: number;
   /** Shown by the number roundel, 0-99. */
   number: number;
+  neon: number;
+  neon_tone: number;
   /** Index into `SLOTS[slot].parts` per slot. */
   parts: Record<Slot, number>;
 }
@@ -228,27 +230,55 @@ export const DECAL_NAMES: Record<Decal, string> = {
 export const MAX_DECAL = DECALS.length - 1;
 export const MAX_INK = 8;
 export const MAX_NUMBER = 99;
+// Both append-only: build codes and the car packet carry the indices.
+export const NEONS = ["none", "pool", "ring"] as const;
+export type Neon = (typeof NEONS)[number];
+export const NEON_NAMES: Record<Neon, string> = { none: "None", pool: "Pool", ring: "Ring" };
+export const NEON_TONES = ["accent", "primary", "secondary", "tertiary", "cottontail", "paint"] as const;
+export type NeonTone = (typeof NEON_TONES)[number];
+export const NEON_TONE_NAMES: Record<NeonTone, string> = { accent: "Accent", primary: "Primary", secondary: "Secondary", tertiary: "Tertiary", cottontail: "Cottontail", paint: "Match paint" };
+const NEON_BASE = 10;
+const NO_NEON = { neon: 0, neon_tone: 0 };
+
+/** One byte for the car packet and the build code: style, then tone, as two decimal digits. */
+export const neon_byte = (build: Pick<Build, "neon" | "neon_tone">) => build.neon * NEON_BASE + build.neon_tone;
+
+export function neon_of(byte: number): Pick<Build, "neon" | "neon_tone"> {
+  const neon = Math.floor(byte / NEON_BASE);
+  const neon_tone = byte % NEON_BASE;
+  return Number.isInteger(byte) && neon >= 0 && neon < NEONS.length && neon_tone < NEON_TONES.length ? { neon, neon_tone } : NO_NEON;
+}
+
 export const DEFAULT_PARTS: Record<Slot, number> = { engine: 0, tyres: 0, aero: 0, suspension: 1, brakes: 0, weight: 0, bias: 1, nitro: 0 };
 // A new player's car, in the info paint: blue stands clear of grass, dirt and sand in both themes. The wing's rear grip takes the stock hatch's lift-off tuck at 80 km/h from 16 to 4 degrees of slip.
-export const DEFAULT_BUILD: Build = { car: "hatch", paint: 4, decal: 0, ink: 0, number: 7, parts: { ...DEFAULT_PARTS, aero: 2 } };
+export const DEFAULT_BUILD: Build = { car: "hatch", paint: 4, decal: 0, ink: 0, number: 7, ...NO_NEON, parts: { ...DEFAULT_PARTS, aero: 2 } };
 
 const HEAD: readonly Slot[] = ["aero", "suspension", "engine"];
 const TAIL = SLOT_NAMES.filter((slot) => !HEAD.includes(slot));
+const NEON_MARK = "+";
+const MAX_CODE = 43;
 
 // Ink and number, then the tail slots, ride as optional tails, so a build that keeps their defaults has the code it had
-// before them and older peers still read it.
-const CODE = new RegExp(`^(${Object.keys(CARS).join("|")})\\.(\\d{1,2})\\.(\\d{1,2})\\.(\\d)\\.(\\d)\\.(\\d)(?:\\.(\\d)\\.(\\d{1,2})((?:\\.\\d){0,${TAIL.length}}))?$`);
+// before them and older peers still read it. Neon rides last behind its own mark: `split_neon` cuts it off for them.
+const CODE = new RegExp(`^(${Object.keys(CARS).join("|")})\\.(\\d{1,2})\\.(\\d{1,2})\\.(\\d)\\.(\\d)\\.(\\d)(?:\\.(\\d)\\.(\\d{1,2})((?:\\.\\d){0,${TAIL.length}}))?(?:\\${NEON_MARK}(\\d\\d))?$`);
 
 export function build_code(build: Build): string {
   const code = `${build.car}.${build.paint}.${build.decal}.${HEAD.map((slot) => build.parts[slot]).join(".")}`;
   const tail = TAIL.map((slot) => build.parts[slot]);
   while (tail.length && tail[tail.length - 1] === DEFAULT_PARTS[TAIL[tail.length - 1]]) tail.pop();
-  if (!tail.length && build.ink === DEFAULT_BUILD.ink && build.number === DEFAULT_BUILD.number) return code;
-  return [code, build.ink, build.number, ...tail].join(".");
+  const byte = neon_byte(build);
+  const neon = byte ? NEON_MARK + String(byte).padStart(2, "0") : "";
+  if (!tail.length && build.ink === DEFAULT_BUILD.ink && build.number === DEFAULT_BUILD.number) return code + neon;
+  return [code, build.ink, build.number, ...tail].join(".") + neon;
+}
+
+export function split_neon(code: string): { code: string; neon: number } {
+  const at = code.indexOf(NEON_MARK);
+  return at < 0 ? { code, neon: 0 } : { code: code.slice(0, at), neon: neon_byte(neon_of(Number(code.slice(at + 1)))) };
 }
 
 export function parse_build(code: unknown): Build | null {
-  if (typeof code !== "string" || code.length > 40) return null;
+  if (typeof code !== "string" || code.length > MAX_CODE) return null;
   const m = CODE.exec(code);
   if (!m || !is_car(m[1])) return null;
   const paint = Number(m[2]);
@@ -261,7 +291,7 @@ export function parse_build(code: unknown): Build | null {
   HEAD.forEach((slot, i) => (parts[slot] = Number(m[4 + i])));
   TAIL.forEach((slot, i) => (parts[slot] = tail[i] ?? DEFAULT_PARTS[slot]));
   if (SLOT_NAMES.some((slot) => parts[slot] >= SLOTS[slot].parts.length)) return null;
-  return { car: m[1], paint, decal, ink, number, parts };
+  return { car: m[1], paint, decal, ink, number, ...neon_of(m[10] === undefined ? 0 : Number(m[10])), parts };
 }
 
 function fold(mods: readonly Mod[], field: Field, base: number): number {

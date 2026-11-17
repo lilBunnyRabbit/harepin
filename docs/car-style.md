@@ -79,7 +79,7 @@ On top of the kit, each car wears the cues of its own tuning scene, each brought
 | Car | Scene | Cues |
 |---|---|---|
 | Hatch | track day | offset tow hooks, centre-exit pipes, cage cross in the hatch glass |
-| Coupe | 90s highway | underglow tubes, bazooka pipes, front-mount intercooler |
+| Coupe | 90s highway | bazooka pipes, front-mount intercooler |
 | Muscle | pro street | chrome side pipes, rear louvres, blower through the hood, wheelie bars |
 | Rally | gravel stage | red mudflaps, roof scoop, lamp pod, sump guard |
 | Kaze | pro drift | camber, tow straps, bash bar in place of the rear bumper |

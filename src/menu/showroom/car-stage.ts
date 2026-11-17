@@ -5,6 +5,7 @@ import { CARS, is_car, type CarId } from "../../car/cars";
 import { ride_height } from "../../car/car";
 import { contact_shadow } from "../../car/contact-shadow";
 import { build_view, dispose_car_view, rest_wheels, type CarView } from "../../car/models";
+import { rest_neon } from "../../car/neon-look";
 import { brand, color, dark } from "../../theme/palette";
 
 const EYE_AZIMUTH = Math.atan2(4.6, 5.4);
@@ -24,6 +25,8 @@ const EASE_MS = 600;
 const FREE_PAD = 12;
 /** Height of the stand's floor under the car, where the tyres sit whatever the ride height. */
 const GROUND = -0.6;
+/** Share of the glow a light page takes: it can add no light to the page white, only tint it, and at full strength reads as a stain. */
+const PAGE_TINT = 0.4;
 /** Turns the fit is checked at, so the framing holds wherever the car is turned. */
 const FIT_TURNS = 24;
 /** Grid the stand's outline points snap to, metres: fewer points for the fit, nothing a pixel would show. */
@@ -181,8 +184,10 @@ export class CarStage {
     this.shown_code = code;
     const old = this.view;
     if (old) this.scene.remove(old.root);
+    if (old?.neon) this.scene.remove(old.neon.mesh);
     this.view = stand_view(build);
     this.scene.add(this.view.root);
+    if (this.view.neon) this.scene.add(this.view.neon.mesh);
     if (build.car !== this.stand_car) this.stand(build);
     this.draw();
     // Disposed after the new car's first draw: three drops a program its last material lets go, and the new car's
@@ -484,5 +489,12 @@ function stand_view(build: Build): CarView {
   rest_wheels(view, spec);
   view.root.position.y = GROUND + ride_height(spec);
   view.root.updateMatrixWorld(true);
+  if (view.neon) {
+    // As with the shadow: no ground to add light to, so the glow blends over the page by its own strength.
+    view.neon.mesh.material.blending = THREE.NormalBlending;
+    view.neon.mesh.material.transparent = true;
+    view.neon.mesh.position.y = GROUND + 0.03;
+    rest_neon(view.neon, dark ? 1 : PAGE_TINT);
+  }
   return view;
 }

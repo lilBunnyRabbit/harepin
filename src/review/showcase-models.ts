@@ -105,7 +105,7 @@ function shoot(tile: Tile, centre: THREE.Vector3, reach: number) {
   tile.object.traverse((node) => {
     if (node instanceof THREE.Mesh) node.castShadow = true;
   });
-  const distance = (reach * MARGIN) / Math.sin(THREE.MathUtils.degToRad(FOV / 2) * Math.min(1, camera.aspect));
+  const distance = (reach * (layout.margin ?? MARGIN)) / Math.sin(THREE.MathUtils.degToRad(FOV / 2) * Math.min(1, camera.aspect));
   const yaw = THREE.MathUtils.degToRad(tile.yaw);
   const pitch = THREE.MathUtils.degToRad(tile.pitch);
   camera.position.set(centre.x + Math.sin(yaw) * Math.cos(pitch) * distance, centre.y + Math.sin(pitch) * distance, centre.z + Math.cos(yaw) * Math.cos(pitch) * distance);

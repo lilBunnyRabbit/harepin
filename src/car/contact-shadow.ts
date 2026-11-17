@@ -65,11 +65,13 @@ export function contact_shadow(): ContactShadow {
   return { mesh, material, strength, ride: RIDE };
 }
 
+export const ground_ride = (spec: CarSpec) => RIDE * oversize(spec).height;
+
 /** Sizes the patch to `spec`'s body: a car keeps the stock patch, a bigger body stretches it. */
 export function fit_contact_shadow(shadow: ContactShadow, spec: CarSpec) {
   const size = oversize(spec);
   shadow.mesh.scale.set(size.width, 1, size.length);
-  shadow.ride = RIDE * size.height;
+  shadow.ride = ground_ride(spec);
 }
 
 const up = new THREE.Vector3(0, 1, 0);
@@ -77,14 +79,21 @@ const ground_normal = new THREE.Vector3();
 const tilt = new THREE.Quaternion();
 const yaw = new THREE.Quaternion();
 
-/** `drawn` is the drawn lift at (`x`, `z`) when the caller already has it. */
-export function place_contact_shadow(shadow: ContactShadow, x: number, y: number, z: number, heading: number, world: World, drawn = world.drawn_lift(x, z, y)) {
+/** Lays a flat `mesh` on the drawn ground under (`x`, `z`), turned to `heading`; returns the height of `y` over the ground. */
+export function lay_on_ground(mesh: THREE.Object3D, x: number, y: number, z: number, heading: number, world: World, drawn: number): number {
   const ground = world.height(x, z, y);
   world.normal(x, z, ground_normal, y);
-  shadow.mesh.position.set(x, ground + drawn + 0.05, z);
+  mesh.position.set(x, ground + drawn + 0.05, z);
   tilt.setFromUnitVectors(up, ground_normal);
   yaw.setFromAxisAngle(up, heading);
-  shadow.mesh.quaternion.copy(tilt).multiply(yaw);
-  const lift = Math.max(0, y - ground - shadow.ride);
-  shadow.material.opacity = shadow.strength * Math.max(0, 1 - lift / 3);
+  mesh.quaternion.copy(tilt).multiply(yaw);
+  return y - ground;
+}
+
+/** 1 for a car origin within `ride` of the ground, down to 0 three metres higher. */
+export const ground_fade = (height: number, ride: number) => Math.max(0, 1 - Math.max(0, height - ride) / 3);
+
+/** `drawn` is the drawn lift at (`x`, `z`) when the caller already has it. */
+export function place_contact_shadow(shadow: ContactShadow, x: number, y: number, z: number, heading: number, world: World, drawn = world.drawn_lift(x, z, y)) {
+  shadow.material.opacity = shadow.strength * ground_fade(lay_on_ground(shadow.mesh, x, y, z, heading, world, drawn), shadow.ride);
 }

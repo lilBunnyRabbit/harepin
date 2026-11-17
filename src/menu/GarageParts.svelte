@@ -2,6 +2,7 @@
   import { DECALS } from "../car/build";
   import { within } from "../car/car-pick";
   import { livery_of } from "../car/livery";
+  import { neon_look } from "../car/neon-look";
   import { paint_finish, paint_lab } from "../car/paint";
   import { rating } from "../car/pi";
   import { decal_inks, rgba } from "../theme/palette";
@@ -27,6 +28,7 @@
   const fitted = $derived(item.at(garage.current));
   const livery = $derived(livery_of(shown));
   const fitted_class = $derived(rating(garage.current).class);
+  const carded = $derived(item.kind === "part" || item.kind === "neon");
   const options = $derived(
     Array.from({ length: item.kind === "number" ? 0 : item.count }, (_, index) => {
       const build = item.with(garage.current, index);
@@ -35,7 +37,7 @@
         name: item.name(index),
         blurb: item.blurb(index),
         over: item.kind === "part" && !within(rating(build).class, fitted_class),
-        swatch: item.kind === "paint" ? rgba(paint_lab(build.paint)) : item.kind === "ink" ? rgba(decal_inks[index]) : null,
+        swatch: item.kind === "paint" ? rgba(paint_lab(build.paint)) : item.kind === "ink" ? rgba(decal_inks[index]) : item.kind === "glow" ? rgba(neon_look(build)?.tone ?? paint_lab(build.paint)) : null,
         finish: item.kind === "paint" ? paint_finish(build.paint) : null,
         decal: DECALS[build.decal],
       };
@@ -105,11 +107,11 @@
             data-option={option.index}
             data-cursor={option.index === garage.cursor ? "" : undefined}
             aria-pressed={option.index === fitted}
-            aria-label={item.kind === "part" ? undefined : option.name}
-            title={item.kind === "part" ? undefined : option.name}
+            aria-label={carded ? undefined : option.name}
+            title={carded ? undefined : option.name}
             onclick={(event) => pick(event, option.index)}
           >
-            {#if item.kind === "part"}
+            {#if carded}
               <span class="garage-part-icon"><Icon name={slot_icon(item.id)} /></span>
               <span class="garage-part-text">
                 <b>{option.name}</b>
@@ -119,7 +121,7 @@
                 <Chip inner icon="icon-check">Fitted</Chip>
               {:else if option.over}
                 <Chip inner>Over class</Chip>
-              {:else}
+              {:else if item.kind === "part"}
                 <Chip inner>Fits</Chip>
               {/if}
             {:else if item.kind === "decal"}
@@ -215,6 +217,7 @@
 
   [data-kind="paint"] .garage-options,
   [data-kind="ink"] .garage-options,
+  [data-kind="glow"] .garage-options,
   [data-kind="decal"] .garage-options {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(var(--primary-h), 1fr));
@@ -224,13 +227,13 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  :root :is([data-kind="paint"], [data-kind="ink"], [data-kind="decal"]) .garage-part {
+  :root :is([data-kind="paint"], [data-kind="ink"], [data-kind="glow"], [data-kind="decal"]) .garage-part {
     justify-content: center;
     padding: var(--gap-sm);
     box-shadow: inset 0 0 0 1px var(--line);
   }
 
-  :root :is([data-kind="paint"], [data-kind="ink"], [data-kind="decal"]) .garage-part[aria-pressed="true"] {
+  :root :is([data-kind="paint"], [data-kind="ink"], [data-kind="glow"], [data-kind="decal"]) .garage-part[aria-pressed="true"] {
     box-shadow: inset 0 0 0 var(--mark-w) var(--primary);
   }
 

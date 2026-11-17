@@ -205,7 +205,6 @@ export interface Detail {
   warning?: Part[];
   red?: Part[];
   bright?: Part[];
-  accent?: Part[];
   /** Extra lit lamps. */
   heads?: Part[];
   /** Profiles in paint and in trim. */

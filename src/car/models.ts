@@ -6,11 +6,12 @@ import { CARS, COUPE, is_car, type CarSpec, type Triple } from "./cars";
 import { body_pieces, body_slabs, cabin_parts, flares, on_glass, sculpt, sculpt_factor, side_panel, skirts, wells } from "./body-shell";
 import { DETAILS } from "./car-details";
 import { detail_look, type DetailLook } from "./detail-looks";
-import { CAR_ORDER } from "./contact-shadow";
+import { CAR_ORDER, ground_ride } from "./contact-shadow";
 import { DESIGNS, type Design } from "./designs";
 import { extrude, merge, parts, side_part, tail_at, taper, tint } from "./geometry";
 import { BRAKE_REST, brake_on, lamps, popup, snap_lights, type HeadMesh, type Popup } from "./lights";
 import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
+import { dispose_neon, neon_look, neon_view, type NeonLook, type NeonView } from "./neon-look";
 import { nitro_flame, type Jet } from "./nitro-look";
 import { aero_of, aero_parts, kit_parts, rear_wing } from "./part-looks";
 import { STOCK_CALIPER, STOCK_TYRE, brake_geometry, chrome_tone, wheel_geometry } from "./wheels";
@@ -54,6 +55,8 @@ export interface CarView {
   /** The flame's shader uniforms, and the time in seconds `show_flame` last moved them. */
   jet: Jet;
   sway_at: number;
+  /** Underglow, or null for a build without one. It lies on the ground, outside `root`: whoever adds `root` to a scene adds its mesh too. */
+  neon: NeonView | null;
   arch: ArchLimit;
 }
 
@@ -69,7 +72,7 @@ export interface ArchLimit {
 }
 
 export function build_view(build: Build, spec: CarSpec = build_spec(build)): CarView {
-  return car_view(color(paint_lab(build.paint)), spec, build.parts, livery_of(build), paint_finish(build.paint));
+  return car_view(color(paint_lab(build.paint)), spec, build.parts, livery_of(build), paint_finish(build.paint), neon_look(build));
 }
 
 const TONE_MATCH = 1e-4;
@@ -250,7 +253,7 @@ export function body_y(spec: CarSpec): number {
 }
 
 // Paint, trim, glass and decals are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.
-export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<Slot, number> = DEFAULT_PARTS, livery: Livery | null = null, finish: Finish | null = null): CarView {
+export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<Slot, number> = DEFAULT_PARTS, livery: Livery | null = null, finish: Finish | null = null, neon: NeonLook | null = null): CarView {
   const aero = aero_of(kit);
   const { d, detail } = fitted_design(spec, kit, paint, color(tones.trim));
   const root = new THREE.Group();
@@ -352,7 +355,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     front: axles[0].z,
     rear: axles[axles.length - 1].z,
   };
-  const view = { root, body, wheels, arms, steered, brake, heads, lights: true, popup: pods, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame, jet, sway_at: 0, arch };
+  const view = { root, body, wheels, arms, steered, brake, heads, lights: true, popup: pods, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame, jet, sway_at: 0, neon: neon && neon_view(d, neon, ground_ride(spec)), arch };
   snap_lights(view, true);
   return view;
 }
@@ -407,4 +410,5 @@ export function dispose_car_view(view: CarView) {
     object.geometry.dispose();
     (object.material as THREE.Material).dispose();
   });
+  if (view.neon) dispose_neon(view.neon);
 }

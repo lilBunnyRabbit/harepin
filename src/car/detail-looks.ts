@@ -58,7 +58,6 @@ export function detail_look(details: Detail[], kit: Record<Slot, number>, paint:
     add(detail.warning, color(brand.warning));
     add(detail.red, color(brand.error));
     add(detail.bright, color(tones.check_light));
-    add(detail.accent, color(brand.accent));
     look.body.push(...shapes(detail.lips).map((g) => tint(g, paint)), ...shapes(detail.stands).map((g) => tint(g, trim)));
     add(detail.bare, bare);
     hood.push(...(detail.hood ?? []));

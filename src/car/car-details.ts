@@ -32,12 +32,7 @@ const COUPE_TAIL = Math.min(tail_at(coupe.outline, 0.31), tail_at(coupe.kit?.out
 const coupe_pipe = (bore: number, length: number) => pipe(0.55, 0.31, COUPE_TAIL - COUPE_PIPE_OUT + length / 2, bore, length);
 const coupe_bazooka = coupe_pipe(0.09, 0.3);
 const coupe_twin = coupe_pipe(0.11, 0.32);
-// A slim underglow tube against the floor, well inboard so the body side hides it from a side view: one row for the
-// stock body, one for the kit's deeper sills. Hung below them it read as a copper line along the sill's bottom edge.
-const coupe_glow = (sill: number): Part[] => [{ size: [0.04, 0.04, 1.56], at: [0.45, sill - 0.019, 0], round: true }];
 const COUPE: Detail[] = [
-  { on: "nitro", until: "street", cue: "Underglow tube under each sill", accent: coupe_glow(coupe.sill) },
-  { on: "nitro", with: "street", cue: "Underglow tube under the kit's sills", accent: coupe_glow(coupe.kit?.sill ?? coupe.sill) },
   { on: "tuned", until: "race_engine", cue: "A bazooka pipe each side", chrome: [coupe_bazooka.chrome], trim: [coupe_bazooka.trim], tips: [coupe_bazooka.tip], swaps: ["pipes"], ...coupe_bazooka.outlet },
   { on: "race_engine", cue: "Fatter bazookas", chrome: [coupe_twin.chrome], trim: [coupe_twin.trim], tips: [coupe_twin.tip], swaps: ["pipes"], ...coupe_twin.outlet },
   { on: "race_engine", cue: "Front-mount intercooler in the bumper bar", bright: [centred(1.2, 0.085, 0.02, 0.362, 2.35)] },

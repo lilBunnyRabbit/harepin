@@ -26,7 +26,7 @@ Typical loop for a visual change: run once on the base commit, make the change, 
 
 Open `index.html`. It has one section per group:
 
-- **cars**: the `?showcase` sheets. `cars` shows every car from four fixed angles, at one scale so sizes compare. `lineup` is the same without the bus, so the cars fill their tiles and their detail reads. `paints` shows every paint, the reward metals included, on the coupe. `decals` shows every car with every decal. `biomes` shows each land kind's trees and props on its ground (snow kinds use snowy crowns). `track` shows the start flags for each tier and locked, plus the gate unlit, lit as next, and the start gate.
+- **cars**: the `?showcase` sheets. `cars` shows every car from four fixed angles, at one scale so sizes compare. `lineup` is the same without the bus, so the cars fill their tiles and their detail reads. `paints` shows every paint, the reward metals included, on the coupe. `decals` shows every car with every decal. `biomes` shows each land kind's trees and props on its ground (snow kinds use snowy crowns). `track` shows the start flags for each tier and locked, plus the gate unlit, lit as next, and the start gate. `neon` shows both underglow styles in three of the glow colours.
 - **worlds**: each map from its named viewpoints.
 - **motion**: each dev ghost driven under the chase camera, held at 15/40/65/90% of its lap. These show speed readability, fog and streamed scenery at speed.
 
@@ -36,7 +36,7 @@ The pages exist only in the dev server and in a `vite build --mode review` build
 
 | URL | Shows |
 |---|---|
-| `?showcase=<sheet>` | One sheet: `cars`, `lineup`, `paints`, `decals`, `biomes`, `track`. Add `&theme=Brand Light` for day. The page is as tall as its grid, so take a full-page screenshot |
+| `?showcase=<sheet>` | One sheet: `cars`, `lineup`, `paints`, `decals`, `biomes`, `track`, `neon`. Add `&theme=Brand Light` for day. The page is as tall as its grid, so take a full-page screenshot |
 | `?map=<code>&view=<name>` | The world from a viewpoint: `start`, `q1` `q2` `q3` (side-on at the circuit's quarter points), `overlook` (from the highest road, looking out), `shore` (the lowest road, looking at the sea), `town` (the biggest town), `aerial`, `crest`, `bowl` and `rim` (a deck world's steepest bank: up its wall from the low edge, and down into it from over the top). Each is worked out from the world's road, towns and water (`src/review/viewpoints.ts`), so every seed has them without a hand list. A world with no sea or no town has no `shore` or `town` view. A world with no deck has no `bowl` or `rim` view. A road-less world (the dune sea, whose road is its spawn point) has only `start` and `crest`: the first dune 15 m+ tall within 480 m downwind of the spawn, seen from its windward shoulder over the brink and down the slip face. A world with a road has no `crest` |
 | `?replay=<event id>&t=<seconds>` | The event's dev ghost driven from 2 s before `t`, held at `t`. Without `t` the lap plays on a loop |
 

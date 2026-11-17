@@ -1,11 +1,11 @@
-import { DECALS, DECAL_NAMES, MAX_NUMBER, MAX_PAINT, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Slot, type SlotView } from "../car/build";
+import { DECALS, DECAL_NAMES, MAX_NUMBER, MAX_PAINT, NEONS, NEON_NAMES, NEON_TONES, NEON_TONE_NAMES, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Neon, type Slot, type SlotView } from "../car/build";
 import { TIERS } from "../career/career";
 import { REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
 import { NEUTRAL_INKS, car_paints, decal_inks } from "../theme/palette";
 
 const SIDE_VIEW: SlotView = { yaw: -0.87 };
 
-type Kind = "part" | "paint" | "ink" | "decal" | "number";
+type Kind = "part" | "paint" | "ink" | "decal" | "number" | "neon" | "glow";
 
 /** The two rows of slot chips: what the car drives with, and what it wears. */
 export type ItemGroup = "parts" | "look";
@@ -115,13 +115,43 @@ const INK_ITEM: Item = {
   blurb: () => "",
 };
 
-/** Every slot of the garage, parts first: the reward paints and decals earned, and the number and decal colour only while a decal shows them. */
+/** Three-quarter rear: the light lies on the ground behind and beside the car. */
+const GLOW_VIEW: SlotView = { yaw: 2.6 };
+const NEON_BLURBS: Record<Neon, string> = { none: "", pool: "Soft light under the whole car", ring: "A bright line round the car that runs with the road" };
+
+const NEON_ITEM: Item = {
+  id: "neon",
+  label: "Neon",
+  kind: "neon",
+  group: "look",
+  view: GLOW_VIEW,
+  count: NEONS.length,
+  at: (b) => b.neon,
+  with: (b, i) => ({ ...b, neon: i }),
+  name: (i) => NEON_NAMES[NEONS[i]],
+  blurb: (i) => NEON_BLURBS[NEONS[i]],
+};
+
+const GLOW_ITEM: Item = {
+  id: "glow",
+  label: "Neon colour",
+  kind: "glow",
+  group: "look",
+  view: GLOW_VIEW,
+  count: NEON_TONES.length,
+  at: (b) => b.neon_tone,
+  with: (b, i) => ({ ...b, neon_tone: i }),
+  name: (i) => NEON_TONE_NAMES[NEON_TONES[i]],
+  blurb: () => "",
+};
+
+/** Every slot of the garage, parts first: the reward paints and decals earned, and the number, decal colour and neon colour only while a decal or a neon shows them. */
 export function garage_items(build: Build, unlocks: Unlocks): Item[] {
   const decal = DECALS[build.decal];
-  return [...PART_ITEMS, paint_item(build, unlocks), decal_item(build, unlocks), ...(decal === "number" ? [NUMBER_ITEM] : []), ...(decal === "none" ? [] : [INK_ITEM])];
+  return [...PART_ITEMS, paint_item(build, unlocks), decal_item(build, unlocks), ...(decal === "number" ? [NUMBER_ITEM] : []), ...(decal === "none" ? [] : [INK_ITEM]), NEON_ITEM, ...(NEONS[build.neon] === "none" ? [] : [GLOW_ITEM])];
 }
 
-const SLOT_ICONS = new Set(["engine", "tyres", "aero", "suspension", "brakes", "weight", "bias", "nitro", "decal", "number", "ink"]);
+const SLOT_ICONS = new Set(["engine", "tyres", "aero", "suspension", "brakes", "weight", "bias", "nitro", "decal", "number", "ink", "neon", "glow"]);
 
 /** The sprite icon for a slot or option kind. */
 export const slot_icon = (id: string) => (id === "paint" ? "icon-paint" : `icon-slot-${SLOT_ICONS.has(id) ? id : "part"}`);

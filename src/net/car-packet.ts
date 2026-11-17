@@ -1,4 +1,4 @@
-import { build_code, parse_build } from "../car/build";
+import { build_code, neon_of, parse_build, split_neon } from "../car/build";
 import type { CarState } from "./net";
 
 export const WORLD_LIMIT = 5000;
@@ -46,19 +46,28 @@ class Utf8Cache {
 
 const names = new Utf8Cache(NAME_BYTES);
 const builds = new Utf8Cache(BUILD_BYTES);
+const sent = { text: "", code: "", neon: 0 };
+
+function split(text: string): typeof sent {
+  if (text !== sent.text) Object.assign(sent, split_neon(text), { text });
+  return sent;
+}
 
 const int16 = (x: number) => Math.max(-32767, Math.min(32767, Math.round(x))) || 0;
 
 /**
  * Fixed layout, little-endian: t f64, best f64 (0 = none), p 3×f32, q 4×i16 (unit), v 3×i16 (1/64 m/s), seed u32,
- * w u32, paint u16, steer i8, flags u8 (brake, boost, dark), then name and build as a length byte and UTF-8.
+ * w u32, paint u16, steer i8, flags u8 (brake, boost, dark), then name and build as a length byte and UTF-8,
+ * then the build's neon as a u8 (`neon_byte`), left off at none: the build code goes out without it, as older peers read it.
  * Append-only within a protocol: a new field goes after the build and a new flag takes a free bit, and decoders ignore
  * both. Reordering or resizing a field needs a `PROTOCOL` bump.
  */
 export function encode_car(state: CarState): Uint8Array<ArrayBuffer> {
   const name = names.get(state.name);
-  const build = builds.get(state.b ?? "");
-  const bytes = new Uint8Array(CAR_HEADER + 2 + name.length + build.length);
+  const { code, neon } = split(state.b ?? "");
+  const build = builds.get(code);
+  const end = CAR_HEADER + 2 + name.length + build.length;
+  const bytes = new Uint8Array(end + (neon ? 1 : 0));
   const view = new DataView(bytes.buffer);
   view.setFloat64(T, state.t, true);
   view.setFloat64(BEST, state.best ?? 0, true);
@@ -74,6 +83,7 @@ export function encode_car(state: CarState): Uint8Array<ArrayBuffer> {
   bytes.set(name, CAR_HEADER + 1);
   bytes[CAR_HEADER + 1 + name.length] = build.length;
   bytes.set(build, CAR_HEADER + 2 + name.length);
+  if (neon) bytes[end] = neon;
   return bytes;
 }
 
@@ -119,7 +129,7 @@ export function decode_car(raw: unknown, id: string): CarState | null {
     id,
     name,
     paint,
-    b: build ? build_code(build) : undefined,
+    b: build ? build_code({ ...build, ...neon_of(raw.length > end ? raw[end] : 0) }) : undefined,
     seed: view.getUint32(SEED, true),
     w,
     t,

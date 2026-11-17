@@ -135,3 +135,22 @@ test("a name or build change shows up despite the cached bytes", () => {
   expect([renamed?.name, renamed?.b]).toEqual(["Other", "coupe.3.1.2.1.0"]);
   expect(decode_car(bytes_of(state), "x")?.b).toBe(state.b);
 });
+
+test("neon: a byte after the build, left off at none; older peers read the build code without it", () => {
+  const plain = bytes_of(state);
+  const lit = bytes_of({ ...state, b: `${state.b}+13` });
+  expect(lit.length).toBe(plain.length + 1);
+  expect(lit[lit.length - 1]).toBe(13);
+  expect(lit.subarray(0, plain.length)).toEqual(plain);
+  expect(decode_car(lit, "x")?.b).toBe(`${state.b}+13`);
+  expect(decode_car(lit.subarray(0, plain.length), "x")?.b).toBe(state.b);
+  expect(decode_car(bytes_of(state), "x")?.b).toBe(state.b);
+});
+
+test("neon: a byte that names none reads as none, and bytes after it are ignored", () => {
+  const plain = bytes_of(state);
+  const with_tail = (...tail: number[]) => decode_car(new Uint8Array([...plain, ...tail]), "x")?.b;
+  for (const bad of [30, 16, 99, 255]) expect(with_tail(bad)).toBe(state.b);
+  expect(with_tail(25, 7, 7)).toBe(`${state.b}+25`);
+  expect(with_tail(0)).toBe(state.b);
+});
