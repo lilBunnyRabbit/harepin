@@ -159,8 +159,8 @@
     font-size: var(--type-small);
   }
 
-  /* A phone's list fills the screen by itself: the picture stays away. */
-  @media (max-height: 500px) {
+  /* A phone's list fills the screen by itself, either way up: the picture stays away. */
+  @media (max-height: 500px), (max-width: 700px) {
     .modes {
       grid-template-columns: minmax(0, 1fr);
     }

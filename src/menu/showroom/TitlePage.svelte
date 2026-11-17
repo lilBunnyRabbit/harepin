@@ -152,9 +152,15 @@
     }
   }
 
+  /* Portrait: the body scrolls here too, and the wordmark is too wide to share the top row with the chips. */
   @media (max-width: 700px) {
     .title-page {
       grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .title-mark {
+      position: static;
     }
 
     .title-continue {

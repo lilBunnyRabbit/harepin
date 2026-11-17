@@ -211,4 +211,30 @@
       aspect-ratio: 16 / 10;
     }
   }
+
+  /* Portrait: two topics a row, and a topic's points over its picture. */
+  @media (max-width: 700px) {
+    .guide,
+    .guide-topic {
+      height: auto;
+    }
+
+    .guide {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: auto;
+      grid-auto-rows: calc(var(--top-h) * 5);
+    }
+
+    .guide-topic {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .guide-topic > :global(.guide-points) {
+      max-height: none;
+    }
+
+    .guide-topic > :global(.guide-shot) {
+      aspect-ratio: 16 / 10;
+    }
+  }
 </style>

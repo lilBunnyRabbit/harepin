@@ -280,9 +280,15 @@
     }
   }
 
+  /* Portrait: what to run, then the run it rolled, each at its own height. */
   @media (max-width: 700px) {
     .builder {
       grid-template-columns: minmax(0, 1fr);
+      height: auto;
+    }
+
+    .builder > :global(.ui-card) {
+      max-height: none;
     }
   }
 </style>

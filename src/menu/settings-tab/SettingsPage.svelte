@@ -369,4 +369,46 @@
       display: none;
     }
   }
+
+  /* Portrait: one door a row, its values under its name; a section's rows run the full width with their help under. */
+  @media (max-width: 700px) {
+    .set-doors {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: none;
+      grid-auto-flow: row;
+      grid-auto-rows: minmax(calc(var(--row-h) * 2), auto);
+      height: auto;
+    }
+
+    .set-door-row {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: var(--gap-xs) var(--gap);
+    }
+
+    .set-door-icon {
+      grid-area: 1 / 1 / 3 / 2;
+    }
+
+    .set-door-name {
+      grid-area: 1 / 2;
+    }
+
+    .set-door-values {
+      grid-area: 2 / 2;
+    }
+
+    .set-door-go {
+      grid-area: 1 / 3 / 3 / 4;
+    }
+
+    .set-page {
+      grid-template-columns: minmax(0, 1fr);
+      height: auto;
+    }
+
+    .set-page > :global(.set-rows),
+    .set-page > :global(.set-help) {
+      max-height: none;
+    }
+  }
 </style>

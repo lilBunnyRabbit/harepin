@@ -343,4 +343,44 @@
       font-size: var(--type-h2);
     }
   }
+
+  /* Portrait: the maps run as a strip along the top, and the picked map stacks under it, its map over its events. */
+  @media (max-width: 700px) {
+    .maps {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto auto;
+      height: auto;
+    }
+
+    .maps-rail {
+      grid-row: 1;
+      flex-direction: row;
+      overflow: auto hidden;
+    }
+
+    .maps-rail > :global(.maps-stop),
+    .maps-rail > :global(.maps-make) {
+      flex: none;
+      width: calc(var(--top-h) * 5);
+      min-height: calc(var(--row-h) * 2);
+    }
+
+    .maps > :global(.maps-big) {
+      flex-direction: column;
+    }
+
+    .maps-shot {
+      width: 100%;
+      max-width: none;
+      height: auto;
+    }
+
+    .maps-events {
+      overflow: visible;
+    }
+
+    h2 {
+      font-size: var(--type-h2);
+    }
+  }
 </style>

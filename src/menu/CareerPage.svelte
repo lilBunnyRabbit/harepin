@@ -282,4 +282,30 @@
       padding: var(--gap-xs) var(--gap-sm);
     }
   }
+
+  /* Portrait: the tiers run as a strip that scrolls sideways, and the picked tier's maps stack under it. */
+  @media (max-width: 700px) {
+    .career {
+      grid-template-rows: auto auto;
+      height: auto;
+    }
+
+    .career-tiers {
+      gap: var(--gap-md);
+      height: calc(var(--top-h) * 4);
+      overflow: auto hidden;
+      scrollbar-width: none;
+    }
+
+    .career-tiers > :global(.career-tier),
+    .career-tiers > :global(.career-tier[aria-pressed="true"]) {
+      flex: none;
+      width: calc(var(--top-h) * 3.5);
+      outline-offset: calc(var(--mark-w) * -1);
+    }
+
+    .career-maps {
+      flex-direction: column;
+    }
+  }
 </style>

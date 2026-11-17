@@ -173,4 +173,33 @@
       padding: var(--gap-sm) var(--gap-md);
     }
   }
+
+  /* Portrait: one run a row, its picture at the side, each at its own height. */
+  @media (max-width: 700px) {
+    .runs {
+      grid-template-rows: auto auto;
+      height: auto;
+    }
+
+    .runs-cards {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .runs-cards > :global(.runs-card) {
+      flex-direction: row;
+    }
+
+    .runs-cards > :global(.runs-card > .ui-card-pic) {
+      flex: 0 0 30%;
+    }
+
+    .runs-cards > :global(.runs-card > .ui-card-cap) {
+      flex: 1;
+      justify-content: center;
+    }
+
+    .runs-cards > :global(.runs-build) {
+      min-height: calc(var(--row-h) * 2.5);
+    }
+  }
 </style>

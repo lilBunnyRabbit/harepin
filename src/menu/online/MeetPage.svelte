@@ -372,4 +372,17 @@
       grid-template-columns: repeat(auto-fit, minmax(0, 132px));
     }
   }
+
+  /* Portrait: two drivers a row, and a full room runs past the screen, so the body scrolls it. */
+  @media (max-width: 700px) {
+    .meet,
+    .meet-setup {
+      height: auto;
+      min-height: 100%;
+    }
+
+    .meet-drivers {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
 </style>

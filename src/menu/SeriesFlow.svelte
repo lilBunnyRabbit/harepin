@@ -320,4 +320,23 @@
   .fl-rail-table button {
     padding: 0 var(--space-4);
   }
+
+  /* Portrait: the front card takes most of the width, and the rail drops its links to fit every round. */
+  @media (max-width: 700px) {
+    .fl-strip {
+      --w: min(78cqh, 68cqw);
+    }
+
+    .fl-rail {
+      gap: var(--gap-xs);
+    }
+
+    .fl-rail li:not(:last-child)::after {
+      display: none;
+    }
+
+    .fl-rail-table button {
+      padding: 0 var(--gap-md);
+    }
+  }
 </style>

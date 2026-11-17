@@ -155,8 +155,8 @@
   }
 
   /* A phone body that runs long scrolls as one, fading at the edge it is cut on; the rows around it stay put. A taller
-     screen's body never scrolls, and a mask would cut the focus rings that stand outside its box. */
-  @media (min-height: 501px) {
+     and wider screen's body never scrolls, and a mask would cut the focus rings that stand outside its box. */
+  @media (min-height: 501px) and (min-width: 701px) {
     .ui-frame-rows > :global(.ui-frame-body) {
       overflow: visible;
       mask-image: none;
@@ -219,6 +219,11 @@
 
     .ui-frame-stations:empty {
       display: none;
+    }
+
+    /* The body scrolls here, so it clips: a focus ring needs its room inside. */
+    .ui-frame-rows > :global(.ui-frame-body) {
+      padding: calc(var(--mark-w) + var(--space-0));
     }
 
     .ui-frame-bottom,

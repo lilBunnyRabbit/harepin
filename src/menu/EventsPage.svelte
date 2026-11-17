@@ -348,4 +348,32 @@
       display: none;
     }
   }
+
+  /* Portrait: the Series card, then each door, one under the other at their own height; the frame's body scrolls. */
+  @media (max-width: 700px) {
+    .events {
+      grid-template-columns: minmax(0, 1fr);
+      height: auto;
+    }
+
+    .events > :global(.events-series > .ui-card-pic) {
+      flex: none;
+      aspect-ratio: 16 / 9;
+    }
+
+    .door-head {
+      flex-wrap: wrap;
+      gap: var(--gap-sm) var(--gap);
+    }
+
+    .door-chip {
+      order: 1;
+      flex-basis: 100%;
+    }
+
+    .door-strip {
+      flex: none;
+      height: calc(var(--top-h) * 2.5);
+    }
+  }
 </style>

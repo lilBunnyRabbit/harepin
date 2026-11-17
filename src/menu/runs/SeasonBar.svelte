@@ -63,4 +63,17 @@
   .season-star {
     color: var(--warning);
   }
+
+  /* Portrait: the two texts share the top line and the bar runs under them. */
+  @media (max-width: 700px) {
+    .season-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--gap-md);
+    }
+
+    .season-row > :global(:nth-child(2)) {
+      grid-row: 2;
+      grid-column: 1 / -1;
+    }
+  }
 </style>

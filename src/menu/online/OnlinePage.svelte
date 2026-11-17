@@ -288,4 +288,17 @@
       height: 5rem;
     }
   }
+
+  /* Portrait: the room, then the players under it, each at its own height. */
+  @media (max-width: 700px) {
+    .online {
+      grid-template-columns: minmax(0, 1fr);
+      height: auto;
+    }
+
+    .online :global(.online-room > .ui-card-pic) {
+      flex: none;
+      aspect-ratio: 16 / 9;
+    }
+  }
 </style>

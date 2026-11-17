@@ -154,4 +154,28 @@
       font-size: var(--text-lg);
     }
   }
+
+  /* Portrait: the numbers run the full width under the title. */
+  @media (max-width: 700px) {
+    .sh {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--gap-md);
+    }
+
+    .sh-stats div {
+      flex: none;
+      padding: 0 var(--gap-md);
+    }
+
+    .sh-stats .sh-rival {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    dt {
+      overflow: hidden;
+      font-size: var(--type-eyebrow);
+      text-overflow: ellipsis;
+    }
+  }
 </style>

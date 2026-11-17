@@ -249,4 +249,20 @@
       gap: var(--gap-sm);
     }
   }
+
+  /* Portrait: one card under the other, each at its own height. */
+  @media (max-width: 700px) {
+    .wel-setup {
+      grid-template-columns: minmax(0, 1fr);
+      height: auto;
+    }
+
+    .wel-setup > :global(.ui-card) {
+      overflow: visible;
+    }
+
+    .wel-looks {
+      grid-auto-rows: calc(var(--top-h) * 1.5);
+    }
+  }
 </style>
