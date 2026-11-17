@@ -415,3 +415,10 @@ Things in the mockups that need a new state layer, new data or engine work. The 
   - Saved maps left Make: owner question;
   - `maps.ts` `elsewhere` / `distance_text` stay for 2c;
   - page classes carry a page prefix (`home-`, `maps-`), since bare `.title` / `.name` leak from old global CSS.
+- 1b done b75843d..e928b04: Events (Series card, Career and Runs doors), Career (`tiers`), Runs, Build a run (`run-build`), Series view, Free modes, Things to try, all on `MenuFrame`. **Start sheet for every lane:**
+  - a page keeps `let target = $state.raw<StartTarget | null>(null)` (`events-view.ts`), renders `StartSheet.svelte` in place of its frame while it is set, and gives Back to it through its own `back()`;
+  - the sheet opens the car picker for a class-capped start and then calls `host.start_event / start_series / start_run(id, car)`; a lent car starts with `car = null`;
+  - `host.start_event(id)` with no car is still the drive to the flag (road flows, Home, Maps);
+  - on another map the taken car becomes the player's own and `travel_query` gets `taken = true`; a run that arrives still asks through `modes.pick_car` (2c, with the travel briefing);
+  - Series styles (`SeriesFlow`, `SeriesCard`, `SeriesHead`, `SeriesSeasons`, `SeriesStandings`) still size from `--space-*` / `--set-*`: batch 3;
+  - Things to try has no door on Events: the Guide (2b) links it; `car_note` in `series-view.ts` stays for Home only.
