@@ -2,6 +2,7 @@
   import type { CarChoice } from "../car/car-pick";
   import { CLASS_FLOORS, type CarClass } from "../car/pi";
   import { CAR_PAGE, type CarPicker } from "./car-pick.svelte";
+  import { aim_or_go } from "./drive-picks";
   import { car_facts } from "./car-facts";
   import CarFactsLine from "./CarFactsLine.svelte";
   import CarStill from "./CarStill.svelte";
@@ -68,16 +69,6 @@
     card?.scrollIntoView({ block: "nearest" });
   }
 
-  function choose(c: CarChoice) {
-    if (c.code === chosen) take();
-    else chosen = c.code;
-  }
-
-  // Keys and the pad choose as they walk the cards; a mouse press focuses too, and its click must still be the first step.
-  function focused(event: FocusEvent, c: CarChoice) {
-    if (event.currentTarget instanceof HTMLElement && event.currentTarget.matches(":focus-visible")) chosen = c.code;
-  }
-
   function take() {
     if (pick && !pick.blocked) picker.end(pick.code);
   }
@@ -120,8 +111,8 @@
             data-code={c.code}
             aria-pressed={c.code === chosen}
             aria-disabled={c.blocked !== null}
-            onfocus={(event) => focused(event, c)}
-            onclick={() => choose(c)}
+            onfocus={() => (chosen = c.code)}
+            onclick={(click) => aim_or_go(click, () => (chosen = c.code), take)}
           >
             <span class="pick-shot"><CarStill car={c.build.car} build={c.build} /></span>
             <span class="pick-cap">

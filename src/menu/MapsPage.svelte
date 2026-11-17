@@ -2,7 +2,7 @@
   import { untrack } from "svelte";
   import { MAX_EVENT_STARS, event_of } from "../career/career";
   import type { CarPicker } from "./car-pick.svelte";
-  import { bare_enter } from "./drive-picks";
+  import { aim_or_go, bare_enter } from "./drive-picks";
   import { target_of, type StartTarget } from "./events-view";
   import { thumb_url } from "./map-thumb";
   import { MAKE_PAGE, MAPS_PAGE, first_pick, map_stops, type MapEvent, type MapPin, type MapStop } from "./maps";
@@ -107,10 +107,7 @@
     menu.drive(stop.map.seed, stop.map.kind, stop.map.levels);
   }
 
-  function press(click: MouseEvent, aim: () => void) {
-    aim();
-    if (click.detail === 0) go();
-  }
+  const press = (click: MouseEvent, aim: () => void) => aim_or_go(click, aim, go);
 
   function key(press: KeyboardEvent) {
     if (!shown || target || !bare_enter(press)) return;

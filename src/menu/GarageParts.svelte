@@ -6,6 +6,7 @@
   import { rating } from "../car/pi";
   import { decal_inks, rgba } from "../theme/palette";
   import DecalTile from "./DecalTile.svelte";
+  import { aim_or_go } from "./drive-picks";
   import type { Garage } from "./garage.svelte";
   import { slot_icon } from "./garage-items";
   import Chip from "./ui/Chip.svelte";
@@ -59,22 +60,8 @@
     list.querySelector<HTMLElement>("[data-cursor]")?.scrollIntoView({ block: "nearest", behavior: fresh || calm.matches ? "instant" : "smooth" });
   });
 
-  // A mouse previews on hover and fits on click. A finger has no hover: its first tap tries the option on, the second (or the primary) fits it.
-  function hover(event: PointerEvent) {
-    if (event.pointerType !== "mouse" || !(event.target instanceof Element)) return;
-    const option = event.target.closest<HTMLElement>("[data-option]");
-    if (option) garage.preview(Number(option.dataset.option));
-  }
-
-  function unhover(event: PointerEvent) {
-    if (event.pointerType === "mouse") garage.preview(fitted);
-  }
-
-  function pick(event: MouseEvent, index: number) {
-    const touch = event instanceof PointerEvent && event.pointerType === "touch";
-    if (touch && garage.cursor !== index) garage.preview(index);
-    else garage.fit(index);
-  }
+  // A tap or click tries the option on the car; the primary fits it.
+  const pick = (click: MouseEvent, index: number) => aim_or_go(click, () => garage.preview(index), () => garage.fit(index));
 
   function typed(event: Event) {
     const value = event.currentTarget instanceof HTMLInputElement ? event.currentTarget.value : number;
@@ -109,7 +96,7 @@
       <IconButton icon="icon-back" flip label="Number up" onclick={() => garage.step_number(1)} />
     </div>
   {:else}
-    <ol class="garage-options" bind:this={list} onpointerover={hover} onpointerleave={unhover}>
+    <ol class="garage-options" bind:this={list}>
       {#each options as option (option.index)}
         <li>
           <button

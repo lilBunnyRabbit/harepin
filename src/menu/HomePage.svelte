@@ -3,7 +3,7 @@
   import { CARS } from "../car/cars";
   import { rating } from "../car/pi";
   import type { CarPicker } from "./car-pick.svelte";
-  import { PickId, bare_enter, host_picks, link_key, type DrivePick } from "./drive-picks";
+  import { PickId, aim_or_go, bare_enter, host_picks, link_key, type DrivePick } from "./drive-picks";
   import { target_of, type StartTarget } from "./events-view";
   import { MAPS_PAGE } from "./maps";
   import MenuFrame from "./MenuFrame.svelte";
@@ -52,11 +52,7 @@
     target = target_of(host, KINDS[pick.id], pick.target);
   }
 
-  // Enter and the pad's A click with no pointer behind them (detail 0): they go. A tap or click only aims.
-  function press(event: MouseEvent, pick: DrivePick) {
-    aimed = pick.id;
-    if (event.detail === 0) go(pick);
-  }
+  const press = (click: MouseEvent, pick: DrivePick) => aim_or_go(click, () => (aimed = pick.id), () => go(pick));
 
   function key(event: KeyboardEvent) {
     if (!shown || target) return;

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Announce } from "../../net/directory";
-  import { bare_enter, link_key } from "../drive-picks";
+  import { aim_or_go, bare_enter, link_key } from "../drive-picks";
   import MenuFrame from "../MenuFrame.svelte";
   import Card from "../ui/Card.svelte";
   import KeyLink from "../ui/KeyLink.svelte";
@@ -63,10 +63,7 @@
     else join_game(menu, group.game, null);
   }
 
-  function press(click: MouseEvent, group: RoomGroup) {
-    picked = group.key;
-    if (click.detail === 0) join(group);
-  }
+  const press = (click: MouseEvent, group: RoomGroup) => aim_or_go(click, () => (picked = group.key), () => join(group));
 
   function key(event: KeyboardEvent) {
     if (!shown || asking) return;

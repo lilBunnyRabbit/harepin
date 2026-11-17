@@ -1,6 +1,6 @@
 <script lang="ts">
   import { GOALS } from "../goals/goals";
-  import { bare_enter } from "./drive-picks";
+  import { aim_or_go, bare_enter } from "./drive-picks";
   import { GOALS_PAGE, GUIDE_PAGE, TOPICS, line_of, type Topic } from "./guide-topics";
   import MenuFrame from "./MenuFrame.svelte";
   import Card from "./ui/Card.svelte";
@@ -24,7 +24,8 @@
   const done = $derived.by(() => (void version, goals.count));
   const next = $derived.by(() => (void version, GOALS.find((goal) => !goals.is_done(goal.id))));
 
-  let picked = $state(TOPICS[0].id);
+  const STEPS = "steps";
+  let picked = $state<string>(TOPICS[0].id);
   let reading = $state<string | null>(null);
   const topic = $derived(TOPICS.find((one) => one.id === reading) ?? null);
   const focus = $derived(TOPICS.find((one) => one.id === picked) ?? TOPICS[0]);
@@ -47,6 +48,7 @@
 
   function act() {
     if (topic) open(topic.door);
+    else if (picked === STEPS) open(GOALS_PAGE);
     else enter(focus);
   }
 
@@ -60,7 +62,7 @@
 <svelte:window onkeydown={key} />
 
 {#snippet primary()}
-  <PrimaryAction onclick={act}>{topic ? topic.verb : `Open ${focus.title}`}</PrimaryAction>
+  <PrimaryAction onclick={act}>{topic ? topic.verb : `Open ${picked === STEPS ? "First steps" : focus.title}`}</PrimaryAction>
 {/snippet}
 
 {#if topic}
@@ -81,7 +83,7 @@
 {:else}
   <MenuFrame {menu} id={GUIDE_PAGE} eyebrow="Settings" title="Guide" veil={0.6} {primary}>
     <div class="guide">
-      <Card pad="sm" flat class="guide-steps" onclick={() => open(GOALS_PAGE)} label="First steps">
+      <Card pad="sm" flat class="guide-steps" focused={picked === STEPS} onclick={(click) => aim_or_go(click, () => (picked = STEPS), () => open(GOALS_PAGE))} onfocus={() => (picked = STEPS)} label="First steps">
         <span class="guide-bar">
           <span class="guide-text">
             <span class="ev-eyebrow">First steps</span>
@@ -103,7 +105,7 @@
         {#snippet shot()}
           <img class="ev-pic" src={preview(one.art)} alt="" />
         {/snippet}
-        <Card picture={shot} flat focused={one.id === picked} class="guide-card" onclick={() => enter(one)} onfocus={() => (picked = one.id)} label={one.title}>
+        <Card picture={shot} flat focused={one.id === picked} class="guide-card" onclick={(click) => aim_or_go(click, () => (picked = one.id), () => enter(one))} onfocus={() => (picked = one.id)} label={one.title}>
           <b class="ev-h3">{one.title}</b>
           <span class="ev-small">{one.line}</span>
         </Card>

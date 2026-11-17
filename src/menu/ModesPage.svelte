@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { LevelEntry } from "../modes/modes";
   import { MAX_STARS } from "../modes/track";
-  import { bare_enter } from "./drive-picks";
+  import { aim_or_go, bare_enter } from "./drive-picks";
   import { MODES_PAGE } from "./events-view";
   import MenuFrame from "./MenuFrame.svelte";
   import Card from "./ui/Card.svelte";
@@ -45,11 +45,6 @@
     host.play_level(level.id);
   }
 
-  function choose(one: LevelEntry) {
-    if (one === level) play();
-    else level_id = one.id;
-  }
-
   function quit() {
     menu.close();
     host.quit_mode();
@@ -83,7 +78,7 @@
       <Card list class="modes-levels" label={mode.name}>
         <RowList label={`${mode.name} levels`}>
           {#each mode.levels as one, i (one.id)}
-            <Row label={one.name} help={help(one, i)} icon={one.open ? undefined : "icon-lock"} fill focused={one === level} onclick={() => choose(one)} onfocus={() => (level_id = one.id)}>
+            <Row label={one.name} help={help(one, i)} icon={one.open ? undefined : "icon-lock"} fill focused={one === level} onclick={(click) => aim_or_go(click, () => (level_id = one.id), play)} onfocus={() => (level_id = one.id)}>
               {#snippet control()}
                 <span class="modes-end">
                   {#if one.best}<span class="modes-best">{one.best}</span>{/if}

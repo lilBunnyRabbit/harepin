@@ -4,9 +4,10 @@
   import type { MapData } from "../worldgen/map";
   import { KINDS, plain_map, type MapSpec } from "../worldgen/kinds/kinds";
   import { custom_code, map_code, parse_map_code } from "../worldgen/kinds/map-code";
+  import type { WorldKind } from "../worldgen/types";
   import { map_name } from "../worlds/map-name";
   import { LISTED, WORLDS } from "../worlds/worlds";
-  import { bare_enter, link_key } from "./drive-picks";
+  import { aim_or_go, bare_enter, link_key } from "./drive-picks";
   import { FALLBACK } from "./map-note";
   import { MAKE_PAGE } from "./maps";
   import MenuFrame from "./MenuFrame.svelte";
@@ -91,6 +92,11 @@
     const read = parse_map_code(code_text, chosen.kind);
     if (read.ok) return choose(read.map, false);
     bad = read.why === "newer" ? NEWER : BAD;
+  }
+
+  // Walking the kinds with the keys picks as it goes, like a tap: Enter is the primary's on every card.
+  function pick_kind(kind: WorldKind) {
+    if (kind !== chosen.kind) choose(plain_map(kind, chosen.seed), true);
   }
 
   const roll = () => choose({ ...chosen, seed: random_seed() }, true);
@@ -190,7 +196,7 @@
       <div class="make-kinds" role="radiogroup" aria-label="Map type">
         {#each LISTED as { kind, name } (kind)}
           {@const on = kind === chosen.kind}
-          <Card pad="sm" flat class="make-kind" label={name} selected={on} onclick={() => choose(plain_map(kind, chosen.seed), true)}>
+          <Card pad="sm" flat class="make-kind" label={name} selected={on} onfocus={() => pick_kind(kind)} onclick={(click) => aim_or_go(click, () => pick_kind(kind), drive)}>
             {#snippet picture()}
               <img src={preview(kind)} alt="" decoding="async" />
             {/snippet}

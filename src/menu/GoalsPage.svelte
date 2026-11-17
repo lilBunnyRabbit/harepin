@@ -1,6 +1,6 @@
 <script lang="ts">
   import { GOALS, type GoTo } from "../goals/goals";
-  import { bare_enter } from "./drive-picks";
+  import { aim_or_go, bare_enter } from "./drive-picks";
   import { hint_of } from "./goal-hint";
   import MenuFrame from "./MenuFrame.svelte";
   import Card from "./ui/Card.svelte";
@@ -36,11 +36,6 @@
 
   const open = () => row && go(row.goal.go);
 
-  function choose(one: (typeof rows)[number]) {
-    if (one === row) open();
-    else picked = one.goal.id;
-  }
-
   function key(event: KeyboardEvent) {
     if (!shown || event.defaultPrevented || !bare_enter(event)) return;
     event.preventDefault();
@@ -69,7 +64,7 @@
     <Card list class="goals-list" label="Things to try">
       <RowList label="Things to try">
         {#each rows as one (one.goal.id)}
-          <Row label={one.goal.title} help={one.help} fill focused={one === row} onclick={() => choose(one)} onfocus={() => (picked = one.goal.id)}>
+          <Row label={one.goal.title} help={one.help} fill focused={one === row} onclick={(click) => aim_or_go(click, () => (picked = one.goal.id), () => go(one.goal.go))} onfocus={() => (picked = one.goal.id)}>
             {#snippet control()}
               {#if one.done}<span class="goals-done"><Icon name="icon-check" />Done</span>{:else}<span class="goals-go"><Icon name="icon-back" flip /></span>{/if}
             {/snippet}

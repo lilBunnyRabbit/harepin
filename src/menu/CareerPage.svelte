@@ -5,7 +5,7 @@
   import { event_place } from "../career/gate";
   import { by_map, place_of } from "../career/place";
   import type { CarPicker } from "./car-pick.svelte";
-  import { bare_enter } from "./drive-picks";
+  import { aim_or_go, bare_enter } from "./drive-picks";
   import { CAREER_PAGE, complete_line, in_map_order, tier_eyebrow, tier_front, tier_line, type StartTarget } from "./events-view";
   import MenuFrame from "./MenuFrame.svelte";
   import StartSheet from "./StartSheet.svelte";
@@ -60,11 +60,6 @@
 
   function open(event: CareerEvent) {
     if (!locked) target = { kind: "event", event };
-  }
-
-  function choose(event: CareerEvent) {
-    if (event === picked) open(event);
-    else picked_id = event.id;
   }
 
   function key(event: KeyboardEvent) {
@@ -122,7 +117,7 @@
             <div class="career-events">
               {#each group.events as event (event.id)}
                 {@const got = live.stars[event.id] ?? 0}
-                <button type="button" class="career-event" aria-pressed={event === picked} onclick={() => choose(event)}>
+                <button type="button" class="career-event" aria-pressed={event === picked} onclick={(click) => aim_or_go(click, () => (picked_id = event.id), () => open(event))} onfocus={() => (picked_id = event.id)}>
                   <b class="ev-nowrap">{tune ? `${event.id.toUpperCase()} · ` : ""}{event.name}</b>
                   <span class="ev-stars" aria-label={`${got} of ${MAX_EVENT_STARS} stars`}>{"★".repeat(got)}<i>{"★".repeat(MAX_EVENT_STARS - got)}</i></span>
                 </button>

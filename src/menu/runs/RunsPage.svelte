@@ -5,7 +5,7 @@
   import { daily, iso_week, new_seed, random, type_of, weekly, type RunPick } from "../../runs/runs";
   import { plain_map } from "../../worldgen/kinds/kinds";
   import type { CarPicker } from "../car-pick.svelte";
-  import { bare_enter } from "../drive-picks";
+  import { aim_or_go, bare_enter } from "../drive-picks";
   import { RUNS_PAGE, RUN_BUILD_PAGE, type StartTarget } from "../events-view";
   import MenuFrame from "../MenuFrame.svelte";
   import StartSheet from "../StartSheet.svelte";
@@ -68,11 +68,6 @@
 
   const open = (one: RunCard) => (target = { kind: "run", pick: one.pick() });
 
-  function choose(one: RunCard) {
-    if (one.id === chosen) open(one);
-    else chosen = one.id;
-  }
-
   function key(event: KeyboardEvent) {
     if (!shown || target || event.defaultPrevented || !bare_enter(event)) return;
     event.preventDefault();
@@ -97,7 +92,7 @@
           {#snippet shot()}
             <img class="ev-pic" src={one.img} alt="" />
           {/snippet}
-          <Card picture={shot} flat class="runs-card" focused={one.id === chosen} selected={one.id === chosen} onclick={() => choose(one)} onfocus={() => (chosen = one.id)} label={one.title}>
+          <Card picture={shot} flat class="runs-card" focused={one.id === chosen} selected={one.id === chosen} onclick={(click) => aim_or_go(click, () => (chosen = one.id), () => open(one))} onfocus={() => (chosen = one.id)} label={one.title}>
             <span class="ev-eyebrow">{one.eyebrow}</span>
             <b class="ev-h2 ev-nowrap">{one.title}</b>
             <span class="runs-foot">

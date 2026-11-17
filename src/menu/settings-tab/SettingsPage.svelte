@@ -4,7 +4,7 @@
   import { GOALS } from "../../goals/goals";
   import { current_theme } from "../../theme/theme";
   import { UpdateState } from "../../version";
-  import { bare_enter, link_key } from "../drive-picks";
+  import { aim_or_go, bare_enter, link_key } from "../drive-picks";
   import { GUIDE_PAGE, TOPICS } from "../guide-topics";
   import MenuFrame from "../MenuFrame.svelte";
   import { MenuTab } from "../page";
@@ -123,7 +123,7 @@
   <MenuFrame {menu} id={MenuTab.SETTINGS} veil={0.6} links={list_links} primary={list_primary}>
     <div class="set-doors">
       {#each doors as one (one.id)}
-        <Card flat pad="none" class="set-door" focused={one.id === picked} onclick={one.open} onfocus={() => (picked = one.id)} label={one.label}>
+        <Card flat pad="none" class="set-door" focused={one.id === picked} onclick={(click) => aim_or_go(click, () => (picked = one.id), one.open)} onfocus={() => (picked = one.id)} label={one.label}>
           <span class="set-door-row">
             <span class="set-door-icon"><Icon name={one.icon} /></span>
             <b class="set-door-name">{one.label}</b>

@@ -23,6 +23,15 @@ const plain = (event: KeyboardEvent) => !event.repeat && !event.ctrlKey && !even
 /** Enter on the page itself, not on a control: the primary's key works before anything has focus. */
 export const bare_enter = (event: KeyboardEvent) => event.key === "Enter" && plain(event) && !(event.target instanceof Element && event.target.closest("button, a, input, select, textarea"));
 
+/**
+ * The one click rule: a tap or click only aims, and the page's primary acts on what is aimed. Enter and the pad's A
+ * arrive as a click with no pointer behind it (detail 0): they aim and go.
+ */
+export function aim_or_go(click: MouseEvent, aim: () => void, go: () => void) {
+  aim();
+  if (click.detail === 0) go();
+}
+
 /** A page's link key ("m", "c"): a plain press outside a text field, lowercased; null otherwise. */
 export function link_key(event: KeyboardEvent): string | null {
   if (!plain(event) || (event.target instanceof Element && event.target.closest("input:not([type='range']), textarea, select"))) return null;
