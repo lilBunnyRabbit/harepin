@@ -278,9 +278,11 @@ const open_pause = () => {
   input.hold_pad();
   pause.open();
 };
-input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open || pause.is_open || road_map.is_open;
+// The road map is built after the world loads; input asks before that.
+let map_open = () => false;
+input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open || pause.is_open || map_open();
 new CursorIdle(() => !input.blocked()).start();
-chat.blocked = () => garage.is_open || settings.is_open || pause.is_open || road_map.is_open;
+chat.blocked = () => garage.is_open || settings.is_open || pause.is_open || map_open();
 input.touch.start();
 input.touch.show_nitro(driver.car.nitro.fitted);
 input.mouse.start();
@@ -673,6 +675,7 @@ const road_map = show_map_overlay({
     };
   },
 });
+map_open = () => road_map.is_open;
 markers.on_map = (list) => hud.set_markers(list);
 // A lab trial on a race world keeps the career out of it, as the lab world does.
 markers.place(world, SPAWN_INDEX, lab_id === null ? EVENTS.filter(on_this_map) : []).catch((error: unknown) => console.error(error));
