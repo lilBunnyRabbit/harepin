@@ -22,7 +22,7 @@
     {@const state = states[i]}
     {@const result = progress.results[event.id]}
     <li>
-      <Card variant={state === "locked" ? "well" : "panel"} class="sr-event" label={event.name}>
+      <Card class="sr-event" label={event.name}>
         <div class="sr-row">
           <span class="sr-n">{i + 1}</span>
           <div class="sr-text">

@@ -14,8 +14,6 @@
     label?: string;
     selected?: boolean;
     class?: string;
-    /** @deprecated The old panel ladder: every variant draws the one card now. Goes with the last old page. */
-    variant?: "panel" | "well" | "raised";
     children: Snippet;
   }
 

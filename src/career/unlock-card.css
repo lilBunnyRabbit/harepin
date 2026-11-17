@@ -75,10 +75,6 @@
   font-size: var(--text-xs);
 }
 
-#mode-result-unlock:empty {
-  display: none;
-}
-
 /* A phone in landscape has little height between the top dock and the speedo: the rewards shrink to one row of
    pictures, names stay in each picture's title. */
 @media (pointer: coarse) {

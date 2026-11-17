@@ -15,9 +15,7 @@ import Kbd from "./Kbd.svelte";
 import KeyButton from "./KeyButton.svelte";
 import KeyLink from "./KeyLink.svelte";
 import Link from "./Link.svelte";
-import NameChip from "./NameChip.svelte";
 import PageFrame from "./PageFrame.svelte";
-import PlaceChip from "./PlaceChip.svelte";
 import PlaceLine from "./PlaceLine.svelte";
 import PrimaryAction from "./PrimaryAction.svelte";
 import Progress from "./Progress.svelte";
@@ -28,12 +26,9 @@ import SectionHead from "./SectionHead.svelte";
 import Segmented from "./Segmented.svelte";
 import Select from "./Select.svelte";
 import Slider from "./Slider.svelte";
-import SpecCard from "./SpecCard.svelte";
 import Stations from "./Stations.svelte";
 import Stepper from "./Stepper.svelte";
-import Tabs from "./Tabs.svelte";
 import TextField from "./TextField.svelte";
-import Ticket from "./Ticket.svelte";
 import TierBadge from "./TierBadge.svelte";
 import Tile from "./Tile.svelte";
 import Toggle from "./Toggle.svelte";
@@ -66,16 +61,6 @@ describe("ui components", () => {
     expect(out).toContain('rel="noopener"');
     expect(out).toContain('href="#icon-external"');
     expect(html(Link, { chevron: true, children: text("All events") })).toMatch(/^<button type="button"/);
-  });
-
-  test("Tabs marks the current item and numbers steps", () => {
-    const items = [
-      { id: "a", label: "One" },
-      { id: "b", label: "Two" },
-    ];
-    const out = html(Tabs, { items, value: "b", variant: "steps", label: "Guide" });
-    expect(out.match(/aria-current="true"/g)).toHaveLength(1);
-    expect(out).toMatch(/aria-current="true"[^>]*><span class="ui-step[^"]*">2</);
   });
 
   test("Segmented checks the picked option", () => {
@@ -183,18 +168,6 @@ describe("ui components", () => {
     expect(html(Tile, { title: "Hatch" })).not.toContain("data-detail");
   });
 
-  test("SpecCard shows the class, meters and tag, and stays pressable only when open", () => {
-    const props = { title: "Drift", meta: "Rear-drive Muscle", rating: { class: "b", pi: 559 } as const, meters: [{ key: "power", label: "Power", value: 30, bar: 30 }], facts: text("RWD") };
-    const out = html(SpecCard, { ...props, selected: true, tag: text("Recommended") });
-    expect(out).toContain('aria-pressed="true"');
-    expect(out).toMatch(/<b[^>]*>B<\/b>\s*<small[^>]*>559<\/small>/);
-    expect(out).toContain('role="meter" aria-label="Power" aria-valuenow="30"');
-    expect(out).toContain("height: 30%");
-    expect(out).toMatch(/class="ui-spec-tag[^"]*"><span>Recommended<\/span>/);
-    expect(html(SpecCard, { ...props, disabled: true })).toContain("disabled");
-    expect(html(SpecCard, props)).not.toContain("ui-spec-tag");
-  });
-
   test("SectionHead renders the eyebrow and a title at its level", () => {
     const out = html(SectionHead, { eyebrow: "Career", title: "Rookie", count: 3, level: 2 });
     expect(out).toContain("Career");
@@ -274,7 +247,6 @@ describe("ui components", () => {
     expect(inner).toContain("ui-inner");
     expect(inner).toContain("#icon-check");
     expect(inner).toContain('data-focused=""');
-    expect(html(NameChip, { value: "Ana", label: "Your name" })).toContain('value="Ana"');
   });
 
   test("Progress clamps its fill and marks passed points", () => {
@@ -322,31 +294,19 @@ describe("ui components", () => {
     expect(out).toMatch(/^<button type="button" class="ui-key-btn"/);
     expect(out).toContain('data-variant="fill"');
     expect(out).toContain('data-tone="primary"');
-    expect(out).toContain('data-size="md"');
     expect(out).toContain('data-glyph="key"');
     expect(out).not.toContain("data-hold");
     expect(out).toContain("Ready");
   });
 
   test("KeyButton takes the online tone, the quiet shape and a hold time", () => {
-    const out = html(KeyButton, { tone: "online", variant: "quiet", size: "lg", hold: 600, children: text("Hold to join") });
+    const out = html(KeyButton, { tone: "online", variant: "quiet", hold: 600, children: text("Hold to join") });
     expect(out).toContain('data-tone="online"');
     expect(out).toContain('data-variant="quiet"');
-    expect(out).toContain('data-size="lg"');
     expect(out).toContain('data-hold=""');
     expect(out).toContain("--hold-ms: 600ms");
     expect(out).not.toContain("data-holding");
     expect(out).not.toContain("ui-glyph");
-  });
-
-  test("PlaceChip reads Here on this map and the short map name elsewhere", () => {
-    const here = html(PlaceChip, { place: { here: true } });
-    expect(here).toContain("data-here");
-    expect(here).toContain("Here");
-    const away = html(PlaceChip, { place: { here: false, name: "Dune sea · Lowhol", kind: "dunes" } });
-    expect(away).not.toContain("data-here");
-    expect(away).toContain("#icon-globe");
-    expect(away).toContain("Dune sea · Lowhol");
   });
 
   test("PlaceLine reads Here with a flag, else the map name with a globe, and a tail after either", () => {
@@ -360,27 +320,5 @@ describe("ui components", () => {
     expect(away).toContain("#icon-globe");
     expect(away).toContain("Dune sea · Lowhol");
     expect(away).not.toContain("ui-place-tail");
-  });
-
-  test("Ticket shows its tier edge, stars and at most three reasons", () => {
-    const reasons = ["One", "Two", "Three", "Four"].map((text) => ({ text, note: `${text} note` }));
-    const out = html(Ticket, { tier: 1, title: "Sand trail", eyebrow: "Next up", stars: 2, reasons, size: "big", place: text("Dune sea"), actions: text("Travel") });
-    expect(out).toContain('data-size="big"');
-    expect(out).toMatch(/class="ui-ticket-actions[^"]*"><span>Travel<\/span><\/div>\s*<\/article>/);
-    expect(out).toMatch(/style="--tier: [^"]+"/);
-    expect(out).toContain("Sand trail");
-    expect(out).toContain("Dune sea");
-    expect(out).toContain('aria-label="2 of 3 stars"');
-    expect(out.match(/<li /g)).toHaveLength(3);
-    expect(out).toContain("Three note");
-    expect(out).not.toContain("Four");
-  });
-
-  test("Ticket without stars or reasons draws neither", () => {
-    const out = html(Ticket, { tier: 3, title: "Cones" });
-    expect(out).toContain('data-size="docked"');
-    expect(out).not.toContain("ui-ticket-stars");
-    expect(out).not.toContain("<ul");
-    expect(out).not.toContain("ui-ticket-actions");
   });
 });

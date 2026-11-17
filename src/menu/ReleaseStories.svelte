@@ -24,7 +24,7 @@
 
 {#if lead}
   <div class="stories">
-    <Card variant="raised" class="stories-lead" label={`What's new in v${lead.release.version}`}>
+    <Card class="stories-lead" label={`What's new in v${lead.release.version}`}>
       <ReleaseBanner story={lead.story} />
       <div class="stories-lead-body">
         <p class="stories-meta">
