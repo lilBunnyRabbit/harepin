@@ -44,9 +44,6 @@ const FOLLOW = 10;
 const FOLLOW_BRAKE = 4;
 /** Metres of FOLLOW a fully aggressive driver closes up: on the bumper, it has the run to pull out. */
 const FOLLOW_BOLD = 5;
-/** Shares of the plan where it is that a car ahead makes: under PACE_OFF it is slow for its own reasons, from PACE_ON up it is on the pace. */
-const PACE_OFF = 0.7;
-const PACE_ON = 0.85;
 /** Metres past its follow gap inside which a driver pulls out to pass: from farther back it only loses time off the line. */
 const PASS_REACH = 12;
 /** Seconds a pass may wait behind for its side to open before it is given up and the lane picked again. */
@@ -237,7 +234,7 @@ export class Awareness {
       const across = gap > 0 ? Math.min(Math.abs(dl), Math.abs(this.lateral[j] - driver.lateral_at(this.cars[i], this.drivers[j].index))) : Math.abs(dl);
       if (gap > 0 && gap < LOOK + LOOK_PER * v && across < width) {
         // Every car ahead in its lane caps it, not the nearest alone: behind two cars a row apart, it ran into the slower one past the first.
-        this.hold(driver, j, this.follow(i, j, gap, j === this.passing[i] ? PASS_FOLLOW : keep));
+        this.hold(driver, j, this.follow(j, gap, j === this.passing[i] ? PASS_FOLLOW : keep));
         if (gap < blocker_gap) {
           blocker = j;
           blocker_gap = gap;
@@ -277,7 +274,7 @@ export class Awareness {
         driver.hold = wait ? NaN : hold;
         driver.push = 1 + PUSH * aggression;
         driver.late = diving;
-        if (wait) this.hold(driver, target, this.follow(i, target, gap, PASS_FOLLOW));
+        if (wait) this.hold(driver, target, this.follow(target, gap, PASS_FOLLOW));
         this.waited[i] = wait ? this.waited[i] + this.dt : 0;
         if (this.waited[i] > PASS_WAIT) this.end_pass(i);
         if (this.trouble[target] && gap > -ALONGSIDE) this.hold(driver, target, Math.max(0, this.along[target]) + TROUBLE_CLOSE);
@@ -469,7 +466,7 @@ export class Awareness {
     const give = gap > 0 || this.trouble[near] || near < this.driven ? 1 : 1 - driver.personality.aggression;
     driver.nudge = away * give * Math.min(NUDGE_MAX, near_in + NUDGE_MARGIN);
     if (gap <= 0) return;
-    const yield_to = this.kicker_ahead(driver) ? this.follow(i, near, gap, FOLLOW) : this.speed[near] - YIELD;
+    const yield_to = this.kicker_ahead(driver) ? this.follow(near, gap, FOLLOW) : this.speed[near] - YIELD;
     this.hold(driver, near, Math.max(0, yield_to));
   }
 
@@ -527,18 +524,11 @@ export class Awareness {
     return false;
   }
 
-  /** Speed (m/s) that closes driver i down to `keep` metres behind car j, `gap` metres ahead, and brakes off any metre inside it. */
-  private follow(i: number, j: number, gap: number, keep: number): number {
+  /** Speed (m/s) that closes down to `keep` metres behind car j, `gap` metres ahead, and brakes off any metre inside it. */
+  private follow(j: number, gap: number, keep: number): number {
     // The speed the car ahead is about to hold, not the one it has: it brakes for the bend before the follower sees it slow. A
     // car in trouble holds only what it makes along the road.
-    const at = this.trouble[j] ? Math.max(0, this.along[j]) : Math.min(this.speed[j], this.drivers[j].target);
-    // Farther into a braking zone the car ahead is slower for where it is, not for its pace: held to that speed from 50 m
-    // back, a faster car braked on the slower one's curve in every zone and never reached its bumper. A car on the pace
-    // is read at the speed that share of the plan is here; one well under it (stopped, hit, off the gas) as it is.
-    const { speed } = this.drivers[i].line;
-    const there = speed[this.drivers[j].index];
-    const share = Math.max(0, Math.min(1, (at / there - PACE_OFF) / (PACE_ON - PACE_OFF)));
-    const vj = at * (1 + share * Math.max(0, speed[this.drivers[i].index] / there - 1));
+    const vj = this.trouble[j] ? Math.max(0, this.along[j]) : Math.min(this.speed[j], this.drivers[j].target);
     const close = gap - keep;
     return close > 0 ? Math.sqrt(vj * vj + 2 * FOLLOW_BRAKE * close) : Math.max(0, vj + close * BACK_OFF);
   }
