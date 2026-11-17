@@ -223,6 +223,15 @@
     white-space: nowrap;
   }
 
+  /* Under 1500 px wide the centre sits on the Next up ticket: the strip stands beside the pause button. */
+  @media (max-width: 1499px) and (min-height: 501px) {
+    .first-steps {
+      right: calc(var(--inset-right) + var(--bar-h) + var(--gap));
+      left: auto;
+      translate: none;
+    }
+  }
+
   @media (max-height: 500px) {
     .first-paint {
       top: 50%;
