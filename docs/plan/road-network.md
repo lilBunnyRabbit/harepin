@@ -88,7 +88,7 @@ The road mesh already costs more bytes than the terrain. The draping cutter (`ch
 | `car/driver.ts:87, 94, 107` | Reset and race placement go by circuit index |
 | `modes/drift-mode.ts:77`, `modes/duel-mode.ts:100`, `modes/gymkhana.ts:145-153`, `modes/hunt-mode.ts:77` | Drift zones, duel runs, the gymkhana site search and the hunt start all slice or walk `world.road`, the circuit |
 | `modes/route.ts:9-45` | `slice` and `bendiest` wrap modulo length (they assume a closed polyline) |
-| `hud/pace.ts`, `hud/pace-card.ts:96`, `hud/minimap.ts:117` | Take a `Route` polyline. **This already works for any route.** |
+| `hud/minimap.ts:117` (pace notes, `hud/pace.ts`, were dropped 2026-11-17) | Take a `Route` polyline. **This already works for any route.** |
 | `scripts/autolap.ts:63-66`, `scripts/races.ts:13-26` | Autopilot takes any polyline, open or closed. **Already graph-ready** once a route is a polyline. |
 
 ### Keys, versions and peers
@@ -165,7 +165,7 @@ A route stays a polyline (`Route`, `types.ts:270-281`). Everything downstream al
 | Junction turn shape | `trace` concatenates leg points, so a street corner is a 90° kink (`routes.ts:225-256`) | Insert the patch's fillet arc points between legs. Pace notes (`pace.ts`) and autopilot (`autolap.ts:34-45`) then see the real radius. |
 | Course closure | Cone rows baked into `world.items` for side streets of the street routes (`routes.ts:300-330`, `index.ts:161`) | Barrier and cone rows **placed at race start** through `World.place` (`world.ts:336-341`) and removed after. The world stays race-agnostic; any route can be raced. |
 | Checkpoints | Circuit: 12 baked, with gate-post solids (`index.ts:111-121`). Routes: one per corner plus every 150 m. | Same `trace` rule. Gate posts become placed solids for non-circuit routes. |
-| Pace notes | Corner grades from curvature (`pace.ts:41-55`) | Unchanged. Optional "T left" or "roundabout second exit" call from the leg metadata. |
+| Pace notes (dropped 2026-11-17) | Corner grades from curvature | Nothing to do while they are out. Optional "T left" or "roundabout second exit" call from the leg metadata. |
 | Minimap | Route only; a closed route shows the whole island | Route bbox for every route. Free roam draws graph edges within about 1.5 km from a cached `Path2D` per region. |
 | Reset | `spawn_near`: nearest point of any edge or trail | Same, plus junction-aware facing. The search radius grows past 2 km (or uses the coarse road grid of the plan). |
 | Lobby | Route id per seed (`lobby.ts:130, 183`) | Same ids. Graph routes get stable ids (`sprint-1`, `loop-2`) from sorted pair ids. |

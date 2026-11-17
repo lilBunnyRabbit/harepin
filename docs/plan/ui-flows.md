@@ -257,7 +257,7 @@ Road screens:
 | Screen | Mockup | `origin/master` today | Verdict | Port from ui-old |
 |---|---|---|---|---|
 | Race HUD (`S.hud`) | Top card (event, place, lap, gap, time), pause button top-right, map card bottom-left with "Next gate", speed card bottom-right (speed, gear, rev bar, aid chips) | `hud/hud.ts`, `dash.css`, `corner.css`, `top-bar.css`, `run-card.css`, `aids.css`; four layouts (`HudLayout`), `DashPlace`, `MapCorner` | rebuild the CSS, keep `hud.ts`'s per-frame writes | `24e1b36` (aid chips without key caps), `ad78750` (a run's card leaves with the run) |
-| Minimap and speedometer variants | See 8.4 | `minimap.ts` (`full`, `close`), `pace-card.ts`, `SpeedoStyle` ring / bar | adjust | none |
+| Minimap and speedometer variants | See 8.4 | `minimap.ts` (`full`, `close`), `SpeedoStyle` ring / bar | adjust | none |
 | Free roam (`S.roam`) | Next up ticket top-left (arrow, eyebrow, title, place line with distance), online chip + pause, map and speed cards | `hud/NextUp.svelte`, `next-up.ts`, `ui/Ticket.svelte` | adjust | `98b628b`, `926dbaf`, `52b7e89` (the ticket hides while a gate card is open) |
 | Phone touch (`touchHud`) | Steer pads left, Brake and Gas right, speed card bottom centre, map top-left | `hud/touch.ts`, `touch.css`, `phone.css`, `index.html` `#touch` | adjust, see 8.4 | none |
 | Gate (`S.gate`) | One card: eyebrow, title, place line, star times, car row with class badge; link Enter Change car, primary Hold Enter "Start in <car>" | `career/GateCard.svelte`, `gate-card.svelte.ts` | adjust | `ecf54a6` (preselects the driven car), `234b57a` (docks clear of pause), `a16b485`, `b246196`, `06a98ca` |
