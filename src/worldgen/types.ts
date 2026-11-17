@@ -115,6 +115,8 @@ export interface RoadEdge {
   half: number;
   closed: boolean;
   points: RoadPoint[];
+  /** Cross slope per point, rise per metre toward the left of travel, (-tz, tx): the ground under the road tilts with it. Absent = level across. */
+  banks?: readonly number[];
 }
 
 export interface RoadGraph {

@@ -4,7 +4,7 @@ import { field_races } from "../modes/field-route";
 import { sweep } from "../sweep";
 import { sample } from "./field";
 import { generate_world, KINDS } from "./kinds/kinds";
-import { RUNOFF } from "./raceway";
+import { BANK, RUNOFF } from "./raceway";
 import { ATTEMPTS, BOUND, CLEARANCE, Corner, crowded, FALLBACK_SEED, LAP_LENGTH, NEIGHBOUR, raceway_lap } from "./raceway-plan";
 import { ROAD_HALF, SPAWN_INDEX, WorldKind } from "./types";
 
@@ -111,7 +111,7 @@ test("a seed makes the same lap every time, and seeds differ", () => {
   expect(raceway_lap(3).path[40]).not.toEqual(raceway_lap(4).path[40]);
 });
 
-test("the road follows the hills inside the grade limit and the ground lies level across it", () => {
+test("the road follows the hills inside the grade limit", () => {
   for (const world of worlds) {
     const { road } = world;
     let low = Infinity;
@@ -121,9 +121,32 @@ test("the road follows the hills inside the grade limit and the ground lies leve
       expect(Math.abs(next.y - p.y) / Math.hypot(next.x - p.x, next.z - p.z)).toBeLessThanOrEqual(MAX_GRADE + 1e-6);
       low = Math.min(low, p.y);
       high = Math.max(high, p.y);
-      for (const side of [-1, 1]) expect(Math.abs(sample(world.terrain.heights, p.x - p.tz * side * (ROAD_HALF - 1), p.z + p.tx * side * (ROAD_HALF - 1)) - p.y)).toBeLessThan(0.4);
     });
     expect(high - low).toBeGreaterThan(3);
+  }
+});
+
+test("the ground under the road leans into each bend by its bank, and lies level on the straights", () => {
+  const off = ROAD_HALF - 1;
+  for (const world of worlds) {
+    const { road } = world;
+    const lean = world.graph.edges[0].banks ?? [];
+    expect(lean).toHaveLength(road.length);
+    let most = 0;
+    road.forEach((p, i) => {
+      const left = sample(world.terrain.heights, p.x - p.tz * off, p.z + p.tx * off);
+      const right = sample(world.terrain.heights, p.x + p.tz * off, p.z - p.tx * off);
+      const tilt = (left - right) / (2 * off);
+      expect(Math.abs(lean[i])).toBeLessThanOrEqual(BANK + 1e-9);
+      expect(Math.abs(tilt - lean[i])).toBeLessThan(0.02);
+      const from = road[(i - 3 + road.length) % road.length];
+      const to = road[(i + 3) % road.length];
+      const turn = to.tx * from.tz - to.tz * from.tx;
+      if (Math.abs(lean[i]) > BANK / 2) expect(Math.sign(lean[i])).toBe(Math.sign(turn));
+      most = Math.max(most, Math.abs(tilt));
+    });
+    expect(most).toBeGreaterThan(BANK * 0.8);
+    expect(lean[0]).toBeCloseTo(0, 9);
   }
 });
 

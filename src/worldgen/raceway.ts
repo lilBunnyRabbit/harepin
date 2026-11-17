@@ -1,6 +1,7 @@
 import { biome_cuts, plant } from "./biomes";
 import { cell_range, vertex } from "./field";
-import { loop_heights, road_points } from "./path";
+import { length } from "./noise";
+import { loop_heights, road_points, smooth, type Path } from "./path";
 import { raceway_lap } from "./raceway-plan";
 import { ISLAND, type TerrainRecipe } from "./recipe";
 import { circuit_route, loop_gates, reverse_circuit } from "./routes";
@@ -12,6 +13,10 @@ const CHECKPOINTS = 12;
 // scripts/races.ts: the bus runs wide of the hairpins and chicanes on most seeds, and laps a fifth over par.
 const EXCLUDES = ["bus"];
 export const RUNOFF = 34;
+/** Rise per metre across the road in a bend: a slight lean, under the 6% kinds/road-tilt.test.ts holds every road to. */
+export const BANK = 0.04;
+const BANK_RADIUS = 80;
+const BANK_SPAN = 5;
 // The lift keeps every hill above the island biomes' coast: meshing paints a kind with no recipe from those.
 export const RACEWAY_TERRAIN: TerrainRecipe = [
   { kind: "lift", height: 16 },
@@ -33,12 +38,25 @@ function runoff(road: readonly RoadPoint[]): (x: number, z: number) => boolean {
   return (x, z) => grass[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] === 1;
 }
 
+/** Each bend leans into its inside: the full bank at BANK_RADIUS and tighter, less on a wider bend, none on a straight. */
+export function banks(path: Path): number[] {
+  const n = path.length;
+  const lean = path.map(([bx, bz], i) => {
+    const [ax, az] = path[(i - BANK_SPAN + n) % n];
+    const [cx, cz] = path[(i + BANK_SPAN) % n];
+    const cross = (bx - ax) * (cz - bz) - (bz - az) * (cx - bx);
+    const curve = (2 * cross) / (length(bx - ax, bz - az) * length(cx - bx, cz - bz) * length(cx - ax, cz - az));
+    return -BANK * Math.max(-1, Math.min(1, curve * BANK_RADIUS));
+  });
+  return smooth(lean, BANK_SPAN, 2, true);
+}
+
 export function generate_raceway(seed: number): WorldData {
   const t0 = performance.now();
   const lap = raceway_lap(seed);
   const land = terrain(seed, RACEWAY_TERRAIN);
   const road = road_points(lap.path, loop_heights({ path: lap.path, stack: null }, land.heights), true);
-  const ring: RoadEdge = { id: 0, a: 0, b: 0, kind: "highway", half: ROAD_HALF, closed: true, points: road };
+  const ring: RoadEdge = { id: 0, a: 0, b: 0, kind: "highway", half: ROAD_HALF, closed: true, points: road, banks: banks(lap.path) };
   const stamp = new Stamp(land);
   stamp.edge(ring);
   stamp.blend();
