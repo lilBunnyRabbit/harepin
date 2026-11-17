@@ -90,9 +90,14 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
   body {
     --phone-under-map: var(--inset-top);
     --phone-flank: calc(max(var(--inset-left), var(--inset-right)) + var(--phone-map-w) + var(--space-2));
-    --phone-flank-left: var(--phone-flank);
-    --phone-flank-right: var(--phone-flank);
     --phone-centre: calc(100vw - 2 * var(--phone-flank));
+    /* Where the left column goes on under restart and rewind: the Next up ticket when the top centre is taken, then nitro. */
+    --phone-stack: calc(var(--phone-under-map) + var(--phone-slot));
+    --phone-nitro-top: var(--phone-stack);
+  }
+
+  body:is(:has(.first-steps), :has(#strip:not([data-idle]))):has(.next-up) {
+    --phone-nitro-top: calc(var(--phone-stack) + var(--phone-slot));
   }
 
   @media (max-width: 799px) {
@@ -113,7 +118,7 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     }
   }
 
-  :root:not([data-map="off"]) body:has(#mode-status:not([hidden])) {
+  :root:not([data-map="off"]) body {
     --phone-under-map: calc(var(--inset-top) + var(--phone-map-h) + var(--gap-sm));
   }
 
@@ -126,8 +131,8 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     position: fixed;
     top: var(--inset-top);
     bottom: auto;
-    left: var(--phone-flank-left);
-    right: var(--phone-flank-right);
+    left: var(--phone-flank);
+    right: var(--phone-flank);
     translate: none;
     display: flex;
     flex-wrap: nowrap;
@@ -343,19 +348,15 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     text-shadow: none;
   }
 
-  /* The thumbs own the bottom corners, so the map sits up top and lets touches through. Roaming, the top left is the
-     Next up ticket's and the map hangs under pause, over the pedal zone; in a run it takes the top left. */
+  /* The thumbs own the bottom corners, so the map takes the top left, roaming and in a run, and lets touches through
+     to the steer zone. */
   :root .top-right {
-    inset: calc(var(--inset-top) + var(--phone-slot)) var(--inset-right) auto auto;
+    inset: var(--inset-top) auto auto var(--inset-left);
     zoom: 1;
     width: var(--phone-map-w);
     height: var(--phone-map-h);
     padding: var(--gap-sm);
     pointer-events: none;
-  }
-
-  :root body:has(#mode-status:not([hidden])) .top-right {
-    inset: var(--inset-top) auto auto var(--inset-left);
   }
 
   .pedal {
@@ -419,12 +420,6 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     bottom: auto;
   }
 
-  /* Roaming, the map hangs where the button would: it stands beside the speed instead. */
-  body:not(:has(#mode-status:not([hidden]))) #recenter {
-    top: 0;
-    right: calc(100% + var(--gap-sm));
-  }
-
   :root[data-speedo="dial"] .bottom-right {
     --dial: 76px;
     inset: calc(var(--inset-top) + var(--phone-slot)) var(--inset-right) auto auto;
@@ -433,21 +428,6 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     height: 92px;
     padding: 0;
     place-content: center;
-  }
-
-  /* Roaming with the dial, the map moves up beside pause and the dial hangs under it. The right side is then the wide
-     one and the left holds only restart and rewind, so the top centre gives up being centred to keep its room. */
-  :root[data-speedo="dial"]:not([data-map="off"]) body:not(:has(#mode-status:not([hidden]))) {
-    --phone-flank-left: calc(var(--inset-left) + 2 * var(--phone-slot));
-    --phone-flank-right: calc(var(--inset-right) + var(--phone-slot) + var(--phone-map-w) + var(--space-2));
-  }
-
-  :root[data-speedo="dial"] body:not(:has(#mode-status:not([hidden]))) .top-right {
-    inset: var(--inset-top) calc(var(--inset-right) + var(--phone-slot)) auto auto;
-  }
-
-  :root[data-speedo="dial"]:not([data-map="off"]) body:not(:has(#mode-status:not([hidden]))) .bottom-right {
-    top: calc(var(--inset-top) + var(--phone-map-h) + var(--gap-sm));
   }
 
   :root[data-speedo="dial"] #speed {
@@ -551,7 +531,7 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
   }
 
   .nitro-key {
-    top: max(50% - 28px, var(--phone-under-map) + var(--phone-slot));
+    top: max(50% - 28px, var(--phone-nitro-top));
     translate: none;
     width: 56px;
     height: 56px;
@@ -567,8 +547,8 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
   /* The first-run steps keep to the top centre the corners leave; on a narrow phone only the step in hand keeps its
      words. */
   :root body .first-steps {
-    left: var(--phone-flank-left);
-    right: var(--phone-flank-right);
+    left: var(--phone-flank);
+    right: var(--phone-flank);
     translate: none;
     width: fit-content;
     height: var(--control-h);

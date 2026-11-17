@@ -132,22 +132,75 @@
     font-size: var(--type-small);
   }
 
-  /* A phone's top corners hold restart and pause, its top centre the lap: the ticket sits under the left pair, clear of the road. */
+  /* A phone's top left is the map's, with restart and rewind under it. The ticket is one row high there: it takes the
+     top centre, and when the first-run steps or a lap hold that, it goes under the left pair, a third of the screen at
+     most, so it never stands over the car. */
   @media (pointer: coarse) {
     :global(.next-up-dock) {
       position: fixed;
-      top: calc(var(--inset-top) + var(--control-h) + var(--gap-sm));
-      left: var(--inset-left);
-      max-width: 46vw;
+      top: var(--inset-top);
+      left: var(--phone-flank);
+      right: var(--phone-flank);
+      display: flex;
+      justify-content: center;
       pointer-events: none;
     }
 
+    :global(body:is(:has(.first-steps), :has(#strip:not([data-idle]))) .next-up-dock) {
+      top: var(--phone-stack);
+      left: var(--inset-left);
+      right: auto;
+      max-width: calc(100vw / 3 - var(--inset-left));
+    }
+
     .next-up {
+      gap: var(--gap-sm);
+      max-width: 100%;
+      height: var(--control-h);
+      padding: 0 0 0 var(--gap-sm);
+      overflow: hidden;
       pointer-events: none;
+    }
+
+    .next-up-mark {
+      width: var(--chip-h);
+      height: var(--chip-h);
+    }
+
+    .next-up-text {
+      display: flex;
+      align-items: baseline;
+      gap: var(--gap-sm);
+      height: auto;
+      margin-left: 0;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .next-up-eyebrow {
+      display: none;
+    }
+
+    .next-up-title {
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+
+    .next-up-text > :global(:last-child:not(.next-up-title)) {
+      flex: 0 9999 auto;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .next-up-travel > :global(*) {
       pointer-events: auto;
+    }
+
+    :global(:root .next-up-go) {
+      height: var(--control-h);
+      margin-left: 0;
+      border-width: 0 0 0 1px;
+      border-radius: 0;
     }
   }
 </style>
