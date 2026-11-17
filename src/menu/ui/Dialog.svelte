@@ -64,6 +64,9 @@
     box-shadow: var(--shadow);
     font-size: var(--type-body);
     overflow: hidden;
+    /* Chrome gives a dialog `user-select: text`: a click on a button then leaves a caret behind, which Blink resolves
+       again on every frame once the dialog has gone (docs/plan/perf-2026-11.md, cause 1). */
+    user-select: none;
   }
 
   .ui-dialog[data-wide] {
