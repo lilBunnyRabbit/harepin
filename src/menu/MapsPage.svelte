@@ -45,7 +45,7 @@
   const you = $derived(stop.place.here ? (live.live(() => host.map_players()).find((player) => player.you) ?? null) : null);
   const away = $derived(stop.place.here ? null : stop.place.name);
   const verb = $derived(making ? "Make a map" : event ? `Race ${event.title}` : away ? `Travel to ${away}` : `Drive ${stop.name.split(" · ")[0]}`);
-  const note = $derived(making ? "Roll a map of any type and tune it" : away ? `A tap only selects.${event ? "" : " Travel loads the map."}` : "");
+  const note = $derived(making ? "Roll a map of any type and tune it" : away ? `Double-click or Enter to go.${event ? "" : " Travel loads the map."}` : "");
   let target = $state.raw<StartTarget | null>(null);
 
   export function back(): boolean {
