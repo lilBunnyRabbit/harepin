@@ -50,7 +50,7 @@ describe("parse_settings", () => {
       muted: true,
       hud_size: "large",
       speedo: "dial",
-      map: "line",
+      minimap: "line",
       show_country: false,
       last_world: "sky",
       last_seed: 4294967295,
@@ -64,14 +64,14 @@ describe("parse_settings", () => {
   });
 
   test("wrong types fall back per field", () => {
-    const parsed = parse_settings({ quality: 1, laps: "3", tcs: "no", volume: "0.5", map: null, bindings: [], last_world: 2, last_seed: "12", name: 7, guide_seen: "yes" });
+    const parsed = parse_settings({ quality: 1, laps: "3", tcs: "no", volume: "0.5", minimap: null, bindings: [], last_world: 2, last_seed: "12", name: 7, guide_seen: "yes" });
     expect(parsed).toEqual({ ...DEFAULT_SETTINGS, guide_seen: true });
   });
 
   test("out-of-range values fall back or clamp", () => {
     expect(parse_settings({ laps: 4 }).laps).toBe(3);
     expect(parse_settings({ quality: "ultra" }).quality).toBe("auto");
-    expect(parse_settings({ map: "radar" }).map).toBe("real");
+    expect(parse_settings({ minimap: "radar" }).minimap).toBe("real");
     expect(parse_settings({ hud_size: "huge" }).hud_size).toBe("medium");
     expect(parse_settings({ volume: 3 }).volume).toBe(1);
     expect(parse_settings({ volume: -1 }).volume).toBe(0);
@@ -89,10 +89,11 @@ describe("parse_settings", () => {
     const parsed = parse_settings({ hud: "racing", hud_size: "large", dash: "center", speedo: "ring", map: "full", map_corner: "top-right" });
     expect(parsed).toEqual({ ...DEFAULT_SETTINGS, hud_size: "large", guide_seen: true });
     expect(parsed.speedo).toBe("bar");
-    expect(parsed.map).toBe("real");
-    expect(parse_settings({ map: "close", speedo: "dial" })).toMatchObject({ map: "close", speedo: "dial" });
-    // Rally pace notes are gone: a save that picked them shows the map.
-    expect(parse_settings({ map: "pace" }).map).toBe("real");
+    expect(parsed.minimap).toBe("real");
+    expect(parse_settings({ minimap: "close", speedo: "dial" })).toMatchObject({ minimap: "close", speedo: "dial" });
+    // The old `map` key is not read: whatever it held, Off included, the map shows. Only the new row's Off hides it.
+    for (const old of ["off", "pace", "close", "full", 3]) expect(parse_settings({ map: old, map_corner: "top-right" }).minimap).toBe("real");
+    expect(parse_settings({ map: "full", minimap: "off" }).minimap).toBe("off");
   });
 
   test("saves from before the pad settings get the old fixed pad curve", () => {

@@ -14,7 +14,7 @@ describe("settings tab", () => {
   });
 
   test("the Display card names the theme, the map and the speedometer", () => {
-    expect(summary("display", { ...DEFAULT_SETTINGS, map: "close", speedo: "dial" }, LIVE)).toEqual(["Brand Dark", "Close-up map", "Dial speedometer"]);
+    expect(summary("display", { ...DEFAULT_SETTINGS, minimap: "close", speedo: "dial" }, LIVE)).toEqual(["Brand Dark", "Close-up map", "Dial speedometer"]);
   });
 
   test("every section card has live values", () => {

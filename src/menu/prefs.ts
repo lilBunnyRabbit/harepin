@@ -117,7 +117,8 @@ export interface SettingsState {
   muted: boolean;
   hud_size: HudSize;
   speedo: SpeedoStyle;
-  map: MapView;
+  /** Saved as `minimap`: saves from before the one HUD kept `map`, where Off was often not the player's pick, so those start on the default. */
+  minimap: MapView;
   /** Sends the country guessed from the time zone with this player's directory entry. */
   show_country: boolean;
   /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
@@ -183,7 +184,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   muted: flag(false),
   hud_size: one_of(Object.values(HudSize), HudSize.MEDIUM),
   speedo: one_of(Object.values(SpeedoStyle), SpeedoStyle.BAR),
-  map: one_of(Object.values(MapView), MapView.REAL),
+  minimap: one_of(Object.values(MapView), MapView.REAL),
   show_country: flag(true),
   last_world: { fallback: null, parse: parse_last_world },
   last_seed: { fallback: null, parse: parse_last_seed },

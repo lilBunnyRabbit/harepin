@@ -70,7 +70,7 @@
 </script>
 
 {#snippet wire()}
-  <HudWire map={live.prefs.map} speedo={live.prefs.speedo} />
+  <HudWire map={live.prefs.minimap} speedo={live.prefs.speedo} />
 {/snippet}
 
 {#snippet swatches()}
@@ -81,7 +81,7 @@
   {/if}
 {/snippet}
 
-<ChoiceRow label="Minimap" help={() => `${MAP_VIEWS[live.prefs.map][1]}.`} value={live.prefs.map} options={MAPS} onchange={(value) => live.set("map", value)} visual={wire} />
+<ChoiceRow label="Minimap" help={() => `${MAP_VIEWS[live.prefs.minimap][1]}.`} value={live.prefs.minimap} options={MAPS} onchange={(value) => live.set("minimap", value)} visual={wire} />
 <ChoiceRow
   label="Speedometer"
   help={() => `${SPEEDO_STYLES[live.prefs.speedo][1]}. On a phone it sits in the top right, clear of the car.`}

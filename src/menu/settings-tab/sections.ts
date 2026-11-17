@@ -26,7 +26,7 @@ export const CHANGES = "changes";
 
 export const SECTIONS: readonly SectionMeta[] = [
   { id: "graphics", label: "Graphics", icon: "icon-graphics", keys: ["quality"] },
-  { id: "display", label: "Display", icon: "icon-display", keys: ["hud_size", "speedo", "map"] },
+  { id: "display", label: "Display", icon: "icon-display", keys: ["hud_size", "speedo", "minimap"] },
   { id: "driving", label: "Driving", icon: "icon-aids", keys: ["tcs", "abs", "assist", "stability", "auto", "ghost", "ai_difficulty"] },
   { id: "camera", label: "Camera", icon: "icon-camera", keys: ["camera", "camera_return", "speed_zoom", "camera_tilt", "invert_y"] },
   {
@@ -119,7 +119,7 @@ export function summary(id: string, state: SettingsState, live: SummaryLive): st
     case "graphics":
       return [state.quality === QualityMode.AUTO ? `Auto, running ${TIER_LABEL[live.tier]}` : `Fixed at ${TIER_LABEL[live.tier]}`];
     case "display":
-      return [live.theme, `${MAP_VIEWS[state.map][0]} map`, `${SPEEDO_STYLES[state.speedo][0]} speedometer`];
+      return [live.theme, `${MAP_VIEWS[state.minimap][0]} map`, `${SPEEDO_STYLES[state.speedo][0]} speedometer`];
     case "driving":
       return [`${AID_KEYS.filter((aid) => state[aid]).length} of ${AID_KEYS.length} aids`, `${state.auto ? "Auto" : "Manual"} gears`, `AI ${DIFFICULTY_LABEL[state.ai_difficulty]}`];
     case "camera":
