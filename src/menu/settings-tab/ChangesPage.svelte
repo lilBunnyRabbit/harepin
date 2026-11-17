@@ -9,7 +9,7 @@
 </script>
 
 {#snippet chips()}
-  <FrameChips {menu} season={false} update={false} />
+  <FrameChips {menu} season={false} offer={false} />
 {/snippet}
 
 <MenuFrame {menu} id={CHANGES} eyebrow="Settings" title="What's new" {chips} veil={0.6} note={`You have v${menu.host.version}`}>
