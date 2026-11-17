@@ -157,7 +157,7 @@ export class AiRace implements ModeRun, FieldRace {
     if (!this.result && this.ends()) {
       this.route.gate = null;
       ctx.hide_hint();
-      view.guide(0, 0);
+      view.unguide();
       return null;
     }
     if (this.result) this.write_rows();
@@ -170,7 +170,7 @@ export class AiRace implements ModeRun, FieldRace {
     if (was !== RaceStatus.DONE && run.status === RaceStatus.DONE) {
       this.route.gate = null;
       ctx.hide_hint();
-      view.guide(0, 0);
+      view.unguide();
       if (this.lap < this.laps) {
         this.banked += run.elapsed();
         this.lap++;
@@ -182,8 +182,7 @@ export class AiRace implements ModeRun, FieldRace {
     const gate = run.gate;
     this.route.gate = gate;
     if (!gate) return null;
-    view.guide(run.tracker.index, this.course.gates[run.next]);
-    ctx.hint(turn_to(car, gate.x, gate.z));
+    ctx.hint(turn_to(car, gate.x, gate.z), view.guide(run.tracker.index, car.heading, run.tracker.offset, this.lap < this.laps));
     const { status } = this;
     if (run.status === RaceStatus.READY) {
       status.clock = String(Math.ceil(run.countdown / 1000));

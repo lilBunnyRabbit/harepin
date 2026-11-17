@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test";
 import { generate_world, plain_map } from "../worldgen/kinds/kinds";
 import { WorldKind, type Route } from "../worldgen/types";
-import { straights } from "./route";
+import { bends, run_on, straights } from "./route";
 import { GATE_REACH, RaceRun, RaceStatus, TRAP_BACK, TRAP_CLEAR, TRAP_GAP, TRAP_SPAN, TrapRun, gate_shown, race_choices, race_course, race_levels, trap_points } from "./races";
 
 const N = 1000;
@@ -16,7 +16,7 @@ const gate = (i: number, index: number) => ({ x: POINTS[i % N].x, y: 0, z: POINT
 function route(closed: boolean): Route {
   const points = closed ? POINTS : POINTS.slice(0, 600);
   const checkpoints = closed ? [gate(250, 0), gate(500, 1), gate(750, 2), gate(0, 3)] : [gate(200, 0), gate(400, 1), gate(599, 2)];
-  return { id: closed ? "circuit" : "street-1", kind: closed ? "circuit" : "street", closed, points, checkpoints, gate_hw: 6, length: points.length * 2, par_ms: 60_000, closure: [] };
+  return { id: closed ? "circuit" : "street-1", kind: closed ? "circuit" : "street", closed, points, checkpoints, gate_hw: 6, road: [{ from: 0, half: 6 }], length: points.length * 2, par_ms: 60_000, closure: [] };
 }
 
 test("course: gates in order along the line, the finish on its last point", () => {
@@ -209,4 +209,31 @@ test("speed trap: three traps on Sky seed 11's circuit", () => {
   expect(at[0]).toBeGreaterThanOrEqual(25);
   for (let i = 1; i < at.length; i++) expect(at[i] - at[i - 1]).toBeGreaterThanOrEqual(TRAP_SPAN);
   for (const i of at) for (const gate of course.gates) expect(Math.abs(i - gate)).toBeGreaterThanOrEqual(TRAP_CLEAR);
+});
+
+test("bends: each real corner once with the side it turns to; a kink under the threshold is no bend", () => {
+  expect(bends(bent())).toEqual([
+    { from: 200, to: 250, side: 1 },
+    { from: 450, to: 500, side: 1 },
+  ]);
+  const kink = Array.from({ length: 100 }, (_, i) => {
+    const heading = i < 50 ? 0 : -0.3;
+    return { x: 0, z: i * 2, tx: Math.sin(heading), tz: Math.cos(heading) };
+  });
+  expect(bends(kink)).toEqual([]);
+  const right = bent().map((p) => ({ x: -p.x, z: p.z, tx: -p.tx, tz: p.tz }));
+  expect(bends(right).map((b) => b.side)).toEqual([-1, -1]);
+});
+
+test("run_on: a lap's line carries on into the next lap by the metres asked, and a corner across the line is one bend", () => {
+  const lap = Array.from({ length: 101 }, (_, i) => {
+    const heading = ((i + 50) / 100) * 2 * Math.PI;
+    return { x: -Math.cos(heading) * 30, z: Math.sin(heading) * 30, tx: Math.sin(heading), tz: Math.cos(heading) };
+  });
+  const line = run_on(lap, 20);
+  expect(line.slice(0, lap.length)).toEqual(lap);
+  expect(line.length).toBeGreaterThan(lap.length);
+  expect(line.at(-1)).toBe(lap[line.length - lap.length]);
+  expect(run_on(lap, 1e6).length).toBe(lap.length * 2 - 2);
+  expect(bends(line)).toEqual([{ from: 0, to: line.length - 1, side: 1 }]);
 });

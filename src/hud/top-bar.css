@@ -305,3 +305,7 @@
 :root[data-hud="classic"] :is(#strip, #mode-status) {
   anchor-name: --top-centre;
 }
+
+:root[data-hud="classic"] #mode-status {
+  anchor-name: --top-centre, --mode-status;
+}

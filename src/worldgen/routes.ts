@@ -5,7 +5,7 @@ import { length } from "./noise";
 import type { Junction } from "./road-layers";
 import type { TownLoop } from "./town-circuit";
 import type { Trail } from "./trails";
-import { ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Checkpoint, type Item, type Ramp, type RoadEdge, type RoadGraph, type RoadPoint, type Route, type Town } from "./types";
+import { ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Checkpoint, type Item, type Ramp, type RoadEdge, type RoadGraph, type RoadPoint, type RoadSpan, type Route, type Solid, type Town } from "./types";
 import { atan2 } from "../sim-math";
 
 const STREET_COST = 0.6;
@@ -68,6 +68,17 @@ const WEIGHT: Record<LegKind, number> = { street: STREET_COST, spur: SPUR_COST, 
 // Fitted to scripts/races.ts: roads between towns climb and wind more than drive_time sees, which costs the slowest car most.
 const LEG_PAR: Record<LegKind, number> = { street: PAR_SHARE, spur: PAR_SHARE, local: 1.25, ring: PAR_SHARE };
 
+/** One span per run of equal half widths, `halves` holding one per route point. */
+export function road_spans(halves: readonly number[]): RoadSpan[] {
+  const spans: RoadSpan[] = [];
+  halves.forEach((half, from) => {
+    if (spans.length === 0 || spans[spans.length - 1].half !== half) spans.push({ from, half });
+  });
+  return spans;
+}
+
+const even = (half: number): RoadSpan[] => [{ from: 0, half }];
+
 function run(points: readonly { x: number; z: number }[]): number {
   let total = 0;
   for (let i = 1; i < points.length; i++) total += length(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z);
@@ -109,11 +120,29 @@ function par(points: readonly RoadPoint[], closed: boolean, share = PAR_SHARE): 
 
 export const heading = (p: { tx: number; tz: number }) => atan2(p.tx, p.tz);
 
+const POST_OFF = ROAD_HALF + 1.7;
+
+export function loop_gates(road: readonly RoadPoint[], at: readonly number[], heights: Float32Array): { checkpoints: Checkpoint[]; posts: Solid[] } {
+  const checkpoints: Checkpoint[] = [];
+  const posts: Solid[] = [];
+  at.forEach((k, index) => {
+    const p = road[k];
+    checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: atan2(p.tx, p.tz), index });
+    for (const side of [-1, 1]) {
+      const off = side * POST_OFF;
+      const x = p.x - p.tz * off;
+      const z = p.z + p.tx * off;
+      posts.push({ kind: "circle", x, y: sample(heights, x, z), z, radius: 0.5, height: 7 });
+    }
+  });
+  return { checkpoints, posts };
+}
+
 /** The race loop as a route: the circuit's own gates, the start line moved to the end as the finish. */
 export function circuit_route(road: readonly RoadPoint[], checkpoints: readonly Checkpoint[], share = PAR_SHARE): Route {
   const lap = run(road) + length(road[0].x - road[road.length - 1].x, road[0].z - road[road.length - 1].z);
   const gates = [...checkpoints.slice(1), checkpoints[0]].map((c, index) => ({ ...c, index }));
-  return { id: "circuit", kind: RouteKind.CIRCUIT, closed: true, points: [...road], checkpoints: gates, gate_hw: ROAD_HALF, length: lap, par_ms: par(road, true, share), closure: [] };
+  return { id: "circuit", kind: RouteKind.CIRCUIT, closed: true, points: [...road], checkpoints: gates, gate_hw: ROAD_HALF, road: even(ROAD_HALF), length: lap, par_ms: par(road, true, share), closure: [] };
 }
 
 /** The circuit driven the other way from the same start line; a road kicker would face backwards, so only a loop with none gets one. */
@@ -161,7 +190,7 @@ function circuit_slices(road: readonly RoadPoint[], gates: readonly number[], se
 function slice_route(id: string, { k, span, points }: Slice, checkpoints: readonly Checkpoint[], share: number): Route {
   const count = checkpoints.length;
   const checkpoints_on = Array.from({ length: span }, (_, i) => checkpoints[(k + 1 + i) % count]).map((c, index) => ({ ...c, index }));
-  return { id, kind: RouteKind.SPRINT, closed: false, points, checkpoints: checkpoints_on, gate_hw: ROAD_HALF, length: run(points), par_ms: par(points, false, share), closure: [] };
+  return { id, kind: RouteKind.SPRINT, closed: false, points, checkpoints: checkpoints_on, gate_hw: ROAD_HALF, road: even(ROAD_HALF), length: run(points), par_ms: par(points, false, share), closure: [] };
 }
 
 /** Starts and ends on circuit gates, which keep clear of junctions; the slowest pace is the most cornering. */
@@ -309,6 +338,8 @@ class Atlas {
 interface Candidate {
   legs: number[];
   points: RoadPoint[];
+  /** The drawn half width of the leg each point is on. */
+  halves: number[];
   checkpoints: Checkpoint[];
   turns: number;
   length: number;
@@ -323,6 +354,7 @@ function trace(atlas: Atlas, legs: number[], pair: [number, number], bend: Bend 
   const closes = nodes.length > 2 && nodes[0] === nodes[nodes.length - 1];
   if (new Set(nodes).size !== nodes.length - (closes ? 1 : 0)) return null;
   const points: RoadPoint[] = [];
+  const halves: number[] = [];
   const gates: Omit<Checkpoint, "index">[] = [];
   let turns = 0;
   const gate = (p: RoadPoint) => {
@@ -350,13 +382,16 @@ function trace(atlas: Atlas, legs: number[], pair: [number, number], bend: Bend 
     const out = before && atlas.mouth(leg.from, leg.points);
     if (!into || !out || into >= points.length || out >= leg.points.length - 1) {
       points.push(...(k === 0 ? leg.points : leg.points.slice(1)));
+      while (halves.length < points.length) halves.push(leg.half);
       return;
     }
     points.length -= into;
+    halves.length = points.length;
     points.push(...bend(points[points.length - 1], atlas.graph.nodes[leg.from], leg.points[out]), ...leg.points.slice(out));
+    while (halves.length < points.length) halves.push(leg.half);
   });
   gate(points[points.length - 1]);
-  return { legs, points, checkpoints: gates.map((g, index) => ({ ...g, index })), turns, length: run(points), pair };
+  return { legs, points, halves, checkpoints: gates.map((g, index) => ({ ...g, index })), turns, length: run(points), pair };
 }
 
 /** The way through a patched junction, from one arm's mouth to the next's, bent round the node like the curbs either side. */
@@ -514,6 +549,7 @@ export function street_routes(graph: RoadGraph, circuit: readonly number[], town
     points: c.points,
     checkpoints: c.checkpoints,
     gate_hw: STREET_HALF + SIDEWALK,
+    road: road_spans(c.halves),
     length: c.length,
     par_ms: par(c.points, false, Math.max(...c.legs.map((l) => LEG_PAR[atlas.legs[l].kind]))),
     closure: closure(atlas, c, (x, z) => sample(heights, x, z)),
@@ -552,9 +588,9 @@ export function trip_route(graph: RoadGraph, circuit: readonly number[], towns: 
     }
   }
   if (!best) return null;
-  const { legs, points, checkpoints } = best;
+  const { legs, points, halves, checkpoints } = best;
   const share = Math.max(...legs.map((l) => LEG_PAR[atlas.legs[l].kind]));
-  return { id: "trip", kind: RouteKind.STREET, closed: false, points, checkpoints, gate_hw: ROAD_HALF, length: best.length, par_ms: par(points, false, share), closure: [] };
+  return { id: "trip", kind: RouteKind.STREET, closed: false, points, checkpoints, gate_hw: ROAD_HALF, road: road_spans(halves), length: best.length, par_ms: par(points, false, share), closure: [] };
 }
 
 /**
@@ -575,11 +611,12 @@ export function town_route(graph: RoadGraph, circuit: readonly number[], towns: 
   const traced = found.points.slice(0, -1);
   const half = Math.floor((atlas.legs[legs[0]].points.length - 1) / 2);
   const points = [...traced.slice(half), ...traced.slice(0, half)];
+  const widths = found.halves.slice(0, -1);
   const start = points[0];
   const corners = found.checkpoints.slice(0, -1);
   const checkpoints = [...corners, { x: start.x, y: start.y, z: start.z, heading: heading(start), index: 0 }].map((c, index) => ({ ...c, index }));
   const lap = run(points) + length(points[0].x - points[points.length - 1].x, points[0].z - points[points.length - 1].z);
-  return { id: "town", kind: RouteKind.CIRCUIT, closed: true, points, checkpoints, gate_hw: STREET_HALF + SIDEWALK, length: lap, par_ms: par(points, true), closure: closure(atlas, found, height) };
+  return { id: "town", kind: RouteKind.CIRCUIT, closed: true, points, checkpoints, gate_hw: STREET_HALF + SIDEWALK, road: road_spans([...widths.slice(half), ...widths.slice(0, half)]), length: lap, par_ms: par(points, true), closure: closure(atlas, found, height) };
 }
 
 /** Each trail as a point-to-point race: a gate every TRAIL_GATES metres, one before the gap and one where the ramp-out joins. */
@@ -609,7 +646,7 @@ export function offroad_routes(trails: readonly Trail[]): Route[] {
     }
     picked.push(points.length - 1);
     const checkpoints = picked.map((i, index) => ({ x: points[i].x, y: points[i].y, z: points[i].z, heading: heading(points[i]), index }));
-    return { id: trail.id, kind: RouteKind.OFFROAD, closed: false, points, checkpoints, gate_hw: TRAIL_GATE_HW, length: run(points), par_ms: par(points, false, OFFROAD_SHARE), closure: [], excludes: TRAIL_EXCLUDES };
+    return { id: trail.id, kind: RouteKind.OFFROAD, closed: false, points, checkpoints, gate_hw: TRAIL_GATE_HW, road: even(TRAIL_GATE_HW), length: run(points), par_ms: par(points, false, OFFROAD_SHARE), closure: [], excludes: TRAIL_EXCLUDES };
   });
 }
 
@@ -630,12 +667,12 @@ export function descent_route(points: RoadPoint[], share = PAR_SHARE): Route {
   }
   picked.push(points.length - 1);
   const checkpoints = picked.map((i, index) => ({ x: points[i].x, y: points[i].y, z: points[i].z, heading: heading(points[i]), index }));
-  return { id: "descent", kind: RouteKind.SPRINT, closed: false, points, checkpoints, gate_hw: ROAD_HALF, length: total, par_ms: par(points, false, share), closure: [] };
+  return { id: "descent", kind: RouteKind.SPRINT, closed: false, points, checkpoints, gate_hw: ROAD_HALF, road: even(ROAD_HALF), length: total, par_ms: par(points, false, share), closure: [] };
 }
 
 /** One way along `points` through a gate at each of `gates` (point indices, in order), the finish on its last point. */
 export function crossing_route(points: RoadPoint[], gates: readonly number[], gate_hw: number, share: number, excludes: readonly string[]): Route {
   const picked = [...gates.filter((i) => i > 0 && i < points.length - 1), points.length - 1];
   const checkpoints = picked.map((i, index) => ({ x: points[i].x, y: points[i].y, z: points[i].z, heading: heading(points[i]), index }));
-  return { id: "crossing", kind: RouteKind.OFFROAD, closed: false, points, checkpoints, gate_hw, length: run(points), par_ms: par(points, false, share), closure: [], excludes };
+  return { id: "crossing", kind: RouteKind.OFFROAD, closed: false, points, checkpoints, gate_hw, road: even(gate_hw), length: run(points), par_ms: par(points, false, share), closure: [], excludes };
 }

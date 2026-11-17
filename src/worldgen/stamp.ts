@@ -574,6 +574,12 @@ export class Stamp {
     if (d < this.owner_dist[k] && !held) {
       this.owner_dist[k] = d;
       this.road_height[k] = heights[s] + (heights[(s + 1) % edge.points.length] - heights[s]) * t;
+      if (edge.banks) {
+        // The shoulder past the flat band blends from the banked edge's height, not on up the slope.
+        const across = Math.max(-edge.half - FLAT, Math.min(edge.half + FLAT, (oz * dx - ox * dz) / Math.sqrt(len2)));
+        const bank = edge.banks[s] + (edge.banks[(s + 1) % edge.points.length] - edge.banks[s]) * t;
+        this.road_height[k] += bank * across;
+      }
       this.edge_of[k] = edge.id;
       this.street[k] = edge.kind === "street" ? 1 : 0;
     }

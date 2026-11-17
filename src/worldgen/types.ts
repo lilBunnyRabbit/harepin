@@ -42,7 +42,7 @@ export const ROOFTOPS_VERSION = 2;
 /** Bump whenever `generate_sky` makes a different velodrome track for the same seed. */
 export const VELODROME_VERSION = 3;
 
-export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine", TUNDRA: "tundra", ROOFTOPS: "rooftops", VOLCANO: "volcano", BIG_DUNES: "dunes", ICE_CANYON: "icecanyon", VELODROME: "velodrome", LAB: "lab" } as const;
+export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine", TUNDRA: "tundra", ROOFTOPS: "rooftops", VOLCANO: "volcano", BIG_DUNES: "dunes", ICE_CANYON: "icecanyon", VELODROME: "velodrome", LAB: "lab", RACEWAY: "raceway" } as const;
 export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];
 /** What a URL or save without a world, or with one this build doesn't know, drives. */
 export const DEFAULT_KIND: WorldKind = WorldKind.ISLAND;
@@ -112,6 +112,8 @@ export interface RoadEdge {
   half: number;
   closed: boolean;
   points: RoadPoint[];
+  /** Cross slope per point, rise per metre toward the left of travel, (-tz, tx): the ground under the road tilts with it. Absent = level across. */
+  banks?: readonly number[];
 }
 
 export interface RoadGraph {
@@ -334,6 +336,12 @@ export interface Canyon {
 export const RouteKind = { CIRCUIT: "circuit", STREET: "street", OFFROAD: "offroad", SPRINT: "sprint" } as const;
 export type RouteKind = (typeof RouteKind)[keyof typeof RouteKind];
 
+/** From point `from` of a route on, the road drawn under it is `half` metres wide each side of its line. */
+export interface RoadSpan {
+  from: number;
+  half: number;
+}
+
 /** A closed route's lap ends back on `points[0]`. */
 export interface Route {
   id: string;
@@ -343,6 +351,8 @@ export interface Route {
   /** Gates in driving order; the last one is the finish line. */
   checkpoints: Checkpoint[];
   gate_hw: number;
+  /** The drawn road's half width along the route, ascending from point 0; a trail with no road takes its gate's. */
+  road: RoadSpan[];
   /** Metres, one lap for a closed route. */
   length: number;
   par_ms: number;
