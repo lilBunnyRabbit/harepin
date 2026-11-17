@@ -408,3 +408,10 @@ Things in the mockups that need a new state layer, new data or engine work. The 
   - use `Menu.back()` / `up_of()` / `MenuPage.back`;
   - Title needs only its page (room `title` is in `STAGE_ROOMS`).
   Old Play/Garage/Online/Settings/Support/Career are unmounted until their lanes land, so nothing ships from master before batch 2 ends. Garage's old `<canvas class="garage-canvas">` goes with 1c. Owners still needed: the frame chips (name, room, update).
+- 1a done 0635bfa..e609806: boot lands on Title; Home, Maps and Make are rebuilt. Follow-ups:
+  - Home "C Car" opens the picker once 1c's CarPicker ask lands; Home starts go through the start sheet once 1b lands (wire it in batch 3 if no lane takes it);
+  - cap the Home ticket at 60% height on wide screens (§1.4), batch 3;
+  - Raceway has no Make values yet (`options: []`): its own worldgen task;
+  - Saved maps left Make: owner question;
+  - `maps.ts` `elsewhere` / `distance_text` stay for 2c;
+  - page classes carry a page prefix (`home-`, `maps-`), since bare `.title` / `.name` leak from old global CSS.
