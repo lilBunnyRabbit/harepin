@@ -50,7 +50,7 @@
     const cup = weekly(week);
     const day_name = type_of(day.type).name;
     return [
-      { id: "daily", img: preview(day.kind), eyebrow: "Daily · same for everyone today", title: day_name, place: where(day), left: 3 - live.live(() => runs.daily(today)), verb: `Run today's ${day_name.toLowerCase()}`, pick: () => day },
+      { id: "daily", img: preview(day.kind), eyebrow: "Daily · same for everyone", title: day_name, place: where(day), left: 3 - live.live(() => runs.daily(today)), verb: `Run today's ${day_name.toLowerCase()}`, pick: () => day },
       { id: "weekly", img: preview(cup.kind), eyebrow: `Weekly · ${cup.stages?.length ?? 1} stages`, title: `${world_name(cup.kind)} cup`, place: where(cup), left: WEEK_STARS - live.live(() => runs.weekly(week)), verb: `Run the ${world_name(cup.kind)} cup`, pick: () => cup },
       { id: "random", img: preview("raceway"), eyebrow: "Random · any mode", title: "Roll a run", place: null, left: Math.min(1, free_left), verb: "Roll a run", pick: () => random(new_seed()) },
     ];

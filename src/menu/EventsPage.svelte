@@ -321,7 +321,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.35em;
-    padding: var(--gap-xs) var(--gap-sm);
+    padding: var(--gap-xs);
     font-size: var(--type-small);
     font-weight: 700;
   }

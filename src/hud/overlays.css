@@ -151,6 +151,11 @@ body:has(> .settings:not([hidden])) #toast[data-road] {
     height: 58px;
     color: var(--primary);
   }
+
+  /* The menu works upright, and the prompt showed through between its cards: it waits for the road. */
+  body:has(> .settings:not([hidden])) > #rotate {
+    display: none;
+  }
 }
 
 #toast {

@@ -105,6 +105,7 @@
     --stage-side: right;
   }
 
+  /* The place sits straight on the live sky, which can be as light as the dim text. */
   .final-champ {
     --stage-side: top;
     display: grid;
@@ -113,6 +114,9 @@
     min-width: 0;
     padding-top: var(--pad);
     text-align: center;
+    text-shadow:
+      0 0 2px var(--background-darkest),
+      0 1px 12px var(--background-darkest);
   }
 
   .final-eyebrow {

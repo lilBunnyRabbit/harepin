@@ -44,7 +44,7 @@
     <div class="next-up-text">
       <span class="next-up-eyebrow">{ticket.eyebrow}</span>
       <b class="next-up-title">{ticket.title}</b>
-      <PlaceLine place={ticket.place} tail={ticket.place.here ? (view.distance === null ? undefined : `${distance_text(view.distance)} ahead`) : "another map"} />
+      <PlaceLine place={ticket.place} tail={ticket.place.here && view.distance !== null ? `${distance_text(view.distance)} ahead` : undefined} />
     </div>
     {#if !ticket.place.here}
       <span class="next-up-travel" bind:this={travel_box}>
