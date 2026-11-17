@@ -7,7 +7,7 @@
   import type { WorldKind } from "../worldgen/types";
   import { map_name } from "../worlds/map-name";
   import { LISTED, WORLDS } from "../worlds/worlds";
-  import { aim_or_go, bare_enter, link_key } from "./drive-picks";
+  import { bare_enter, link_key } from "./drive-picks";
   import { FALLBACK } from "./map-note";
   import { MAKE_PAGE } from "./maps";
   import MenuFrame from "./MenuFrame.svelte";
@@ -94,9 +94,11 @@
     bad = read.why === "newer" ? NEWER : BAD;
   }
 
-  // Walking the kinds with the keys picks as it goes, like a tap: Enter is the primary's on every card.
-  function pick_kind(kind: WorldKind) {
+  // Focus only aims: a tap or Enter picks the kind, so walking across the cards keeps the custom values. Enter on the
+  // kind already picked is the primary's.
+  function press_kind(click: MouseEvent, kind: WorldKind) {
     if (kind !== chosen.kind) choose(plain_map(kind, chosen.seed), true);
+    else if (click.detail === 0) drive();
   }
 
   const roll = () => choose({ ...chosen, seed: random_seed() }, true);
@@ -196,7 +198,7 @@
       <div class="make-kinds" role="radiogroup" aria-label="Map type">
         {#each LISTED as { kind, name } (kind)}
           {@const on = kind === chosen.kind}
-          <Card pad="sm" flat class="make-kind" label={name} selected={on} onfocus={() => pick_kind(kind)} onclick={(click) => aim_or_go(click, () => pick_kind(kind), drive)}>
+          <Card pad="sm" flat class="make-kind" label={name} selected={on} onclick={(click) => press_kind(click, kind)}>
             {#snippet picture()}
               <img src={preview(kind)} alt="" decoding="async" />
             {/snippet}
@@ -408,6 +410,47 @@
       grid-auto-rows: calc(var(--top-h) * 2);
       padding: var(--mark-w);
       overflow-y: auto;
+      scrollbar-width: none;
+    }
+  }
+
+  /* A finger's slider thumb is taller than a line of text: each value gets a row that clears it. */
+  @media (pointer: coarse) {
+    .make-knobs {
+      grid-auto-rows: var(--row-h);
+    }
+  }
+
+  /* A portrait phone: the map over its values, then the roll and one row of kinds to swipe through. */
+  @media (max-width: 700px) {
+    .make {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) auto;
+    }
+
+    .make > :global(.make-big) {
+      flex-direction: column;
+    }
+
+    .make-shot {
+      width: 100%;
+      max-width: none;
+      height: 42%;
+      aspect-ratio: auto;
+    }
+
+    h2 {
+      font-size: var(--type-h2);
+    }
+
+    .make-kinds {
+      flex: none;
+      grid-template-columns: none;
+      grid-auto-columns: 30%;
+      grid-auto-flow: column;
+      grid-auto-rows: calc(var(--top-h) * 2.2);
+      padding: var(--mark-w);
+      overflow-x: auto;
       scrollbar-width: none;
     }
   }
