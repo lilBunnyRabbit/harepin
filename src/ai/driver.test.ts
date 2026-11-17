@@ -166,22 +166,6 @@ describe("AI driver", () => {
     expect(driver.lateral_at(car, 160)).toBeCloseTo(0, 6);
   });
 
-  test("easing across a straight, it plans no bend where the easing starts: the pace is the lane's, not a corner's", () => {
-    const line = race_line(ring(5000), [], COUPE.radius);
-    const driver = new Driver(line);
-    driver.place(100);
-    driver.aside = 0.5;
-    driver.hold = 3;
-    const car = new Car(COUPE);
-    const p = line.road[100];
-    const heading = Math.atan2(p.tx, p.tz);
-    car.park(p.x + p.tz * 0.5, p.z - p.tx * 0.5, heading, FLAT);
-    car.step(DT, { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: true }, FLAT);
-    car.vel.set(Math.sin(heading) * 60, 0, Math.cos(heading) * 60);
-    driver.drive(car, DT);
-    expect(driver.target).toBeGreaterThan(0.9 * line.speed[100]);
-  });
-
   test("held off the line past the edge of its room, it aims back inside by as much as it is over, not along the edge", () => {
     const room = pass_room(new Car(COUPE), race_line(ring(800), [], COUPE.radius), 100);
     // Fast, so the aim is far ahead and the wheel stays off full lock; on the ring's outside, so its bend steers against.

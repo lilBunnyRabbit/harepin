@@ -239,11 +239,6 @@ export class Driver {
     return pass_clamp(car, this.line, j, this.line.offset[j] + this.aside + Math.max(-move, Math.min(move, this.easing_to - this.aside)));
   }
 
-  /** Metres off the centre its lane of now runs at road point `j`: `aside` off the line as it stands, or its grid lane. */
-  private lane_at(car: Car, j: number): number {
-    return pass_clamp(car, this.line, j, Number.isNaN(this.launch) ? this.line.offset[j] + this.aside : this.launch);
-  }
-
   // Off the line it plans on the bend of the path it drives, the line shifted and clamped to the road: where the line
   // swings across the road and the edge holds the car, that path bends with the road, far tighter than the line. Each
   // bend's speed is brought back to now along the line's braking curve, and never over the line's own.
@@ -259,11 +254,9 @@ export class Driver {
       const i = (this.index + k) % n;
       const a = (i - CURVE_SPAN + n) % n;
       const c = (i + CURVE_SPAN) % n;
-      // The lane of now, not where the easing will have it: the easing's start and end are corners in that path, read as
-      // bends to brake for on a straight (58 m/s at 60 on a 5 km ring).
-      const la = this.lane_at(car, a);
-      const li = this.lane_at(car, i);
-      const lc = this.lane_at(car, c);
+      const la = this.lateral_at(car, a);
+      const li = this.lateral_at(car, i);
+      const lc = this.lateral_at(car, c);
       const bend = inverse_radius(road[a].x + road[a].tz * la, road[a].z - road[a].tx * la, road[i].x + road[i].tz * li, road[i].z - road[i].tx * li, road[c].x + road[c].tz * lc, road[c].z - road[c].tx * lc);
       // Onto a kicker's pin the path steps to the centre: no bend to slow for, and a lane braked for it met the lip at 16 m/s (seed 49).
       const pinned = line.room[a] === 0 || line.room[i] === 0 || line.room[c] === 0;
