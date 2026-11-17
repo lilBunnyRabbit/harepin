@@ -1,6 +1,6 @@
 import { flushSync, getContext, setContext, tick, type Snippet } from "svelte";
 import { DEFAULT_SETTINGS, type SettingKey, type SettingsState } from "../prefs";
-import { CHANGES, DEEP, SECTIONS, list_help } from "./sections";
+import { DEEP, LIST, SECTIONS, list_help } from "./sections";
 
 export interface Help {
   title: string;
@@ -27,11 +27,11 @@ const DEEP_HELP: Record<string, (state: SettingsState) => string> = {
 const SUBS = new Map<string, Sub>([
   ...SECTIONS.map(({ id, label, keys }) => [id, { label, parent: null, keys, help: () => "" }] as const),
   ...DEEP.map(({ id, label, parent }) => [id, { label, parent, keys: [], help: DEEP_HELP[id] }] as const),
-  [CHANGES, { label: "What's new", parent: null, keys: [], help: () => "Every release, newest first." }],
 ]);
 
 export class SettingsNav {
-  sub = $state("graphics");
+  /** The open section or deep page; `LIST` on the list of section cards. */
+  sub = $state(LIST);
   help = $state.raw<Help | null>(null);
   readonly lists: Record<string, HTMLElement | undefined> = {};
   private readonly helps = new WeakMap<Element, Help>();
@@ -87,13 +87,24 @@ export class SettingsNav {
     });
   }
 
+  /** Back to the list of section cards. */
+  close() {
+    this.sub = LIST;
+    this.help = null;
+  }
+
   step(by: number) {
+    if (this.sub === LIST) return;
     const tops = SECTIONS.map(({ id }) => id);
     this.show(tops[(tops.indexOf(this.top()) + by + tops.length) % tops.length]);
   }
 
   reset() {
-    for (const key of this.keys()) this.set(key, DEFAULT_SETTINGS[key]);
+    for (const key of this.keys()) this.reset_key(key);
+  }
+
+  reset_key(key: SettingKey) {
+    this.set(key, DEFAULT_SETTINGS[key]);
   }
 }
 

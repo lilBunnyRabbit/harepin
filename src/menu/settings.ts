@@ -6,6 +6,11 @@ import { SERIES_PAGE } from "../career/series";
 import { unlocks } from "../career/rewards";
 import SeriesPage from "./SeriesPage.svelte";
 import GoalsPage from "./GoalsPage.svelte";
+import GuidePage from "./GuidePage.svelte";
+import SupportPage from "./SupportPage.svelte";
+import SettingsPage from "./settings-tab/SettingsPage.svelte";
+import ChangesPage from "./settings-tab/ChangesPage.svelte";
+import { GUIDE_PAGE } from "./guide-topics";
 import ModesPage from "./ModesPage.svelte";
 import RunsPage from "./runs/RunsPage.svelte";
 import RunBuilder from "./runs/RunBuilder.svelte";
@@ -25,7 +30,7 @@ import type { CarShelf } from "../car/car-pick";
 import { mark_drive, read_saved, write_saved } from "./prefs-store";
 import { picture } from "./widgets";
 import { SettingsNav } from "./settings-tab/nav.svelte";
-import { CHANGES } from "./settings-tab/sections";
+import { CHANGES, LIST } from "./settings-tab/sections";
 import WorldPage from "./WorldPage.svelte";
 import HomePage from "./HomePage.svelte";
 import MapsPage from "./MapsPage.svelte";
@@ -111,7 +116,10 @@ export class Settings {
       () => this.current,
     );
     this.page_list = [
-      ...STATIONS.map(({ id, label }) => (id === MenuTab.PLAY ? svelte_page(this.menu, { id, label }, HomePage, { picker: this.picker }) : id === MenuTab.GARAGE ? svelte_page(this.menu, { id, label }, GaragePage, { garage: host.garage, picker: this.picker }) : id === MenuTab.EVENTS ? svelte_page(this.menu, { id, label }, EventsPage, { picker: this.picker }) : svelte_page(this.menu, { id, label }, EmptyPage, { id }))),
+      ...STATIONS.map(({ id, label }) => (id === MenuTab.PLAY ? svelte_page(this.menu, { id, label }, HomePage, { picker: this.picker }) : id === MenuTab.GARAGE ? svelte_page(this.menu, { id, label }, GaragePage, { garage: host.garage, picker: this.picker }) : id === MenuTab.EVENTS ? svelte_page(this.menu, { id, label }, EventsPage, { picker: this.picker }) : id === MenuTab.SETTINGS ? svelte_page(this.menu, { id, label }, SettingsPage, { nav: this.nav }) : svelte_page(this.menu, { id, label }, EmptyPage, { id }))),
+      svelte_page(this.menu, { id: GUIDE_PAGE, label: "Guide", parent: MenuTab.SETTINGS, layout: "frame" }, GuidePage, { open: (id: string) => this.open(id) }),
+      svelte_page(this.menu, { id: CHANGES, label: "What's new", parent: MenuTab.SETTINGS, layout: "frame" }, ChangesPage),
+      svelte_page(this.menu, { id: MenuTab.SUPPORT, label: "Support", parent: MenuTab.SETTINGS, layout: "frame" }, SupportPage),
       svelte_page(this.menu, { id: CAR_PAGE, label: "Car", parent: MenuTab.GARAGE, layout: "frame" }, CarPickPage, { picker: this.picker }),
       svelte_page(this.menu, { id: TITLE, label: "Harepin" }, TitlePage),
       svelte_page(this.menu, { id: MAPS_PAGE, label: "Maps", parent: MenuTab.PLAY, layout: "frame" }, MapsPage, { picker: this.picker }),
@@ -303,6 +311,7 @@ export class Settings {
   /** Q / E, LB / RB: the next station. A child page shows no station bar, so the keys stay its own. */
   step_tab(step: number) {
     if (this.guide_open) return this.guide.step_by(step);
+    if (this.section === MenuTab.SETTINGS && this.nav.sub !== LIST) return;
     if (this.section === CAR_PAGE) return this.picker.on_step?.(step);
     const at = STATIONS.findIndex((station) => station.id === this.section);
     if (at >= 0) this.show(STATIONS[(at + step + STATIONS.length) % STATIONS.length].id, null);

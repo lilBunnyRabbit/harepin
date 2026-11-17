@@ -1,3 +1,4 @@
+import type { Difficulty } from "../../ai/difficulty";
 import { SteerMode } from "../../car/car";
 import { keys_text, pad_text, type Bindable, type Bindings } from "../../hud/bindings";
 import { RumbleLevel } from "../../hud/rumble";
@@ -18,6 +19,9 @@ export interface DeepMeta {
   parent: string;
 }
 
+/** `SettingsNav.sub` on the list of section cards, before a section is open. */
+export const LIST = "";
+/** The What's new page, a page of its own beside the sections. */
 export const CHANGES = "changes";
 
 export const SECTIONS: readonly SectionMeta[] = [
@@ -100,24 +104,35 @@ export function wire_boxes(map: MapView, speedo: SpeedoStyle): WireBox[] {
   return boxes;
 }
 
-export function summary(id: string, state: SettingsState, tier: QualityTier, theme: string): string {
+/** What a section card reads beside the saved settings. */
+export interface SummaryLive {
+  tier: QualityTier;
+  theme: string;
+  name: string;
+}
+
+const AID_KEYS = ["tcs", "abs", "assist", "stability"] as const;
+const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: "easy", normal: "normal", hard: "hard" };
+
+/** A section's current values, the most telling first: its card on the Settings list shows them. */
+export function summary(id: string, state: SettingsState, live: SummaryLive): string[] {
   switch (id) {
     case "graphics":
-      return state.quality === QualityMode.AUTO ? `Auto, running ${TIER_LABEL[tier]}` : `Fixed at ${TIER_LABEL[tier]}`;
+      return [state.quality === QualityMode.AUTO ? `Auto, running ${TIER_LABEL[live.tier]}` : `Fixed at ${TIER_LABEL[live.tier]}`];
     case "display":
-      return `${MAP_VIEWS[state.map][0]} map · ${SPEEDO_STYLES[state.speedo][0]} speedometer · ${theme}`;
+      return [live.theme, `${MAP_VIEWS[state.map][0]} map`, `${SPEEDO_STYLES[state.speedo][0]} speedometer`];
     case "driving":
-      return `${(["tcs", "abs", "assist", "stability"] as const).filter((aid) => state[aid]).length} of 4 aids · ${state.auto ? "auto" : "manual"} gears`;
+      return [`${AID_KEYS.filter((aid) => state[aid]).length} of ${AID_KEYS.length} aids`, `${state.auto ? "Auto" : "Manual"} gears`, `AI ${DIFFICULTY_LABEL[state.ai_difficulty]}`];
     case "camera":
-      return `${state.camera === CameraView.CHASE ? "Chase" : "Cockpit"} · returns ${CAMERA_RETURN_LABEL[state.camera_return]}`;
+      return [state.camera === CameraView.CHASE ? "Chase" : "Cockpit", `Returns ${CAMERA_RETURN_LABEL[state.camera_return].toLowerCase()}`, `Speed zoom ${SPEED_ZOOM_LABEL[state.speed_zoom].toLowerCase()}`];
     case "controls":
-      return `Keyboard ${STEER_LABEL[state.steer_mode].toLowerCase()} · key list`;
+      return [`${STEER_LABEL[state.steer_mode]} steering`, `Rumble ${RUMBLE_LABEL[state.rumble].toLowerCase()}`];
     case "audio":
-      return state.muted ? "Muted" : `Volume ${Math.round(state.volume * 100)}%`;
+      return [state.muted ? "Muted" : `Volume ${Math.round(state.volume * 100)}%`];
     case "net":
-      return state.show_country ? "Country shown" : "Country hidden";
+      return [live.name, state.show_country ? "Country shown" : "Country hidden"];
     default:
-      return "";
+      return [];
   }
 }
 
@@ -171,8 +186,8 @@ export const KEYS: [string, Shown, Shown, string][] = [
   ["This key list", keys("help"), pads("help"), ""],
   ["Chat", "T", "", "Chat"],
   ["Menu", "Esc", "Start", "Menu button"],
-  ["In menus: move, pick, back, tabs", "Arrows, Enter, Esc, Q / E", "D-pad, A, B, LB / RB", ""],
-  ["In menus: sections, reset section", "", "LT / RT, Y", ""],
+  ["In menus: move, pick, back, stations", "Arrows, Enter, Esc, Q / E", "D-pad, A, B, LB / RB", ""],
+  ["In Settings: next section, reset section", "X", "LT / RT, Y", ""],
 ];
 
 export const shown = (way: Shown, bindings: Bindings) => (typeof way === "string" ? way : way(bindings));

@@ -85,8 +85,13 @@
 
 <style>
   .set-row {
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     outline: none;
+  }
+
+  .set-row > :global(.ui-row) {
+    min-height: var(--top-h);
+    padding: var(--gap-md);
   }
 
   .set-row[hidden] {
@@ -97,18 +102,21 @@
     cursor: pointer;
   }
 
-  .set-row:hover {
-    background: color-mix(in oklch, var(--set-raised) 40%, transparent);
+  .set-row:hover,
+  .set-row:focus-visible,
+  .set-custom:focus-within {
+    background: var(--row-on);
   }
 
   .set-row:focus-visible,
   .set-custom:focus-within {
-    background: var(--set-raised);
-    box-shadow: inset 0 0 0 1px var(--line-strong);
+    outline: var(--mark-w) solid var(--cottontail);
+    outline-offset: calc(var(--mark-w) * -1);
   }
 
   .set-row[data-waiting] {
-    box-shadow: inset 0 0 0 1px var(--primary);
+    outline: var(--mark-w) solid var(--primary);
+    outline-offset: calc(var(--mark-w) * -1);
   }
 
   @media (pointer: fine) {
