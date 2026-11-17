@@ -184,6 +184,7 @@
      carries the map's own edge colour, so the sea runs on under the callouts. */
   .rmap {
     --callout-w: 17rem;
+    --callout-max: var(--callout-w);
     --callout-h: 4.25rem;
     --jog: var(--inset);
     container-type: size;
@@ -244,8 +245,7 @@
   }
 
   .rmap-rule {
-    flex: 1;
-    min-width: var(--jog);
+    flex: 1 0 var(--jog);
     height: 2px;
     background: var(--foreground);
     box-shadow: 0 0 0 2px var(--deep);
@@ -259,11 +259,11 @@
   /* :root lifts this over the base button rules. */
   :root .rmap-callout {
     display: flex;
-    flex: none;
+    flex: 0 1 var(--callout-max);
     align-items: center;
     justify-content: space-between;
     gap: var(--gap-md);
-    width: var(--callout-w);
+    min-width: var(--callout-w);
     height: var(--callout-h);
     padding: var(--gap-md) var(--gap);
     border: 1px solid var(--line-strong);
@@ -374,12 +374,21 @@
 
   @media (max-height: 500px) {
     .rmap {
+      /* The map gives way to the narrow width only; a callout takes the room a wide phone leaves beside it. */
       --callout-w: 12.75rem;
+      --callout-max: 17rem;
       --callout-h: 3.125rem;
     }
 
     :root .rmap-callout {
+      height: auto;
+      min-height: var(--callout-h);
       padding: var(--gap-sm) var(--gap-md);
+    }
+
+    /* On a phone too narrow to widen the callout, a long eyebrow takes a second line. */
+    .rmap-eyebrow {
+      white-space: normal;
     }
   }
 </style>

@@ -11,6 +11,8 @@ import { world_look, type RoadInk } from "../worlds/world-def";
 import { snow_of } from "../worldgen/kinds/kinds";
 
 const DEBOUNCE_MS = 300;
+/** CSS px: on a map drawn smaller its town names would cover the roads and pins they sit by, so it goes without. */
+const TOWN_NAMES_SIDE = 360;
 
 interface Stroke {
   width: number;
@@ -276,6 +278,7 @@ function paint_marks(ctx: Ctx2D, map: MapData, at: MapAt, ratio: number) {
 }
 
 function paint_towns(ctx: Ctx2D, map: MapData, at: MapAt, side: number, ratio: number, font: string) {
+  if (side < TOWN_NAMES_SIDE * ratio) return;
   ctx.font = `600 ${12 * ratio}px ${font}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
