@@ -240,6 +240,13 @@
     }
   }
 
+  /* The ticket stands where the dock would: what hangs under the dock (the update chip, toasts) hangs under the ticket. */
+  @media (min-height: 501px) {
+    .first-ticket {
+      anchor-name: --top-dock;
+    }
+  }
+
   @media (max-height: 500px) {
     .first-paint {
       top: 50%;
