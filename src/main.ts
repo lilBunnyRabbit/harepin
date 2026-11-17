@@ -564,6 +564,7 @@ replay.view.mount(document.body);
 replay.on_open = () => modes.cover_result(true);
 replay.on_close = () => {
   modes.cover_result(false);
+  driver.end_tape();
   chase.snap(driver.car);
 };
 modes.watch = (tape, field) =>
