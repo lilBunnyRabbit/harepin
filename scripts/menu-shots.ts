@@ -44,6 +44,7 @@ const SPOTS: Partial<Record<WorldKind, Spot>> = {
   icecanyon: { camera: { from: [560, 78, 140], to: [410, 46, 236] } },
   // Low on the inside of the wall bowl, up the wall where its high rail stops.
   velodrome: { at: 100, camera: { from: [552.8, 250.5, 221.7], to: [556.5, 258.4, 176.2] } },
+  raceway: { camera: { from: [380, 70, -610], to: [504, 43, -748] } },
 };
 
 const args = process.argv.slice(2);

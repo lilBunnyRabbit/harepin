@@ -51,6 +51,14 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.57.0",
+    date: "2026-11-17",
+    title: "Raceway",
+    changes: [
+      { kind: NEW, text: "Raceway: a new map type with a proper racing circuit on every seed - esses, hairpins, banked bends and grass run-off" },
+    ],
+  },
+  {
     version: "0.56.0",
     date: "2026-11-17",
     title: "Velodrome",

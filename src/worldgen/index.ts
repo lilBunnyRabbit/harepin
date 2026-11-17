@@ -13,7 +13,7 @@ import { in_lava } from "./lava";
 import { split_circuit, type Join } from "./graph";
 import { link_towns, way_toward, ways } from "./links";
 import { loop_heights, loop_path, road_points } from "./path";
-import { circuit_route, descent_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
+import { circuit_route, descent_route, loop_gates, offroad_routes, reverse_circuit, street_routes } from "./routes";
 import { join_candidates, MIN_RADIUS, Router, SHAPE_GRADE, spur_need, spur_points, tightest, type Way } from "./route";
 import type { Path } from "./path";
 import { scatter } from "./scatter";
@@ -24,8 +24,7 @@ import { lava_pools, pan_floor, terrain, with_passes } from "./terrain";
 import { plan_trails } from "./trails";
 import { place_towns, town_streets } from "./towns";
 import { ISLAND, type Landmark, type Recipe } from "./recipe";
-import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, WorldKind, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Tree, type WorldData } from "./types";
-import { atan2 } from "../sim-math";
+import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, WorldKind, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Tree, type WorldData } from "./types";
 
 const CHECKPOINTS = 12;
 const STACK_GATE = 5;
@@ -209,17 +208,8 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const solids: Solid[] = [...lots.out.solids];
   lap("lots");
 
-  const checkpoints: Checkpoint[] = [];
-  for (let i = 0; i < CHECKPOINTS; i++) {
-    const p = road[checkpoint_at[i]];
-    checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: atan2(p.tx, p.tz), index: i });
-    for (const side of [-1, 1]) {
-      const off = side * (ROAD_HALF + 1.7);
-      const x = p.x - p.tz * off;
-      const z = p.z + p.tx * off;
-      solids.push({ kind: "circle", x, y: sample(heights, x, z), z, radius: 0.5, height: 7 });
-    }
-  }
+  const { checkpoints, posts } = loop_gates(road, checkpoint_at, heights);
+  solids.push(...posts);
 
   const marks = new LandmarkPlanner(seed, land, road, towns);
   const off_circuit = edges.filter((e) => !circuit.includes(e.id));
