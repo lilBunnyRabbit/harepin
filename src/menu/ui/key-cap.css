@@ -73,7 +73,7 @@
   color: var(--key-ink);
   box-shadow:
     0 0 0 var(--space-0) var(--background-darkest),
-    0 var(--space-2) var(--space-6) color-mix(in oklch, var(--background-darkest) 45%, transparent);
+    0 var(--gap-sm) var(--pad) color-mix(in oklch, var(--background-darkest) 45%, transparent);
   font: 800 var(--type-primary) / 1 var(--font-sans);
   white-space: nowrap;
   cursor: pointer;

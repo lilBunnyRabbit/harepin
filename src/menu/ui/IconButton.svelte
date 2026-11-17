@@ -34,7 +34,7 @@
   }
 
   .ui-icon-button:hover:not(:disabled) {
-    background: var(--set-well);
+    background: var(--row);
   }
 
   .ui-icon-button:focus-visible {
@@ -48,9 +48,9 @@
   }
 
   [data-shape="round"] {
-    border-color: var(--set-line);
+    border-color: var(--line);
     border-radius: var(--radius-full);
-    background: var(--set-raised);
+    background: var(--fill);
   }
 
   [data-size="sm"] {

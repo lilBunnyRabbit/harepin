@@ -30,14 +30,14 @@
     --icon-size: 1.1em;
     display: inline-flex;
     align-items: center;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
     height: auto;
     padding: 0;
     border: 0;
     background: none;
-    color: var(--set-dim);
+    color: var(--dim);
     font: inherit;
-    font-size: var(--text-md);
+    font-size: var(--type-body);
     font-weight: 600;
     text-decoration: none;
     cursor: pointer;

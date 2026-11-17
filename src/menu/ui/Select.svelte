@@ -25,33 +25,33 @@
 <style>
   .ui-field {
     display: grid;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     min-width: 0;
   }
 
   .ui-label {
-    font-size: var(--text-lg);
+    font-size: var(--type-body);
     font-weight: 600;
     line-height: 1.3;
   }
 
   .ui-help {
-    margin-top: calc(var(--space-0) - var(--space-2));
-    color: var(--set-dim);
-    font-size: var(--text-sm);
+    margin-top: calc(var(--space-0) - var(--gap-sm));
+    color: var(--dim);
+    font-size: var(--type-small);
     line-height: 1.4;
   }
 
   .ui-select {
     min-width: 0;
     height: var(--control-h);
-    padding: 0 var(--space-3);
-    border: 1px solid var(--set-line);
+    padding: 0 var(--gap-md);
+    border: 1px solid var(--line);
     border-radius: var(--radius-sm);
-    background: var(--set-soft);
+    background: var(--row-on);
     color: var(--foreground);
     font: inherit;
-    font-size: var(--text-lg);
+    font-size: var(--type-body);
     cursor: pointer;
   }
 

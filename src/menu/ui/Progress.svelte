@@ -34,7 +34,7 @@
     position: relative;
     height: var(--track-h);
     border-radius: var(--radius-full);
-    background: var(--set-well);
+    background: var(--row);
   }
 
   [data-size="hero"] {
@@ -66,7 +66,7 @@
     top: 50%;
     width: var(--track-h);
     height: var(--track-h);
-    border: var(--ring) solid var(--set-panel);
+    border: var(--ring) solid var(--surface);
     border-radius: var(--radius-full);
     background: var(--line-strong);
     translate: -50% -50%;

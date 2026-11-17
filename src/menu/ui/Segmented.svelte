@@ -32,21 +32,21 @@
     grid-auto-flow: column;
     gap: var(--space-0);
     height: var(--control-h);
-    padding: var(--space-1);
+    padding: var(--gap-xs);
     border-radius: var(--radius-full);
-    background: var(--set-well);
+    background: var(--row);
   }
 
   .ui-segment {
     min-width: 0;
     height: auto;
-    padding: 0 var(--space-3);
+    padding: 0 var(--gap-md);
     border: 0;
     border-radius: var(--radius-full);
     background: none;
-    color: var(--set-dim);
+    color: var(--dim);
     font: inherit;
-    font-size: var(--text-md);
+    font-size: var(--type-body);
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
@@ -59,7 +59,7 @@
 
   .ui-segment[aria-checked="true"] {
     color: var(--foreground);
-    background: var(--set-raised);
+    background: var(--fill);
     box-shadow: 0 1px 2px color-mix(in oklch, var(--background-darkest) 30%, transparent);
   }
 

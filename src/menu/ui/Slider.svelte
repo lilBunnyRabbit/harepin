@@ -25,7 +25,7 @@
   .ui-slider {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--gap-md);
     min-width: 0;
   }
 
@@ -37,7 +37,7 @@
     margin: 0;
     appearance: none;
     border-radius: var(--radius-full);
-    background: linear-gradient(to right, var(--primary) var(--fill), var(--set-well) var(--fill));
+    background: linear-gradient(to right, var(--primary) var(--fill), var(--row) var(--fill));
     cursor: pointer;
   }
 
@@ -47,7 +47,7 @@
     height: var(--thumb);
     border-radius: 50%;
     border: 2px solid var(--primary);
-    background: var(--set-raised);
+    background: var(--row-on);
   }
 
   .ui-range::-moz-range-thumb {
@@ -56,7 +56,7 @@
     height: var(--thumb);
     border-radius: 50%;
     border: 2px solid var(--primary);
-    background: var(--set-raised);
+    background: var(--row-on);
   }
 
   .ui-range:focus-visible {
@@ -72,7 +72,7 @@
   .ui-value {
     min-width: 4ch;
     font-family: var(--font-mono);
-    font-size: var(--text-md);
+    font-size: var(--type-body);
     font-weight: 700;
     text-align: right;
   }

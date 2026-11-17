@@ -29,9 +29,9 @@
     width: var(--w);
     height: var(--h);
     padding: 0;
-    border: 1px solid var(--set-line);
+    border: 1px solid var(--line);
     border-radius: var(--radius-full);
-    background: var(--set-well);
+    background: var(--row);
     cursor: pointer;
   }
 
@@ -48,7 +48,7 @@
     width: calc(var(--h) - 6px);
     height: calc(var(--h) - 6px);
     border-radius: 50%;
-    background: var(--set-dim);
+    background: var(--dim);
     transition:
       translate 140ms ease-out,
       background-color 140ms ease-out;
@@ -64,7 +64,7 @@
   }
 
   .ui-toggle:hover:not(:disabled) {
-    background: var(--set-well);
+    background: var(--row);
   }
 
   .ui-toggle:focus-visible {

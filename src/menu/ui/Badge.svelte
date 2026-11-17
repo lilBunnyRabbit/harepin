@@ -17,11 +17,11 @@
     display: inline-flex;
     flex: none;
     align-items: center;
-    padding: var(--space-0) var(--space-2);
+    padding: var(--space-0) var(--gap-sm);
     border-radius: var(--radius-full);
-    background: var(--set-raised);
+    background: var(--fill);
     color: var(--foreground);
-    font-size: var(--text-xs);
+    font-size: var(--type-eyebrow);
     font-weight: 700;
     letter-spacing: 0.08em;
     line-height: 1.2;
@@ -31,8 +31,8 @@
 
   [data-kind="count"] {
     justify-content: center;
-    min-width: calc(var(--text-xs) * 1.2 + 2 * var(--space-0));
-    padding: var(--space-0) var(--space-1);
+    min-width: calc(var(--type-eyebrow) * 1.2 + 2 * var(--space-0));
+    padding: var(--space-0) var(--gap-xs);
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     letter-spacing: 0;

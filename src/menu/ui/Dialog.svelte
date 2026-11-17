@@ -59,10 +59,10 @@
     padding: 0;
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
-    background: var(--panel);
+    background: var(--surface);
     color: var(--foreground);
-    box-shadow: var(--panel-shadow);
-    font-size: var(--text-md);
+    box-shadow: var(--shadow);
+    font-size: var(--type-body);
     overflow: hidden;
   }
 
@@ -86,19 +86,19 @@
     display: flex;
     flex: 1;
     flex-direction: column;
-    gap: var(--space-5);
+    gap: var(--pad);
     min-height: 0;
-    padding: var(--space-6);
+    padding: var(--pad);
   }
 
   .ui-head {
     display: grid;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
   }
 
   .ui-title {
     margin: 0;
-    font-size: var(--text-2xl);
+    font-size: var(--type-h2);
     font-weight: 700;
     line-height: 1.2;
   }
@@ -106,7 +106,7 @@
   .ui-subtitle {
     margin: 0;
     color: var(--dim);
-    font-size: var(--text-sm);
+    font-size: var(--type-small);
   }
 
   .ui-head + :global(.ui-dialog-body) {
@@ -116,13 +116,6 @@
   .ui-actions {
     display: flex;
     justify-content: flex-end;
-    gap: var(--space-3);
-  }
-
-  @media (max-height: 500px) {
-    .ui-box {
-      gap: var(--space-4);
-      padding: var(--space-4);
-    }
+    gap: var(--gap-md);
   }
 </style>

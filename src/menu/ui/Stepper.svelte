@@ -42,30 +42,30 @@
   .ui-stepper {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
   }
 
   .ui-middle {
     display: grid;
     justify-items: center;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
     min-width: 8ch;
   }
 
   .ui-value {
-    font-size: var(--text-md);
+    font-size: var(--type-body);
     font-weight: 600;
     white-space: nowrap;
   }
 
   .ui-dots {
     display: flex;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
   }
 
   .ui-dot {
-    width: var(--space-1);
-    height: var(--space-1);
+    width: var(--gap-xs);
+    height: var(--gap-xs);
     border-radius: var(--radius-full);
     background: var(--line-strong);
   }
