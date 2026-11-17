@@ -437,3 +437,4 @@ Things in the mockups that need a new state layer, new data or engine work. The 
   - the first-steps ticket hides `.next-up-dock` by CSS `:has`; with the first flag on another map it stays away and Next up offers the travel;
   - `#mode-result-unlock:empty` in `unlock-card.css` is dead; `Tabs` `done` / `compact` lost their only user;
   - not seen by eye: an event result with a Next card (three cards), the unlock card inside the stamp card, a real won season on the podium.
+- 2d done 243ac20..599c280: results as frame cards, podium page with the stage car, tour deleted (Welcome name + skippable Set up, road strip). Follow-up: series Next card (port 1afe6aa, 2d round 2). Batch 3: delete dead unlock-card.css `:empty`, unused Tabs done/compact; owner check that results hide the chat dock.
