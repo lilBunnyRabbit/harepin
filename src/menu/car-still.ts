@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { build_code, build_spec, type Build } from "../car/build";
+import { DEFAULT_BUILD, build_code, build_spec, type Build } from "../car/build";
 import { contact_shadow } from "../car/contact-shadow";
-import { build_view, dispose_car_view, rest_wheels } from "../car/models";
+import { build_view, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import { brand, color, dark } from "../theme/palette";
 import { StillView } from "./still-build";
 
@@ -31,6 +31,8 @@ class Stage {
   private readonly shadow = contact_shadow();
   private readonly renderer: THREE.WebGLRenderer;
   private readonly canvas = document.createElement("canvas");
+  /** The last car drawn. three frees a shader with the last material that uses it, so this one's materials hold the compiled shaders for the next car. */
+  private kept: CarView | null = null;
 
   constructor() {
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
@@ -50,12 +52,17 @@ class Stage {
     this.scene.add(this.shadow.mesh);
   }
 
-  draw(build: Build, view: StillView): Promise<string> {
-    const eye = EYES[view];
+  build(build: Build): CarView {
     const spec = build_spec(build);
     const car = build_view(build, spec);
     rest_wheels(car, spec);
     car.root.updateMatrixWorld(true);
+    return car;
+  }
+
+  /** Resolves when the shaders `car` needs have linked, so `shoot` never blocks on one. */
+  place(car: CarView, view: StillView): Promise<unknown> {
+    const eye = EYES[view];
     const points = outline(car.root);
     const box = new THREE.Box3().setFromPoints(points);
     const center = box.getCenter(new THREE.Vector3());
@@ -65,12 +72,21 @@ class Stage {
     this.shadow.mesh.scale.set(half.x, 1, half.z / 2);
     this.scene.add(car.root);
     this.frame(points, center, eye);
+    return this.renderer.compileAsync(this.scene, this.camera);
+  }
+
+  shoot(car: CarView): Promise<string> {
     this.renderer.render(this.scene, this.camera);
     // The drawing buffer is read in this task, before the browser clears it.
     const blob = new Promise<string>((resolve, reject) => this.canvas.toBlob((file) => (file ? resolve(URL.createObjectURL(file)) : reject(new Error("still: canvas gave no image"))), "image/webp", 0.9));
-    this.scene.remove(car.root);
-    dispose_car_view(car);
+    this.rest(car);
     return blob;
+  }
+
+  rest(car: CarView) {
+    this.scene.remove(car.root);
+    if (this.kept) dispose_car_view(this.kept);
+    this.kept = car;
   }
 
   /** Backs the camera off and slides it until the car fills its box, standing on the floor line. */
@@ -106,12 +122,6 @@ class Stage {
     this.camera.lookAt(aim);
   }
 
-  dispose() {
-    this.shadow.mesh.geometry.dispose();
-    this.shadow.material.dispose();
-    this.renderer.dispose();
-    this.renderer.forceContextLoss();
-  }
 }
 
 function outline(root: THREE.Object3D): THREE.Vector3[] {
@@ -126,22 +136,44 @@ function outline(root: THREE.Object3D): THREE.Vector3[] {
 
 const stills = new Map<string, Promise<string>>();
 let stage: Stage | null = null;
-let waiting = 0;
 let turn: Promise<void> = Promise.resolve();
 
-/** Resolves after the next frame is on screen: whatever asked for a still paints first, and its stills land one a frame. */
+/** Resolves after the next frame is on screen: whatever asked for a still paints first, and each step of a still gets a frame of its own. */
 const painted = () => new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done)));
 
+const IDLE_WAIT_MS = 1000;
+const idle = () => new Promise<void>((done) => requestIdleCallback(() => done(), { timeout: IDLE_WAIT_MS }));
+
 /**
- * A picture of the car, drawn once and kept for the session: an object URL of a clear-backed image. Stills draw one per
- * frame on a renderer of their own, which opens in a frame of its own and closes when none is waiting, so no loop runs
- * and no context stays open.
+ * Opens the stills' renderer and compiles a stock car's shaders in idle time, so the first stills a page asks for pay
+ * for neither. A load that has already drawn a still has both.
+ */
+export function warm_stills() {
+  turn = turn.then(async () => {
+    if (stage) return;
+    await idle();
+    try {
+      stage = new Stage();
+      await idle();
+      const car = stage.build(DEFAULT_BUILD);
+      await idle();
+      await stage.place(car, StillView.QUARTER);
+      stage.rest(car);
+    } catch (error) {
+      console.warn("still: renderer not warmed", error);
+    }
+  });
+}
+
+/**
+ * A picture of the car, drawn once and kept for the session: an object URL of a clear-backed image. Stills draw on one
+ * renderer of their own, kept for the session so its shaders compile once. A still takes three tasks, a frame apart:
+ * the model, the fit and shader link, the draw. No loop runs.
  */
 export function car_still(build: Build, view: StillView = StillView.QUARTER): Promise<string> {
   const key = `${build_code(build)} ${view}`;
   const kept = stills.get(key);
   if (kept) return kept;
-  waiting++;
   const still = new Promise<string>((resolve, reject) => {
     // The next still waits for this one's draw, not for its image to encode.
     turn = turn.then(async () => {
@@ -152,14 +184,13 @@ export function car_still(build: Build, view: StillView = StillView.QUARTER): Pr
           stage = new Stage();
           await painted();
         }
-        resolve(stage.draw(build, view));
+        const car = stage.build(build);
+        await painted();
+        await stage.place(car, view);
+        await painted();
+        resolve(stage.shoot(car));
       } catch (error) {
         reject(error);
-      } finally {
-        if (--waiting === 0) {
-          stage?.dispose();
-          stage = null;
-        }
       }
     });
   });

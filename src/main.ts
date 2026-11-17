@@ -1218,3 +1218,4 @@ when_idle(() => run_busy() || modes.engaged || modes.holding || series_starting,
 performance.mark("world:first");
 requestAnimationFrame(frame);
 settings.warm();
+requestIdleCallback(() => void import("./menu/car-still").then(({ warm_stills }) => warm_stills()));
