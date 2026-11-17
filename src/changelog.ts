@@ -51,6 +51,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.62.0",
+    date: "2026-11-17",
+    title: "Replays",
+    changes: [
+      { kind: NEW, text: "Watch your race back from the results: pause, scrub, slow motion up to 4x, chase or free camera, with the AI field in it" },
+      { kind: NEW, text: "Save a replay and watch it again later from Runs > Replays" },
+    ],
+  },
+  {
     version: "0.61.0",
     date: "2026-11-17",
     title: "One game, one look",
