@@ -477,6 +477,19 @@ function axes(pitch: number) {
   return { forward, side, up: side.clone().cross(forward) };
 }
 
+/** The points on the convex hull of `points`. The hull's own `vertices` list holds every point it was given. */
+export function hull_corners(points: THREE.Vector3[]): THREE.Vector3[] {
+  const corners = new Set<THREE.Vector3>();
+  for (const face of new ConvexHull().setFromPoints(points).faces) {
+    let edge = face.edge;
+    do {
+      corners.add(edge.head().point);
+      edge = edge.next;
+    } while (edge !== face.edge);
+  }
+  return [...corners];
+}
+
 function* outline_steps(build: Build): Steps<Outline> {
   const base: Build = { ...build, parts: { ...DEFAULT_PARTS } };
   // Only parts that change the shape: a look of their own, or a ride height or centre of mass that moves the body.
@@ -508,8 +521,7 @@ function* outline_steps(build: Build): Steps<Outline> {
     dispose_car_view(view);
     yield;
   }
-  const corners = new ConvexHull().setFromPoints(points).vertices.map((corner) => corner.point);
-  return { points: corners, center: box.getCenter(new THREE.Vector3()), half: box.getSize(new THREE.Vector3()).multiplyScalar(0.5) };
+  return { points: hull_corners(points), center: box.getCenter(new THREE.Vector3()), half: box.getSize(new THREE.Vector3()).multiplyScalar(0.5) };
 }
 
 // The car turns about the stand's origin, not its outline's centre, so the floor centres there too.
