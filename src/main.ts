@@ -85,8 +85,10 @@ import { map_id, snow_of } from "./worldgen/kinds/kinds";
 import { world_look } from "./worlds/world-def";
 import { custom_code, map_code, parse_map_code, pick_problem, read_pick } from "./worldgen/kinds/map-code";
 import { map_note } from "./menu/map-note";
+import { MAPS_PAGE } from "./menu/maps";
 import { plain_map } from "./worldgen/kinds/kinds";
 import { REVIEW_BUILD, review_wanted } from "./review/params";
+import { show_map_overlay } from "./hud/map-overlay.svelte";
 import { show_next_up } from "./hud/next-up-view.svelte";
 import { roam_card, run_card } from "./hud/pause-card";
 import { show_pause, type PauseAct } from "./hud/pause-view.svelte";
@@ -269,9 +271,9 @@ const open_pause = () => {
   input.hold_pad();
   pause.open();
 };
-input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open || pause.is_open;
+input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open || pause.is_open || road_map.is_open;
 new CursorIdle(() => !input.blocked()).start();
-chat.blocked = () => garage.is_open || settings.is_open || pause.is_open;
+chat.blocked = () => garage.is_open || settings.is_open || pause.is_open || road_map.is_open;
 input.touch.start();
 input.touch.show_nitro(driver.car.nitro.fitted);
 input.mouse.start();
@@ -506,7 +508,7 @@ if (ai_race) {
   modes.field_host = { sim, build: () => garage.build, rating: () => rating(garage.build), autopilot: params.has(AI_DRIVE_PARAM), cars: Array.from({ length: cars }, () => LEVEL_3), difficulty: () => settings.state.ai_difficulty };
 }
 modes.start();
-modes.result_next.mount($("mode-result-next"));
+modes.result_next.mount($("mode-result"));
 updater.start();
 const system_back = new SystemBack(
   {
@@ -606,9 +608,33 @@ const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), {
   limit: (event) => modes.event_limit(event),
   shelves: (limit) => shelves_for(limit),
   pick: (title, limit, signal) => pick_in(title, limit, shelves_for(limit), signal),
+  map: () => map_name(built, world.towns),
 });
 const next_ticket = show_next_up({ stars: () => career.stars, here: built, flags: () => markers.map_markers, travel: (id) => start_event(id), blocked: () => input.blocked() });
 $("toast").after(markers.card.el);
+const road_map = show_map_overlay({
+  here: built,
+  map_name: () => map_name(built, world.towns),
+  stars: () => career.stars,
+  flags: () => markers.map_markers,
+  you: () => ({ x: driver.car.pos.x, z: driver.car.pos.z }),
+  map_keys: () => settings.state.bindings.map.keys,
+  go: (id) => go_event(id),
+  other_maps: () => settings.open(MAPS_PAGE),
+  run: () => {
+    if (!modes.active) return null;
+    const route = world.routes.find((one) => one.id === modes.route?.id);
+    return {
+      name: modes.run_name ?? "Event",
+      route: route?.points ?? [],
+      closed: route?.closed ?? false,
+      rivals: [
+        ...sim.field_cars.filter((car) => Number.isFinite(car.pos.x)).map((car) => ({ name: "", x: car.pos.x, z: car.pos.z })),
+        ...[...net.remotes.values()].map((r) => ({ name: net.display_name(r), x: r.latest.p[0], z: r.latest.p[2] })),
+      ],
+    };
+  },
+});
 markers.on_map = (list) => hud.set_markers(list);
 // A lab trial on a race world keeps the career out of it, as the lab world does.
 markers.place(world, SPAWN_INDEX, lab_id === null ? EVENTS.filter(on_this_map) : []).catch((error: unknown) => console.error(error));
@@ -720,9 +746,9 @@ const ACTIONS: Record<Action, () => void> = {
   stability: () => toggle_aid("stability"),
   ghost: () => toggle_aid("ghost"),
   help: () => settings.open_keys(),
-  map: () => settings.open("world"),
+  map: () => road_map.toggle(),
   garage: open_car,
-  menu: () => (pause.is_open ? pause.close() : settings.is_open || pad_menu.is_open || (input.pad && pad_menu.card_waiting()) ? pad_menu.toggle() : open_pause()),
+  menu: () => (pause.is_open ? pause.close() : !input.pad && markers.card.leave() ? undefined : settings.is_open || pad_menu.is_open || (input.pad && pad_menu.card_waiting()) ? pad_menu.toggle() : open_pause()),
 };
 const PAUSE_ACTS: Record<PauseAct, () => void> = {
   reset: ACTIONS.reset,
@@ -864,7 +890,7 @@ function frame(time: number) {
 
   lobby.update(now);
   // A lab card holds the trial under it, as the menu does: the clock and the car wait for the answers.
-  const menu_hold = (settings.is_open || pause.is_open || (lab_id !== null && modal_open())) && net.remotes.size === 0;
+  const menu_hold = (settings.is_open || pause.is_open || road_map.is_open || (lab_id !== null && modal_open())) && net.remotes.size === 0;
   const draw_ms = menu_hold ? MENU_DRAW_MS : settings.is_open ? COVERED_DRAW_MS : 0;
   const skips = draw_ms > 0 && !review && !garage.is_open && now - last_draw < draw_ms;
   // A held sim behind the menu has nothing to step on a frame the redraw rate skips: `last` stays, so the next drawn
