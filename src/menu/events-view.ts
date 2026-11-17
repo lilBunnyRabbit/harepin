@@ -1,6 +1,6 @@
 import type { CarLimit } from "../car/car-pick";
 import { CLASS_LABELS } from "../car/pi";
-import { MAX_EVENT_STARS, TIERS, type CareerEvent, type Stars } from "../career/career";
+import { MAX_EVENT_STARS, TIERS, event_of, type CareerEvent, type Stars } from "../career/career";
 import type { TierView } from "../career/career-model";
 import { event_map } from "../career/career-store";
 import { event_place, marks_of } from "../career/gate";
@@ -11,7 +11,7 @@ import type { Series } from "../career/series-store";
 import { next_up } from "../hud/next-up";
 import { WEEK_STARS } from "../modes/championship";
 import { MODES, mode_name } from "../modes/modes";
-import { RunSource, type RunPick } from "../runs/runs";
+import { RunSource, run_of, type RunPick } from "../runs/runs";
 import { plain_map, type MapSpec } from "../worldgen/kinds/kinds";
 import type { SettingsHost } from "./page";
 import { car_text, pick_text, stage_text } from "./runs/run-text";
@@ -41,6 +41,20 @@ export function tier_line(view: TierView, maps: number): string {
 export const tier_eyebrow = (view: TierView) => `Tier ${view.index + 1} of ${TIERS.length}${view.state === "current" ? " · now" : view.have === view.max ? " · done" : ""}`;
 
 export type StartTarget = { kind: "event"; event: CareerEvent } | { kind: "series"; series: Series; event: SeriesEvent } | { kind: "run"; pick: RunPick };
+
+export function target_of(host: SettingsHost, kind: StartTarget["kind"], id: string): StartTarget | null {
+  if (kind === "event") {
+    const event = event_of(id);
+    return event && { kind, event };
+  }
+  if (kind === "run") {
+    const pick = run_of(id);
+    return pick && { kind, pick };
+  }
+  const series = host.series.find((one) => one.ready && one.event(id));
+  const event = series?.event(id);
+  return series && event ? { kind, series, event } : null;
+}
 
 export interface StartMark {
   head: string;

@@ -14,6 +14,7 @@
   import StartSheet from "../StartSheet.svelte";
   import Button from "../ui/Button.svelte";
   import Card from "../ui/Card.svelte";
+  import Icon from "../ui/Icon.svelte";
   import KeyLink from "../ui/KeyLink.svelte";
   import PrimaryAction from "../ui/PrimaryAction.svelte";
   import Row from "../ui/Row.svelte";
@@ -201,6 +202,12 @@
         </div>
       </Card>
       </div>
+    {:else}
+      <div class="empty">
+        <Icon name="icon-dice" />
+        <b>No run rolled yet</b>
+        <span>Set what matters on the left, then roll. The run shows here with its map, route and car, ready to start or share.</span>
+      </div>
     {/if}
   </div>
   </MenuFrame>
@@ -215,6 +222,28 @@
     max-height: 100%;
     overflow-y: auto;
     scrollbar-width: none;
+  }
+
+  .empty {
+    --icon-size: 1.6em;
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: var(--gap-xs);
+    align-self: stretch;
+    padding: var(--pad);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--card-radius);
+    background: var(--surface);
+    color: var(--dim);
+    font-size: var(--type-small);
+    text-align: center;
+    text-wrap: balance;
+  }
+
+  .empty > b {
+    color: var(--foreground);
+    font-size: var(--type-body);
   }
 
   .head {

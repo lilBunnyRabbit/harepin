@@ -2,10 +2,13 @@
   import { parse_build } from "../car/build";
   import { CARS } from "../car/cars";
   import { rating } from "../car/pi";
+  import type { CarPicker } from "./car-pick.svelte";
   import { PickId, bare_enter, host_picks, link_key, type DrivePick } from "./drive-picks";
+  import { target_of, type StartTarget } from "./events-view";
   import { MAPS_PAGE } from "./maps";
   import MenuFrame from "./MenuFrame.svelte";
   import { MenuTab } from "./page";
+  import StartSheet from "./StartSheet.svelte";
   import Card from "./ui/Card.svelte";
   import Chip from "./ui/Chip.svelte";
   import ClassBadge from "./ui/ClassBadge.svelte";
@@ -16,7 +19,11 @@
   import type { PageProps } from "./ui/svelte-page.svelte";
   import { preview } from "./widgets";
 
-  let { menu, live, shown }: PageProps = $props();
+  interface Props extends PageProps {
+    picker: CarPicker;
+  }
+
+  let { menu, live, shown, picker }: Props = $props();
 
   const host = $derived(menu.host);
   const build = $derived(parse_build(live.car) ?? host.garage.build);
@@ -31,11 +38,18 @@
     if (!shown) aimed = null;
   });
 
+  const KINDS = { [PickId.SERIES]: "series", [PickId.CAREER]: "event", [PickId.RUN]: "run" } as const;
+  let target = $state.raw<StartTarget | null>(null);
+
+  export function back(): boolean {
+    if (!target) return false;
+    target = null;
+    return true;
+  }
+
   function go(pick: DrivePick = at) {
-    if (pick.id === PickId.SERIES) host.start_series(pick.target);
-    else if (pick.id === PickId.CAREER) host.start_event(pick.target);
-    else if (pick.id === PickId.RUN) host.start_run(pick.target);
-    else menu.close();
+    if (pick.id === PickId.ROAM) return menu.close();
+    target = target_of(host, KINDS[pick.id], pick.target);
   }
 
   // Enter and the pad's A click with no pointer behind them (detail 0): they go. A tap or click only aims.
@@ -45,7 +59,7 @@
   }
 
   function key(event: KeyboardEvent) {
-    if (!shown) return;
+    if (!shown || target) return;
     if (bare_enter(event)) {
       event.preventDefault();
       return go();
@@ -58,6 +72,9 @@
 
 <svelte:window onkeydown={key} />
 
+{#if target}
+  <StartSheet {menu} {picker} {target} title="Home" {shown} onclose={() => (target = null)} />
+{:else}
 <MenuFrame {menu} id={MenuTab.PLAY} floor note={at.note}>
   <div class="home">
     <div class="home-bay">
@@ -100,6 +117,7 @@
     <PrimaryAction onclick={() => go()}>{at.verb}</PrimaryAction>
   {/snippet}
 </MenuFrame>
+{/if}
 
 <style>
   .home {

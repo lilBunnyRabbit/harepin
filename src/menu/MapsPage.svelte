@@ -1,10 +1,13 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { MAX_EVENT_STARS, event_of } from "../career/career";
+  import type { CarPicker } from "./car-pick.svelte";
   import { bare_enter } from "./drive-picks";
+  import { target_of, type StartTarget } from "./events-view";
   import { thumb_url } from "./map-thumb";
   import { MAKE_PAGE, MAPS_PAGE, first_pick, map_stops, type MapEvent, type MapPin, type MapStop } from "./maps";
   import MenuFrame from "./MenuFrame.svelte";
+  import StartSheet from "./StartSheet.svelte";
   import Card from "./ui/Card.svelte";
   import Icon from "./ui/Icon.svelte";
   import MapPins from "./ui/MapPins.svelte";
@@ -18,7 +21,11 @@
 
   const THUMB_SIDE = 96;
 
-  let { menu, live, shown }: PageProps = $props();
+  interface Props extends PageProps {
+    picker: CarPicker;
+  }
+
+  let { menu, live, shown, picker }: Props = $props();
 
   const host = $derived(menu.host);
   const here = $derived({ kind: host.kind, seed: host.seed, levels: host.levels });
@@ -36,8 +43,15 @@
   const pins = $derived<MapPin[]>(markers.map((marker) => ({ id: marker.label, x: marker.x, z: marker.z, ink: marker.ink, label: event_of(marker.label)?.name ?? marker.label })));
   const you = $derived(stop.place.here ? (live.live(() => host.map_players()).find((player) => player.you) ?? null) : null);
   const away = $derived(stop.place.here ? null : stop.place.name);
-  const verb = $derived(making ? "Make a map" : away ? `Travel to ${away}` : event ? `Go to ${event.title}` : `Drive ${stop.name.split(" · ")[0]}`);
-  const note = $derived(making ? "Roll a map of any type and tune it" : away ? `A tap only selects. Travel loads the map${event ? `; ${event.title} waits at its flag` : ""}.` : event ? "Puts you at its flag. No loading." : "");
+  const verb = $derived(making ? "Make a map" : event ? `Race ${event.title}` : away ? `Travel to ${away}` : `Drive ${stop.name.split(" · ")[0]}`);
+  const note = $derived(making ? "Roll a map of any type and tune it" : away ? `A tap only selects.${event ? "" : " Travel loads the map."}` : "");
+  let target = $state.raw<StartTarget | null>(null);
+
+  export function back(): boolean {
+    if (!target) return false;
+    target = null;
+    return true;
+  }
 
   const view = new MapView();
   const stop_code = $derived(stop.code);
@@ -88,7 +102,7 @@
 
   function go() {
     if (making) return menu.show(MAKE_PAGE);
-    if (event) return host.start_event(event.id);
+    if (event) return void (target = target_of(host, "event", event.id));
     if (stop.place.here) return menu.close();
     menu.drive(stop.map.seed, stop.map.kind, stop.map.levels);
   }
@@ -99,7 +113,7 @@
   }
 
   function key(press: KeyboardEvent) {
-    if (!shown || !bare_enter(press)) return;
+    if (!shown || target || !bare_enter(press)) return;
     press.preventDefault();
     go();
   }
@@ -107,6 +121,9 @@
 
 <svelte:window onkeydown={key} />
 
+{#if target}
+  <StartSheet {menu} {picker} {target} eyebrow="Home" title="Maps" {shown} onclose={() => (target = null)} />
+{:else}
 <MenuFrame {menu} id={MAPS_PAGE} eyebrow="Home" title="Maps" veil={0.55} {note}>
   <div class="maps">
     <Card pad="none" class="maps-big" label={stop.name}>
@@ -172,6 +189,7 @@
     <PrimaryAction onclick={go}>{verb}</PrimaryAction>
   {/snippet}
 </MenuFrame>
+{/if}
 
 <style>
   .maps {
