@@ -337,21 +337,6 @@ button:active:not(:disabled) {
   }
 }
 
-:root {
-  --racing-speedo: 264px;
-}
-
-:root {
-  --compact-map: 120px;
-}
-
-@media (pointer: coarse) {
-  :root {
-    --compact-map: 80px;
-    --racing-speedo: 190px;
-  }
-}
-
 /*
  * The theme writes the cursor images (`theme/cursor.ts`). Important: components still set their own `cursor: pointer` /
  * `default`. The states sit in :where() so they tie on specificity and the idle rule (one attribute more) beats them all;

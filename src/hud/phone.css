@@ -278,7 +278,6 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
   :root .touch-buttons {
     top: var(--phone-under-map);
     left: calc(var(--inset-left) + var(--phone-slot));
-    right: auto;
   }
 
   :root body:has(#mode-status:not([hidden])) .touch-buttons {
