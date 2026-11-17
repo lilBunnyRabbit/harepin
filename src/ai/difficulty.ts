@@ -1,5 +1,8 @@
 import type { Personality } from "./driver";
 
+/** With `?airace` or a series event: the field's driver drives the player's car too, for shots and frame-time runs. Pure module, so a travel can keep it. */
+export const AI_DRIVE_PARAM = "aidrive";
+
 export const Difficulty = {
   EASY: "easy",
   NORMAL: "normal",

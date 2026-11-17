@@ -1,3 +1,4 @@
+import { AI_DRIVE_PARAM } from "../ai/difficulty";
 import { EVENT_PARAM, TUNE_PARAM, event_of, type CareerEvent } from "../career/career";
 import { SERIES_PARAM, type Season, type SeriesEvent } from "../career/series";
 import { series_event } from "../career/series-seasons";
@@ -10,8 +11,8 @@ import { pick_world, type SavedPick } from "./world-pick";
 
 export type Travel = { from: string | null; to: string; map: MapSpec } & ({ event: CareerEvent } | { run: RunPick } | { series: { season: Season; event: SeriesEvent } });
 
-// A room the player chose stays theirs across events; without one the event runs solo.
-const KEPT_ON_TRAVEL = ["room", "car", TUNE_PARAM];
+// A room the player chose stays theirs across events; without one the event runs solo. The dev autopilot drives on through a series' travels.
+const KEPT_ON_TRAVEL = ["room", "car", TUNE_PARAM, AI_DRIVE_PARAM];
 
 /** The search a travel reloads with: `to`, plus what this load keeps. A car `taken` in the picker wins over `?car=`. */
 export function travel_query(to: Record<string, string>, here: URLSearchParams, taken: boolean): URLSearchParams {

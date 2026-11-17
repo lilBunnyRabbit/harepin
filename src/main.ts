@@ -101,11 +101,11 @@ import { pushing } from "./hud/stuck";
 import { LocalSim, SIM_WORKER_PARAM, WorkerSim, type Sim } from "./sim/sim-client";
 import { DT, FrameKind, SimHost, type FrameRequest } from "./sim/sim-host";
 import { WorldJournal } from "./world/world-journal";
-import { AI_CARS, AI_CARS_PARAM, AI_DRIVE_PARAM, AI_RACE_PARAM, FieldView } from "./ai/field-view";
+import { AI_CARS, AI_CARS_PARAM, AI_RACE_PARAM, FieldView } from "./ai/field-view";
 import { LEVEL_3 } from "./ai/field";
 import { rating } from "./car/pi";
 import { WorldKind } from "./worldgen/types";
-import { Difficulty } from "./ai/difficulty";
+import { AI_DRIVE_PARAM, Difficulty } from "./ai/difficulty";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);

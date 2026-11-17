@@ -58,6 +58,10 @@ test("a travel keeps the room, tune and car, but a car taken in the picker wins 
   expect(travel_query({ event: "r6" }, here, true).toString()).toBe("event=r6&room=pals&tune=");
 });
 
+test("a travel keeps the dev autopilot, so it drives the next series round too", () => {
+  expect(travel_query({ series: "s1-knockout", seed: "2", world: "island" }, url("series=s1-opener&seed=13&world=island&aidrive"), false).toString()).toBe("series=s1-knockout&seed=2&world=island&aidrive=");
+});
+
 test("a start from the briefing runs on the car it showed; a load with no briefing took none", () => {
   const run = travel_of(url("run=daily:2026-11-16"), url(""), saved);
   expect(briefed_car(run, "hatch-code")).toBe("hatch-code");

@@ -15,8 +15,6 @@ import { grid_spot, personalities } from "./field";
 /** `?field=<cars>`: an AI field laps the circuit in free drive, for measuring the sim with AI before race mode has one. */
 export const FIELD_PARAM = "field";
 export const AI_RACE_PARAM = "airace";
-/** With `?airace`: the field's driver drives the player's car too, for shots and frame-time runs. */
-export const AI_DRIVE_PARAM = "aidrive";
 /** With `?airace`: AI cars on the grid, 1-6, for a frame-time baseline; F3's six without it. */
 export const AI_CARS_PARAM = "aicars";
 export const AI_CARS = 6;
