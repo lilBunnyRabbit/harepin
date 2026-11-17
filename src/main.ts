@@ -300,7 +300,8 @@ hud.field = () => sim.field_cars;
 const MAP_NOTE_MS = 4500;
 /** A lab that failed to open leaves a plain free-roam page: the toast says so for longer than a passing note. */
 const LAB_FAIL_MS = 20_000;
-const goal_toasts = new ToastQueue((text, hold) => hud.toast(text, "", hold), () => $("toast").dataset.shown !== undefined);
+// A note waits for the road: one that lands while a menu is open shows once it closes.
+const goal_toasts = new ToastQueue((text, hold) => hud.toast(text, "", hold), () => input.blocked() || $("toast").dataset.shown !== undefined);
 if (note) goal_toasts.push(note, MAP_NOTE_MS);
 goals.on_done = (goal) => goal_toasts.push(`Goal done: ${goal.title}`);
 const ghost = new Ghost(scene, world, `harepin:ghost:${world.key}`, world.routes.find((r) => r.id === "circuit")?.length);
@@ -428,7 +429,7 @@ const settings = new Settings(document.body, {
 }, prefs);
 // Started once settings and lobby exist: the announce reads both.
 directory.start();
-const presence = new Presence({ net, elsewhere: () => directory.elsewhere(), watch: (on) => directory.watch(on), toast: (text) => hud.toast(text), open_online: () => settings.open(MenuTab.ONLINE) });
+const presence = new Presence({ net, elsewhere: () => directory.elsewhere(), watch: (on) => directory.watch(on), toast: (text) => !input.blocked() && hud.toast(text), open_online: () => settings.open(MenuTab.ONLINE) });
 presence.start();
 
 // Feel A/B from the `?feel` panel, never saved: on is the shipped behaviour, off the old grip-limited drift wheel.
@@ -601,7 +602,8 @@ function start_series(id: string, car: string | null = null) {
   if (!series_open(series)[at] || !is_open(season, one.progress, to)) return settings.open(SERIES_PAGE);
   const fault = one.car_fault(garage.build);
   if (fault) {
-    goal_toasts.push(fault, MAP_NOTE_MS);
+    // Says why the Series page opened, so it shows over the menu rather than wait in the queue for the road.
+    hud.toast(fault, "", MAP_NOTE_MS);
     return settings.open(SERIES_PAGE);
   }
   if (!on_series_map(season, to, built)) return travel({ [SERIES_PARAM]: to.id, seed: String(to.seed), world: season.world }, car);
