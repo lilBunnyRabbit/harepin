@@ -61,15 +61,15 @@ export interface SettingsHost {
   map_name(): string;
   readonly goals: Goals;
   readonly career: Career;
-  /** Starts a career event now on this map, or reloads onto its map. */
-  start_event(id: string): void;
+  /** A career event: a drive to its flag on this map, or a reload onto its map. With `car` (the one taken on the start sheet, null when the event brings its own) it starts now. */
+  start_event(id: string, car?: string | null): void;
   /** The Harepin Series, one entry per season in `SEASONS` order. */
   readonly series: readonly Series[];
-  /** Starts a series event now on this map, or reloads onto its map. */
-  start_series(id: string): void;
+  /** Starts a series event now on this map, or reloads onto its map; `car`, taken on the start sheet, becomes the player's own first. */
+  start_series(id: string, car?: string | null): void;
   readonly runs: Runs;
-  /** Starts a `?run=` pick now on this map, or reloads onto its map. */
-  start_run(id: string): void;
+  /** Starts a `?run=` pick now on this map, or reloads onto its map, in the `car` taken on the start sheet. */
+  start_run(id: string, car?: string | null): void;
   name(): string;
   quality_status(): QualityStatus;
   race_busy(): boolean;

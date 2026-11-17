@@ -355,11 +355,11 @@ const settings = new Settings(document.body, {
   map_note: note,
   goals,
   career,
-  start_event: (id) => go_event(id),
+  start_event: (id, car) => (car === undefined ? go_event(id) : start_event(id, car)),
   series,
-  start_series: (id) => start_series(id),
+  start_series: (id, car) => start_series(id, car),
   runs,
-  start_run: (id) => start_run(id),
+  start_run: (id, car) => start_run(id, car),
   name: () => net.name,
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
   race_busy: () => lobby.busy,
@@ -487,10 +487,11 @@ modes.try_reward = (reward) => {
 };
 const shelves_for = (limit: CarLimit, own = garage.code) => car_shelves(parse_build(own) ?? garage.build, load_builds(), open_presets(unlocks(career.stars).cars), limit, garage.code);
 const pick_in = (title: string, limit: CarLimit, shelves: readonly CarShelf[], signal: AbortSignal) => pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", shelves, signal, () => settings.open(MenuTab.GARAGE));
-// The car picked on a flag's card runs its event when it fits the route; the picker opens only when it does not.
+// The car taken on the start sheet or picked on a flag's card runs its event when it fits the route; the picker opens only when it does not.
+let taken: string | null = null;
 modes.pick_car = (title, limit, own, signal) => {
   const shelves = shelves_for(limit, own);
-  const pre = markers.card.pick;
+  const pre = taken ?? markers.card.pick;
   return pre !== null && fits(shelves, pre) ? Promise.resolve(pre) : pick_in(title, limit, shelves, signal);
 };
 modes.fit_car = (code, save) => garage.use_code(code, save);
@@ -538,16 +539,25 @@ garage.on_change = (next) => {
 
 const on_this_map = (to: CareerEvent) => place_of(event_map(to), built).here;
 
-function start_event(id: string) {
+/** `car` is the one taken on the start sheet, null when the event brings its own or nothing was picked yet. */
+function start_event(id: string, car: string | null = null) {
   const to = event_of(id);
   if (!to) return;
-  if (!on_this_map(to)) {
-    mark_drive();
-    location.search = `?${travel_query({ [EVENT_PARAM]: to.id }, params, false)}`;
-    return;
-  }
+  if (!on_this_map(to)) return travel({ [EVENT_PARAM]: to.id }, car);
   settings.close();
-  modes.play_event(to);
+  play_taken(car, () => modes.play_event(to));
+}
+// Another map: the taken car becomes the player's own, so it is the one on the road when the map loads.
+function travel(to: Record<string, string>, car: string | null) {
+  if (car) garage.use_code(car);
+  mark_drive();
+  location.search = `?${travel_query(to, params, car !== null)}`;
+}
+// A start asks for its car before it returns, so the taken car meets this start's ask and no later one.
+function play_taken(car: string | null, play: () => void) {
+  taken = car;
+  play();
+  taken = null;
 }
 // An event on this map is a drive to its flag, where the card shows its marks and car; elsewhere it travels.
 function go_event(id: string) {
@@ -558,7 +568,8 @@ function go_event(id: string) {
   if (modes.active) modes.exit();
   void driver.place_near(flag.x, flag.z, () => markers.arrive(flag));
 }
-function start_series(id: string) {
+function start_series(id: string, car: string | null = null) {
+  if (car) garage.use_code(car);
   const one = series.find((each) => each.event(id));
   const to = one?.ready ? one.event(id) : null;
   if (!one || !to) return;
@@ -570,11 +581,7 @@ function start_series(id: string) {
     goal_toasts.push(fault, MAP_NOTE_MS);
     return settings.open(SERIES_PAGE);
   }
-  if (!on_series_map(season, to, built)) {
-    mark_drive();
-    location.search = `?${travel_query({ [SERIES_PARAM]: to.id, seed: String(to.seed), world: season.world }, params, false)}`;
-    return;
-  }
+  if (!on_series_map(season, to, built)) return travel({ [SERIES_PARAM]: to.id, seed: String(to.seed), world: season.world }, car);
   settings.close();
   const base = { sim, build: () => garage.build, rating: () => rating(garage.build), autopilot: params.has(AI_DRIVE_PARAM), difficulty: () => settings.state.ai_difficulty };
   const host = series_host(base, one, to, { label: "Series", go: () => settings.open(SERIES_PAGE) });
@@ -583,16 +590,12 @@ function start_series(id: string) {
 // A run's map is the plain map of its kind and seed (world-pick.ts).
 const run_on_map = (to: RunPick) => place_of(plain_map(to.kind, to.seed), built).here;
 
-function start_run(id: string) {
+function start_run(id: string, car: string | null = null) {
   const to = run_of(id);
   if (!to) return;
-  if (!run_on_map(to)) {
-    mark_drive();
-    location.search = `?${travel_query({ [RUN_PARAM]: to.id }, params, false)}`;
-    return;
-  }
+  if (!run_on_map(to)) return travel({ [RUN_PARAM]: to.id }, car);
   settings.close();
-  play_run(to);
+  play_taken(car, () => play_run(to));
 }
 
 function play_run(to: RunPick) {
