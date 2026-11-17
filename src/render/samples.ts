@@ -23,7 +23,7 @@ const prop_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatSh
 export function tree_sample(kind: TreeKind, snowy: boolean, look: TreeLook, spots: readonly TreeSpot[] = TREE_CLUMP): THREE.Object3D {
   const group = new THREE.Group();
   const here: Tree[] = spots.map(([x, z, scale]) => ({ x, y: 0, z, scale, kind }));
-  const batch = new TreeBatch(look === "charred" ? charred_kit() : tree_kit(snowy), here.length);
+  const batch = new TreeBatch(look === "charred" ? charred_kit() : tree_kit(snowy), here);
   batch.plant(here, null);
   group.add(...batch.meshes);
   return group;

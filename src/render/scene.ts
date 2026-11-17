@@ -159,7 +159,7 @@ export class WorldView {
   constructor(world: World, private readonly mobile: boolean, trees: TreeLook) {
     this.root.matrixAutoUpdate = false;
     this.streamed = world.tiles.streamed;
-    this.tree_batch = new TreeBatch(trees === "charred" ? charred_kit() : tree_kit(world.snowy), world.trees.length);
+    this.tree_batch = new TreeBatch(trees === "charred" ? charred_kit() : tree_kit(world.snowy), world.trees);
     this.root.add(...this.tree_batch.meshes);
     this.tree_lists = by_chunk(world.trees, world.tiles.ext);
     this.tree_order = new Map(world.trees.map((tree, i) => [tree, i]));

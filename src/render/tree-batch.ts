@@ -182,10 +182,21 @@ export class TreeBatch {
   private readonly axis = new THREE.Vector3(0, 1, 0);
   private readonly tint = new THREE.Color();
 
-  constructor(private readonly kit: TreeKit, room: number) {
-    const size = room || STREAMED_ROOM;
-    this.bark = new TreePool(kit.trunk, kit.bark, size, kit.one_tone);
-    this.leaf = kit.crowns.map((crown) => new TreePool(crown, kit.leaf, size, true));
+  /** An empty `known` is a world that streams its trees in: every pool starts at `STREAMED_ROOM`. */
+  constructor(private readonly kit: TreeKit, known: readonly Tree[]) {
+    const crowns = kit.crowns.map(() => 0);
+    let trunks = 0;
+    for (const tree of known) {
+      crowns[this.crown_of(tree.kind)]++;
+      if (tree.kind !== TreeKind.SCRUB) trunks++;
+    }
+    const room = (count: number) => (known.length ? count : STREAMED_ROOM);
+    this.bark = new TreePool(kit.trunk, kit.bark, room(trunks), kit.one_tone);
+    this.leaf = kit.crowns.map((crown, i) => new TreePool(crown, kit.leaf, room(crowns[i]), true));
+  }
+
+  private crown_of(kind: number): number {
+    return kind < this.kit.crowns.length ? kind : TreeKind.BROADLEAF;
   }
 
   get meshes(): THREE.InstancedMesh[] {
@@ -209,7 +220,7 @@ export class TreeBatch {
         m.compose(p.set(tree.x, tree.y - 0.2, tree.z), q, s.setScalar(tree.scale));
         planted.bark.push(this.bark.add(m, this.tint));
       }
-      const crown = tree.kind < this.leaf.length ? tree.kind : TreeKind.BROADLEAF;
+      const crown = this.crown_of(tree.kind);
       planted.leaf[crown].push(this.leaf[crown].add(m, this.tint));
     }
     this.flush();

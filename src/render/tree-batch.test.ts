@@ -26,7 +26,7 @@ function drawn(from: TreePool): number[] {
 }
 
 test("scrub takes a crown and no trunk", () => {
-  const batch = new TreeBatch(tree_kit(false), 8);
+  const batch = new TreeBatch(tree_kit(false), []);
   const planted = batch.plant([...grove(3, TreeKind.PINE), ...grove(2, TreeKind.SCRUB)], null);
   expect(planted.bark.length).toBe(3);
   expect(planted.leaf.flat().length).toBe(5);
@@ -34,13 +34,13 @@ test("scrub takes a crown and no trunk", () => {
 });
 
 test("a kind without a crown of its own draws the broadleaf one", () => {
-  const batch = new TreeBatch(charred_kit(), 8);
+  const batch = new TreeBatch(charred_kit(), []);
   const planted = batch.plant(grove(2, TreeKind.SCRUB), null);
   expect(planted.leaf[TreeKind.BROADLEAF].length).toBe(2);
 });
 
 test("a batch grows past its room and takes freed room again", () => {
-  const batch = new TreeBatch(charred_kit(), 4);
+  const batch = new TreeBatch(charred_kit(), grove(4, TreeKind.BROADLEAF));
   const first = batch.plant(grove(10, TreeKind.BROADLEAF), null);
   const leaf = batch.leaf[TreeKind.BROADLEAF];
   expect(leaf.capacity).toBeGreaterThanOrEqual(10);
@@ -56,7 +56,7 @@ test("a batch grows past its room and takes freed room again", () => {
 });
 
 test("show hides and shows a chunk's instances", () => {
-  const batch = new TreeBatch(tree_kit(true), 0);
+  const batch = new TreeBatch(tree_kit(true), []);
   const kept = batch.plant(grove(3, TreeKind.PINE), null);
   const planted = batch.plant(grove(4, TreeKind.PINE), null);
   const leaf = batch.leaf[TreeKind.PINE];
@@ -129,4 +129,11 @@ test("a pool hands the renderer only the instances it touched", () => {
   trees.remove(last);
   trees.flush();
   expect(instanceMatrix.updateRanges).toEqual([]);
+});
+
+test("each pool has room for its own kind of tree", () => {
+  const batch = new TreeBatch(tree_kit(false), [...grove(5, TreeKind.PINE), ...grove(2, TreeKind.SCRUB), ...grove(1, TreeKind.BROADLEAF)]);
+  expect(batch.bark.capacity).toBe(6);
+  expect(batch.leaf[TreeKind.PINE].capacity).toBe(5);
+  expect(batch.leaf[TreeKind.SCRUB].capacity + batch.leaf[TreeKind.BROADLEAF].capacity).toBe(3);
 });
