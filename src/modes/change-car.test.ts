@@ -15,6 +15,8 @@ import { mode_status, type ModeCtx } from "./mode";
 import type { RunPlay } from "../runs/run-play";
 import { held_car } from "./event-car";
 
+const PARKED = { pos: { x: 0, y: 0, z: 0 }, quat: { x: 0, y: 0, z: 0, w: 1 } } as never;
+
 class FakeElement {
   hidden = false;
   disabled = false;
@@ -243,7 +245,7 @@ test("a championship runs its stages back to back: Next goes on, a retry keeps t
   const next = r.modes.result_next;
   const finish = (stars: number) => {
     finishes[r.starts.length - 1] = stars;
-    r.modes.update(0, {} as never);
+    r.modes.update(0, PARKED);
   };
 
   r.modes.play_event(cup);
@@ -310,7 +312,7 @@ test("a stage that refuses to start mid-championship says the championship ended
   await settle();
   r.answer(FIRST);
   await settle();
-  r.modes.update(0, {} as never);
+  r.modes.update(0, PARKED);
   r.modes.result_next.go();
   expect(r.starts).toEqual(["g1", "g2"]);
   expect(r.modes.active).toBe(false);
@@ -324,13 +326,13 @@ test("each status field writes its own captioned slot: a blank one keeps it, one
   status.gates = "";
   GYMKHANA_MODE.start = () => ({ update: () => status, finished: () => null, dispose: () => {} });
   await in_event(r, FIRST);
-  r.modes.update(0, {} as never);
+  r.modes.update(0, PARKED);
   const [place, lap, gates] = ["place", "lap", "gates"].map((field) => elements.get(`mode-status-${field}`)!);
   expect([place.hidden, lap.hidden, gates.hidden]).toEqual([true, true, false]);
   expect([gates.dataset.caption, gates.textContent]).toEqual(["Next", ""]);
   status.clock = "0:01.000";
   status.gates = "slalom 1/8";
-  r.modes.update(0, {} as never);
+  r.modes.update(0, PARKED);
   expect([elements.get("mode-status-clock")!.textContent, gates.textContent, gates.hidden]).toEqual(["0:01.000", "slalom 1/8", false]);
 });
 

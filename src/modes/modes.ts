@@ -31,6 +31,7 @@ import { RACE_MODE } from "./race-mode";
 import { level_route, race_levels } from "./races";
 import { go_label, line, next_ticket, run_text, stamp_text, star_row } from "./result";
 import { ResultNextView } from "./result-next.svelte";
+import { RunTape } from "../replay/run-tape";
 import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
 import { atan2 } from "../sim-math";
@@ -157,6 +158,7 @@ export class Modes implements CarHooks {
     retry: $("mode-retry", HTMLButtonElement),
     try_on: $("mode-try", HTMLButtonElement),
     car: $("mode-car", HTMLButtonElement),
+    replay: $("mode-replay", HTMLButtonElement),
   };
   readonly result_next = new ResultNextView(
     () => this.play_next(),
@@ -172,6 +174,9 @@ export class Modes implements CarHooks {
   /** Shows that a start waits on the rest of the world. */
   cover: (wait: Promise<void>) => Promise<void> = (wait) => wait;
   on_finish: ((mode: string) => void) | null = null;
+  /** The player's car over the run under way or just finished, for its replay. */
+  readonly tape = new RunTape();
+  watch: ((tape: RunTape) => void) | null = null;
   /** A short note over the HUD; a run says its goal on it as it starts. */
   toast: ((text: string, label: string, hold: number) => void) | null = null;
   /** Starts an event here, or reloads onto its map. */
@@ -226,6 +231,15 @@ export class Modes implements CarHooks {
     return this.current !== null;
   }
 
+  get result_up(): boolean {
+    return this.current?.shown === true;
+  }
+
+  /** The result card steps aside for the run's replay and comes back after it. */
+  cover_result(covered: boolean) {
+    if (this.current?.shown) this.el.result.hidden = covered;
+  }
+
   get running(): string | null {
     return this.current?.run ? this.current.mode.def.name : null;
   }
@@ -270,6 +284,7 @@ export class Modes implements CarHooks {
     this.el.retry.addEventListener("click", () => this.restart(), { signal });
     this.el.try_on.addEventListener("click", () => this.reward && this.try_reward?.(this.reward), { signal });
     this.el.car.addEventListener("click", () => void this.change_car(), { signal });
+    this.el.replay.addEventListener("click", () => this.watch?.(this.tape), { signal });
   }
 
   stop() {
@@ -495,6 +510,7 @@ export class Modes implements CarHooks {
     if (!this.lobby_lap) this.toast?.(active.level.goal ?? active.mode.def.goal, active.level.name, GOAL_MS);
     active.pi = active.event ? this.car.pi() : null;
     active.shown = false;
+    this.tape.start();
     this.el.result.hidden = true;
     if (active.cup) this.el.status.dataset.cup = active.cup.cup.status;
   }
@@ -606,7 +622,9 @@ export class Modes implements CarHooks {
     const status = run.update(sim_dt, car);
     if (this.current !== active || active.run !== run) return;
     const finish = active.shown ? null : run.finished();
+    if (!active.shown) this.tape.record(sim_dt, car);
     if (finish) {
+      this.tape.end(car);
       active.shown = true;
       this.show_result(finish, active);
     }
@@ -686,6 +704,7 @@ export class Modes implements CarHooks {
     this.reward = null;
     el.try_on.hidden = true;
     el.car.hidden = !this.can_change_car;
+    el.replay.hidden = !this.tape.watchable;
     el.standings.hidden = !active.cup && !finish.standings;
     if (active.cup) this.show_standings(active.cup);
     else if (finish.standings) el.standings.replaceChildren(...finish.standings);

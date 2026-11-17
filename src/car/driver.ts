@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { build_spec, type Build } from "./build";
-import type { ChaseCamera } from "../render/camera";
+import type { CarPose, ChaseCamera } from "../render/camera";
 import { drop_height, type Car } from "./car";
 import { oversize, type CarSpec, type Size } from "./cars";
 import type { Lighting } from "../render/lighting";
@@ -40,6 +40,7 @@ export class Driver {
   placed = () => {};
   /** The last spot the car stood safely on a road, and the way it was going there. */
   private readonly safe = { x: 0, z: 0, fx: 0, fz: 1 };
+  private readonly ahead = new THREE.Vector3();
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -217,5 +218,20 @@ export class Driver {
     chase.eye = view.eye;
     chase.size = this.size;
     place_contact_shadow(this.shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, this.world);
+  }
+
+  /** After `draw`, a replay's pose in place of the held car's: the view, its shadow and what the camera follows. `roll`: the wheels' turn, radians. */
+  draw_at(pose: CarPose, roll: number) {
+    const { view, drawn } = this;
+    drawn.pos.copy(pose.pos);
+    drawn.quat.copy(pose.quat);
+    drawn.vel.copy(pose.vel);
+    sync_car_view(view, this.car);
+    for (const wheel of view.wheels) wheel.children[0].rotation.x = roll;
+    view.root.position.copy(drawn.pos);
+    view.root.quaternion.copy(drawn.quat);
+    stand_on_drawn(view, this.world);
+    const ahead = this.ahead.set(0, 0, 1).applyQuaternion(drawn.quat);
+    place_contact_shadow(this.shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, atan2(ahead.x, ahead.z), this.world);
   }
 }

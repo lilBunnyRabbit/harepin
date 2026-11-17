@@ -84,6 +84,7 @@ import { world_look } from "./worlds/world-def";
 import { custom_code, map_code, parse_map_code, pick_problem, read_pick } from "./worldgen/kinds/map-code";
 import { map_note } from "./menu/map-note";
 import { plain_map } from "./worldgen/kinds/kinds";
+import { Replay } from "./replay/replay";
 import { REVIEW_BUILD, review_wanted } from "./review/params";
 import { show_next_up } from "./hud/next-up-view.svelte";
 import { roam_card, run_card } from "./hud/pause-card";
@@ -507,6 +508,14 @@ if (ai_race) {
 }
 modes.start();
 modes.result_next.mount($("mode-result-next"));
+const replay = new Replay(chase);
+replay.view.mount(document.body);
+replay.on_open = () => modes.cover_result(true);
+replay.on_close = () => {
+  modes.cover_result(false);
+  chase.snap(driver.car);
+};
+modes.watch = (tape) => replay.open(tape);
 updater.start();
 const system_back = new SystemBack(
   {
@@ -736,6 +745,10 @@ const ACTIONS: Record<Action, () => void> = {
   garage: open_car,
   menu: () => (pause.is_open ? pause.close() : settings.is_open || pad_menu.is_open || (input.pad && pad_menu.card_waiting()) ? pad_menu.toggle() : open_pause()),
 };
+const REPLAY_ACTIONS: Partial<Record<Action, () => void>> = {
+  camera: () => replay.swap_camera(),
+  menu: () => replay.close(),
+};
 const PAUSE_ACTS: Record<PauseAct, () => void> = {
   reset: ACTIONS.reset,
   leave: quit_mode,
@@ -871,7 +884,9 @@ function frame(time: number) {
   const { controls, actions } = input.read();
   if (garage.is_open && !modal_open()) garage.navigate(input.nav);
   else pad_menu.navigate(input.nav);
-  for (const action of actions) ACTIONS[action]();
+  for (const action of actions) (replay.is_open ? REPLAY_ACTIONS[action] : ACTIONS[action])?.();
+  // A retry, a next run or a lobby start takes the result away, and its replay with it.
+  if (replay.is_open && !modes.result_up) replay.close();
   const car = driver.car;
 
   lobby.update(now);
@@ -904,7 +919,7 @@ function frame(time: number) {
     kind = FrameKind.FREE;
     acc = 0;
     review.drive(car, dt);
-  } else if (lobby.state.kind === "countdown" || modes.holding || garage.is_open || menu_hold) {
+  } else if (lobby.state.kind === "countdown" || modes.holding || garage.is_open || menu_hold || replay.is_open) {
     acc = 0;
   } else {
     kind = FrameKind.STEP;
@@ -978,15 +993,18 @@ function frame(time: number) {
   chase.boost = car.nitro.boosting;
   chase.rewinding = rewinding;
   driver.draw(!simulated, out.blend, now);
+  replay.draw(menu_hold ? 0 : view_dt, driver);
+  const focus = replay.is_open ? replay.focus : car.pos;
   field_view?.update(camera);
-  const offroad = !world.on_road(car.pos.x, car.pos.z);
-  chase.update(view_dt, driver.drawn, world, offroad, world_time, input.look);
+  const offroad = !world.on_road(focus.x, focus.z);
+  if (replay.flying) replay.aim(view_dt, input.look, controls.throttle - controls.brake, controls.steer, world);
+  else chase.update(view_dt, driver.drawn, world, offroad, world_time, input.look);
   if (!review?.aim(camera) && posed) {
     camera.position.set(pose[0], pose[1], pose[2]);
     camera.lookAt(pose[3], pose[4], pose[5]);
   }
   recenter.toggleAttribute("data-shown", chase.orbited);
-  light.follow(car.pos);
+  light.follow(focus);
 
   smoke.update(view_dt, car, world);
   skids.update(car, world);
@@ -1020,7 +1038,7 @@ function frame(time: number) {
   lab?.frame();
   // Behind the menu each frame carries the redraw gap, which would read as a slow frame.
   if (!draw_ms && quality.adapt(dt)) render.apply_quality();
-  stream.follow(car.pos.x, car.pos.z, quality.tier.fog_far + quality.tier.stream_pad);
+  stream.follow(focus.x, focus.z, quality.tier.fog_far + quality.tier.stream_pad);
   // The dome is 2.4 km across and the mainland is wider, so it rides with the camera instead of the world origin.
   dome.position.copy(camera.position);
   world_view.update(camera, quality.tier.fog_far, world_time);
