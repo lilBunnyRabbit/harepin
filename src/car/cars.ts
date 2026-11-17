@@ -363,7 +363,7 @@ const RALLY_FRAME: FrameSpec = {
 // Open-wheel formula car: light, stiff and short-geared, with wings whose grip grows with speed and slicks that hate grass.
 const FORMULA_FRAME: FrameSpec = {
   ...COUPE_FRAME,
-  ai: { slow: 0.8984, fast: 0.9184, brake: 0.9565 },
+  ai: { slow: 0.7582, fast: 1.074, brake: 1.132 },
   mass: 750,
   inertia: [1250, 1450, 300],
   // The origin rides near the other cars' height because jump lines are planned for it; the floor hangs low below it.
@@ -422,7 +422,7 @@ const FORMULA_FRAME: FrameSpec = {
 // A front motor takes 40% of the drive, so it launches and exits corners planted where the formula spins its rears.
 const FUJIN_FRAME: FrameSpec = {
   ...FORMULA_FRAME,
-  ai: { slow: 0.7538, fast: 0.654, brake: 0.624 },
+  ai: { slow: 0.6408, fast: 0.9156, brake: 0.9984 },
   mass: 930,
   inertia: [1500, 1750, 380],
   drive: "awd",

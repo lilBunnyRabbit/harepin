@@ -42,10 +42,8 @@ const SPOTS: Partial<Record<WorldKind, Spot>> = {
   // shade, the peak inside the menu's square crop and the sun's glow at the left.
   dunes: { camera: { from: [905, 95.5, 300], to: [529, 97, 437] } },
   icecanyon: { camera: { from: [560, 78, 140], to: [410, 46, 236] } },
-  // Low on the inside of the steepest bowl, up its wall to the floodlights.
-  velodrome: { at: 100, camera: { from: [481.2, 253.1, 142.8], to: [468.5, 252.4, 101.7] } },
   // Low on the inside of the wall bowl, up the wall where its high rail stops.
-  wallride: { at: 100, camera: { from: [552.8, 250.5, 221.7], to: [556.5, 258.4, 176.2] } },
+  velodrome: { at: 100, camera: { from: [552.8, 250.5, 221.7], to: [556.5, 258.4, 176.2] } },
 };
 
 const args = process.argv.slice(2);

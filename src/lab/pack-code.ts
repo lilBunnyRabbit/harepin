@@ -158,12 +158,12 @@ function field(v: unknown, path: string): TrialField {
 }
 
 /** A race or route trial names its map (a race its field too), a station trial its station; never both. A route trial drives laps. */
-function place(o: Obj, path: string, at_goal: Goal): Pick<StationTrial, "station" | "lane" | "goal"> | Pick<RaceTrial, "map" | "route" | "field" | "goal"> | Pick<RouteTrial, "map" | "route" | "goal"> {
+function place(o: Obj, path: string, at_goal: Goal): Pick<StationTrial, "station" | "lane" | "goal"> | Pick<RaceTrial, "map" | "route" | "field" | "passes" | "goal"> | Pick<RouteTrial, "map" | "route" | "goal"> {
   if (o.map !== undefined) {
     if (o.station !== undefined || o.lane !== undefined) fail(`${path}.station`, "a race or route trial has a map, not a station");
     const route = opt(o, "route", path, (r, at) => text(r, at, 40));
     const on_map = { map: text(o.map, `${path}.map`, MAP_CODE_MAX), ...(route !== undefined ? { route } : {}) };
-    if (o.field !== undefined) return { ...on_map, field: field(o.field, `${path}.field`), goal: at_goal };
+    if (o.field !== undefined) return { ...on_map, field: field(o.field, `${path}.field`), ...(o.passes === true ? { passes: true as const } : {}), goal: at_goal };
     return at_goal.kind === "laps" ? { ...on_map, goal: at_goal } : fail(`${path}.goal`, "a route trial (a map and no field) drives laps");
   }
   const station = text(o.station, `${path}.station`);

@@ -788,6 +788,7 @@ if (lab_id !== null)
         },
         route: (id) => world.routes.find((route) => route.id === id && route.closed)?.points ?? null,
         field_stats: () => (sim instanceof LocalSim ? (sim.host.field?.racers.map((racer) => racer.stats) ?? []) : []),
+        field: () => (sim instanceof LocalSim ? sim.host.field : null),
         end_race: () => modes.exit(),
       }),
     )

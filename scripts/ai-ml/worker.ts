@@ -14,7 +14,7 @@ export type MlJob =
   | { type: "solo"; id: string; seed: number; values: Values; assists: boolean }
   | { type: "oracle"; id: string; seed: number; route: string; car: string; assists: boolean; x: number[]; knot: number; limit: number; trace: boolean }
   | { type: "ai_lap"; id: string; seed: number; route: string; car: string; assists: boolean; values: Values; limit: number }
-  | { type: "car"; id: string; seed: number; car: string; ai: CarAi; solo: boolean };
+  | { type: "car"; id: string; seed: number; car: string; ai: CarAi; solo: boolean; eps: number };
 
 export type MlResult =
   | { type: "auto"; id: string; seed: number; laps: Record<string, number> }
@@ -58,7 +58,9 @@ self.onmessage = (event: MessageEvent<MlJob>) => {
     postMessage({ type: "lap", id: job.id, lap: oracle_lap(track(job.seed, job.route, job.car, job.assists), job.x, job.knot, job.limit, job.trace) } satisfies MlResult);
   } else if (job.type === "car") {
     reset({});
-    const spec = { ...car_spec(job.car), ai: job.ai };
+    // The same block a hair off (`eps`, a share): a second draw of the field's chaos, as one bar swings 3 trouble on noise.
+    const off = 1 + job.eps;
+    const spec = { ...car_spec(job.car), ai: { slow: job.ai.slow * off, fast: job.ai.fast * off, brake: job.ai.brake * off } };
     postMessage({ type: "car", id: job.id, seed: job.seed, races: races(job.seed, 6, 2, undefined, spec), solos: job.solo ? solos(job.seed, true, spec) : [] } satisfies MlResult);
   } else {
     reset(job.values);

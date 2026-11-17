@@ -8,7 +8,7 @@ Nothing in the lab touches the game around it: no records, ghosts, stars or goal
 
 | Link | What loads |
 |---|---|
-| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample, `?lab=first-look` the first real session, `?lab=t1a-pads` and `?lab=t1b-brakes` the stock coupe on ten skidpad and ten runway lanes, `?lab=t2-drift` the Drift preset on the drift circle and hairpins, r3 against gas start, no angle cap and TCS off with half the hold, `?lab=t3a-sturm-power` and `?lab=t3b-sturm-grip` the candidate top-tier parts on the Sturm (engines and the carbon shell, then slicks and the GT kit), `?lab=t3c-raijin` and `?lab=t3e-muscle` today's best against every top part on each, `docs/plan/top-tier-parts.md`; `?lab=t4-sajin` the Sajin from before its centre of mass came down 0.25 m against today's on the big kicker, dirt hairpins, skidpad, r120 lift-off and runway; `?lab=t5-bands` the three doubted feel bands, today against a candidate inside each: Sturm power-on, Fujin and Sajin lift-off; `?lab=t3-r4` the Sturm's r3 exit and full-lock notes, today against `tcs_turn_slip` (traction control's slip limit opening with the key) and that plus less rear grip, on the hairpins and the skidpad; `?lab=ai-field` the stock coupe against six AI cars on island seed 4's circuit: the start, passing, defending and a mixed field, see [Race trials](#race-trials-an-ai-field)) |
+| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample, `?lab=first-look` the first real session, `?lab=t1a-pads` and `?lab=t1b-brakes` the stock coupe on ten skidpad and ten runway lanes, `?lab=t2-drift` the Drift preset on the drift circle and hairpins, r3 against gas start, no angle cap and TCS off with half the hold, `?lab=t3a-sturm-power` and `?lab=t3b-sturm-grip` the candidate top-tier parts on the Sturm (engines and the carbon shell, then slicks and the GT kit), `?lab=t3c-raijin` and `?lab=t3e-muscle` today's best against every top part on each, `docs/plan/top-tier-parts.md`; `?lab=t4-sajin` the Sajin from before its centre of mass came down 0.25 m against today's on the big kicker, dirt hairpins, skidpad, r120 lift-off and runway; `?lab=t5-bands` the three doubted feel bands, today against a candidate inside each: Sturm power-on, Fujin and Sajin lift-off; `?lab=t3-r4` the Sturm's r3 exit and full-lock notes, today against `tcs_turn_slip` (traction control's slip limit opening with the key) and that plus less rear grip, on the hairpins and the skidpad; `?lab=ai-field` the stock coupe against six AI cars on island seed 4's circuit: the start, passing, defending and a mixed field, see [Race trials](#race-trials-an-ai-field); `?lab=ai-pass` the same grid for a lap each of island seeds 1 and 0, every pass kept, see [Passes](#passes)) |
 | `/?lab=~<code>` | an inline pack carried in the link itself: no deploy needed |
 
 Works on the live site and in dev; no menu entry, like `?tune`. The lab world (`lab` kind, unlisted) loads, the car goes to the first trial's station and the pack card opens instead of the menu or the first-visit guide. Modes are off in the lab: the Modes page shows each one as "Not in the lab", and no lobby race starts.
@@ -130,8 +130,35 @@ A trial with `map` in place of `station` runs a free-play race against an AI fie
 | `map` | the world the race runs on. A world loads once a page, so a trial on another map (or a station trial after a race) reloads onto it with `&map=<code>&trial=<n>` beside `?lab`; answers and numbers are in the tab's storage and come back. A map that does not load says so and does not reload again |
 | `field.cars` | 1-6 AI cars, pole first, each on the owner's 1-5 `aggression` and `mistakes` levels (H5, H6: `field_personalities` in `src/ai/field.ts`); the player starts last. The cars are presets of the trial car's class as it drives, mods and lab cars included (`ai/field-pick.ts`) |
 | `field.difficulty` | `easy` / `normal` / `hard`, as the player's setting scales the field (O5, `src/ai/difficulty.ts`); normal when absent |
+| `passes` | `true` keeps every pass and the grid's trace in the export ([Passes](#passes)); the pack then shows Download beside Copy |
 
 The race is the game's own (`modes/ai-race.ts`: lights, position and gap on the run card), started past free play's unlock order and the lab's closed modes (`Modes.lab_race`); nothing is recorded and no goals or career markers show. The recorder measures the player's drive on the route: its lane path is the centreline every 10 m (`race_path` in `src/lab/pack.ts`), and past `OFF_ROAD` (7 m, the field's own off-road line) counts as off. Time, top speed, offs and resets lead the card. When the trial ends (the race finished, the time up, or Stop) the field's order is kept and the race closes; the results card lists it, the player highlighted.
+
+#### Passes
+
+A race trial with `passes: true` records how the player and the field get by each other (`src/lab/pass-trace.ts`), for teaching the AI where a person is faster. A pass counts as the field counts its own: one car 3 m clear ahead of a car that was 3 m clear ahead of it. The line is written for the moment the two drew level. Drawing level and dropping back is no pass; neither is an order moved by a reset, a rewind or an AI car put back on the road. A race restarted with the reset key starts the passes and the grid trace again with it. The export carries, after the trial's ` f` lines:
+
+```
+ passes <passes> <samples> <AI cars> <lap m> <sample Hz> [full]
+ p <t> made|lost car=<AI car> lap=<n> at=<m into the lap> <phase> r=<m> you=<m/s>/<m off line>/<throttle>/<brake> ai=<the same> gap=<before>/<after> side=<s>
+ ft <t> <m raced>,<m off line>,<m/s>,<throttle>,<brake> ...
+```
+
+| Field | Meaning |
+|---|---|
+| `t` | s since the field started (the green light) |
+| `made` / `lost` | the player got by the AI car, or it got by the player |
+| `car` | the AI car's grid slot, 0 on pole |
+| phase | where the point lies on the AI's plan: `braking` (the planned speed falls), `apex` (a bend under 120 m radius, within 70% of its tightest), `exit` (the planned speed rises within 50 m of a bend), `straight` |
+| `r` | radius of the line's tightest point from 50 m behind to 150 m ahead: the bend being braked for, taken or left. Negative bends right; 999 is none |
+| `you`, `ai` | each car as they drew level: speed, metres right of the AI's racing line (not the road centre), throttle and brake |
+| `gap` | the player's metres ahead of that AI car (negative: behind) 2 s before they drew level, and 2 s after one was clear; `-` when a placement or the trial's end cut the reading |
+| `side` | s from level to clear: how long the two ran side by side |
+| ` ft` | the grid twice a second: every AI car pole first, then the player. Metres raced from the start line (negative on the grid), metres right of the line, speed, then throttle and brake as means since the last sample |
+
+Two one-lap races make about 150 KB, so the pack card and results card show Download. `bun scripts/ai-ml/passes.ts <file>...` prints one row a pass (with the side the player ran: inside or outside of the bend) and the passes per phase. Before the owner drives, `hq lock run -- bun scripts/ai-ml/pass-self.ts [pack] [out]` runs every such trial headless with the field's own driver in the player's car and writes the same export, less the ` f` lines (`.ai-ml/pass-self/<pack>.txt`): it proves the maps race and the file reads.
+
+An island circuit races one lap (`race_laps`: about four minutes), so `ai-pass` is two races, seed 1 (eight hairpins of r14-17) and seed 0 (two), rather than laps of one.
 
 ### Route trials: reference laps alone
 
@@ -206,6 +233,7 @@ The overlay's Copy (or `=`) copies it, answers and note included. Line-based so 
 | ` m` | metrics, fixed order; a key the trial never measured is left out |
 | ` a` | answers (`note` goes on its own line) |
 | ` n` | the note, quoted |
+| ` passes`, ` p`, ` ft` | a race trial with `passes`: its head, one line a pass, one a grid sample ([Passes](#passes)) |
 | ` f` | a race trial, one line a car in running order: `P<n>`, name (`you` for the player), finish s or `racing`, s behind the leader (`-` before it is past the line), then an AI car's `spins`, `resets`, `hits` (contacts), `hard` (m/s, hardest touch), `pass` (overtakes). The `#trial` line names the place as `<map>/<route>` and the grid after it as `field=<cars>x<aggression/mistakes, one pair or one a car>:<difficulty>` |
 | `#end` | trials with numbers / trials in the pack |
 
@@ -318,7 +346,7 @@ Pastes go in `docs/lab/sessions/` (its README); `bun scripts/lab.ts diff <old> <
 | `src/lab/results-store.ts` | the stored-numbers writer and reader |
 | `src/lab/field-rows.ts` | a race trial's field rows: from the race's places and the field's counts, their export lines and stored-rows reader |
 | `src/lab/lab-view.svelte.ts`, `LabOverlay.svelte`, `TrialList.svelte`, `TrialBrief.svelte`, `ResultCard.svelte`, `Scale.svelte`, `More.svelte` | the overlay: strip, pack card, brief, results and question card, the More fold |
-
+| `src/lab/pass-trace.ts` | a race trial's passes and grid samples, the corner phases off the AI's line; `scripts/ai-ml/pass-read.ts`, `passes.ts` and `pass-self.ts` read, print and self-drive them |
 | `src/lab/budget.ts` | drive time per trial and the session caps |
 | `scripts/lab.ts`, `scripts/lab/*.ts` | sim lines per trial, the setup matrix, their worker pool |
 | `scripts/bench/feel-cases.ts`, `scripts/bench/telemetry-cases.ts` | the feel and telemetry scenarios as functions on a `CarSpec`; `scripts/feel.ts` and `telemetry.ts` print them |
