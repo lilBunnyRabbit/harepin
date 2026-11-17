@@ -157,6 +157,15 @@ describe("AI driver", () => {
     expect(on_ring(-1, 20, 0, 0, 60).controls.steer * inward).toBeLessThan(share - 0.1);
   });
 
+  test("easing back onto the line, the path ahead is where the easing will have it by then, not the lane it is in now", () => {
+    const { driver, car } = on_ring(3, 30, 0, 3);
+    expect(driver.lateral_at(car, 100)).toBeCloseTo(3, 1);
+    // 30 m on is a second at 30 m/s, 1.5 m of easing; 60 m on it is back on the line.
+    expect(driver.lateral_at(car, 115)).toBeCloseTo(1.5, 1);
+    expect(driver.lateral_at(car, 130)).toBeCloseTo(0, 1);
+    expect(driver.lateral_at(car, 160)).toBeCloseTo(0, 6);
+  });
+
   test("held off the line past the edge of its room, it aims back inside by as much as it is over, not along the edge", () => {
     const room = pass_room(new Car(COUPE), race_line(ring(800), [], COUPE.radius), 100);
     // Fast, so the aim is far ahead and the wheel stays off full lock; on the ring's outside, so its bend steers against.

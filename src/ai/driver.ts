@@ -36,6 +36,8 @@ const HOLD_LOOK = 60;
 const HOLD_STRIDE = 3;
 /** m/s sideways a driver moves its aim off or back onto the line: a jump in aim at speed throws the car wide. */
 const LATERAL_RATE = 1.5;
+/** m/s under which the easing ahead is read as at this speed: a car near a stop is not a path that eases over minutes. */
+const EASE_SPEED = 5;
 /** Road points ahead the plan's drop is read over for the brake's feed-forward, and the m/s² a car slows at off both pedals. */
 const SLOPE_SPAN = 3;
 const COAST_DECEL = 1;
@@ -99,6 +101,8 @@ export class Driver {
   nudge = 0;
   /** Metres off the line it drives now, eased toward `hold` at LATERAL_RATE. */
   aside = 0;
+  /** Metres off the line `aside` is easing to: `hold` inside its room, 0 with none. */
+  private easing_to = 0;
   /** Seconds left in which it starts no pass and gives up one still behind, set by the field when it touches a car. */
   wary = 0;
   /** Metres off the centre of its grid slot's lane, held off the start until the field lets it go (NaN). */
@@ -222,9 +226,17 @@ export class Driver {
     this.recovered();
   }
 
-  /** Metres off the centre it drives at road point `j`, `aside` off the line or in its grid lane: the road's edge clamps it. */
+  /**
+   * Metres off the centre it drives at road point `j`, off the line or in its grid lane: the road's edge clamps it. Ahead,
+   * `aside` is where its easing will have it by then: aimed a second ahead at the `aside` of now, a car sat a second of
+   * easing (1.5 m) wide of its path, past the edge of its room when the line swung the same way.
+   */
   lateral_at(car: Car, j: number): number {
-    return pass_clamp(car, this.line, j, Number.isNaN(this.launch) ? this.line.offset[j] + this.aside : this.launch);
+    if (!Number.isNaN(this.launch)) return pass_clamp(car, this.line, j, this.launch);
+    const n = this.line.road.length;
+    const ahead = ((j - this.index + n + (n >> 1)) % n) - (n >> 1);
+    const move = ahead > 0 ? (LATERAL_RATE * ahead * this.line.step[this.index]) / Math.max(EASE_SPEED, hypot(car.vel.x, car.vel.z)) : 0;
+    return pass_clamp(car, this.line, j, this.line.offset[j] + this.aside + Math.max(-move, Math.min(move, this.easing_to - this.aside)));
   }
 
   // Off the line it plans on the bend of the path it drives, the line shifted and clamped to the road: where the line
@@ -265,6 +277,7 @@ export class Driver {
     const speed = hypot(vx, vz);
     const slip = this.mistake_at >= 0 && (((this.index - this.mistake_at) % n) + n) % n < MISTAKE_SPAN;
     const want = Number.isNaN(this.hold) ? 0 : pass_clamp(car, line, this.index, line.offset[this.index] + this.hold) - line.offset[this.index];
+    this.easing_to = want;
     const move = LATERAL_RATE * dt;
     // A grid lane is a fixed spot on the road: held at the easing rate, the car would drift after the line as it swings.
     if (Number.isNaN(this.launch)) this.aside += Math.max(-move, Math.min(move, want - this.aside));
@@ -295,7 +308,7 @@ export class Driver {
     const shifted = this.aside !== 0 || this.nudge !== 0 || back !== 0;
     if (shifted) {
       const p = line.road[at];
-      const lateral = pass_clamp(car, line, at, pass_clamp(car, line, at, (Number.isNaN(this.launch) ? line.offset[at] + this.aside : this.launch) + this.nudge) - back);
+      const lateral = pass_clamp(car, line, at, pass_clamp(car, line, at, this.lateral_at(car, at) + this.nudge) - back);
       ax = p.x + p.tz * lateral;
       az = p.z - p.tx * lateral;
     }
