@@ -28,8 +28,8 @@ export const MODULE = 20;
 export const TIER = 1.7;
 export const STAND_FRONT = WALL + 3.2;
 export const PIT_FRONT = ROAD_HALF + 12.4;
-export const LANE_NEAR = ROAD_HALF + 3.4;
-export const LANE_FAR = ROAD_HALF + 11.4;
+const LANE_NEAR = ROAD_HALF + 3.4;
+const LANE_FAR = ROAD_HALF + 11.4;
 const LANE_PAD = 16;
 const LANE_TAPER = 25;
 export const PIT_CENTRE = 10;
@@ -72,6 +72,8 @@ export interface Layout {
   bays: number[];
 }
 
+/** The pit lane's near and far edge, metres off the centre, where it is `share` of its full width: it peels off the road's edge. */
+export const lane_edges = (share: number): [number, number] => [ROAD_HALF - 0.1 + share * (LANE_NEAR - ROAD_HALF + 0.1), ROAD_HALF + share * (LANE_FAR - ROAD_HALF)];
 export const side_index = (side: number) => (side > 0 ? 1 : 0);
 export const stand_depth = (tiers: number) => 1 + tiers * TIER + 0.6;
 

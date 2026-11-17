@@ -272,4 +272,6 @@ The owner picked look C. It is the raceway's normal build, `RACEWAY_VERSION` 4.
 - Gravel is `SurfaceId.GRAVEL` (grip 0.66, roll 60): a ground surface like sand, painted on the terrain as `Ground.GRAVEL`. No extra mesh.
 - Tyre walls are box solids with `soft`: the hit takes the speed into the wall and a quarter of the rest, throws nothing back, and reports half the impact.
 - Run-off Narrow carries its own terrace (4 modules, 3 tiers); a module with another stretch of the lap behind it is left out.
+- Pit lane: hardpack under the drawn asphalt from half its width on; the first 25 m of each taper is verge.
+- Cost, phone screen and phone tier, seeds 1, 4, 7 from three views, against 0.64.2: draw calls 47.6 to 54.9 (worst view 63 to 73), triangles 156k to 176k, frame 2.97 to 3.15 ms on a desktop GPU with the processor slowed four times (single runs move about 1 ms). The lead took the rise.
 - Review views `grid`, `hairpin`, `pits`, `trap` (raceway only).

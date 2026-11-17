@@ -77,8 +77,11 @@ test("a tyre wall stops a car without throwing it back, and reports a softer hit
   const glance = car_at(GROUND + 0.5);
   glance.vel.set(30, 0, 3);
   tyres.collide(glance);
-  expect(glance.vel.x).toBeLessThan(30 * 0.8);
-  expect(glance.vel.x).toBeGreaterThan(30 * 0.7);
+  expect(glance.vel.x).toBeLessThan(27);
+  expect(glance.vel.x).toBeGreaterThan(24);
+  glance.vel.z = 0.02;
+  for (let step = 0; step < 90; step++) tyres.collide(glance);
+  expect(glance.vel.x).toBeGreaterThan(23);
 });
 
 test("a contact reports its point on the face, the normal out of it and the speed along and into it", () => {

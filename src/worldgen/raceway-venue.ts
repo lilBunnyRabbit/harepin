@@ -1,6 +1,6 @@
 import { hypot } from "../sim-math";
 import { sample } from "./field";
-import { BAY, BAY_DEPTH, GRAVEL_NEAR, LANE_FAR, LANE_NEAR, MODULE, PIT_FRONT, runs, side_index, STAND_FRONT, stand_depth, WALL, type Layout } from "./raceway-layout";
+import { BAY, BAY_DEPTH, GRAVEL_NEAR, lane_edges, MODULE, PIT_FRONT, runs, side_index, STAND_FRONT, stand_depth, WALL, type Layout } from "./raceway-layout";
 import { CELL, type RoadPoint, type Solid } from "./types";
 
 export const WALL_HEIGHT = 1.1;
@@ -20,6 +20,8 @@ export const GANTRY_HEIGHT = 9.8;
 const GANTRY_POST = 0.7;
 /** Metres past a piece that stay clear of trees: a crown's reach and the tree grid's cell. */
 const CLEAR = 6;
+/** Share of its width from which the lane is laid as firm ground: narrower, the paint would cover more verge than lane. */
+const LANE_FIRM = 0.5;
 
 export type Disc = readonly [x: number, z: number, radius: number];
 
@@ -98,7 +100,7 @@ export function gravel_lines(road: readonly RoadPoint[], layout: Layout): RoadPo
 }
 
 export function lane_lines(road: readonly RoadPoint[], layout: Layout): RoadPoint[][] {
-  const line = layout.lane.map((share) => (share === 1 ? (LANE_NEAR + LANE_FAR) / 2 : NaN));
+  const line = layout.lane.map((share) => (share >= LANE_FIRM ? (lane_edges(share)[0] + lane_edges(share)[1]) / 2 : NaN));
   return runs(line).map((run) => run.map((s) => along(road[s], layout.inside * line[s])));
 }
 

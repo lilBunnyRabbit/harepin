@@ -7,7 +7,7 @@ import type { World } from "../world/world";
 import { tune } from "../worldgen/kinds/options";
 import { RACEWAY_KNOBS } from "../worldgen/kinds/raceway";
 import { RACEWAY } from "../worldgen/raceway";
-import { BAY, BAY_DEPTH, LANE_FAR, LANE_NEAR, layout_of, MODULE, PIT_FRONT, runs, side_index, STAND_FRONT, stand_depth, TIER, WALL, type Layout } from "../worldgen/raceway-layout";
+import { BAY, BAY_DEPTH, lane_edges, layout_of, MODULE, PIT_FRONT, runs, side_index, STAND_FRONT, stand_depth, TIER, WALL, type Layout } from "../worldgen/raceway-layout";
 import { BAY_HEIGHT, GANTRY_HEIGHT, RAIL_HEIGHT, spans, STAND_BACK, STAND_BASE, STAND_RISE, TYRE_HALF, TYRE_HEIGHT, WALL_HALF, WALL_HEIGHT } from "../worldgen/raceway-venue";
 import { ROAD_HALF, type RoadPoint } from "../worldgen/types";
 
@@ -123,8 +123,7 @@ class Builder {
     const { lane, inside } = this.layout;
     const positions: number[] = [];
     const row = (s: number) => {
-      const near = ROAD_HALF - 0.1 + lane[s] * (LANE_NEAR - ROAD_HALF + 0.1);
-      const far = ROAD_HALF + lane[s] * (LANE_FAR - ROAD_HALF);
+      const [near, far] = lane_edges(lane[s]);
       return [near, (near + far) / 2, far].map((off) => {
         const [x, y, z] = this.point(this.road(s), inside * off);
         return [x, y + 0.08, z];

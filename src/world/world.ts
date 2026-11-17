@@ -55,9 +55,13 @@ const ROAD_CELL = 32;
 /** Cell of the wedge grid; a ramp is listed in every cell its reach circle touches, a metre over for rounding. */
 const WEDGE_CELL = 32;
 const RESTITUTION = 1.25;
-/** A tyre wall gives: nothing thrown back along the hit, a quarter of the speed gone, and half the impact reported. */
+/**
+ * A tyre wall gives: nothing thrown back along the hit, and it drags the car by SOFT_DRAG times the speed it took, so a
+ * graze costs a little and a square hit stops the car. A share of speed per contact stopped a car that only brushed it:
+ * with no bounce the car stays on the face and touches again every step.
+ */
 const SOFT_RESTITUTION = 1;
-const SOFT_KEEP = 0.75;
+const SOFT_DRAG = 1.5;
 const SOFT_IMPACT = 0.5;
 /** Share of planar speed a sky rail takes per unit sine of the angle into it: a head-on hit keeps 88%, a 10° graze 98%. */
 export const GLIDE_LOSS = 0.12;
@@ -895,7 +899,10 @@ export class World implements Ground {
     vel.x += (nx * impulse) / mass;
     vel.z += (nz * impulse) / mass;
     ang.y += (arm * impulse) / yaw_inertia;
-    vel.multiplyScalar(soft ? SOFT_KEEP : 0.9);
+    if (soft) {
+      const speed = hypot(vel.x, vel.z);
+      if (speed > 0) vel.multiplyScalar(Math.max(0, 1 - (SOFT_DRAG * -into) / speed));
+    } else vel.multiplyScalar(0.9);
     ang.x *= 0.7;
     ang.z *= 0.7;
     return soft ? -into * SOFT_IMPACT : -into;
