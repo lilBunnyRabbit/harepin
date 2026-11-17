@@ -37,24 +37,22 @@
     </ol>
     <button type="button" class="first-more" onclick={() => view.host.open_steps()}>First steps<Icon name="icon-back" flip /></button>
   </section>
-  <section class="first-ticket" aria-label="First steps">
-    <span class="first-mark" aria-hidden="true">
-      {#if flag.distance === null}
-        <Icon name="icon-flag" />
-      {:else}
+  {#if flag.distance !== null}
+    <section class="first-ticket" aria-label="First steps">
+      <span class="first-mark" aria-hidden="true">
         <svg viewBox="0 0 24 24" style:rotate={`${flag.turn}deg`}><path d="M6 15l6-6 6 6" /></svg>
-      {/if}
-    </span>
-    <div class="first-text">
-      <span class="first-eyebrow">First steps · {view.done + 1} of {view.total}</span>
-      <b class="first-title">Reach the first flag</b>
-      <span class="first-next">{flag.distance === null ? "" : `${distance_text(flag.distance)} ahead · `}Next: {AFTER.title}</span>
-    </div>
-  </section>
+      </span>
+      <div class="first-text">
+        <span class="first-eyebrow">First steps · {view.done + 1} of {view.total}</span>
+        <b class="first-title">Reach the first flag</b>
+        <span class="first-next">{distance_text(flag.distance)} ahead · Next: {AFTER.title}</span>
+      </div>
+    </section>
+  {/if}
 {/if}
 
 <style>
-  /* One ticket points at the flag, never two: this one stands in for Next up until the flag is reached. */
+  /* One ticket points at the flag, never two. With the flag on another map this one is away, and Next up offers the travel. */
   :global(body:has(.first-ticket) .next-up-dock) {
     display: none;
   }

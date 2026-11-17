@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { Audio, type SoundFrame } from "./audio/audio";
 import { idle_sound } from "./audio/held-sound";
 import { EVENTS, EVENT_PARAM, TUNE_PARAM, event_of, type CareerEvent } from "./career/career";
-import { SERIES_PAGE, SERIES_PARAM, is_open } from "./career/series";
+import { SERIES_PAGE, SERIES_PARAM, is_open, season_done } from "./career/series";
 import { series_event } from "./career/series-seasons";
 import { Wallet } from "./career/wallet";
 import { WalletDb } from "./career/wallet-db";
@@ -48,6 +48,7 @@ import { local_store } from "./modes/track";
 import { GoalId, Goals } from "./goals/goals";
 import { build_goals, is_handling, proven, saved_entries } from "./goals/catch-up";
 import { show_first_run } from "./goals/first-run-view.svelte";
+import { FINAL_PAGE, FINAL_PARAM } from "./modes/final";
 import { ToastQueue } from "./goals/toast-queue";
 import { race_choices } from "./modes/races";
 import { ChunkTrackside, gates, type Gate } from "./car/trackside";
@@ -450,7 +451,7 @@ function apply_settings(state: SettingsState) {
 
 settings.on_change = (state, key) => {
   if (key === "camera" && lab_id === null) goals.done(GoalId.CAMERA);
-  if (is_handling(key)) goals.done(GoalId.HANDLING);
+  if (is_handling(key) && !settings.guide_open) goals.done(GoalId.HANDLING);
   if (key === "quality") {
     quality.set_mode(state.quality);
     render.apply_quality();
@@ -593,7 +594,7 @@ function start_series(id: string, car: string | null = null) {
   if (!on_series_map(season, to, built)) return travel({ [SERIES_PARAM]: to.id, seed: String(to.seed), world: season.world }, car);
   settings.close();
   const base = { sim, build: () => garage.build, rating: () => rating(garage.build), autopilot: params.has(AI_DRIVE_PARAM), difficulty: () => settings.state.ai_difficulty };
-  const host = series_host(base, one, to, { label: "Series", go: () => settings.open(SERIES_PAGE) });
+  const host = series_host(base, one, to, { label: "Series", go: () => settings.open(to.final && season_done(one.season, one.progress) ? FINAL_PAGE : SERIES_PAGE) });
   modes.series_race(to.route, host);
 }
 // A run's map is the plain map of its kind and seed (world-pick.ts).
@@ -666,7 +667,8 @@ void Promise.all(series.map((one) => one.load())).then(() => {
   }
 });
 // After `markers`: the Play page reads its map markers as soon as the menu opens.
-if (!take_drive() && !event && !run && !review && lab_id === null && !ai_level && !series_on) {
+if (REVIEW_BUILD && params.has(FINAL_PARAM)) settings.open(FINAL_PAGE);
+else if (!take_drive() && !event && !run && !review && lab_id === null && !ai_level && !series_on) {
   if (prefs.guide_seen) settings.open_title();
   else settings.open_guide();
 }

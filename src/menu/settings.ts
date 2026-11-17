@@ -2,6 +2,8 @@ import { flushSync } from "svelte";
 import { modal_open, typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
 import WelcomePage from "./guide/WelcomePage.svelte";
+import FinalCard from "../modes/FinalCard.svelte";
+import { FINAL_PAGE } from "../modes/final";
 import { SERIES_PAGE } from "../career/series";
 import SeriesPage from "./SeriesPage.svelte";
 import GoalsPage from "./GoalsPage.svelte";
@@ -49,7 +51,7 @@ import "./menu.css";
 
 const TITLE = "title";
 /** The car stands on the turntable only where the car is the subject; every other framed page shows the bare scene, no car. */
-const STAGE_ROOMS: Partial<Record<string, StageRoom>> = { [TITLE]: "beside", [MenuTab.PLAY]: "beside", [MenuTab.GARAGE]: "around" };
+const STAGE_ROOMS: Partial<Record<string, StageRoom>> = { [TITLE]: "beside", [MenuTab.PLAY]: "beside", [MenuTab.GARAGE]: "around", [FINAL_PAGE]: "around" };
 /** What the stage frames the car between: a page's own panels, and the frame's rows (their sides are named in `menu.css`). */
 /** The first run's page. */
 const WELCOME = "welcome";
@@ -121,6 +123,7 @@ export class Settings {
       svelte_page(this.menu, { id: CAR_PAGE, label: "Car", parent: MenuTab.GARAGE, layout: "frame" }, CarPickPage, { picker: this.picker }),
       svelte_page(this.menu, { id: TITLE, label: "Harepin" }, TitlePage),
       svelte_page(this.menu, { id: WELCOME, label: "Welcome" }, WelcomePage, { seen: () => this.mark_guide_seen() }),
+      svelte_page(this.menu, { id: FINAL_PAGE, label: "Season podium", parent: MenuTab.EVENTS, layout: "frame" }, FinalCard),
       svelte_page(this.menu, { id: MAPS_PAGE, label: "Maps", parent: MenuTab.PLAY, layout: "frame" }, MapsPage, { picker: this.picker }),
       svelte_page(this.menu, { id: MAKE_PAGE, label: "Make a map", parent: MenuTab.PLAY, layout: "frame" }, WorldPage),
       svelte_page(this.menu, { id: CAREER_PAGE, label: "Career", parent: MenuTab.EVENTS, layout: "frame" }, CareerPage, { picker: this.picker, tune: new URLSearchParams(location.search).has(TUNE_PARAM) }),
