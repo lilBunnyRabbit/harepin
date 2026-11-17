@@ -24,7 +24,7 @@ describe("car capability", () => {
   });
 
   test("a formula car out-grips and out-brakes the coupe, the bus falls short of it everywhere", () => {
-    const formula = plan_scale(CARS.formula);
+    const formula = plan_scale({ ...CARS.formula, ai: undefined });
     expect(formula.slow).toBeGreaterThan(1);
     expect(formula.brake).toBeGreaterThan(1);
     const bus = plan_scale(CARS.bus);

@@ -15,6 +15,7 @@ import { field_rows, type FieldRow } from "./field-rows";
 import { INLINE, read_code } from "./pack-code";
 import { race_path, race_resolved, route_resolved, resolve_pack, type Aids, type Pack, type Question, type RaceResolved, type Resolved, type RouteResolved } from "./pack";
 import { PACKS } from "./packs";
+import { PassTrace, type PassField } from "./pass-trace";
 import { show_overlay } from "./lab-view.svelte";
 import { Recorder, type Metrics } from "./recorder";
 import { RouteTrace, type TraceLines } from "./route-trace";
@@ -37,6 +38,8 @@ export interface LabHost {
   route(id: string): readonly RoadPoint[] | null;
   /** Each AI car's own counts; empty while the sim worker keeps them. */
   field_stats(): readonly RacerStats[];
+  /** The AI field racing now; null with none, or while the sim worker keeps it. */
+  field(): PassField | null;
   /** The race's cars leave and its card closes. */
   end_race(): void;
 }
@@ -56,7 +59,7 @@ export interface TrialResult {
   metrics: Metrics | null;
   /** A race trial's field in running order as it ended; null on a station. */
   field: FieldRow[] | null;
-  /** A route trial's drive, kept in the tab's storage with its numbers. */
+  /** A route trial's drive, or a race trial's passes, kept in the tab's storage with its numbers. */
   trace: TraceLines | null;
 }
 
@@ -90,6 +93,8 @@ export class Lab {
   private readonly ran: (Aids | null)[];
   private recorder: Recorder | null = null;
   private race: FieldRace | null = null;
+  /** Built on the first step the race's field is up, and again when a restart builds a new one. */
+  private passes: PassTrace | null = null;
   /** A race trial holds its grid until the cards close: the lights run on the wall clock, under a card too. */
   private waiting: RaceResolved | null = null;
   private ticket = 0;
@@ -139,7 +144,7 @@ export class Lab {
    * Only once the page is hidden (a reload, a tab switch, a phone backgrounding it): writing a whole trace mid-drive stalls a frame.
    */
   private readonly keep = () => {
-    if (document.visibilityState !== "hidden" || !this.recorder?.route || !this.recorder.started) return;
+    if (document.visibilityState !== "hidden" || !this.trace_now() || !this.recorder?.started) return;
     this.save_results(this.with_running("stopped"));
   };
 
@@ -159,6 +164,7 @@ export class Lab {
     if (!this.host.on_map(map)) return this.load_map(r, map, index);
     this.index = index;
     this.recorder = null;
+    this.passes = null;
     this.waiting = null;
     const ticket = ++this.ticket;
     this.host.drive(r.build, r.spec, r.trial.aids ?? {});
@@ -200,10 +206,25 @@ export class Lab {
     if (!recorder) return;
     const started = recorder.started;
     recorder.step(dt, car, input);
+    this.step_passes(car, input);
     if (recorder.done || this.race?.done) {
       this.finish("done");
       this.watch?.ended(this.index);
     } else if (!started && recorder.started) this.watch?.changed();
+  }
+
+  private step_passes(car: Car, input: Controls) {
+    const r = this.current;
+    if (!r || !race_resolved(r) || !r.trial.passes) return;
+    const field = this.host.field();
+    if (!field) return;
+    // A race restarted (the reset key) builds a new field without a new trial: the trace follows it.
+    if (this.passes?.field !== field) this.passes = new PassTrace(field);
+    this.passes.step(car, input);
+  }
+
+  private trace_now(): TraceLines | null {
+    return this.recorder?.route ?? this.passes;
   }
 
   frame() {
@@ -219,6 +240,7 @@ export class Lab {
 
   placed(car: Car) {
     this.recorder?.placed(car);
+    this.passes?.placed();
   }
 
   /** Stop: the trial keeps what it measured and its results card opens. */
@@ -242,7 +264,7 @@ export class Lab {
   private with_running(status: TrialStatus): TrialResult[] {
     const recorder = this.recorder;
     if (!recorder?.started) return this.results;
-    return this.results.map((r, i): TrialResult => (i === this.index ? { status, metrics: recorder.metrics(), field: this.field_now(), trace: recorder.route } : r));
+    return this.results.map((r, i): TrialResult => (i === this.index ? { status, metrics: recorder.metrics(), field: this.field_now(), trace: this.trace_now() } : r));
   }
 
   export(): string {
@@ -272,7 +294,7 @@ export class Lab {
 
   /** Whether any trial traces its drive: its export is a file, not a paste. */
   get traced(): boolean {
-    return this.trials.some(route_resolved);
+    return this.trials.some((r) => route_resolved(r) || (race_resolved(r) && r.trial.passes === true));
   }
 
   download() {
@@ -303,7 +325,7 @@ export class Lab {
     if (!recorder || this.index < 0) return;
     // Left before driving: whatever an earlier attempt measured stands.
     if (recorder.started) {
-      this.results[this.index] = { status, metrics: recorder.metrics(), field: this.field_now(), trace: recorder.route };
+      this.results[this.index] = { status, metrics: recorder.metrics(), field: this.field_now(), trace: this.trace_now() };
       this.save_results(this.results);
     }
     this.recorder = null;

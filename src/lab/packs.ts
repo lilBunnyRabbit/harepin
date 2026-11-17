@@ -6,6 +6,7 @@ const ref = (id: string) => () => import("./packs/ai-ref").then((m) => ({ defaul
 export const PACKS: Record<string, () => Promise<{ default: Pack }>> = {
   demo: () => import("./packs/demo"),
   "ai-field": () => import("./packs/ai-field"),
+  "ai-pass": () => import("./packs/ai-pass"),
   "ai-ref-0": ref("ai-ref-0"),
   "ai-ref-1": ref("ai-ref-1"),
   "ai-ref-2": ref("ai-ref-2"),

@@ -95,6 +95,8 @@ export const MAX_PADS = 4;
 export interface SkyRecipe {
   /** The world kind it builds, which also salts every draw, so two kinds never share a seed's track. */
   kind: WorldKind;
+  /** Salts the draws in place of `kind`: a kind that took over another's recipe keeps the tracks it was tuned on. */
+  salt?: string;
   /** "free" rises and drops between events; "terraced" holds flat roof runs joined by short drops and long ramps back up. */
   profile: "free" | "terraced";
   /** A building under every flat run of deck. */
@@ -893,10 +895,12 @@ function zones_fit(zones: Zone[], helices: readonly Helix[], length: number): bo
   });
 }
 
+const salt_of = (recipe: SkyRecipe) => recipe.salt ?? recipe.kind;
+
 /** `plain` is the kind's own recipe, which a seed falls back to when the asked one finds no track. */
 export function sky_layout(seed: number, recipe: SkyRecipe = SKY, plain: SkyRecipe = SKY): SkyLayout {
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-    const rng = mulberry32(sub(seed, `${recipe.kind}:${attempt}`));
+    const rng = mulberry32(sub(seed, `${salt_of(recipe)}:${attempt}`));
     const pieces = draw_layout(rng, recipe);
     if (!pieces) continue;
     const { samples, length, error } = sample_layout(pieces);
@@ -918,7 +922,7 @@ export function sky_layout(seed: number, recipe: SkyRecipe = SKY, plain: SkyReci
     const toes = jump_toes(pieces, length, zones, recipe.gaps);
     if (!toes.length && recipe.gaps > 0) continue;
     for (let k = 0; k < PROFILE_TRIES; k++) {
-      const profile = draw_profile(mulberry32(sub(seed, `${recipe.kind}:profile:${attempt}:${k}`)), length, toes, helices, zones, STEPS[recipe.profile]);
+      const profile = draw_profile(mulberry32(sub(seed, `${salt_of(recipe)}:profile:${attempt}:${k}`)), length, toes, helices, zones, STEPS[recipe.profile]);
       if (!profile) continue;
       const climbs = climb(profile);
       const ys = samples.map((p) => height_at(profile, climbs, p.s).y);
@@ -940,8 +944,8 @@ export function sky_layout(seed: number, recipe: SkyRecipe = SKY, plain: SkyReci
 }
 
 /** Rail-free stretches on straights and wide flat arcs, clear of banks, tight bends and jumps. */
-function open_sections(seed: number, kind: WorldKind, samples: readonly Sample[], pieces: readonly PlanPiece[], length: number, share: SkyRecipe["open"], blocked: (s: number) => boolean): OpenSection[] {
-  const rng = mulberry32(sub(seed, `${kind}:open`));
+function open_sections(seed: number, salt: string, samples: readonly Sample[], pieces: readonly PlanPiece[], length: number, share: SkyRecipe["open"], blocked: (s: number) => boolean): OpenSection[] {
+  const rng = mulberry32(sub(seed, `${salt}:open`));
   const fit = (p: Sample) => {
     const piece = pieces[p.piece];
     return p.bank === 0 && (piece.kind === "straight" || Math.abs(1 / piece.curve) >= OPEN_RADIUS) && !blocked(p.s);
@@ -1061,7 +1065,7 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
   const pads = boost_pads(pieces, profile, toes, length, samples, built.pads);
   for (const p of pads) deck_pieces.push({ kind: "pad", s0: p.s0, length: PAD_LENGTH, curve: 0 });
   deck_pieces.sort((a, b) => a.s0 - b.s0);
-  const open = open_sections(seed, built.kind, samples, pieces, length, built.open, (s) => stacked(s) || toes.some((t) => s > t - JUMP_BEFORE - OPEN_CLEAR && s < t + jump.span + JUMP_AFTER));
+  const open = open_sections(seed, salt_of(built), samples, pieces, length, built.open, (s) => stacked(s) || toes.some((t) => s > t - JUMP_BEFORE - OPEN_CLEAR && s < t + jump.span + JUMP_AFTER));
   if (built.wall) {
     open.push(...wall_opens(pieces));
     open.sort((x, y) => x.s0 - y.s0);

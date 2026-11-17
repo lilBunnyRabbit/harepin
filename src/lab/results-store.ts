@@ -3,6 +3,7 @@ import { read_field_rows, type FieldRow } from "./field-rows";
 import type { TrialResult } from "./lab";
 import type { Pack, Resolved } from "./pack";
 import { MAX_LAPS, type Metrics } from "./recorder";
+import { pass_lines_of } from "./pass-trace";
 import { KeptTrace, trace_lines_of } from "./route-trace";
 
 export const results_key = (pack: Pack) => `${answers_key(pack)}.results`;
@@ -56,7 +57,7 @@ interface Stored {
   status: "done" | "stopped";
   metrics: Metrics;
   field?: FieldRow[];
-  /** A route trial's trace lines: a reload mid-pack keeps the drive, not just its numbers. */
+  /** A route trial's trace lines, or a race trial's passes: a reload mid-pack keeps the drive, not just its numbers. */
   trace?: string[];
 }
 
@@ -97,7 +98,7 @@ export function read_results(trials: readonly Resolved[], raw: unknown): TrialRe
     const { hash, status, metrics, field, trace } = row as Record<string, unknown>;
     const checked = metrics_of(metrics);
     const rows = field === undefined ? null : read_field_rows(field);
-    const lines = trace === undefined ? null : trace_lines_of(trace);
+    const lines = trace === undefined ? null : (trace_lines_of(trace) ?? pass_lines_of(trace));
     if (hash !== r.hash || (status !== "done" && status !== "stopped") || !checked || (field !== undefined && !rows) || (trace !== undefined && !lines)) return not_driven();
     return { status, metrics: checked, field: rows, trace: lines && new KeptTrace(lines) };
   });
