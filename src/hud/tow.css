@@ -52,10 +52,3 @@
 [data-tow="full"] .tow-arc {
   stroke-width: 4.5;
 }
-
-@media (pointer: coarse) {
-  /* The chip's rev bar lies along its foot: the line takes the same inset along its top. */
-  .tow-line {
-    bottom: calc(var(--control-h) - 2 * var(--gap-xs) - 2px - var(--tow-thick-full));
-  }
-}
