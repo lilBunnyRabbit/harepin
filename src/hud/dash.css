@@ -292,3 +292,7 @@
 :root[data-speedo="dial"] .assists {
   justify-self: stretch;
 }
+
+:root[data-scheme="light"] :is(.rpm, .nitro-tank, .aid-key) {
+  background: var(--row);
+}
