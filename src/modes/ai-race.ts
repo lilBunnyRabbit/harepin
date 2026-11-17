@@ -274,12 +274,14 @@ export class AiRace implements ModeRun, FieldRace {
     this.write_rows();
     const how = end === End.OUT && place > 1 ? `Out in ${ordinal(place)}` : end === End.TIME ? `${ordinal(place)} at the flag` : `${ordinal(place)} of ${field}`;
     const extra = this.host.event?.finish({ order, clean: !this.touched, led: this.led, fastest: this.laps > 1 && this.tally.fastest(player), from_back: this.grid === this.builds.length }) ?? [];
-    const laps = end === End.LINE ? line("laps", String(this.laps)) : line("laps done", String(this.lap - 1));
+    // A race run to the line did the laps it set; one cut short says how far it got.
+    const laps = end === End.LINE ? [] : [line("laps done", String(this.lap - 1))];
     this.result = {
       title: `${how} · ${this.name}`,
       stars: place === 1 ? 3 : place <= PODIUM ? 2 : 1,
       place,
-      lines: [line("race", this.name), line("finish", how), line("time", format(ms)), laps, ...extra],
+      name: this.name,
+      lines: [line("finish", how), line("time", format(ms)), ...laps, ...extra],
       standings: this.rows.map((r) => r.el),
     };
   }

@@ -199,7 +199,7 @@ test("picking the player's own car back ends the loan: a repaint on it stays aft
 test("the result card's Change car button opens the pick", async () => {
   const r = rig();
   await in_event(r, FIRST);
-  elements.get("mode-car")!.click();
+  r.modes.result_next.host.change_car();
   expect(r.asked).toBe(2);
   r.answer(SECOND);
   await settle();
@@ -281,21 +281,21 @@ test("a championship runs its stages back to back: Next goes on, a retry keeps t
 
   finish(0);
   expect(next.label).toBe("Retry stage");
-  expect(elements.get("mode-result-note")!.textContent).toBe("A stage needs 1★ to go on");
+  expect(next.note).toBe("A stage needs 1★ to go on");
   next.go();
   expect(r.starts).toEqual(["g1", "g2", "g2"]);
   expect(status.dataset.cup).toBe("Stage 2/3 · 10 pts");
 
   finish(1);
-  elements.get("mode-retry")!.click();
+  next.host.retry();
   expect(r.starts).toEqual(["g1", "g2", "g2", "g2"]);
   finish(2);
   next.go();
   expect(status.dataset.cup).toBe("Stage 3/3 · 16 pts");
 
   finish(3);
-  expect(elements.get("mode-result-title")!.textContent).toBe("Cup · 26 pts");
-  expect(next.label).toMatch(/^(Go|Travel to .+)$/);
+  expect(next.card?.stamp).toBe("Cup · 26 pts");
+  expect(next.label).toMatch(/^(Next: .+|Travel to .+)$/);
   expect(next.ticket?.eyebrow).toMatch(/^Next up · /);
   expect(career.stars["cup-test"]).toBe(3);
   globalThis.localStorage = kept;
@@ -315,7 +315,7 @@ test("a championship with a stand-in, or with a stage its streamed world refuses
   streamed.modes.play_event({ ...capped, id: "cup-far", level: "g1", stages });
   await settle();
   expect([r.asked, r.starts, streamed.asked, streamed.starts]).toEqual([0, [], 0, []]);
-  expect(elements.get("mode-result-note")!.textContent).toBe("This mode is not on this world yet");
+  expect([r.modes.result_next.note, streamed.modes.result_next.note]).toEqual(["This event is not on this map", "This mode is not on this world yet"]);
 });
 
 test("a stage that refuses to start mid-championship says the championship ended and its points", async () => {

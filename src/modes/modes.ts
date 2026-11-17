@@ -20,7 +20,7 @@ import { DUEL_MODE } from "./duel-mode";
 import { EventCar, held_car, type CarHooks } from "./event-car";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
 import { HUNT_MODE } from "./hunt-mode";
-import { CUP_RECORD, Cup, stage_points, type Stage } from "./championship";
+import { CUP_RECORD, Cup, type Stage } from "./championship";
 import { JUMP_MODE } from "./jump-mode";
 import { Hits } from "./hits";
 import type { DrawnGround } from "./marks";
@@ -29,8 +29,8 @@ import { PARKING_MODE } from "./parking-mode";
 import type { RunPlay } from "../runs/run-play";
 import { RACE_MODE } from "./race-mode";
 import { level_route, race_levels } from "./races";
-import { go_label, line, next_ticket, run_text, stamp_text, star_row } from "./result";
-import { ResultNextView } from "./result-next.svelte";
+import { line, next_label, next_ticket, run_text, stage_rows, stamp_text } from "./result";
+import { ResultNextView, type ResultCard } from "./result-next.svelte";
 import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
 import { atan2 } from "../sim-math";
@@ -147,21 +147,14 @@ export class Modes implements CarHooks {
     status_clock: $("mode-status-clock"),
     status_slots: { place: $("mode-status-place"), lap: $("mode-status-lap"), gap: $("mode-status-gap"), gates: $("mode-status-gates") },
     result: $("mode-result"),
-    kind: $("mode-result-kind"),
-    title: $("mode-result-title"),
-    result_stars: $("mode-result-stars"),
-    lines: $("mode-result-lines"),
-    standings: $("mode-result-standings"),
-    note: $("mode-result-note"),
-    unlock: $("mode-result-unlock"),
-    retry: $("mode-retry", HTMLButtonElement),
-    try_on: $("mode-try", HTMLButtonElement),
-    car: $("mode-car", HTMLButtonElement),
   };
-  readonly result_next = new ResultNextView(
-    () => this.play_next(),
-    () => this.exit(),
-  );
+  readonly result_next = new ResultNextView({
+    go: () => this.play_next(),
+    leave: () => this.exit(),
+    retry: () => this.restart(),
+    change_car: () => void this.change_car(),
+    try_on: () => this.reward && this.try_reward?.(this.reward),
+  });
 
   /** `?debug&at=`: the point along its route a race run starts on. */
   route_at = 0;
@@ -274,9 +267,6 @@ export class Modes implements CarHooks {
   start() {
     this.abort = new AbortController();
     const { signal } = this.abort;
-    this.el.retry.addEventListener("click", () => this.restart(), { signal });
-    this.el.try_on.addEventListener("click", () => this.reward && this.try_reward?.(this.reward), { signal });
-    this.el.car.addEventListener("click", () => void this.change_car(), { signal });
   }
 
   stop() {
@@ -659,8 +649,7 @@ export class Modes implements CarHooks {
   // The status line hides behind the result card, so a refused Next or Retry says why on the card itself.
   private notice(text: string) {
     if (!this.el.result.hidden) {
-      this.el.note.textContent = text;
-      this.el.note.hidden = false;
+      this.result_next.note = text;
       return;
     }
     this.notice_status.name = text;
@@ -697,91 +686,65 @@ export class Modes implements CarHooks {
   }
 
   private show_result(finish: Finish, active: Active) {
-    const { el } = this;
+    const { el, result_next } = this;
     const { levels, track } = active.mode;
     const cup = active.cup?.cup ?? null;
     cup?.score(finish.stars);
     // No time of its own: a championship ranks by its points, which the career page shows.
     if (cup?.done && cup.stars) active.track.record(CUP_RECORD, { stars: cup.stars, ms: 1, score: cup.total });
     const stars = cup?.done ? cup.stars : finish.stars;
-    el.kind.textContent = active.mode.def.name;
-    el.title.textContent = cup?.done && active.event ? `${active.event.name} · ${cup.total} pts` : stamp_text(finish);
-    el.result_stars.replaceChildren(star_row(stars));
-    el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
-    el.lines.replaceChildren(...finish.lines);
-    el.note.hidden = true;
-    el.unlock.replaceChildren();
+    const summed = Boolean(cup?.done && active.event);
+    const card: ResultCard = {
+      eyebrow: active.mode.def.name,
+      title: finish.name ?? active.event?.name ?? active.level.name,
+      stamp: summed && active.event && cup ? `${active.event.name} · ${cup.total} pts` : stamp_text(finish),
+      placed: !summed && finish.place !== undefined,
+      stars,
+      lines: [...finish.lines],
+      table: active.cup ? { title: "Stages", rows: stage_rows(active.cup.cup, active.cup.legs.map((leg) => leg.level.name)) } : finish.standings ? { title: "Finish order", rows: finish.standings } : null,
+      unlock: [],
+      can_change_car: this.can_change_car,
+      can_try: false,
+    };
     this.reward = null;
-    el.try_on.hidden = true;
-    el.car.hidden = !this.can_change_car;
-    el.standings.hidden = !active.cup && !finish.standings;
-    if (active.cup) this.show_standings(active.cup);
-    else if (finish.standings) el.standings.replaceChildren(...finish.standings);
+    result_next.note = "";
     if (cup && !cup.done) {
-      this.result_next.show(cup.cleared ? NEXT_STAGE : RETRY_STAGE);
-      if (!cup.cleared) {
-        el.note.textContent = STAGE_NEEDS_STAR;
-        el.note.hidden = false;
-      }
-    } else if (active.play) this.show_play(active.play, stars, cup?.total);
-    else if (active.event) this.show_event(active.event, stars);
-    else if (active.series?.event) this.result_next.show(active.series.event.next.label);
+      result_next.show(cup.cleared ? NEXT_STAGE : RETRY_STAGE);
+      if (!cup.cleared) result_next.note = STAGE_NEEDS_STAR;
+    } else if (active.play) this.show_play(active.play, card, cup?.total);
+    else if (active.event) this.show_event(active.event, card);
+    else if (active.series?.event) result_next.show(active.series.event.next.label);
     else {
       const index = levels.findIndex((level) => level.id === active.level.id);
       const after = levels[index + 1]?.id;
-      if (after === undefined) this.result_next.hide();
-      else this.result_next.show(NEXT_LEVEL, !track.is_open(after) || this.left_out(after));
+      if (after === undefined) result_next.hide();
+      else result_next.show(NEXT_LEVEL, !track.is_open(after) || this.left_out(after));
     }
+    result_next.card = card;
     el.result.hidden = false;
     this.on_finish?.(active.mode.def.id);
     if (!finish.quiet) this.chime();
   }
 
-  private show_event(event: CareerEvent, stars: number) {
-    const { el, career } = this;
+  private show_event(event: CareerEvent, card: ResultCard) {
+    const { career } = this;
     const before = career.stars;
-    career.record(event, stars);
+    career.record(event, card.stars);
     const won = earned(before, career.stars, tier_of(event));
-    if (won.length) el.unlock.append(unlock_card(won));
+    if (won.length) card.unlock.push(unlock_card(won));
     this.reward = garage_reward(won);
-    el.try_on.hidden = this.reward === null;
-    el.lines.append(line("career", tier_line(career.stars, tier_of(event))));
+    card.can_try = this.reward !== null;
+    card.lines.push(line("career", tier_line(career.stars, tier_of(event))));
     const next = next_event(career.stars, event);
     if (!next) return this.result_next.hide();
     const ticket = next_ticket(next, this.world, mode_name(next));
-    this.result_next.show(go_label(ticket.place), false, ticket);
+    this.result_next.show(next_label(ticket), false, ticket);
   }
 
-  private show_play(play: RunPlay, stars: number, total?: number) {
-    const { el } = this;
-    el.lines.append(...play.finish(stars, total));
+  private show_play(play: RunPlay, card: ResultCard, total?: number) {
+    card.lines.push(...play.finish(card.stars, total));
     if (play.next) this.result_next.show(play.next.label);
     else this.result_next.hide();
-  }
-
-  private show_standings({ cup, legs }: CupRun) {
-    const rows = legs.map((leg, i) => {
-      const stars = cup.results[i];
-      const row = document.createElement("li");
-      row.dataset.now = String(i === cup.index);
-      const place = document.createElement("span");
-      place.className = "dim";
-      place.textContent = String(i + 1);
-      const name = document.createElement("span");
-      name.textContent = leg.level.name;
-      const score = document.createElement("b");
-      score.textContent = stars === null ? "--" : `${stage_points(stars)} pts`;
-      row.append(place, name, score, stars === null ? document.createElement("span") : star_row(stars));
-      return row;
-    });
-    const total = document.createElement("li");
-    total.className = "cup-total";
-    const label = document.createElement("span");
-    label.textContent = "Total";
-    const sum = document.createElement("b");
-    sum.textContent = `${cup.total} pts`;
-    total.append(label, sum);
-    this.el.standings.replaceChildren(...rows, total);
   }
 
   mode_list(): ModeEntry[] {
