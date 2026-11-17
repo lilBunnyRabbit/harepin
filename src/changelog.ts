@@ -51,6 +51,18 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.61.0",
+    date: "2026-11-17",
+    title: "One game, one look",
+    changes: [
+      { kind: NEW, text: "A rebuilt menu: Title, Home, Events with the Series first, Garage, Online and Settings all share one frame, with one Back and one main button" },
+      { kind: NEW, text: "Every event opens a start card, then the car picker, then the race; results lead straight to the next Series round" },
+      { kind: NEW, text: "Neon underglow for your car: a ground glow or a ring, in your theme's colours" },
+      { kind: IMPROVED, text: "Driving HUD: pick the minimap and the speedometer, and on phone the car stays clear with a real handbrake pad" },
+      { kind: IMPROVED, text: "Menus work upright on phones, and an installed app turns back to landscape by itself after a reload" },
+    ],
+  },
+  {
     version: "0.60.0",
     date: "2026-11-17",
     title: "Road lights",
