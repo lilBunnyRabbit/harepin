@@ -41,6 +41,11 @@ export interface Lap {
   path: Path;
   corners: Corner[];
   length: number;
+  /** Metres of the pit straight, both sides of the line, and of the back straight: the longest on the lap. */
+  pit: number;
+  back: number;
+  /** The corner the back straight brakes into. */
+  brakes: Corner;
   /** The draw that made it; ATTEMPTS when the fallback seed's lap stands in. */
   attempt: number;
 }
@@ -93,7 +98,7 @@ function ordered(next: () => number, list: Turn[]): Turn[] | null {
   return list.some((t, i) => t.kind === Corner.HAIRPIN && list[i + 1]?.kind === Corner.HAIRPIN) ? null : list;
 }
 
-function draw(next: () => number): { pieces: Piece[]; corners: Corner[] } | null {
+function draw(next: () => number): { pieces: Piece[]; corners: Corner[]; back: number } | null {
   const range = (lo: number, hi: number) => lo + (hi - lo) * next();
   const straight = (s: { draw: readonly [number, number]; min: number; max: number }): Piece => ({ kind: "straight", length: range(s.draw[0], s.draw[1]), min: s.min, max: s.max });
   const dir = next() < 0.5 ? 1 : -1;
@@ -110,7 +115,7 @@ function draw(next: () => number): { pieces: Piece[]; corners: Corner[] } | null
     pieces.push(...turn.pieces);
   });
   pieces.push(straight(PIT_BEHIND));
-  return { pieces, corners: order.map((t) => t.kind) };
+  return { pieces, corners: order.map((t) => t.kind), back };
 }
 
 interface Trace {
@@ -235,6 +240,10 @@ function attempt(seed: number, k: number): Omit<Lap, "attempt"> | null {
   if (!close(pieces, first.headings, first.x, first.z)) return null;
   const length = pieces.reduce((sum, p) => sum + (p.kind === "straight" ? p.length : Math.abs(p.angle) * p.radius + ease_of(p.radius, Math.abs(p.angle) * p.radius)), 0);
   if (length < LAP_LENGTH[0] || length > LAP_LENGTH[1]) return null;
+  const straights = pieces.flatMap((p) => (p.kind === "straight" && p.max > p.min ? [p.length] : []));
+  const pit = straights[0] + straights[straights.length - 1];
+  const back = straights[drawn.back];
+  if (pit >= back) return null;
   const closed = trace(pieces, heading);
   if (Math.abs(closed.x) > CLOSED || Math.abs(closed.z) > CLOSED) return null;
   const dense = closed.points.slice(0, -1);
@@ -252,7 +261,7 @@ function attempt(seed: number, k: number): Omit<Lap, "attempt"> | null {
   const cx = (x0 + x1) / 2;
   const cz = (z0 + z1) / 2;
   const path = resample(dense.map(([x, z]): [number, number] => [x - cx, z - cz]), STEP, true);
-  return crowded(path) ? null : { path, corners, length };
+  return crowded(path) ? null : { path, corners, length, pit, back, brakes: corners[drawn.back] };
 }
 
 export function raceway_lap(seed: number): Lap {

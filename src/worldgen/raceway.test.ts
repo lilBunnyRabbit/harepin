@@ -85,6 +85,23 @@ test("every lap has a hairpin, esses and a sweeper onto the pit straight", () =>
   }
 });
 
+test("the longest straight is the back straight, and it brakes into a hairpin or the chicane", () => {
+  for (const { path, pit, back, brakes } of laps) {
+    expect(back).toBeGreaterThan(pit);
+    expect(brakes === Corner.HAIRPIN || brakes === Corner.CHICANE).toBe(true);
+    const n = path.length;
+    const bent = path.map((_, i) => radius(path, i, 3) < 5000);
+    const from = bent.indexOf(true);
+    let longest = 0;
+    let run = 0;
+    for (let k = 1; k <= n; k++) {
+      run = bent[(from + k) % n] ? 0 : run + 1;
+      longest = Math.max(longest, run);
+    }
+    expect(Math.abs(longest * 2 - back)).toBeLessThan(16);
+  }
+});
+
 test("the pit straight is straight for the grid behind the line and well past it", () => {
   for (const { path } of laps) for (let k = -GRID; k <= GRID; k++) expect(radius(path, (k + path.length) % path.length, 3)).toBeGreaterThan(5000);
 });
