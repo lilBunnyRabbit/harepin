@@ -12,8 +12,9 @@ test("a bare URL resumes the last pick", () => {
   expect(pick_world(url(""), "lobby", saved)).toEqual({ seed: 4242, kind: WorldKind.SKY, code: null });
 });
 
-test("a new player starts on the room's mainland", () => {
-  expect(pick_world(url(""), "lobby", none)).toEqual({ seed: seed_of("lobby"), kind: WorldKind.MAINLAND, code: null });
+test("a new player starts on the first flag's map, whatever the room", () => {
+  expect(pick_world(url(""), "lobby", none)).toEqual({ seed: seed_of("lobby"), kind: WorldKind.ISLAND, code: "1C0000003" });
+  expect(pick_world(url(""), "pals", none).code).toBe("1C0000003");
 });
 
 test("a player from before the mainland, with nothing picked, stays on the island", () => {

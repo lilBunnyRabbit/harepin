@@ -1,4 +1,4 @@
-import { EVENT_PARAM, event_of, spot_of } from "../career/career";
+import { EVENT_PARAM, event_of, spot_of, suggested } from "../career/career";
 import { parse_seed } from "../net/seed";
 import { seed_of } from "../rng";
 import { LOBBY_ROOM } from "../net/room-name";
@@ -22,8 +22,8 @@ export interface SavedPick {
   played: boolean;
 }
 
-/** What a first load drives, with nothing saved and nothing in the URL. */
-export const NEW_PLAYER_KIND: WorldKind = WorldKind.MAINLAND;
+/** What a first load drives, with nothing saved and nothing in the URL: the first flag's map, so the first run ends on a drive to it. */
+export const NEW_PLAYER_MAP = spot_of(suggested({}, 1)[0]).map;
 /** The mainland a player drives before picking one: the same for everyone, so the open lobby meets there. */
 export const MAINLAND_SEED = seed_of(LOBBY_ROOM);
 
@@ -37,7 +37,8 @@ export const names_world = (params: URLSearchParams) => URL_WORLD_PARAMS.some((p
 
 /**
  * The world this load drives. A URL that names a room, seed or world (an invite, a joined server, a room link) wins
- * whole, so a friend's room never opens on your map; a bare URL resumes the last pick; the room's own map comes last.
+ * whole, so a friend's room never opens on your map; a bare URL resumes the last pick, or with nothing ever saved
+ * drives the new player's map; the room's own map comes last.
  */
 export function pick_world(params: URLSearchParams, room: string, saved: SavedPick): WorldPick {
   if (names_world(params)) {
@@ -54,8 +55,8 @@ export function pick_world(params: URLSearchParams, room: string, saved: SavedPi
     const code = map !== null ? map : seed !== null && opts !== null && K2_OPTS.test(opts) ? `${seed}-${opts}` : null;
     return { seed: seed ?? seed_of(room), kind: parse_kind(params.get("world")), code };
   }
-  const kind = saved.last_world ?? (saved.played ? DEFAULT_KIND : NEW_PLAYER_KIND);
-  return { seed: saved.last_seed ?? seed_of(room), kind, code: saved.last_world === null ? null : saved.last_map };
+  if (!saved.played) return { seed: seed_of(room), kind: DEFAULT_KIND, code: NEW_PLAYER_MAP };
+  return { seed: saved.last_seed ?? seed_of(room), kind: saved.last_world ?? DEFAULT_KIND, code: saved.last_world === null ? null : saved.last_map };
 }
 
 /** The mainland Play shows and drives: the one being driven, else the last one picked, else everyone's. */

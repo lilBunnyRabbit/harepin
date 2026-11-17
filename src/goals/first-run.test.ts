@@ -89,3 +89,20 @@ test("on the flag's own map reaching it ends the first run with its toast", () =
   expect(toasts).toEqual(["flag"]);
   expect(view.shown).toBe(false);
 });
+
+test("a fresh profile on the first flag's map takes the three steps in order: drive, steer, reach the flag", () => {
+  const flag: Flag = { distance: 80, turn: 0, away: false };
+  const { goals, toasts, view } = fresh(flag);
+  view.update(0, 0, true);
+  expect(strip(view)).toContain("Reach the flag");
+  expect(view.step).toBe(0);
+  view.update(9, 0, true);
+  expect(view.step).toBe(1);
+  view.update(9, 0.7, true);
+  expect(view.step).toBe(2);
+  expect(goals.is_done(GoalId.FLAG)).toBe(false);
+  flag.distance = 20;
+  view.update(9, 0.7, true);
+  expect(toasts).toEqual(["flag"]);
+  expect(view.shown).toBe(false);
+});

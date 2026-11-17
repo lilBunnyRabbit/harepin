@@ -6,6 +6,7 @@ import { map_code } from "../worldgen/kinds/map-code";
 import { SPAWN_INDEX } from "../worldgen/types";
 import { EVENTS, TIERS } from "./career";
 import { event_map } from "./career-store";
+import { NEW_PLAYER_MAP } from "../world/world-pick";
 import { MARKER_REACH, arrival, event_markers, marker_at, marker_open, type Pose } from "./markers";
 
 const ISLAND = "1C0000003";
@@ -109,4 +110,15 @@ test("a race whose road starts at its line still stops the car before the flag",
     expect(short_of(car, m)).toBeGreaterThan(4);
     expect(Math.abs(wrap(ahead(car, m.x, m.z)))).toBeLessThan(Math.PI / 4);
   }
+});
+
+test("a new player's map spawns the car on the road a short drive before its first flag, facing it", () => {
+  expect(map_code(map)).toBe(NEW_PLAYER_MAP);
+  const p = world.road[world.clear_spawn(SPAWN_INDEX)];
+  const car = { x: p.x, z: p.z, heading: Math.atan2(p.tx, p.tz) };
+  const [first] = markers;
+  const away = Math.hypot(first.x - car.x, first.z - car.z);
+  expect(away).toBeGreaterThan(40);
+  expect(away).toBeLessThan(120);
+  expect(short_of(car, first)).toBeGreaterThan(40);
 });

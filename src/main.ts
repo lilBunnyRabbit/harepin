@@ -138,8 +138,8 @@ const net_room = solo ? `solo-${[...crypto.getRandomValues(new Uint8Array(4))].m
 const RECORDS_WAIT_MS = 1500;
 const saved_pick = read_saved_pick();
 const pick = pick_world(params, room, saved_pick);
-pin_pick(params, saved_pick, pick);
 const map = read_pick(pick);
+pin_pick(params, saved_pick, map);
 const { seed, kind } = map;
 const prefs = load_settings(params);
 const random_name = kept_random_name();

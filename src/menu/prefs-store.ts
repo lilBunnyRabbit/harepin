@@ -2,7 +2,9 @@ import { BUILD_KEY } from "./garage-builds";
 import { THEME_KEY } from "../theme/theme";
 import { DEFAULT_SETTINGS, parse_settings, type SettingsState } from "./prefs";
 import { SETTINGS_KEY } from "./saved-pick";
-import { names_world, type SavedPick, type WorldPick } from "../world/world-pick";
+import { names_world, type SavedPick } from "../world/world-pick";
+import type { MapSpec } from "../worldgen/kinds/kinds";
+import { custom_code } from "../worldgen/kinds/map-code";
 
 export function read_saved(): SettingsState {
   try {
@@ -32,10 +34,10 @@ function with_overrides(saved: SettingsState, params: URLSearchParams): Settings
   });
 }
 
-/** A bare first load saves the world it drove, so a later change of default never moves a player who has played. */
-export function pin_pick(params: URLSearchParams, saved: SavedPick, { seed, kind }: WorldPick) {
+/** A bare first load saves the map it drove, so a later change of default never moves a player who has played. */
+export function pin_pick(params: URLSearchParams, saved: SavedPick, map: MapSpec) {
   if (saved.last_world !== null || names_world(params)) return;
-  write_saved({ ...read_saved(), last_world: kind, last_seed: seed });
+  write_saved({ ...read_saved(), last_world: map.kind, last_seed: map.seed, last_map: custom_code(map) });
 }
 
 export function load_settings(params = new URLSearchParams(location.search)): SettingsState {
