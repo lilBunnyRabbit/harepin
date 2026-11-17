@@ -45,6 +45,22 @@ describe("AI awareness", () => {
     expect(drivers[2].cap).toBeLessThan(20);
   });
 
+  test("a car ahead on the pace deeper into a braking zone does not hold the follower to its speed there; one well under the pace does", () => {
+    const line = race_line(ring(800), [], COUPE.radius);
+    line.speed.fill(60);
+    line.speed.fill(40, 120, 140);
+    const drivers = [new Driver(line), new Driver(line)];
+    const cars = drivers.map(() => new Car(COUPE));
+    const awareness = new Awareness(cars, drivers, () => 0);
+    put(line, cars[0], drivers[0], 125, 0, 40);
+    put(line, cars[1], drivers[1], 100, 0, 55);
+    awareness.update(0.05);
+    expect(drivers[1].cap).toBeGreaterThan(60);
+    put(line, cars[0], drivers[0], 125, 0, 20);
+    awareness.update(0.05);
+    expect(drivers[1].cap).toBeLessThan(30);
+  });
+
   test("a car beside its lane now, on the path it is easing onto, caps it", () => {
     const line = race_line(ring(800), [], COUPE.radius);
     const drivers = [new Driver(line), new Driver(line)];
