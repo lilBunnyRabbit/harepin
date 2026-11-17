@@ -3,7 +3,7 @@ import { axle_index, axles_of } from "./axles";
 import { rest_reach, type Car } from "./car";
 import { DEFAULT_PARTS, build_spec, part_of, type Build, type Look, type Slot } from "./build";
 import { CARS, COUPE, is_car, type CarSpec, type Triple } from "./cars";
-import { body_pieces, body_slabs, cabin_parts, flares, on_glass, sculpt, sculpt_factor, side_panel, skirts, wells } from "./body-shell";
+import { body_pieces, body_slab, cabin_parts, flares, on_glass, sculpt, sculpt_factor, side_panel, skirts, wells } from "./body-shell";
 import { DETAILS } from "./car-details";
 import { detail_look, type DetailLook } from "./detail-looks";
 import { CAR_ORDER, ground_ride } from "./contact-shadow";
@@ -21,6 +21,7 @@ import { brand, color, dark, mix, tones } from "../theme/palette";
 import { sky_ceiling } from "../render/sky";
 import type { Lab } from "../theme/theme";
 import { asin, hypot } from "../sim-math";
+import { finish, type Steps } from "./steps";
 
 /** A suspension arm hinged on the body, swung so its outer end follows its wheel. */
 export interface ArmSwing {
@@ -72,7 +73,12 @@ export interface ArchLimit {
 }
 
 export function build_view(build: Build, spec: CarSpec = build_spec(build)): CarView {
-  return car_view(color(paint_lab(build.paint)), spec, build.parts, livery_of(build), paint_finish(build.paint), neon_look(build));
+  return finish(view_steps(build, spec));
+}
+
+/** `build_view` in steps, for a caller that spreads the build over frames: a whole car is a long task on a phone. */
+export function view_steps(build: Build, spec: CarSpec = build_spec(build)): Steps<CarView> {
+  return car_view_steps(color(paint_lab(build.paint)), spec, build.parts, livery_of(build), paint_finish(build.paint), neon_look(build));
 }
 
 const TONE_MATCH = 1e-4;
@@ -253,7 +259,12 @@ export function body_y(spec: CarSpec): number {
 }
 
 // Paint, trim, glass and decals are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.
-export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<Slot, number> = DEFAULT_PARTS, livery: Livery | null = null, finish: Finish | null = null, neon: NeonLook | null = null): CarView {
+export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<Slot, number> = DEFAULT_PARTS): CarView {
+  return finish(car_view_steps(paint, spec, kit, null, null, null));
+}
+
+// Each `yield` sits between whole pieces, never inside one, so cars built in turns share no scratch state.
+function* car_view_steps(paint: THREE.Color, spec: CarSpec, kit: Record<Slot, number>, livery: Livery | null, finish: Finish | null, neon: NeonLook | null): Steps<CarView> {
   const aero = aero_of(kit);
   const { d, detail } = fitted_design(spec, kit, paint, color(tones.trim));
   const root = new THREE.Group();
@@ -272,46 +283,75 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const tyre = part_of("tyres", kit.tyres).look?.tyre ?? (d.tread ? { ...STOCK_TYRE, tread: d.tread } : STOCK_TYRE);
   const fitted = fitted_tyres(d, spec, tyre);
   const lips = flares(d, spec);
+  yield;
   const shell_body = merge(body_pieces(d, spec).map((piece) => extrude(piece, d.width)));
   const cabin = merge(cabin_parts(d.cabin, paint, glass));
-  const hull_base = merge(
-    painted_shell([d.taper ? taper(shell_body, d.taper.from, tail, d.taper.share) : shell_body, ...body_slabs(d, spec)], d, spec, paint, well),
+  yield;
+  const slabs: THREE.BufferGeometry[] = [];
+  for (const slab of d.slabs ?? []) {
+    slabs.push(...body_slab(d, spec, slab));
+    yield;
+  }
+  const painted_body = painted_shell([d.taper ? taper(shell_body, d.taper.from, tail, d.taper.share) : shell_body, ...slabs], d, spec, paint, well);
+  yield;
+  const openings = [
     lips.lips.map((g) => tint(g, arch_tone)),
     lips.walls.map((g) => tint(g, well)),
     wells(d, spec, Math.max(...fitted.map((look) => look.width))).map((g) => tint(g, well)),
     // The sill strip runs between wheel openings: a body without them (a tub, pontoons, a cage) has no sill to trim, and
     // an aero kit's sills are its own shell or band, and a side pipe takes the strip's place.
     (d.arches.steps === 0 || aero.skirts || detail.swaps.has("sill") ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
+  ];
+  yield;
+  const fittings = [
     parts([...d.paint, ...(d.mirror?.paint ?? [])]).map((g) => tint(g, paint)),
     parts([...d.trim, ...(d.mirror?.trim ?? [])]).map((g) => tint(g, trim)),
     parts(livery && livery.decal !== "none" ? [] : (d.stripes ?? [])).map((g) => tint(g, trim)),
     parts(stripped ? [] : d.markers).map((g) => tint(g, color(brand.warning))),
     parts(stripped ? [] : d.chrome).map((g) => tint(g, chrome_tone())),
-  );
+  ];
+  yield;
+  const hull_base = merge(painted_body, ...openings, ...fittings);
   // Decals are laid on the body as drawn, cabin included, then sculpted with it; the cabin itself keeps its width.
   const base = merge(hull_base, cabin);
   const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), back(base, paint), nose, tail) : [];
-  const shell = merge(sculpt(merge(hull_base, rear_wing(d, aero, paint, trim), aero_parts(d, spec, aero, paint, trim, detail.swaps), kit_parts(d, kit, paint, trim, detail.swaps), detail.body, decals), d), cabin, on_glass(d.cabin, detail.glass));
+  yield;
+  const wing = rear_wing(d, aero, paint, trim);
+  const aero_kit = aero_parts(d, spec, aero, paint, trim, detail.swaps);
+  yield;
+  const fitted_kit = kit_parts(d, kit, paint, trim, detail.swaps);
+  const drawn = merge(hull_base, wing, aero_kit, fitted_kit, detail.body, decals);
+  yield;
+  const shell = merge(sculpt(drawn, d), cabin, on_glass(d.cabin, detail.glass));
+  yield;
   const matte = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   matte.onBeforeCompile = roll_off;
   const [painted, rest] = finish ? split_tone(shell, paint) : [null, shell];
   const hull = new THREE.Mesh(rest, matte);
   hull.castShadow = true;
   if (painted && finish) body.add(metal_hull(painted, finish));
+  yield;
 
   const { heads, tails, brake } = lamps(d);
   sculpt(heads.geometry, d);
   sculpt(tails.geometry, d);
   const pods = popup(d, heads, paint, trim, matte);
+  yield;
   const jet = { sway: { value: 0 }, flicker: { value: 0 } };
   const flame = nitro_flame(d, jet);
   body.add(hull, pods?.pivot ?? heads, tails, flame);
   root.add(body);
+  yield;
 
   const caliper = part_of("brakes", kit.brakes).look?.caliper ?? (d.caliper ? { ...STOCK_CALIPER, tone: d.caliper } : STOCK_CALIPER);
   const axles = axles_of(spec);
-  const tyres = [0, 1].map((axle) => wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, fitted[axle]));
+  const tyres: THREE.BufferGeometry[] = [];
+  for (const axle of [0, 1]) {
+    tyres.push(wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, fitted[axle]));
+    yield;
+  }
   const brakes = [0, 1].map((axle) => brake_geometry(spec.wheel.radius, d.tyre[axle], d.rim, fitted[axle], caliper));
+  yield;
   const wheel_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   const wheel_axles = spec.wheel.mounts.map((_, i) => axle_index(axles, i));
   const wheels = wheel_axles.map((axle, i) => {
@@ -349,6 +389,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     const reach = hypot(dx, dz);
     return { group, axis: new THREE.Vector3(-dz / reach, 0, dx / reach), reach, rest: arm_rest };
   });
+  yield;
   const arch: ArchLimit = {
     reach: d.arches.steps === 0 ? -Infinity : rest_reach(stock_of(spec)) - d.arches.gap + ARCH_KEEP,
     y: body.position.y,
