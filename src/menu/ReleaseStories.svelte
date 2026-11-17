@@ -24,7 +24,7 @@
 
 {#if lead}
   <div class="stories">
-    <Card variant="raised" class="stories-lead" label={`What's new in v${lead.release.version}`}>
+    <Card class="stories-lead" label={`What's new in v${lead.release.version}`}>
       <ReleaseBanner story={lead.story} />
       <div class="stories-lead-body">
         <p class="stories-meta">
@@ -82,7 +82,7 @@
     display: flex;
     gap: var(--space-2);
     margin: 0;
-    color: var(--set-dim);
+    color: var(--dim);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
   }
@@ -131,7 +131,7 @@
   }
 
   .stories-row-text small {
-    color: var(--set-dim);
+    color: var(--dim);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
   }

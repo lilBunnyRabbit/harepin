@@ -257,7 +257,7 @@ Road screens:
 | Screen | Mockup | `origin/master` today | Verdict | Port from ui-old |
 |---|---|---|---|---|
 | Race HUD (`S.hud`) | Top card (event, place, lap, gap, time), pause button top-right, map card bottom-left with "Next gate", speed card bottom-right (speed, gear, rev bar, aid chips) | `hud/hud.ts`, `dash.css`, `corner.css`, `top-bar.css`, `run-card.css`, `aids.css`; four layouts (`HudLayout`), `DashPlace`, `MapCorner` | rebuild the CSS, keep `hud.ts`'s per-frame writes | `24e1b36` (aid chips without key caps), `ad78750` (a run's card leaves with the run) |
-| Minimap and speedometer variants | See 8.4 | `minimap.ts` (`full`, `close`), `pace-card.ts`, `SpeedoStyle` ring / bar | adjust | none |
+| Minimap and speedometer variants | See 8.4 | `minimap.ts` (`full`, `close`), `SpeedoStyle` ring / bar | adjust | none |
 | Free roam (`S.roam`) | Next up ticket top-left (arrow, eyebrow, title, place line with distance), online chip + pause, map and speed cards | `hud/NextUp.svelte`, `next-up.ts`, `ui/Ticket.svelte` | adjust | `98b628b`, `926dbaf`, `52b7e89` (the ticket hides while a gate card is open) |
 | Phone touch (`touchHud`) | Steer pads left, Brake and Gas right, speed card bottom centre, map top-left | `hud/touch.ts`, `touch.css`, `phone.css`, `index.html` `#touch` | adjust, see 8.4 | none |
 | Gate (`S.gate`) | One card: eyebrow, title, place line, star times, car row with class badge; link Enter Change car, primary Hold Enter "Start in <car>" | `career/GateCard.svelte`, `gate-card.svelte.ts` | adjust | `ecf54a6` (preselects the driven car), `234b57a` (docks clear of pause), `a16b485`, `b246196`, `06a98ca` |
@@ -394,3 +394,55 @@ Things in the mockups that need a new state layer, new data or engine work. The 
 - D9: drop the HUD layouts and `dash` / `map_corner`; keep one HUD with Minimap, Speedometer and HUD size settings.
 - D12: no part prices. Garage shows Fitted / Fits / Over class only.
 - D13: drop the 7-step guide tour, teach on the road. The owner still wants a guided pass through the key settings, so the first run gets one skippable "Set up" step after the name: theme, handling (assists / steering feel), controls. Each choice previews live. The first-steps goals then include "Try a theme" and "Tune your handling", which point into Settings.
+
+### 8.7 Batch 0 notes (2026-11-17)
+- 0a done d3cf15a..53d82f3 (`?showcase=ui`). Lanes size from the frame tokens (`--pad`, `--gap*`, `--row-h`, `--type-*`), never raw `--space-*`. KeyButton `size` and Card `variant`, plus PlaceChip, stay only until 2c/2d move their callers; delete them in batch 3.
+- 0c done 1c37564..e42b1ab: travel, Series always on, gate preselect, pause door. Left for the UI lanes: travel-card.ts + its boot hook (2c), the result card lines in modes.ts (2d), the Series door (1b), the AI difficulty row (2b).
+- D2 decided: no "start on arrival". Lane 2c drops `GO_PARAM` / `travel.go`; Enter (hold) starts.
+- D5: `travel_query(…, taken)` passes `false` until the launch work (1b) passes `true` after the picker.
+- 1d done 65fae17..8bcb4f6: one HUD; Minimap Realistic / Race line / Close-up / Notes / Off; Speedometer Bar / Dial; phone keeps the centre third clear; round 52 px handbrake pad. Left for later lanes: AI rivals on the minimap (only net cars today) and close-up lighting only the route ahead (needs `RouteRun` progress), both in 2c; top card restyle to `hud-top` in batch 3. Every lane builds its preview into its own scratch folder (`scratchpad/<task>/dist`), never a shared `dist`.
+- 0b done 5de4a3c..9d74d87. **Page contract for every lane:**
+  - a page renders `src/menu/MenuFrame.svelte` (`menu`, its own `id`, frame snippets);
+  - a child page registers with `layout: "frame"`;
+  - stage panels are marked `data-stage-panel` + `--stage-side`;
+  - use `Menu.back()` / `up_of()` / `MenuPage.back`;
+  - Title needs only its page (room `title` is in `STAGE_ROOMS`).
+  Old Play/Garage/Online/Settings/Support/Career are unmounted until their lanes land, so nothing ships from master before batch 2 ends. Garage's old `<canvas class="garage-canvas">` goes with 1c. Owners still needed: the frame chips (name, room, update).
+- 1a done 0635bfa..e609806: boot lands on Title; Home, Maps and Make are rebuilt. Follow-ups:
+  - Home "C Car" opens the picker once 1c's CarPicker ask lands; Home starts go through the start sheet once 1b lands (wire it in batch 3 if no lane takes it);
+  - cap the Home ticket at 60% height on wide screens (§1.4), batch 3;
+  - Raceway has no Make values yet (`options: []`): its own worldgen task;
+  - Saved maps left Make: owner question;
+  - `maps.ts` `elsewhere` / `distance_text` stay for 2c;
+  - page classes carry a page prefix (`home-`, `maps-`), since bare `.title` / `.name` leak from old global CSS.
+- 1b done b75843d..e928b04: Events (Series card, Career and Runs doors), Career (`tiers`), Runs, Build a run (`run-build`), Series view, Free modes, Things to try, all on `MenuFrame`. **Start sheet for every lane:**
+  - a page keeps `let target = $state.raw<StartTarget | null>(null)` (`events-view.ts`), renders `StartSheet.svelte` in place of its frame while it is set, and gives Back to it through its own `back()`;
+  - the sheet opens the car picker for a class-capped start and then calls `host.start_event / start_series / start_run(id, car)`; a lent car starts with `car = null`;
+  - `host.start_event(id)` with no car is still the drive to the flag (road flows, Home, Maps);
+  - on another map the taken car becomes the player's own and `travel_query` gets `taken = true`; a run that arrives still asks through `modes.pick_car` (2c, with the travel briefing);
+  - t397: an arriving start runs on the car its briefing showed (`briefed_car`); `modes.pick_car` opens the picker only when that car does not fit;
+  - Series styles (`SeriesFlow`, `SeriesCard`, `SeriesHead`, `SeriesSeasons`, `SeriesStandings`) still size from `--space-*` / `--set-*`: batch 3;
+  - Things to try has no door on Events: the Guide (2b) links it; `car_note` in `series-view.ts` stays for Home only.
+- 1b done b75843d..6a18792: Events opens on the Series; Career, Runs, Series, Free modes rebuilt; no tabs. Every start goes StartSheet, then picker, then start. D5 is lighter than planned: each page holds its own sheet `target`, and there's no shared launch module. Home and Maps render StartSheet the same way (1b follow-up). Batch 3: Series CSS and `ui/Progress` still on `--space-*` / `--set-*`; the Guide (2b) links Things to try.
+- 1b round 2 8d3ad4e: Home and Maps starts open StartSheet. Batch 3: hide the showroom stage while a sheet is open (plain dim scene).
+- 1c done 70cbb7e 7794a41 6caa8e5: Garage parts cards, Builds rows, picker page; road asks use Settings.pick_car; CarPick deleted. Batch 3: phone heights for Button/TextField (Builds); delete SpecCard if unused; QA a capped event from the road.
+- 2c done fe3fda8..b16f608: ticket, pause, gate, road map (callouts with leader lines, F pages past 8), travel briefing; AI field on the minimap; Close-up from `RouteRun.progress`; GO_PARAM gone. Batch 3:
+  - PageFrame Back takes pad B (keys override);
+  - Go to flag while parked at that flag reopens its gate card (`event-markers.ts` `arrive`);
+  - delete Ticket, PlaceChip, KeyButton `size`;
+  - the road map card is filled with the map's edge colour (sea blue), not the mockup's dark fade: owner check.
+
+- 2d done 243ac20..65c1139: results page (view state, no ids in `index.html`), podium page `final` (`?final` in review builds), Welcome (name, Set up) in place of the tour, the first run strip on the road, goals `flag` / `handling` / `theme`. Batch 3:
+  - a series result's Next (e91df52) opens the next open round's start sheet on the Series page (`Settings.open_round`); a round on another map still reads "Next: Round N" and the sheet says Travel;
+  - D15, the podium shows the season car and credits only: no title reward and no "View Series" link in the data;
+  - the first-steps ticket hides `.next-up-dock` by CSS `:has`; with the first flag on another map it stays away and Next up offers the travel;
+  - `#mode-result-unlock:empty` in `unlock-card.css` is dead; `Tabs` `done` / `compact` lost their only user;
+  - not seen by eye: an event result with a Next card (three cards), the unlock card inside the stamp card, a real won season on the podium.
+- 2d done 243ac20..599c280: results as frame cards, podium page with the stage car, tour deleted (Welcome name + skippable Set up, road strip). Follow-up: series Next card (port 1afe6aa, 2d round 2). Batch 3: delete dead unlock-card.css `:empty`, unused Tabs done/compact; owner check that results hide the chat dock.
+- 2a done 4463d07 3365563: Online grouped by room, Meet with driver cars + ready, frame chips (★ season, N online) as MenuFrame defaults, daily board on Runs. Batch 3: chips on Title; `season={false}` on Settings; the road cards' PageFrame gets no chips (fine). Data-less until the Meet quest: lap 2/3, In lobby, Picking a car, countdown.
+- Raceway Make values ecd41f5: Length / Hills / Corners / Run-off (2/200 fallback on Short+Flowing). Batch 3: Raceway `lap_facts` says '1 corners' (wrong count and plural, worlds/); Make overflows sideways at 390 px portrait.
+### 8.8 Owner calls (2026-11-17 night)
+- Saved maps dropped. Rally pace notes dropped for now. Road map card in sea colour OK.
+- Portrait menus are supported; fix the Android PWA reload that lands in portrait and sticks on the rotate prompt.
+- Toasts (lead call): join/leave hidden while a menu is open; goal toasts queue until it closes.
+- Replays get an option to save (new IndexedDB store, owner OK).

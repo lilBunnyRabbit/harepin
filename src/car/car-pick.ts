@@ -1,6 +1,6 @@
 import { SLOT_NAMES, build_code, build_spec, parse_build, type Build } from "./build";
 import type { SavedBuild } from "./builds";
-import { CARS, car_sized } from "./cars";
+import { CARS, car_sized, type CarId } from "./cars";
 import { CLASS_FLOORS, CLASS_LABELS, rating, type CarClass, type Rating } from "./pi";
 import type { Preset } from "./presets";
 
@@ -9,6 +9,8 @@ export interface CarLimit {
   car_sized_only: boolean;
   /** Car ids the route leaves out. */
   excludes?: readonly string[];
+  /** The only car ids it lets in: a series takes the player's own cars. */
+  only?: readonly CarId[];
 }
 
 export interface CarChoice {
@@ -46,6 +48,7 @@ function blocked(build: Build, rated: Rating, limit: CarLimit): string | null {
   if (limit.cap && !within(rated.class, limit.cap)) return `Over ${CLASS_LABELS[limit.cap]}`;
   if (limit.car_sized_only && !car_sized(build_spec(build))) return "Too big for this mode";
   if (limit.excludes?.includes(build.car)) return `${CARS[build.car].name} can't race here`;
+  if (limit.only && !limit.only.includes(build.car)) return `Own a ${CARS[build.car].name} first`;
   return null;
 }
 

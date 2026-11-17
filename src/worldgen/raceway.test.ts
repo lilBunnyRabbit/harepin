@@ -4,9 +4,9 @@ import { field_races } from "../modes/field-route";
 import { sweep } from "../sweep";
 import { sample } from "./field";
 import { generate_world, KINDS } from "./kinds/kinds";
-import { BANK, RUNOFF } from "./raceway";
-import { ATTEMPTS, BOUND, CLEARANCE, Corner, crowded, FALLBACK_SEED, LAP_LENGTH, NEIGHBOUR, raceway_lap } from "./raceway-plan";
-import { ROAD_HALF, SPAWN_INDEX, WorldKind } from "./types";
+import { BANK, RACEWAY } from "./raceway";
+import { ATTEMPTS, BOUND, CLEARANCE, Corner, crowded, FALLBACK_SEED, LAP, LAP_LENGTH, NEIGHBOUR, raceway_lap } from "./raceway-plan";
+import { ROAD_HALF, SPAWN_INDEX, WorldKind, type WorldData } from "./types";
 
 const SEEDS = sweep(20);
 const laps = SEEDS.map((seed) => raceway_lap(seed));
@@ -165,11 +165,74 @@ test("a raceway races: a lap and its reverse an AI field can run, the spawn on t
   }
 });
 
+function nearest_tree(world: WorldData): number {
+  return world.trees.reduce((nearest, tree) => Math.min(nearest, sample(world.terrain.road_dist, tree.x, tree.z)), Infinity);
+}
+
 test("no tree stands on the run-off", () => {
-  for (const world of worlds)
-    for (const tree of world.trees) {
-      let nearest = Infinity;
-      for (let i = 0; i < world.road.length; i += 2) nearest = Math.min(nearest, Math.hypot(world.road[i].x - tree.x, world.road[i].z - tree.z));
-      expect(nearest).toBeGreaterThan(RUNOFF - 6);
-    }
+  for (const world of worlds) expect(nearest_tree(world)).toBeGreaterThan(RACEWAY.runoff - 6);
+});
+
+const OPTIONS = KINDS[WorldKind.RACEWAY].options;
+const with_level = (name: string, level: number) => OPTIONS.map((o) => (o.name === name ? level : o.normal));
+const custom = (seed: number, name: string, level: number) => generate_world(seed, WorldKind.RACEWAY, with_level(name, level));
+const metres = (world: WorldData) => world.road.length * 2;
+const climb = (world: WorldData) => Math.max(...world.road.map((p) => p.y)) - Math.min(...world.road.map((p) => p.y));
+function tight(world: WorldData): number {
+  const path = world.road.map((p) => [p.x, p.z] as const);
+  return path.filter((_, i) => radius(path, i, 3) < 45).length;
+}
+const KNOB_SEEDS = sweep(5);
+
+test("the normal levels build the plain raceway", () => {
+  expect(generate_world(2, WorldKind.RACEWAY, OPTIONS.map((o) => o.normal))).toEqual({ ...worlds[2], timings: expect.anything() });
+});
+
+test("Length short and long draw another lap of the seed, inside their own window", () => {
+  for (const seed of KNOB_SEEDS) {
+    const short = custom(seed, "Length", 0);
+    const long = custom(seed, "Length", 2);
+    expect(metres(short)).toBeGreaterThanOrEqual(LAP_LENGTH[0] - 4);
+    expect(metres(short)).toBeLessThanOrEqual(3404);
+    expect(metres(long)).toBeGreaterThanOrEqual(3696);
+    expect(metres(long)).toBeLessThanOrEqual(LAP_LENGTH[1] + 4);
+    expect(short.road[40]).not.toEqual(worlds[seed].road[40]);
+    expect(long.road[40]).not.toEqual(worlds[seed].road[40]);
+  }
+});
+
+test("Corners flowing has less tight road than the plain lap, technical more", () => {
+  const sum = (level: number) => KNOB_SEEDS.reduce((total, seed) => total + tight(custom(seed, "Corners", level)), 0);
+  const mixed = KNOB_SEEDS.reduce((total, seed) => total + tight(worlds[seed]), 0);
+  expect(sum(0)).toBeLessThan(mixed);
+  expect(sum(2)).toBeGreaterThan(mixed);
+});
+
+test("Hills keep the lap and change how far it climbs, inside the grade limit", () => {
+  for (const seed of KNOB_SEEDS) {
+    const flat = custom(seed, "Hills", 0);
+    const rolling = custom(seed, "Hills", 2);
+    expect(flat.road.map((p) => [p.x, p.z])).toEqual(worlds[seed].road.map((p) => [p.x, p.z]));
+    expect(climb(flat)).toBeLessThan(climb(worlds[seed]));
+    expect(climb(rolling)).toBeGreaterThan(climb(worlds[seed]));
+    rolling.road.forEach((p, i) => {
+      const next = rolling.road[(i + 1) % rolling.road.length];
+      expect(Math.abs(next.y - p.y) / Math.hypot(next.x - p.x, next.z - p.z)).toBeLessThanOrEqual(MAX_GRADE + 1e-6);
+    });
+  }
+});
+
+test("Run-off moves the trees: closer than the plain run-off when narrow, further when wide", () => {
+  for (const seed of KNOB_SEEDS) {
+    const narrow = nearest_tree(custom(seed, "Run-off", 0));
+    expect(narrow).toBeGreaterThan(18 - 6);
+    expect(narrow).toBeLessThan(RACEWAY.runoff - 6);
+    expect(nearest_tree(custom(seed, "Run-off", 2))).toBeGreaterThan(54 - 6);
+  }
+});
+
+test("a recipe no draw of a seed can meet falls back to that seed's plain lap, never another seed's", () => {
+  const lap = raceway_lap(4, { ...LAP, length: [1, 2] });
+  expect(lap.recipe).toBe(LAP);
+  expect(lap).toEqual(raceway_lap(4));
 });

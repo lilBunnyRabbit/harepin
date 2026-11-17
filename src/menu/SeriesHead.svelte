@@ -2,7 +2,6 @@
   import type { Snippet } from "svelte";
   import { ordinal, type Season, type SeriesProgress, type Standing } from "../career/series";
   import { credits_text } from "../career/wallet";
-  import SeriesBack from "./SeriesBack.svelte";
   import { duel_text, rival_gap } from "./series-view";
 
   interface Props {
@@ -10,13 +9,12 @@
     progress: SeriesProgress;
     table: readonly Standing[];
     credits: number;
-    onback: () => void;
     /** Stands in for the season's name, as the season switcher does. */
     title?: Snippet;
     children?: Snippet;
   }
 
-  let { season, progress, table, credits, onback, title, children }: Props = $props();
+  let { season, progress, table, credits, title, children }: Props = $props();
 
   const ran = $derived(season.events.filter((event) => progress.results[event.id]).length);
   const rank = $derived(table.findIndex((row) => row.you) + 1);
@@ -25,7 +23,6 @@
 </script>
 
 <header class="sh">
-  <SeriesBack {onback} />
   <div class="sh-title">
     {#if title}{@render title()}{:else}<h2>{season.name} series</h2>{/if}
     {#if children}<p class="sh-terms">{@render children()}</p>{/if}
@@ -57,7 +54,7 @@
     position: relative;
     z-index: 200;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     justify-self: center;
     align-items: start;
     gap: var(--space-6);
@@ -138,7 +135,7 @@
     }
 
     .sh-terms {
-      font-size: var(--text-xs);
+      display: none;
     }
 
     .sh-stats {

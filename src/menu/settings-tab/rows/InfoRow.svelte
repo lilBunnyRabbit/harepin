@@ -18,7 +18,7 @@
 
 <style>
   .set-info {
-    color: var(--set-dim);
+    color: var(--dim);
     font-size: var(--text-md);
     text-align: right;
   }

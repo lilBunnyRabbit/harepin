@@ -23,7 +23,7 @@
   <span class="pause-aids-label">Assists</span>
   <div class="pause-aids-chips">
     {#each CHIPS as chip (chip.aid)}
-      <Chip variant="toggle" pressed={aids[chip.aid]} title={chip.title} onclick={() => onflip(chip.aid)}>{chip.label}</Chip>
+      <Chip variant="toggle" inner icon={aids[chip.aid] ? "icon-check" : undefined} pressed={aids[chip.aid]} title={chip.title} onclick={() => onflip(chip.aid)}>{chip.label}</Chip>
     {/each}
   </div>
 </div>
@@ -31,27 +31,21 @@
 <style>
   .pause-aids {
     display: grid;
-    gap: var(--space-2);
+    align-content: start;
+    gap: var(--gap-sm);
   }
 
   .pause-aids-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
   }
 
   .pause-aids-label {
     color: var(--dim);
-    font-size: var(--text-xs);
+    font-size: var(--type-eyebrow);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-  }
-
-  @media (max-height: 500px) {
-    .pause-aids-chips {
-      flex-wrap: nowrap;
-      gap: var(--space-1);
-    }
   }
 </style>

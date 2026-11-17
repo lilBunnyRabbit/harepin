@@ -16,6 +16,8 @@ export interface GateHost {
   limit(event: CareerEvent): CarLimit | null;
   shelves(limit: CarLimit): readonly CarShelf[];
   pick(title: string, limit: CarLimit, signal: AbortSignal): Promise<string | null>;
+  /** The loaded map's name, beside the card's "Here". */
+  map(): string;
 }
 
 export type GateCar = { lent: CarId } | { row: true };
@@ -28,6 +30,7 @@ export class GateView {
   car = $state.raw<GateCar | null>(null);
   shelves = $state.raw<readonly CarShelf[]>([]);
   picked = $state<string | null>(null);
+  map = $state("");
 }
 
 function lent(event: CareerEvent, stars: Stars): CarId | null {
@@ -43,18 +46,22 @@ export class GateCard {
   private picking: AbortController | null = null;
   /** The car picked on the card, only while its start runs: the event's car step takes it instead of asking. */
   private armed: string | null = null;
+  /** The flag whose card Back put away: it stays away until the car leaves that flag. */
+  private left: Marker | null = null;
 
   constructor(private readonly host: GateHost) {
     this.el.className = "event-gate";
-    this.shown = mount(GateCardView, { target: this.el, props: { view: this.view, onstart: () => this.start(), onmore: () => void this.more() } });
+    this.shown = mount(GateCardView, { target: this.el, props: { view: this.view, onstart: () => this.start(), onmore: () => void this.more(), onleave: () => this.leave() } });
   }
 
   get pick(): string | null {
     return this.armed;
   }
 
-  show(marker: Marker | null, open: boolean, stars: Stars) {
+  show(at: Marker | null, open: boolean, stars: Stars) {
     const { view } = this;
+    if (at !== this.left) this.left = null;
+    const marker = this.left ? null : at;
     const have = marker ? (stars[marker.event.id] ?? 0) : 0;
     if (marker === view.marker && open === view.open && have === view.have) return;
     if (marker !== view.marker) {
@@ -64,10 +71,21 @@ export class GateCard {
       view.car = id ? { lent: id } : limit ? { row: true } : null;
       view.shelves = limit ? this.host.shelves(limit) : [];
       view.picked = first_pick(gate_row(view.shelves, null));
+      if (marker) view.map = this.host.map();
     }
     view.marker = marker;
     view.open = open;
     view.have = have;
+  }
+
+  /** Back on the card: true when a card was up to put away. */
+  leave(): boolean {
+    const { marker } = this.view;
+    if (!marker) return false;
+    this.picking?.abort();
+    this.left = marker;
+    this.view.marker = null;
+    return true;
   }
 
   start() {

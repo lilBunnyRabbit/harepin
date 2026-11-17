@@ -3,6 +3,7 @@ import { BINDABLE, DEFAULT_BINDINGS, MENU_BUTTON, PRESSES, type Action, type Bin
 import { Touch } from "./touch";
 import { axis_value, DEFAULT_PAD_RESPONSE, type PadResponse } from "./pad-curve";
 import type { RumbleEffect } from "./rumble";
+import { first_input, type LastInput } from "./last-input";
 
 /** A key or pad button caught for a binding; null when the capture ended without one (the menu closed). */
 export type Caught = { kind: "key"; code: string } | { kind: "pad"; button: number };
@@ -173,8 +174,6 @@ const PAD_NAV: [number, Nav][] = [
   [7, "sub_next"],
 ];
 
-/** The input last used, written to `:root[data-input]` so glyphs show its keys, pad buttons or touch marks. */
-export type LastInput = "keys" | "pad" | "touch";
 
 export const typing = (target: EventTarget | null) => target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
 
@@ -211,7 +210,7 @@ export class Input {
   constructor(touch_root: HTMLElement, canvas: HTMLElement) {
     this.touch = new Touch(touch_root);
     this.mouse = new MouseLook(canvas);
-    this.used(matchMedia("(pointer: coarse)").matches ? "touch" : "keys");
+    this.used(first_input());
     window.addEventListener("pointerdown", (e) => this.used(e.pointerType === "mouse" ? "keys" : "touch"), { capture: true, passive: true });
     window.addEventListener("keydown", (e) => {
       this.used("keys");

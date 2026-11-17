@@ -17,9 +17,11 @@ import { DEFAULT_KIND } from "../worldgen/types";
 import type { WorldKind } from "../worldgen/types";
 import type { MapPlayer } from "./world-map.svelte";
 import type { Laps, QualityTier, SettingKey, SettingsState } from "./prefs";
+import type { Tab } from "./ui/types";
 
 export const MenuTab = {
   PLAY: "play",
+  EVENTS: "career",
   GARAGE: "garage",
   ONLINE: "online",
   SETTINGS: "settings",
@@ -27,12 +29,33 @@ export const MenuTab = {
 } as const;
 export type MenuTab = (typeof MenuTab)[keyof typeof MenuTab];
 
+export const STATIONS: readonly Tab<MenuTab>[] = [
+  { id: MenuTab.PLAY, label: "Home" },
+  { id: MenuTab.EVENTS, label: "Events" },
+  { id: MenuTab.GARAGE, label: "Garage" },
+  { id: MenuTab.ONLINE, label: "Online" },
+  { id: MenuTab.SETTINGS, label: "Settings" },
+];
+
+/** Where Back leads from a station. */
+export const ROAD = "Road";
+
 export interface QualityStatus {
   tier: QualityTier;
   ratio: number;
   bloom: boolean;
   /** Sun shadow map size in px, 0 when off. */
   shadow_size: number;
+}
+
+export interface MeetDriver {
+  id: string;
+  name: string;
+  country: string | null;
+  /** The build code of the car they drive; null from a peer that sends none. */
+  car: string | null;
+  you: boolean;
+  ready: boolean;
 }
 
 export interface SettingsHost {
@@ -44,17 +67,19 @@ export interface SettingsHost {
   readonly code: string | null;
   /** Why this load is not on the map it was sent to: a code it can't read, or settings with no drivable build. */
   readonly map_note: string | null;
+  /** The loaded map by name: "Island · Harwar". */
+  map_name(): string;
   readonly goals: Goals;
   readonly career: Career;
-  /** Starts a career event now on this map, or reloads onto its map. */
-  start_event(id: string): void;
-  /** `?series` in dev and review builds: the Harepin Series, one entry per season in `SEASONS` order; null without it. */
-  readonly series: readonly Series[] | null;
-  /** Starts a series event now on this map, or reloads onto its map. */
-  start_series(id: string): void;
+  /** A career event: a drive to its flag on this map, or a reload onto its map. With `car` (the one taken on the start sheet, null when the event brings its own) it starts now. */
+  start_event(id: string, car?: string | null): void;
+  /** The Harepin Series, one entry per season in `SEASONS` order. */
+  readonly series: readonly Series[];
+  /** Starts a series event now on this map, or reloads onto its map; `car`, taken on the start sheet, becomes the player's own first. */
+  start_series(id: string, car?: string | null): void;
   readonly runs: Runs;
-  /** Starts a `?run=` pick now on this map, or reloads onto its map. */
-  start_run(id: string): void;
+  /** Starts a `?run=` pick now on this map, or reloads onto its map, in the `car` taken on the start sheet. */
+  start_run(id: string, car?: string | null): void;
   name(): string;
   quality_status(): QualityStatus;
   race_busy(): boolean;
@@ -64,6 +89,8 @@ export interface SettingsHost {
   /** Re-sends a standing ready with a new pick; nothing when not ready. */
   repick_ready(laps: Laps, route: string): void;
   ready_status(): ReadyStatus;
+  /** Everyone on this map for the race meet, this player first. */
+  meet_drivers(): MeetDriver[];
   /** The route leaves out the car being driven. */
   race_left_out(route: string): boolean;
   readonly version: string;
@@ -82,6 +109,8 @@ export interface SettingsHost {
   browse_servers(on: boolean): void;
   /** Everyone in the directory, this player first; filled while `browse_servers` is on. */
   players_online(): Player[];
+  /** Everyone playing right now, this player included, as the HUD chip counts them. */
+  online_count(): number;
   /** `Net.status`: online, searching, connecting, or why it can't connect. */
   net_status(): string;
   /** Peers linked in this room, on any map. */
@@ -118,6 +147,10 @@ export interface Menu {
   refresh(): void;
   close(): void;
   show(section: string): void;
+  /** One level up: to the page this one was opened from, else its station; a station closes the menu. */
+  back(): void;
+  /** The name of the place `back` leads to from `section`, for its Back pill. */
+  up_of(section: string): string;
   /** A world the player picked: remembered for the next bare load, then driven in this room. */
   drive(seed: number, kind: WorldKind, levels?: readonly number[]): void;
   go(query: Record<string, string>): void;
@@ -127,8 +160,9 @@ export interface Menu {
  * How a full-screen page sits under its Back and title. `column`: a centred panel, the head over it. `wide`: full width,
  * no panel, as tall as its content. `fill`: full width, no panel, the screen's height. `fill-panel`: the screen in one
  * panel, as tall as its content on a phone. `stage`: the screen's height with no Back bar; the page draws its own way out.
+ * `frame`: a rebuilt page, which draws itself in `MenuFrame` as every station does; the layouts before it go with the last old page.
  */
-export type PageLayout = "column" | "wide" | "fill" | "fill-panel" | "stage";
+export type PageLayout = "column" | "wide" | "fill" | "fill-panel" | "stage" | "frame";
 
 export interface MenuPage {
   readonly id: string;
@@ -140,6 +174,8 @@ export interface MenuPage {
   build(): HTMLElement[];
   on_show?(): void;
   on_hide?(): void;
+  /** B / Esc / phone Back on this page: true when the page took it a level up itself. */
+  back?(): boolean;
 }
 
 export function invite_link(room: string, seed: number, kind: WorldKind = DEFAULT_KIND, code: string | null = null): string {

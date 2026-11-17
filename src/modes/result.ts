@@ -6,6 +6,7 @@ import { ordinal } from "../career/series";
 import { format } from "../hud/hud";
 import type { MapSpec } from "../worldgen/kinds/kinds";
 import type { WorldKind } from "../worldgen/types";
+import { stage_points, type Cup } from "./championship";
 import type { Hits } from "./hits";
 import type { Finish } from "./mode";
 import { MAX_STARS, type StarRun } from "./track";
@@ -53,18 +54,50 @@ export function time_lines(ms: number, hits: Hits | null): HTMLElement[] {
   return [line("time", format(ms)), line(`hits ×${hits.count}`, `+${hits.penalty_ms / 1000} s`), line("total", format(ms + hits.penalty_ms))];
 }
 
-/** The career event a result's Next goes to, as its card shows it. */
-export interface NextTicket extends EventTicket {
+/** Where a result's Next goes, as its card shows it. */
+export interface NextCard {
+  eyebrow: string;
+  title: string;
+  place: Place;
   /** The event's mode name. */
   mode: string;
   /** The world kind its map picture shows. */
   kind: WorldKind;
 }
 
+/** The career event a result's Next goes to. */
+export interface NextTicket extends EventTicket, NextCard {}
+
 export function next_ticket(event: CareerEvent, here: MapSpec, mode: string): NextTicket {
   const map = event_map(event);
   return { ...event_ticket(event, place_of(map, here)), mode, kind: map.kind };
 }
 
-/** Go starts an event on this map; another map is a Travel. */
-export const go_label = (place: Place) => (place.here ? "Go" : `Travel to ${place.name}`);
+/** The primary names where it leads: the next event on this map, or the map a Travel loads. */
+export const next_label = (ticket: NextCard) => (ticket.place.here ? `Next: ${ticket.title}` : `Travel to ${ticket.place.name}`);
+
+/** A championship's stages as table rows: points and stars for each one run, and the total under them. */
+export function stage_rows(cup: Cup, names: readonly string[]): HTMLElement[] {
+  const rows = names.map((stage, i) => {
+    const stars = cup.results[i];
+    const row = document.createElement("li");
+    row.dataset.now = String(i === cup.index);
+    const place = document.createElement("span");
+    place.className = "dim";
+    place.textContent = String(i + 1);
+    const name = document.createElement("span");
+    name.textContent = stage;
+    const score = document.createElement("b");
+    score.textContent = stars === null ? "--" : `${stage_points(stars)} pts`;
+    row.append(place, name, score, stars === null ? document.createElement("span") : star_row(stars));
+    return row;
+  });
+  const total = document.createElement("li");
+  total.className = "cup-total";
+  const label = document.createElement("span");
+  label.textContent = "Total";
+  const sum = document.createElement("b");
+  sum.textContent = `${cup.total} pts`;
+  total.append(label, sum);
+  return [...rows, total];
+}

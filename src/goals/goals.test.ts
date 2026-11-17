@@ -3,6 +3,7 @@ import { DEFAULT_BUILD, DEFAULT_PARTS } from "../car/build";
 import type { Store } from "../modes/track";
 import { WorldKind } from "../worldgen/types";
 import { build_goals, proven } from "./catch-up";
+import { FIRST_STEPS, FirstRun } from "./first-run";
 import { GOALS, GOALS_KEY, GoalId, Goals, parse_done } from "./goals";
 
 const MODES = ["race", "drift"];
@@ -65,7 +66,7 @@ test("saved records prove goals", () => {
     { kind: WorldKind.ISLAND, build: DEFAULT_BUILD, cockpit: false },
     MODES,
   );
-  expect(ids.sort()).toEqual(["build", "lap", "mode:race", "new_map", "sky"]);
+  expect(ids.sort()).toEqual(["build", "flag", "lap", "mode:race", "new_map", "sky"]);
 });
 
 test("a build shows what was changed in the garage", () => {
@@ -94,4 +95,42 @@ test("catch up skips the scan once every goal is done", () => {
     return [];
   });
   expect(scanned).toBe(false);
+});
+
+test("the first steps open on the flag, then a lap, then the two settings worth a look", () => {
+  expect(GOALS.slice(0, 4).map((goal) => goal.id)).toEqual([GoalId.FLAG, GoalId.LAP, GoalId.HANDLING, GoalId.THEME]);
+  expect(GOALS.filter((goal) => goal.id === GoalId.HANDLING || goal.id === GoalId.THEME).map((goal) => goal.go)).toEqual(["driving", "display"]);
+  const goals = new Goals(memory(), MODES);
+  expect(goals.next?.id).toBe(GoalId.FLAG);
+  goals.done(GoalId.FLAG);
+  expect(goals.next?.id).toBe(GoalId.LAP);
+});
+
+test("a picked theme and a changed aid prove their goals; stock settings prove nothing", () => {
+  const now = { kind: WorldKind.ISLAND, build: DEFAULT_BUILD, cockpit: false };
+  expect(proven([["harepin:settings", JSON.stringify({ tcs: true, volume: 0.2 })]], now, MODES)).toEqual([]);
+  expect(proven([["harepin:theme", "Forest Night"], ["harepin:settings", JSON.stringify({ tcs: false })]], now, MODES).sort()).toEqual(["handling", "theme"]);
+});
+
+test("the first run goes drive, steer, flag, and the flag ends it from any step", () => {
+  const run = new FirstRun();
+  expect(run.update(2, 0, 300)).toBe(false);
+  expect(run.update(9, 0, 290)).toBe(true);
+  expect(FIRST_STEPS[run.step]).toBe("Steer");
+  run.update(9, 0.2, 280);
+  expect(run.step).toBe(1);
+  run.update(9, -0.3, 270);
+  expect(FIRST_STEPS[run.step]).toBe("Reach the flag");
+  expect(run.update(9, -0.3, 20)).toBe(true);
+  expect(run.over).toBe(true);
+  const straight = new FirstRun();
+  straight.update(1, 0, 10);
+  expect(straight.over).toBe(true);
+});
+
+test("turning on the spot is not steering", () => {
+  const run = new FirstRun();
+  run.update(9, 0, null);
+  for (let i = 0; i < 20; i++) run.update(1, i * 0.5, null);
+  expect(run.step).toBe(1);
 });

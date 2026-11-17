@@ -28,9 +28,17 @@ test("the row starts with the car on now and the one to take, cars over the cap 
   expect(row[0].fitted).toBe(true);
   const open = row.findIndex((c) => c.blocked !== null);
   if (open >= 0) expect(row.slice(open).every((c) => c.blocked !== null)).toBe(true);
-  const pick = first_pick(row);
-  expect(row.find((c) => c.code === pick)?.recommended).toBe(true);
-  expect(pick !== null && fits(shelves, pick)).toBe(true);
+  expect(first_pick(row)).toBe(row[0].code);
+});
+
+test("the first pick is the car driven now when it fits, the recommended one when it does not", () => {
+  const row = gate_row(shelves, null);
+  const driven = row.find((c) => c.fitted);
+  expect(driven && fits(shelves, driven.code)).toBe(true);
+  expect(first_pick(row)).toBe(driven?.code ?? null);
+  const without = row.map((c) => (c.fitted ? { ...c, blocked: "Over C" } : c));
+  const pick = first_pick(without);
+  expect(without.find((c) => c.code === pick)?.recommended).toBe(true);
 });
 
 test("a car picked in the full picker always gets a place in the row", () => {

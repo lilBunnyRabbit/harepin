@@ -5,7 +5,7 @@ import { rating, type CarClass } from "../car/pi";
 import type { FieldOutcome } from "../modes/mode";
 import type { WorldKind } from "../worldgen/types";
 
-/** `?series` (dev and review builds): the Harepin Series page; `?series=<event id>` starts that event on its map. */
+/** `?series`: the Harepin Series page; `?series=<event id>` starts that event on its map. */
 export const SERIES_PARAM = "series";
 export const SERIES_PAGE = "series";
 
@@ -218,6 +218,14 @@ export function event_states(season: Season, progress: SeriesProgress): EventSta
 }
 
 export const is_open = (season: Season, progress: SeriesProgress, event: SeriesEvent) => event_states(season, progress)[season.events.indexOf(event)] !== "locked";
+
+/** Where a result's Next goes: the first open event after `after`, else the first one before it; null with none left. */
+export function next_open(season: Season, progress: SeriesProgress, after: SeriesEvent): SeriesEvent | null {
+  const states = event_states(season, progress);
+  const at = season.events.indexOf(after);
+  const order = [...season.events.slice(at + 1), ...season.events.slice(0, at)];
+  return order.find((event) => states[season.events.indexOf(event)] === "open") ?? null;
+}
 
 /** The season ends with a podium in its final (C4: losing it means another go, the standings kept). */
 export const season_done = (season: Season, progress: SeriesProgress) => season.events.every((e) => !e.final || podium(season, e, progress.results[e.id]));

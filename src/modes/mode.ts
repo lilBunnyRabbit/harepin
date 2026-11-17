@@ -11,6 +11,7 @@ import type { Thresholds, Track } from "./track";
 import type { Bindable } from "../hud/bindings";
 import type { Hits } from "./hits";
 import type { DrawnGround } from "./marks";
+import type { NextCard } from "./result";
 import type { RoutePoint } from "./route";
 import { atan2, cos, hypot, sin } from "../sim-math";
 
@@ -41,6 +42,8 @@ export interface Finish {
   lines: HTMLElement[];
   /** Where the player finished against other cars, 1 for a win; absent where nothing races them. */
   place?: number;
+  /** The run's name where the title says only how it ended: the card's heading. */
+  name?: string;
   /** Gymkhana and parking show their card without the chime. */
   quiet?: boolean;
   /** Rows of a finish order, kept current by the run while the card shows. */
@@ -89,8 +92,8 @@ export interface FieldEvent {
   readonly grid?: number;
   /** Called once as the player's race ends; returns lines for the result card. */
   finish(outcome: FieldOutcome): HTMLElement[];
-  /** What the result card's Next does. */
-  readonly next: { label: string; go(): void };
+  /** What the result card's Next does; read once the result has scored, so it can name what the result opened. */
+  readonly next: { readonly label: string; go(): void; ticket?(): NextCard | null };
 }
 
 /** A car's place in a field race now. */
@@ -157,6 +160,8 @@ export interface RouteRun {
   later: readonly { x: number; z: number }[];
   /** Where a fall puts the car back: the last gate taken, the start before any; without one, where it last stood safely. */
   respawn?: RoutePoint;
+  /** Index into the route's points the car has reached: the close-up map lights the route only from there on. Absent, all of it. */
+  progress?: number;
 }
 
 /** The top card's fields after the clock, each in a slot of its own, in this order. */

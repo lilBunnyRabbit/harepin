@@ -72,7 +72,7 @@ interface Rig {
   limit: CarLimit | null;
 }
 
-function rig(routes: readonly unknown[] = []): Rig {
+function rig(routes: readonly unknown[] = [], busy = false): Rig {
   const world = { kind: WorldKind.ISLAND, seed: 1, key: "k", levels: [], routes, ramps: [], tiles: { streamed: false, complete: true } };
   const r = { starts: [], disposed: 0, car: OWN, saved: [], answer: () => {}, asked: 0 } as unknown as Rig;
   r.modes = new Modes(
@@ -81,7 +81,7 @@ function rig(routes: readonly unknown[] = []): Rig {
     0,
     () => ({ best: {}, wins: 0, podiums: 0 }),
     () => {},
-    () => false,
+    () => busy,
     () => {},
     {} as never,
     () => CARS[parse_build(r.car)!.car],
@@ -116,6 +116,24 @@ async function in_event(r: Rig, pick: string) {
 }
 
 beforeEach(() => elements.clear());
+
+test("a start this map refuses says why before any car is asked for", async () => {
+  expect(rig().modes.event_refusal(capped)).toBeNull();
+  const busy = rig([], true);
+  expect(busy.modes.event_refusal(capped)).toBe(GYMKHANA_MODE.busy_notice);
+  busy.modes.play_event(capped);
+  await settle();
+  expect(busy.asked).toBe(0);
+});
+
+test("a series race on a route this map lacks is refused before any car is picked", () => {
+  expect(rig().modes.series_refusal("no-such-route")).not.toBeNull();
+});
+
+test("off its map a capped event's limit is its class and its mode's size rule", () => {
+  const away = { ...capped, level: "no-such-level" };
+  expect(rig().modes.event_limit(away)).toEqual({ cap, car_sized_only: GYMKHANA_MODE.car_sized_only });
+});
 
 test("picking another car mid-event restarts the run on it", async () => {
   const r = rig();
@@ -181,7 +199,7 @@ test("picking the player's own car back ends the loan: a repaint on it stays aft
 test("the result card's Change car button opens the pick", async () => {
   const r = rig();
   await in_event(r, FIRST);
-  elements.get("mode-car")!.click();
+  r.modes.result_next.host.change_car();
   expect(r.asked).toBe(2);
   r.answer(SECOND);
   await settle();
@@ -263,21 +281,21 @@ test("a championship runs its stages back to back: Next goes on, a retry keeps t
 
   finish(0);
   expect(next.label).toBe("Retry stage");
-  expect(elements.get("mode-result-note")!.textContent).toBe("A stage needs 1★ to go on");
+  expect(next.note).toBe("A stage needs 1★ to go on");
   next.go();
   expect(r.starts).toEqual(["g1", "g2", "g2"]);
   expect(status.dataset.cup).toBe("Stage 2/3 · 10 pts");
 
   finish(1);
-  elements.get("mode-retry")!.click();
+  next.host.retry();
   expect(r.starts).toEqual(["g1", "g2", "g2", "g2"]);
   finish(2);
   next.go();
   expect(status.dataset.cup).toBe("Stage 3/3 · 16 pts");
 
   finish(3);
-  expect(elements.get("mode-result-title")!.textContent).toBe("Cup · 26 pts");
-  expect(next.label).toMatch(/^(Go|Travel to .+)$/);
+  expect(next.card?.stamp).toBe("Cup · 26 pts");
+  expect(next.label).toMatch(/^(Next: .+|Travel to .+)$/);
   expect(next.ticket?.eyebrow).toMatch(/^Next up · /);
   expect(career.stars["cup-test"]).toBe(3);
   globalThis.localStorage = kept;
@@ -297,7 +315,7 @@ test("a championship with a stand-in, or with a stage its streamed world refuses
   streamed.modes.play_event({ ...capped, id: "cup-far", level: "g1", stages });
   await settle();
   expect([r.asked, r.starts, streamed.asked, streamed.starts]).toEqual([0, [], 0, []]);
-  expect(elements.get("mode-result-note")!.textContent).toBe("This mode is not on this world yet");
+  expect([r.modes.result_next.note, streamed.modes.result_next.note]).toEqual(["This event is not on this map", "This mode is not on this world yet"]);
 });
 
 test("a stage that refuses to start mid-championship says the championship ended and its points", async () => {
@@ -340,4 +358,13 @@ test("a speed trap event leaves out the cars its circuit excludes", async () => 
   await settle();
   expect(r.asked).toBe(1);
   expect(r.limit?.excludes).toEqual(["bus"]);
+});
+
+test("a running event names itself by the event, not the mode, and no name is left once it ends", async () => {
+  const r = rig();
+  expect(r.modes.run_name).toBeNull();
+  await in_event(r, FIRST);
+  expect(r.modes.run_name).toBe(capped.name);
+  r.modes.exit();
+  expect(r.modes.run_name).toBeNull();
 });

@@ -77,7 +77,7 @@
         fill: currentColor;
       }
 
-      #loading button {
+      #loading > button {
         height: 32px;
         padding: 0 12px;
         font: inherit;
@@ -89,13 +89,25 @@
         cursor: pointer;
       }
 
-      #loading button:hover {
+      #loading > button:hover {
         background: var(--background-lighter);
       }
 
-      #loading button:focus-visible {
+      #loading > button:focus-visible {
         outline: 2px solid var(--primary);
         outline-offset: 2px;
+      }
+
+      /* A travel (src/world/travel-card.ts): the destination's picture, dimmed, under the briefing main.ts lays over it. */
+      #loading[data-travel] {
+        background:
+          linear-gradient(color-mix(in oklch, var(--background-darkest) 72%, transparent) 0 0),
+          var(--picture) center / cover,
+          var(--desktop);
+      }
+
+      #loading:has(.travel) > :is(.logo, span) {
+        display: none;
       }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -178,6 +190,11 @@
       <symbol id="icon-pedal-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M6 9l6 6 6-6" />
       </symbol>
+      <symbol id="icon-handbrake" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="6.5" />
+        <path d="M4.2 5.5a10 10 0 0 0 0 13M19.8 5.5a10 10 0 0 1 0 13" />
+        <path d="M10.6 15.2V8.8h1.9a1.9 1.9 0 0 1 0 3.8h-1.9" />
+      </symbol>
       <symbol id="icon-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
         <path d="M13 2.5L5 13.5h6l-1 8 8-11h-6z" />
       </symbol>
@@ -207,6 +224,7 @@
         <circle cx="12" cy="12" r="8.5" />
         <path d="M3.5 12h17M12 3.5c2.5 2.6 3.5 5.4 3.5 8.5s-1 5.9-3.5 8.5c-2.5-2.6-3.5-5.4-3.5-8.5s1-5.9 3.5-8.5z" />
       </symbol>
+      <symbol id="icon-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4M6 4.5h11l-2.5 4 2.5 4H6" /></symbol>
       <symbol id="icon-people" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="9" cy="8.5" r="3.5" />
         <path d="M3 19.5a6 6 0 0 1 12 0" />
@@ -242,6 +260,12 @@
       <symbol id="icon-brand-paypal" viewBox="0 0 24 24" fill="currentColor"><path d="M7.016 19.198h-4.2a.562.562 0 0 1-.555-.65L5.093.584A.692.692 0 0 1 5.776 0h7.222c3.417 0 5.904 2.488 5.846 5.5-.006.25-.027.5-.066.747A6.794 6.794 0 0 1 12.071 12H8.743a.69.69 0 0 0-.682.583l-.325 2.056-.013.083-.692 4.39-.015.087zM19.79 6.142c-.01.087-.01.175-.023.261a7.76 7.76 0 0 1-7.695 6.598H9.007l-.283 1.795-.013.083-.692 4.39-.134.843-.014.088H6.86l-.497 3.15a.562.562 0 0 0 .555.65h3.612c.34 0 .63-.249.683-.585l.952-6.031a.692.692 0 0 1 .683-.584h2.126a6.793 6.793 0 0 0 6.707-5.752c.306-1.95-.466-3.744-1.89-4.906z" /></symbol>
       <symbol id="icon-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
+      </symbol>
+      <symbol id="icon-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 6.5c-1.6-1.2-3.8-1.8-7-1.8v13c3.2 0 5.4.6 7 1.8 1.6-1.2 3.8-1.8 7-1.8v-13c-3.2 0-5.4.6-7 1.8zM12 6.5v13" />
+      </symbol>
+      <symbol id="icon-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3.5l1.9 5.1a2 2 0 0 0 1.2 1.2l5.1 1.9-5.1 1.9a2 2 0 0 0-1.2 1.2L12 19.9l-1.9-5.1a2 2 0 0 0-1.2-1.2l-5.1-1.9 5.1-1.9a2 2 0 0 0 1.2-1.2z" />
       </symbol>
       <symbol id="icon-external" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M13.5 4.5H19.5V10.5M19.5 4.5L11 13" />
@@ -289,10 +313,10 @@
         <path d="M4 20l4-1 11-11-3-3L5 16zM14 7l3 3" />
       </symbol>
       <symbol id="icon-slot-neon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 9h16M7 14l-1.5 4M12 14v4M17 14l1.5 4" />
+        <path d="M6 5h12a2 2 0 0 1 0 4H6a2 2 0 0 1 0-4M7 14h10M10 18.5h4" />
       </symbol>
       <symbol id="icon-slot-glow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 6h16M12 11a4 4 0 1 0 0 8a4 4 0 1 0 0-8" />
+        <path d="M6 4h12a2 2 0 0 1 0 4H6a2 2 0 0 1 0-4M12 12a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7" />
       </symbol>
       <symbol id="icon-slot-part" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" />
@@ -378,7 +402,7 @@
       </div>
       <div class="touch-pedals">
         <div class="touch-brake">
-          <div class="touch-key" data-touch="handbrake">Handbrake</div>
+          <div class="touch-key hand-key" data-touch="handbrake" aria-label="Handbrake"><svg aria-hidden="true"><use href="#icon-handbrake" /></svg></div>
           <div class="pedal" data-touch="brake" aria-label="Brake"><svg aria-hidden="true"><use href="#icon-pedal-down" /></svg></div>
         </div>
         <div class="touch-gas">
@@ -405,8 +429,8 @@
     </div>
 
     <div class="hud top-right">
-      <div id="map-note" hidden><span>Next gate</span><b id="map-dist"></b></div>
       <canvas id="minimap"></canvas>
+      <div id="map-note"><span id="map-label"></span><b id="map-dist"></b></div>
       <ol id="players"></ol>
       <button type="button" id="online-chip" hidden>
         <svg aria-hidden="true"><use href="#icon-people" /></svg>
@@ -426,25 +450,7 @@
     <div id="race-lights" hidden aria-hidden="true"><i></i><i></i><i></i></div>
     <div id="mode-hint" hidden aria-hidden="true"></div>
     <div id="mode-wrong" class="hud" hidden><i aria-hidden="true"></i>Wrong way</div>
-    <div id="mode-result" hidden>
-      <div class="result-stamp">
-        <span id="mode-result-kind"></span>
-        <div id="mode-result-title"></div>
-        <div id="mode-result-stars"></div>
-      </div>
-      <div class="result-facts">
-        <div id="mode-result-lines"></div>
-        <ol id="mode-result-standings" aria-label="Standings" hidden></ol>
-        <div id="mode-result-unlock"></div>
-        <div class="result-smalls">
-          <button type="button" id="mode-retry" class="icon-button" aria-label="Retry" title="Retry (R)"><svg aria-hidden="true"><use href="#icon-restart" /></svg></button>
-          <button type="button" id="mode-car" class="icon-button" aria-label="Change car" title="Change car" hidden><svg aria-hidden="true"><use href="#icon-car" /></svg></button>
-          <button type="button" id="mode-try" class="icon-button" aria-label="Try it in the garage" title="Try it in the garage" hidden><svg aria-hidden="true"><use href="#icon-paint" /></svg></button>
-        </div>
-      </div>
-      <p id="mode-result-note" role="status" hidden></p>
-      <div id="mode-result-next"></div>
-    </div>
+    <div id="mode-result" hidden></div>
     <div id="toast" class="hud" role="status"><svg class="toast-icon" aria-hidden="true"><use href="#logo-mark" /></svg><span id="toast-label"></span><span id="toast-text"></span></div>
     <div id="rewind">◂◂ REWIND</div>
 

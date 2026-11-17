@@ -1,13 +1,15 @@
 <script lang="ts">
   import { DEVICES, detect_device } from "./device";
   import { issue_link, short_agent, type IssueFields } from "./issue-link";
+  import MenuFrame from "./MenuFrame.svelte";
+  import { MenuTab } from "./page";
   import { QualityMode } from "./prefs";
   import Card from "./ui/Card.svelte";
   import Icon from "./ui/Icon.svelte";
   import Row from "./ui/Row.svelte";
   import RowList from "./ui/RowList.svelte";
-  import SectionHead from "./ui/SectionHead.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
+  import "./events.css";
 
   const KINDS = [
     { template: "bug.yml", icon: "icon-bug", title: "Report a bug", note: "Something broke, glitched or doesn't work" },
@@ -18,7 +20,7 @@
   ];
 
   const FUNDING = [
-    { title: "GitHub", icon: "icon-brand-github", note: "Sponsor monthly or once", href: "https://github.com/sponsors/lilBunnyRabbit" },
+    { title: "GitHub", icon: "icon-brand-github", note: "Monthly or once", href: "https://github.com/sponsors/lilBunnyRabbit" },
     { title: "Coffee", icon: "icon-brand-buymeacoffee", note: "Buy me a coffee", href: "https://buymeacoffee.com/lilBunnyRabbit" },
     { title: "PayPal", icon: "icon-brand-paypal", note: "Any amount", href: "https://www.paypal.me/ThelilBunnyRabbit" },
   ];
@@ -45,97 +47,118 @@
   });
 </script>
 
-<div class="support-page">
-  <Card class="support-about">
-    <SectionHead eyebrow="Work in progress" title="Harepin is still being built" role="page" />
-    <p class="support-note">
-      I'm still tuning how the cars feel, how fast it runs and how the worlds get built, so things will change and some will
-      break. If something feels off, tell me. I read every report.
-    </p>
-  </Card>
+<MenuFrame {menu} id={MenuTab.SUPPORT} eyebrow="Settings" title="Support" season={false} veil={0.6} note="Posting needs a GitHub account. Links open in a new tab.">
+  <div class="support">
+    <div class="support-side">
+      <Card label="About Harepin">
+        <div class="ev-head">
+          <span class="ev-eyebrow">Work in progress</span>
+          <h2 class="ev-h2">Harepin is still being built</h2>
+        </div>
+        <p class="support-note">
+          I'm still tuning how the cars feel, how fast it runs and how the worlds get built, so things will change and some will
+          break. If something feels off, tell me. I read every report.
+        </p>
+      </Card>
 
-  <Card class="support-back">
-    <SectionHead eyebrow="Totally optional" title="Like Harepin?" />
-    <p class="support-note">Harepin is free and stays free. If it gave you a good drive and you'd like to chip in, it helps me keep building it. Thank you either way.</p>
-    <nav class="support-funds" aria-label="Chip in">
-      {#each FUNDING as fund (fund.href)}
-        <a class="support-fund" href={fund.href} target="_blank" rel="noopener">
-          <Icon name={fund.icon} />
-          <span class="support-fund-text">
-            <b>{fund.title}</b>
-            <small>{fund.note}</small>
-          </span>
-        </a>
-      {/each}
-    </nav>
-  </Card>
+      <Card label="Chip in">
+        <div class="ev-head">
+          <span class="ev-eyebrow">Totally optional</span>
+          <h2 class="ev-h2">Like Harepin?</h2>
+        </div>
+        <p class="support-note">Harepin is free and stays free. If it gave you a good drive and you'd like to chip in, it helps me keep building it. Thank you either way.</p>
+        <nav class="support-funds" aria-label="Chip in">
+          {#each FUNDING as fund (fund.href)}
+            <a class="support-fund" href={fund.href} target="_blank" rel="noopener">
+              <Icon name={fund.icon} />
+              <span class="support-fund-text">
+                <b>{fund.title}</b>
+                <small>{fund.note}</small>
+              </span>
+            </a>
+          {/each}
+        </nav>
+      </Card>
+    </div>
 
-  <Card class="support-list" list>
-    <RowList nav label="Open a GitHub issue">
-      {#each KINDS as kind (kind.template)}
-        <Row label={kind.title} help={kind.note} icon={kind.icon} href={issue_link(kind.template, fields)} external />
-      {/each}
-    </RowList>
-  </Card>
-
-  <Card class="support-sent">
-    <p class="support-lead">Each link opens a GitHub issue with this filled in:</p>
-    <dl class="support-facts">
-      {#each FIELD_LABELS as [key, label] (key)}
-        <dt>{label}</dt>
-        <dd>{fields[key]}</dd>
-      {/each}
-    </dl>
-    <small class="support-caption">Posting needs a GitHub account. Links open in a new tab.</small>
-  </Card>
-</div>
+    <Card class="support-report" label="Send feedback">
+      <div class="ev-head">
+        <span class="ev-eyebrow">Feedback</span>
+        <h2 class="ev-h2">Tell me what you found</h2>
+      </div>
+      <RowList nav label="Open a GitHub issue">
+        {#each KINDS as kind (kind.template)}
+          <Row label={kind.title} help={kind.note} icon={kind.icon} href={issue_link(kind.template, fields)} external fill />
+        {/each}
+      </RowList>
+      <div class="support-sent">
+        <span class="ev-small">Each link opens a GitHub issue with this filled in:</span>
+        <dl class="support-facts">
+          {#each FIELD_LABELS as [key, label] (key)}
+            <dt>{label}</dt>
+            <dd>{fields[key]}</dd>
+          {/each}
+        </dl>
+      </div>
+    </Card>
+  </div>
+</MenuFrame>
 
 <style>
-  .support-page {
+  .support {
     display: grid;
-    grid-template: "about list" auto "back list" auto "sent list" 1fr / minmax(0, 1fr) minmax(0, 1.25fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
     align-items: start;
-    gap: var(--space-5);
+    gap: var(--gap);
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
   }
 
-  .support-page > :global(.support-about) {
-    grid-area: about;
+  .support-side {
+    display: grid;
+    gap: var(--gap);
+    min-width: 0;
   }
 
-  .support-page > :global(.support-back) {
-    grid-area: back;
-    border-color: var(--secondary);
-    background: color-mix(in oklch, var(--secondary) 10%, var(--set-panel));
+  .support-note {
+    margin: 0;
+    max-width: 60ch;
+    color: var(--dim);
+    line-height: 1.45;
+    text-wrap: pretty;
   }
 
   .support-funds {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: var(--space-3);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--gap-sm);
   }
 
   .support-fund {
-    --icon-size: var(--text-xl);
+    --icon-size: 1.4em;
     display: flex;
     align-items: center;
-    gap: var(--space-3);
-    min-height: 64px;
-    padding: var(--space-3) var(--space-4);
-    border: 1px solid color-mix(in oklch, var(--secondary) 55%, transparent);
-    border-radius: var(--radius-md);
-    background: color-mix(in oklch, var(--secondary) 14%, var(--set-panel));
+    gap: var(--gap-md);
+    min-width: 0;
+    min-height: var(--primary-h);
+    padding: var(--gap-sm) var(--gap-md);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--row);
     color: var(--foreground);
     text-decoration: none;
   }
 
   .support-fund:hover {
     border-color: var(--secondary);
-    background: color-mix(in oklch, var(--secondary) 26%, var(--set-panel));
+    background: var(--row-on);
   }
 
   .support-fund:focus-visible {
-    outline: 2px solid var(--secondary);
-    outline-offset: 2px;
+    outline: var(--mark-w) solid var(--cottontail);
+    outline-offset: var(--space-0);
   }
 
   .support-fund > :global(svg) {
@@ -145,55 +168,40 @@
 
   .support-fund-text {
     display: grid;
-    gap: var(--space-0);
+    gap: var(--gap-xs);
     min-width: 0;
   }
 
   .support-fund-text b {
-    font-size: var(--text-lg);
-    font-weight: 600;
+    font-weight: 700;
   }
 
   .support-fund-text small {
-    color: var(--set-dim);
-    font-size: var(--text-sm);
+    overflow: hidden;
+    color: var(--dim);
+    font-size: var(--type-small);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .support-page > :global(.support-list) {
-    grid-area: list;
-  }
-
-  .support-page > :global(.support-sent) {
-    grid-area: sent;
-  }
-
-  .support-note {
-    margin: 0;
-    max-width: 60ch;
-    font-size: var(--text-lg);
-    line-height: 1.45;
-    text-wrap: pretty;
-  }
-
-  .support-lead {
-    margin: 0;
-    color: var(--set-dim);
-    font-size: var(--text-md);
+  .support-sent {
+    display: grid;
+    gap: var(--gap-sm);
   }
 
   .support-facts {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: var(--space-2) var(--space-5);
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: var(--gap-xs) var(--gap-md);
     margin: 0;
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-md);
-    background: var(--set-well);
-    font-size: var(--text-md);
+    padding: var(--gap-md);
+    border-radius: var(--radius-sm);
+    background: var(--row);
+    font-size: var(--type-small);
   }
 
   .support-facts dt {
-    color: var(--set-dim);
+    color: var(--dim);
   }
 
   .support-facts dd {
@@ -204,16 +212,17 @@
     white-space: nowrap;
   }
 
-  .support-caption {
-    color: var(--set-dim);
-    font-size: var(--text-sm);
-    line-height: 1.4;
-    text-wrap: pretty;
+  @media (max-height: 500px) {
+    .support {
+      height: auto;
+      overflow: visible;
+    }
   }
 
   @media (max-width: 600px) {
-    .support-page {
-      grid-template: "about" "back" "list" "sent" / minmax(0, 1fr);
+    .support,
+    .support-funds {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 </style>

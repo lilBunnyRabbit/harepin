@@ -14,11 +14,10 @@
     onheld?: () => void;
     variant?: "fill" | "quiet";
     tone?: "primary" | "online";
-    size?: "sm" | "md" | "lg";
     children: Snippet;
   }
 
-  let { keys, hold, onheld, variant = "fill", tone = "primary", size = "md", type = "button", disabled, class: extra, children, ...rest }: Props = $props();
+  let { keys, hold, onheld, variant = "fill", tone = "primary", type = "button", disabled, class: extra, children, ...rest }: Props = $props();
 
   let holding = $state(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -71,7 +70,6 @@
   class={["ui-key-btn", extra]}
   data-variant={variant}
   data-tone={tone}
-  data-size={size}
   data-hold={hold === undefined ? undefined : ""}
   data-holding={holding ? "" : undefined}
   style:--hold-ms={hold === undefined ? undefined : `${hold}ms`}

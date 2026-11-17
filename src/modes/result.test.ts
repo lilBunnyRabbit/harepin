@@ -2,19 +2,19 @@ import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { EVENTS } from "../career/career";
 import { event_map } from "../career/career-store";
-import { go_label, next_ticket, stamp_text } from "./result";
+import { next_label, next_ticket, stamp_text } from "./result";
 
 const at = (id: string) => EVENTS.find((event) => event.id === id)!;
 
-test("the next event's ticket names its tier place and map, and Go or Travel follows the map", () => {
+test("the next event's ticket names its tier place and map, and the primary names the event or the map to travel to", () => {
   const here = event_map(at("r1"));
   const same = next_ticket(at("r2"), here, "Gymkhana");
   expect(same).toMatchObject({ tier: 1, eyebrow: "Next up · Rookie 2 of 7", title: at("r2").name, mode: "Gymkhana", place: { here: true } });
-  expect(go_label(same.place)).toBe("Go");
+  expect(next_label(same)).toBe(`Next: ${at("r2").name}`);
   const away = next_ticket(at("r6"), here, "Duel");
   expect(away.place.here).toBe(false);
   expect(away.kind).toBe(event_map(at("r6")).kind);
-  expect(go_label(away.place)).toMatch(/^Travel to Sky · /);
+  expect(next_label(away)).toMatch(/^Travel to Sky · /);
 });
 
 test("the stamp says the place where cars raced, else the title", () => {

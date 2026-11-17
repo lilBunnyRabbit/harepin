@@ -11,6 +11,17 @@ export const dark = dusk_of(brand.background);
 // with dark text (Red & Black) drives at dusk with light form controls.
 document.documentElement.style.colorScheme = brand.foreground[0] < brand.background[0] ? "light" : "dark";
 
+/**
+ * A theme put on while the page is up (Set up, the Display preview): the surface ladder and the native controls follow
+ * its polarity at once. The scene keeps `brand` until the next load.
+ */
+export function show_theme(name: string) {
+  apply_theme(name);
+  const now = read_tokens();
+  document.documentElement.dataset.scheme = dusk_of(now.background) ? "dark" : "light";
+  document.documentElement.style.colorScheme = now.foreground[0] < now.background[0] ? "light" : "dark";
+}
+
 export function mix(a: Lab, b: Lab, share: number): Lab {
   return [a[0] * share + b[0] * (1 - share), a[1] * share + b[1] * (1 - share), a[2] * share + b[2] * (1 - share)];
 }

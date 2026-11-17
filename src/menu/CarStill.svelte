@@ -1,9 +1,12 @@
 <script lang="ts">
+  import type { Build } from "../car/build";
   import type { CarId } from "../car/cars";
   import { StillView, still_build } from "./still-build";
 
   interface Props {
     car: CarId;
+    /** The car as built, in its own paint and parts; without it the stock car in its still paint. */
+    build?: Build;
     /** Index into the aero kits. */
     aero?: number;
     /** Faces the other way. */
@@ -13,22 +16,22 @@
     label?: string;
   }
 
-  let { car, aero = 0, flip = false, outline = false, label }: Props = $props();
+  let { car, build, aero = 0, flip = false, outline = false, label }: Props = $props();
 
   let src = $state<string>();
 
   $effect(() => {
     let live = true;
-    const build = still_build(car, aero);
+    const drawn = build ?? still_build(car, aero);
     const view = outline ? StillView.PROFILE : StillView.QUARTER;
     // Loaded here, never at import: the renderer and the theme it reads stay out of a server render.
     import("./car-still")
-      .then(({ car_still }) => car_still(build, view))
+      .then(({ car_still }) => car_still(drawn, view))
       .then(
         (url) => {
           if (live) src = url;
         },
-        (error) => console.warn("still: no picture of", build.car, error),
+        (error) => console.warn("still: no picture of", drawn.car, error),
       );
     return () => {
       live = false;
@@ -60,6 +63,11 @@
     display: block;
     width: 100%;
     height: 100%;
+  }
+
+  /* A slot of another shape shows the whole car, never a cut or stretched one. */
+  img {
+    object-fit: contain;
   }
 
   /* A profile is long and low: its slot keeps the picture's floor and drops the empty sky over the roof. */

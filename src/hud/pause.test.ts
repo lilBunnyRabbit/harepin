@@ -13,28 +13,29 @@ function sheet(card: PauseCard, solo: boolean): string {
   return render(PauseSheet, { props: { card, aids: AIDS, solo, caps: pause_keys(DEFAULT_BINDINGS, card.kind).caps, onact: none, onflip: none, onresume: none } }).body;
 }
 
-/** Each label follows the one before it, and its key cap sits between them. */
+/** Each label follows the one before it, beside its key cap. */
 function rows_in_order(html: string, rows: readonly (readonly [string, string])[]) {
   let at = 0;
   for (const [label, cap] of rows) {
-    at = html.indexOf(`>${label}</span>`, at);
-    expect(at).toBeGreaterThan(-1);
-    const key = html.indexOf(`>${cap}</kbd>`, at);
-    expect(key).toBeGreaterThan(at);
-    at = key;
+    const next = html.indexOf(`>${label}</span>`, at);
+    expect(next).toBeGreaterThan(at - 1);
+    const row = html.slice(html.lastIndexOf("<button", next), html.indexOf("</button>", next));
+    expect(row).toContain(`>${cap}</kbd>`);
+    at = next + 1;
   }
 }
 
-test("free roam: the title card, seven rows with their keys, the aids and Resume", () => {
-  const html = sheet({ kind: "roam", context: "free roam", title: "Island · Harwar", facts: ["Rookie 0/21 ★", "4 flags here"] }, true);
-  for (const text of ["Paused · free roam", "Island · Harwar", "Rookie 0/21 ★", "4 flags here", "Assists", "TC", "Lights", "Resume"]) expect(html).toContain(text);
-  rows_in_order(html, [["Map", "M"], ["Events", "E"], ["Garage", "G"], ["Online", "O"], ["Showroom", "H"], ["Settings", "S"], ["Reset car", "R"]]);
-  expect(html).not.toContain("Leave event");
+test("free roam: on the frame, the map card, Reset car, the aids, six doors with their keys and Resume", () => {
+  const html = sheet({ kind: "roam", context: "Free roam", title: "Island · Harwar", facts: ["Rookie 0/21 ★", "4 flags here"] }, true);
+  for (const text of ["ui-frame", "Free roam", "Paused", "Island · Harwar", "Rookie 0/21 ★", "4 flags here", "Assists", "TC", "Lights", "Go to", "Camera", "Chat"]) expect(html).toContain(text);
+  rows_in_order(html, [["Reset car", "R"], ["Home", "H"], ["Events", "E"], ["Garage", "G"], ["Online", "O"], ["Settings", "S"], ["Road map", "M"]]);
+  expect(html.match(/>Resume</g)).toHaveLength(2);
+  expect(html).not.toContain(">Leave</span>");
 });
 
-test("in an event: the run card, five rows with their keys and Resume", () => {
-  const html = sheet({ kind: "event", context: "Race", title: "First lap", facts: ["gate 1/12", "0:06.2"] }, false);
-  for (const text of ["Menu · Race", "First lap", "gate 1/12", "Resume"]) expect(html).toContain(text);
-  rows_in_order(html, [["Restart", "R"], ["Leave event", "Q"], ["Car and parts", "G"], ["Showroom", "H"], ["Settings", "S"]]);
-  expect(html).not.toContain(">Map</span>");
+test("in an event: the run with its clock, Restart and Leave, four doors and Resume", () => {
+  const html = sheet({ kind: "event", context: "Race", title: "First lap", facts: ["gate 1/12"], clock: "0:06.2" }, false);
+  for (const text of ["Race", "Menu", "First lap", "gate 1/12", "0:06.2", "Resume"]) expect(html).toContain(text);
+  rows_in_order(html, [["Restart", "R"], ["Leave", "Q"], ["Car and parts", "G"], ["Home", "H"], ["Settings", "S"], ["Route map", "M"]]);
+  expect(html).not.toContain(">Events</span>");
 });

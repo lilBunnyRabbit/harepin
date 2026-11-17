@@ -2,8 +2,13 @@
   import type { Snippet } from "svelte";
 
   interface Props {
-    variant?: "panel" | "well" | "raised";
-    onclick?: () => void;
+    pad?: "md" | "sm" | "none";
+    focused?: boolean;
+    flat?: boolean;
+    picture?: Snippet;
+    wide?: boolean;
+    onclick?: (event: MouseEvent) => void;
+    onfocus?: () => void;
     /** Holds a `RowList`: the rows bring their own padding. */
     list?: boolean;
     label?: string;
@@ -12,34 +17,84 @@
     children: Snippet;
   }
 
-  let { variant = "panel", onclick, list = false, label, selected, class: extra, children }: Props = $props();
+  let { pad = "md", focused = false, flat = false, picture, wide = false, onclick, onfocus, list = false, label, selected, class: extra, children }: Props = $props();
+
+  const classes = $derived(["ui-card", list && "ui-list", picture && "ui-pictured", wide && "ui-wide", extra]);
 </script>
 
+{#snippet body()}
+  {#if picture}
+    <div class="ui-card-pic">{@render picture()}</div>
+    <div class="ui-card-cap">{@render children()}</div>
+  {:else}
+    {@render children()}
+  {/if}
+{/snippet}
+
 {#if onclick}
-  <button type="button" class={["ui-card", "ui-tile", extra]} data-variant={variant} aria-label={label} aria-pressed={selected} {onclick}>{@render children()}</button>
+  <button type="button" class={[classes, "ui-tile"]} data-pad={pad} data-focused={focused ? "" : undefined} data-flat={flat ? "" : undefined} aria-label={label} aria-pressed={selected} {onclick} {onfocus}>{@render body()}</button>
 {:else}
-  <section class={["ui-card", extra]} class:ui-list={list} data-variant={variant} aria-label={label}>{@render children()}</section>
+  <section class={classes} data-pad={pad} data-focused={focused ? "" : undefined} data-flat={flat ? "" : undefined} aria-label={label}>{@render body()}</section>
 {/if}
 
 <style>
   .ui-card {
+    --card-pad: var(--pad);
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--gap-md);
     min-width: 0;
-    padding: var(--space-5);
-    border: 1px solid var(--set-line);
-    border-radius: var(--radius-lg);
-    background: var(--set-panel);
+    min-height: 0;
+    padding: var(--card-pad);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--card-radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
     color: var(--foreground);
   }
 
-  [data-variant="well"] {
-    background: var(--set-well);
+  [data-pad="sm"] {
+    --card-pad: var(--gap-md) var(--gap);
   }
 
-  [data-variant="raised"] {
-    background: var(--set-raised);
+  [data-pad="none"] {
+    --card-pad: 0;
+  }
+
+  .ui-card.ui-list {
+    --card-pad: calc(var(--pad) - var(--gap-md));
+  }
+
+  [data-flat] {
+    box-shadow: none;
+  }
+
+  .ui-pictured {
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .ui-card-pic {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .ui-card-pic > :global(*) {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    object-fit: cover;
+  }
+
+  .ui-card-cap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    min-width: 0;
+    padding: var(--card-pad);
   }
 
   .ui-tile {
@@ -48,30 +103,37 @@
     height: auto;
     font: inherit;
     text-align: left;
+    white-space: normal;
     cursor: pointer;
   }
 
   .ui-tile:hover {
-    border-color: var(--line-strong);
+    border-color: var(--dim);
+    background: var(--surface);
   }
 
   .ui-tile[aria-pressed="true"] {
     border-color: var(--primary);
-    box-shadow: inset 0 0 0 1px var(--primary);
   }
 
+  [data-focused],
   .ui-tile:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
+    outline: var(--mark-w) solid var(--cottontail);
+    outline-offset: var(--space-0);
   }
 
-  @media (max-height: 500px), (max-width: 600px) {
-    .ui-card {
-      padding: var(--space-4);
+  @media (max-height: 500px) {
+    .ui-wide {
+      flex-direction: row;
     }
-  }
 
-  .ui-card.ui-list {
-    padding: var(--space-2);
+    .ui-wide > .ui-card-pic {
+      flex: 0 0 30%;
+    }
+
+    .ui-wide > .ui-card-cap {
+      flex: 1;
+      justify-content: center;
+    }
   }
 </style>

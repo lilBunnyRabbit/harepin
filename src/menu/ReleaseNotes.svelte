@@ -53,7 +53,7 @@
 
   .release-date {
     margin-left: auto;
-    color: var(--set-dim);
+    color: var(--dim);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
   }

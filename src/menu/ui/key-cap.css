@@ -2,35 +2,47 @@
   display: contents;
 }
 
-.ui-glyph-cap {
-  display: none;
+/* The cap is outlined in the text colour around it, never filled: it reads the same on a fill, a card or the road. */
+.ui-cap {
+  display: inline-grid;
   place-items: center;
   flex: none;
-  min-width: var(--space-6);
-  height: var(--space-6);
-  padding: 0 calc(var(--space-1) + var(--space-0));
-  border: 1px solid var(--line-strong);
-  border-bottom-width: var(--space-0);
+  min-width: 1.8em;
+  height: 1.7em;
+  padding: 0 0.45em;
+  border: 0.13em solid currentColor;
+  border-bottom-width: 0.24em;
   border-radius: var(--radius-xs);
-  background: var(--background-lighter);
-  color: var(--foreground);
-  font: 700 var(--text-xs) / 1 var(--font-mono);
+  background: none;
+  color: inherit;
+  font: 700 0.8em / 1 var(--font-mono);
   white-space: nowrap;
 }
 
-.ui-glyph-cap[data-shape="round"] {
-  width: var(--space-6);
+.ui-cap[data-shape="round"] {
+  width: 1.7em;
+  min-width: 0;
   padding: 0;
+  border-bottom-width: 0.13em;
   border-radius: 50%;
 }
 
-.ui-glyph-cap[data-shape="bumper"] {
+.ui-cap[data-shape="bumper"] {
   border-radius: var(--radius-xs) var(--radius-xs) var(--radius-sm) var(--radius-sm);
 }
 
-.ui-glyph-cap > svg {
-  width: var(--space-3);
-  height: var(--space-3);
+/* Touch has no key to name: its glyph is the bare icon. */
+.ui-cap[data-glyph="touch"] {
+  --icon-size: 1.15em;
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  border: 0;
+  font-size: 1em;
+}
+
+.ui-glyph-cap {
+  display: none;
 }
 
 :root:not([data-input="pad"], [data-input="touch"]) .ui-glyph-cap[data-glyph="key"],
@@ -43,15 +55,16 @@
 :root .ui-key-btn {
   --key-fill: var(--cottontail);
   --key-ink: var(--on-cottontail);
-  --key-pad: var(--space-6);
-  --key-pad-cap: var(--space-4);
+  --key-sweep: color-mix(in oklch, var(--background-darkest) 24%, transparent);
+  --key-pad: 1.5em;
+  --key-pad-cap: 0.9em;
   position: relative;
   display: inline-flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
-  height: var(--control-h-lg);
+  gap: 0.65em;
+  height: var(--primary-h);
   padding: 0 var(--key-pad) 0 var(--key-pad-start, var(--key-pad));
   overflow: hidden;
   border: 0;
@@ -61,7 +74,7 @@
   box-shadow:
     0 0 0 var(--space-0) var(--background-darkest),
     0 var(--space-2) var(--space-6) color-mix(in oklch, var(--background-darkest) 45%, transparent);
-  font: 700 var(--text-xl) / 1 var(--font-sans);
+  font: 800 var(--type-primary) / 1 var(--font-sans);
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
@@ -78,8 +91,8 @@
 }
 
 :root .ui-key-btn:focus-visible {
-  outline: 3px solid var(--cottontail);
-  outline-offset: var(--space-1);
+  outline: var(--mark-w) solid var(--cottontail);
+  outline-offset: var(--space-0);
 }
 
 /* Only a cap the current input shows pulls the label in: a Glyph with no cap for it renders nothing. */
@@ -89,55 +102,23 @@
   --key-pad-start: var(--key-pad-cap);
 }
 
-.ui-key-btn:disabled {
-  opacity: 0.45;
+/* Off is the fill mixed down into the page, at full opacity: a faded button let the scene show through its label. */
+:root .ui-key-btn:disabled {
+  background: color-mix(in oklab, var(--key-fill) 38%, var(--background-dark));
+  box-shadow: 0 0 0 var(--space-0) var(--background-darkest);
   cursor: default;
 }
 
-.ui-key-btn[data-size="lg"] {
-  --key-pad: var(--space-8);
-  --key-pad-cap: var(--space-5);
-  height: calc(var(--control-h-lg) + var(--space-3));
-  font-size: var(--text-2xl);
-  font-weight: 800;
-}
-
-.ui-key-btn[data-size="sm"] {
-  --key-pad: var(--space-4);
-  --key-pad-cap: var(--space-2);
-  gap: var(--space-2);
-  height: var(--control-h-sm);
-  font-size: var(--text-md);
-}
-
-.ui-key-btn .ui-glyph-cap {
-  position: relative;
-  min-width: 1.8em;
-  height: 1.7em;
-  padding: 0 0.45em;
-  border: 0.13em solid currentColor;
-  border-bottom-width: 0.24em;
-  background: none;
-  color: inherit;
-  font-size: 0.8em;
-}
-
-.ui-key-btn .ui-glyph-cap[data-shape="round"] {
-  width: 1.7em;
-  min-width: 0;
-  padding: 0;
-  border-bottom-width: 0.1em;
-}
-
-.ui-key-btn .ui-glyph-cap > svg {
-  width: 0.9em;
-  height: 0.9em;
-}
-
-.ui-key-btn[data-variant="quiet"] {
-  background: none;
+:root .ui-key-btn[data-variant="quiet"] {
+  --key-sweep: var(--line-strong);
+  background: var(--surface);
   color: var(--foreground);
   box-shadow: inset 0 0 0 var(--space-0) var(--line-strong);
+  font-weight: 700;
+}
+
+:root .ui-key-btn[data-variant="quiet"]:disabled {
+  color: var(--dim);
 }
 
 .ui-key-btn > * {
@@ -149,8 +130,7 @@
   position: absolute;
   inset: 0;
   width: var(--held, 0%);
-  background: var(--cottontail);
-  opacity: 0.55;
+  background: var(--key-sweep);
 }
 
 .ui-key-btn[data-holding]::before {
@@ -166,16 +146,6 @@
   }
 }
 
-@media (max-height: 500px) {
-  .ui-key-btn[data-size="lg"] {
-    --key-pad: var(--space-6);
-    --key-pad-cap: var(--space-4);
-    height: var(--control-h-lg);
-    font-size: var(--text-xl);
-  }
-}
-
-
 /* Light themes can resolve cottontail dark (Brand Light's brown), which would take white ink: lift the fill, ink stays dark. */
 :root[data-scheme="light"] .ui-key-btn {
   --key-fill: oklch(from var(--cottontail) max(l, 0.84) min(c, 0.11) h);
@@ -184,4 +154,9 @@
 
 :root[data-scheme="light"] .ui-key-btn[data-tone="online"] {
   --key-fill: oklch(from var(--secondary) max(l, 0.84) min(c, 0.11) h);
+}
+
+/* The lifted fills sit close to their own mixed-down shade, so off also quiets the label here. */
+:root[data-scheme="light"] .ui-key-btn:disabled {
+  color: var(--dim);
 }

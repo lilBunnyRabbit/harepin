@@ -20,12 +20,14 @@
 
   const reading = $derived(releases.find((release) => release.version === view.reading));
   const story = $derived(reading ? story_of(reading) : null);
+  // The page leads with the build the player has: its notes come first unless it is a big update, whose story card does.
+  const newest = $derived(releases[0] && !story_of(releases[0]) ? releases[0] : null);
   const fresh = $derived(view.pending?.remote ? newer_releases(view.pending.remote.notes, build.version) : []);
 </script>
 
 <div class="changelog-page">
   {#if view.pending}
-    <Card variant="raised" class="changelog-pending" label="Update ready">
+    <Card class="changelog-pending" label="Update ready">
       <div class="changelog-update">
         <span class="changelog-update-text">
           <b>Update ready</b>
@@ -44,9 +46,10 @@
       </div>
       <ReleaseStory release={reading} {story} />
     {:else}
-      <ReleaseStories {releases} onopen={(version) => (view.reading = version)} />
       <p class="changelog-build">You have v{build.version} · {build.commit}</p>
-      {#each releases as release (release.version)}<ReleaseNotes {release} />{/each}
+      {#if newest}<ReleaseNotes release={newest} />{/if}
+      <ReleaseStories {releases} onopen={(version) => (view.reading = version)} />
+      {#each newest ? releases.slice(1) : releases as release (release.version)}<ReleaseNotes {release} />{/each}
     {/if}
   </div>
 </div>
@@ -81,7 +84,7 @@
   }
 
   .changelog-update-text small {
-    color: var(--set-dim);
+    color: var(--dim);
     font-size: var(--text-sm);
   }
 
@@ -103,7 +106,7 @@
 
   .changelog-build {
     margin: 0;
-    color: var(--set-dim);
+    color: var(--dim);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
   }

@@ -1,14 +1,12 @@
 import { tick } from "svelte";
-import { DECALS, DEFAULT_BUILD, MAX_NUMBER, build_code, parse_build, type Build } from "../car/build";
+import { DECALS, DEFAULT_BUILD, MAX_NUMBER, WHOLE_CAR, build_code, parse_build, type Build, type SlotView } from "../car/build";
 import { free_build_name, load_builds, store_builds, with_build, without_build, type SavedBuild } from "../car/builds";
 import { CARS, type CarId } from "../car/cars";
 import { PRESETS } from "../car/presets";
 import { NO_UNLOCKS, type Reward, type Unlocks } from "../career/rewards";
 import { modal_open, typing, type Nav } from "../hud/input";
 import { save_build } from "./garage-builds";
-import { BUILDS_TAB, TABS, car_value, type Item } from "./garage-items";
-import { GarageStage } from "./garage-stage";
-import { strip_key } from "./garage-strip-key";
+import { garage_items, type Item } from "./garage-items";
 
 const KEY_NAV: Record<string, Nav> = {
   ArrowUp: "up",
@@ -17,14 +15,21 @@ const KEY_NAV: Record<string, Nav> = {
   ArrowRight: "right",
   Enter: "accept",
   NumpadEnter: "accept",
+  KeyC: "alt",
+  KeyB: "sub_prev",
 };
 
 export type GarageInput = "pad" | "keys";
 
 export interface GarageView {
-  canvas: HTMLCanvasElement;
-  panels(): HTMLElement[];
   sheet(): HTMLElement | null;
+}
+
+/** The showroom's stage the garage stands its car on: it draws `Garage.shown` and frames it between the page's panels. */
+export interface GarageStage {
+  aim(view: SlotView): void;
+  sync(): void;
+  reframe(): void;
 }
 
 export class Garage {
@@ -33,17 +38,19 @@ export class Garage {
   /** The garage is the menu's Garage tab: LB / RB and Back belong to the menu. */
   on_tab: ((step: number) => void) | null = null;
   on_back: (() => void) | null = null;
+  /** Change car: the picker takes over, and its pick comes back through `use_code`. */
+  on_pick_car: (() => void) | null = null;
   /** Career rewards earned: the garage lists only these of the reward paints and decals. */
   rewards: () => Unlocks = () => NO_UNLOCKS;
 
   current = $state.raw<Build>(DEFAULT_BUILD);
-  tab = $state(1);
-  item = $state.raw<Item>(TABS[1].items(DEFAULT_BUILD, NO_UNLOCKS)[0]);
+  /** The card shows the saved builds instead of a slot's options. */
+  on_builds = $state(false);
+  item = $state.raw<Item>(garage_items(DEFAULT_BUILD, NO_UNLOCKS)[0]);
   cursor = $state(0);
   builds = $state.raw<SavedBuild[]>(load_builds());
   renaming = $state<string | null>(null);
   input = $state<GarageInput>("keys");
-  centred = $state(0);
   private opened = $state(false);
   // `rewards` reads career stars outside the runes, so each open bumps this to relist reward paints and decals.
   private relist = $state(0);
@@ -68,7 +75,7 @@ export class Garage {
 
   get items(): Item[] {
     void this.relist;
-    return TABS[this.tab].items(this.current, this.rewards());
+    return garage_items(this.current, this.rewards());
   }
 
   /** Reward cars the player holds: a preset on one lists only then. */
@@ -77,22 +84,16 @@ export class Garage {
     return this.rewards().cars;
   }
 
-  get on_builds(): boolean {
-    return this.tab === BUILDS_TAB;
-  }
-
   get shown(): Build {
     return this.cursor === this.item.at(this.current) ? this.current : this.item.with(this.current, this.cursor);
   }
 
-  get strip_key(): string {
-    return strip_key(this.item, this.tab, this.current);
-  }
-
   attach(view: GarageView) {
     this.view = view;
-    this.stage = new GarageStage(view.canvas);
-    if (this.opened) this.start();
+  }
+
+  stand_on(stage: GarageStage) {
+    this.stage = stage;
   }
 
   use_code(code: string, save = true) {
@@ -106,37 +107,38 @@ export class Garage {
     this.relist++;
     this.input = navigator.getGamepads?.().some((pad) => pad?.connected) ? "pad" : "keys";
     addEventListener("keydown", this.key);
-    addEventListener("resize", this.resized);
     const items = this.items;
     this.item = items.find((item) => item.id === this.item.id) ?? items[0] ?? this.item;
     this.builds = load_builds();
     this.cursor = this.item.at(this.current);
-    this.start();
+    this.stage?.aim(this.item.view);
+    this.reframe();
   }
 
+  /** Leaves the stage on the fitted car, turned to the whole of it, for the stations that stand it next. */
   close() {
     if (!this.opened) return;
     this.opened = false;
-    this.stage?.stop();
+    this.on_builds = false;
+    this.renaming = null;
+    this.cursor = this.item.at(this.current);
+    this.stage?.aim(WHOLE_CAR);
+    this.stage?.sync();
     removeEventListener("keydown", this.key);
-    removeEventListener("resize", this.resized);
   }
 
+  /** A reward just earned, tried on the car: a paint or decal as its option, a car through the picker. */
   try_reward(reward: Reward) {
     if (!this.opened || reward.kind === "badge") return;
+    if (reward.kind === "car") return this.on_pick_car?.();
     this.relist++;
-    const paint = reward.kind === "paint";
-    const section = paint ? "paint" : "body";
     const { rewards } = reward.tier;
-    const value = paint ? rewards.paint : reward.kind === "car" ? car_value(rewards.car) : DECALS.indexOf(rewards.decal ?? "none");
-    this.tab = TABS.findIndex((tab) => tab.section === section);
+    const value = reward.kind === "paint" ? rewards.paint : DECALS.indexOf(rewards.decal ?? "none");
     const item = this.items.find((it) => it.id === reward.kind);
-    if (item) {
-      this.select(item);
-      const option = item.values?.indexOf(value) ?? value;
-      if (option >= 0) this.preview(option);
-    }
-    this.reframe();
+    if (!item) return;
+    this.select(item);
+    const option = item.values?.indexOf(value) ?? value;
+    if (option !== undefined && option >= 0) this.preview(option);
   }
 
   navigate(presses: readonly Nav[]) {
@@ -145,28 +147,32 @@ export class Garage {
     for (const nav of presses) this.act(nav);
   }
 
-  switch_tab(tab: number) {
-    this.tab = (tab + TABS.length) % TABS.length;
+  toggle_builds() {
+    this.on_builds = !this.on_builds;
     this.renaming = null;
-    const first = this.items[0];
-    if (first) this.select(first);
-    this.reframe();
+    this.cursor = this.item.at(this.current);
   }
 
   select(item: Item) {
+    this.on_builds = false;
     this.item = item;
     this.cursor = item.at(this.current);
     this.stage?.aim(item.view);
+  }
+
+  step_slot(by: number) {
+    const items = this.items;
+    const at = Math.max(0, items.findIndex((item) => item.id === this.item.id));
+    this.select(items[(at + by + items.length) % items.length]);
   }
 
   preview(option: number) {
     this.cursor = option;
   }
 
-  fit(option: number, centre = true) {
+  fit(option: number) {
     this.cursor = option;
     this.apply(this.item.with(this.current, option));
-    if (centre) this.centred++;
   }
 
   step_number(by: number) {
@@ -188,7 +194,6 @@ export class Garage {
     if (!next || !store_builds(next)) return false;
     this.on_save?.();
     this.builds = next;
-    if (this.tab !== BUILDS_TAB) this.switch_tab(BUILDS_TAB);
     return true;
   }
 
@@ -204,29 +209,20 @@ export class Garage {
     this.store(without_build(this.builds, name));
   }
 
-  private start() {
-    if (!this.stage || !this.opened) return;
-    this.stage.start(this.item.view);
-    this.stage.show(this.shown);
-    this.reframe();
-  }
-
   draw() {
-    if (this.opened) this.stage?.show(this.shown);
+    if (this.opened) this.stage?.sync();
   }
 
   private act(nav: Nav) {
     if (!this.opened) return;
     if (nav === "back") return this.on_back?.();
     if (nav === "prev" || nav === "next") return this.on_tab?.(nav === "prev" ? -1 : 1);
-    if (nav === "sub_prev" || nav === "sub_next") return this.switch_tab(this.tab + (nav === "sub_prev" ? -1 : 1));
-    if (nav === "alt") return void this.save_build("");
-    if (this.tab === BUILDS_TAB) return this.builds_focus(nav);
-    const items = this.items;
-    const index = Math.max(0, items.findIndex((item) => item.id === this.item.id));
-    if (nav === "up" || nav === "down") this.select(items[(index + (nav === "up" ? -1 : 1) + items.length) % items.length]);
-    else if (nav === "left" || nav === "right") {
-      const step = nav === "left" ? -1 : 1;
+    if (nav === "alt") return this.on_pick_car?.();
+    if (nav === "sub_prev") return this.toggle_builds();
+    if (this.on_builds) return this.builds_focus(nav);
+    if (nav === "left" || nav === "right") this.step_slot(nav === "left" ? -1 : 1);
+    else if (nav === "up" || nav === "down") {
+      const step = nav === "up" ? -1 : 1;
       const count = this.item.count;
       this.preview(this.item.kind === "number" ? (this.cursor + step + count) % count : Math.max(0, Math.min(count - 1, this.cursor + step)));
     } else if (nav === "accept") this.fit(this.cursor);
@@ -250,7 +246,7 @@ export class Garage {
   private readonly key = (event: KeyboardEvent) => {
     const nav = KEY_NAV[event.code];
     if (!nav || event.repeat || event.altKey || event.ctrlKey || event.metaKey || modal_open()) return;
-    if (typing(event.target) && (nav !== "accept" || this.tab === BUILDS_TAB)) return;
+    if (typing(event.target) && (nav !== "accept" || this.on_builds)) return;
     event.preventDefault();
     this.input = "keys";
     this.act(nav);
@@ -268,10 +264,8 @@ export class Garage {
   }
 
   private reframe() {
-    void tick().then(this.resized);
+    void tick().then(() => {
+      if (this.opened) this.stage?.reframe();
+    });
   }
-
-  private readonly resized = () => {
-    if (this.opened && this.view) this.stage?.resize(this.view.panels());
-  };
 }

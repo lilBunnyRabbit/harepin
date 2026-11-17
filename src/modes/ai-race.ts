@@ -145,6 +145,7 @@ export class AiRace implements ModeRun, FieldRace {
     this.wall = now;
     const was = run.status;
     const taken = run.update(run.countdown > 0 ? wall : sim_dt * 1000, car.pos.x, car.pos.z);
+    this.route.progress = run.tracker.index;
     if (this.go_at < 0 && run.status !== RaceStatus.READY) this.go_at = now;
     this.lights.update(run.countdown, this.go_at < 0 ? -1 : now - this.go_at);
     this.field.update(ctx.camera);
@@ -274,12 +275,14 @@ export class AiRace implements ModeRun, FieldRace {
     this.write_rows();
     const how = end === End.OUT && place > 1 ? `Out in ${ordinal(place)}` : end === End.TIME ? `${ordinal(place)} at the flag` : `${ordinal(place)} of ${field}`;
     const extra = this.host.event?.finish({ order, clean: !this.touched, led: this.led, fastest: this.laps > 1 && this.tally.fastest(player), from_back: this.grid === this.builds.length }) ?? [];
-    const laps = end === End.LINE ? line("laps", String(this.laps)) : line("laps done", String(this.lap - 1));
+    // A race run to the line did the laps it set; one cut short says how far it got.
+    const laps = end === End.LINE ? [] : [line("laps done", String(this.lap - 1))];
     this.result = {
       title: `${how} · ${this.name}`,
       stars: place === 1 ? 3 : place <= PODIUM ? 2 : 1,
       place,
-      lines: [line("race", this.name), line("finish", how), line("time", format(ms)), laps, ...extra],
+      name: this.name,
+      lines: [line("finish", how), line("time", format(ms)), ...laps, ...extra],
       standings: this.rows.map((r) => r.el),
     };
   }

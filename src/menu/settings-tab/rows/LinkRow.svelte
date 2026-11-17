@@ -27,7 +27,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-1);
-    color: var(--set-dim);
+    color: var(--dim);
     font-size: var(--text-md);
     text-align: right;
   }

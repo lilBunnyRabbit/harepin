@@ -5,8 +5,9 @@ import { PRESETS } from "../car/presets";
 import { within } from "../car/car-pick";
 import { rating } from "../car/pi";
 import { CREDITS_PER_POINT, FINAL_FACTOR } from "./credits";
-import { Bonus, OPEN_AT_START, PODIUM, SeriesKind, better, car_fault, empty_progress, event_field, event_line, event_result, event_states, grid_slot, parse_progress, player_of, result_points, season_done, season_round, standings, type EventResult, type Season, type SeriesProgress } from "./series";
+import { Bonus, OPEN_AT_START, PODIUM, SeriesKind, better, car_fault, empty_progress, event_field, event_line, event_result, event_states, grid_slot, next_open, parse_progress, player_of, result_points, season_done, season_round, standings, type EventResult, type Season, type SeriesProgress } from "./series";
 import type { SeriesSaves } from "./series-db";
+import { series_ticket } from "./series-run";
 import { SEASON_1, SEASON_4, SEASONS, completed, seasons_open, series_event } from "./series-seasons";
 import { build_world, KINDS, plain_map } from "../worldgen/kinds/kinds";
 import { field_races } from "../modes/field-route";
@@ -14,6 +15,7 @@ import type { WorldKind } from "../worldgen/types";
 import { MAX_LAPS } from "../modes/race-laps";
 import { Series, series_front, series_list, series_open } from "./series-store";
 import { BASE_CAR, Wallet } from "./wallet";
+import { car_shelves } from "../car/car-pick";
 
 const season = SEASON_1;
 const YOU = player_of(season);
@@ -247,6 +249,14 @@ test("only the player's own cars race, under the season's class cap", () => {
   expect(car_fault(season, { ...stock, car: season.reward.car }, [BASE_CAR, season.reward.car])).toBeNull();
 });
 
+test("the series car picker greys what car_fault refuses", () => {
+  const series = new Series(season, memory(), new Wallet(null));
+  const shelves = car_shelves(DEFAULT_BUILD, [], PRESETS, series.car_limit());
+  const cars = shelves.flatMap((shelf) => shelf.choices);
+  expect(cars.some((c) => c.blocked === null)).toBe(true);
+  for (const car of cars) expect(car.blocked === null).toBe(series.car_fault(car.build) === null);
+});
+
 test("every finish pays credits, the final double; completing the season pays its reward once and replays on new seeds", async () => {
   const store = memory();
   const wallet = new Wallet(null);
@@ -303,4 +313,17 @@ test("the seasons share one wallet read; the page opens on the first open season
   list[0].reset();
   expect(series_open(list)).toEqual([true, true, false, false]);
   expect(series_front(list)).toBe(0);
+});
+
+test("Next after a result is the first open event after it, then one before it, none once all are run", () => {
+  const [first, second, third] = season.events;
+  expect(next_open(season, empty_progress(season), first)?.id).toBe(second.id);
+  const podiums: SeriesProgress = { ...empty_progress(season), results: { [second.id]: at(1), [third.id]: at(1) } };
+  expect(next_open(season, podiums, first)?.id).toBe(season.events[3].id);
+  const all: SeriesProgress = { ...empty_progress(season), results: Object.fromEntries(season.events.map((e) => [e.id, at(1)])) };
+  expect(next_open(season, all, first)).toBeNull();
+});
+
+test("the Next card names the round and its kind", () => {
+  expect(series_ticket(season, season.events[3], { here: true })).toEqual({ eyebrow: "Next · Round 4 of 6", title: "Rival duel", mode: "Head to head", place: { here: true }, kind: season.world });
 });

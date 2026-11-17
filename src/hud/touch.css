@@ -99,7 +99,6 @@
   anchor-name: --touch-buttons;
   position: absolute;
   top: var(--inset-top);
-  right: calc(var(--inset-right) + var(--map-panel) + var(--space-2));
   display: flex;
   gap: var(--space-2);
 }
@@ -306,8 +305,3 @@
   }
 }
 
-@media (pointer: coarse) {
-  :root[data-hud="compact"] .touch-buttons {
-    right: calc(var(--inset-right) + var(--compact-map) + var(--space-2));
-  }
-}

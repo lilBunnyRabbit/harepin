@@ -2,7 +2,7 @@ import type { SteerMode } from "../../car/car";
 import { key_label, keys_text, pad_text, type Bindable, type Bindings } from "../../hud/bindings";
 import { Device } from "../device";
 import { AidPreset } from "../guide-rules";
-import type { SettingsState, TouchSteer } from "../prefs";
+import type { TouchSteer } from "../prefs";
 
 export const LOOKS = ["Brand Dark", "Brand Light", "Forest Night", "Warm Sunset", "Ocean Breeze", "Cyberpunk", "Lavender Dream"];
 export const SWATCHES = ["primary", "secondary", "accent"] as const;
@@ -72,27 +72,6 @@ export const AID_LIGHTS = [
   ["stability", "STM"],
   ["auto", "Auto"],
 ] as const;
-
-const MENU_KEY: Record<Device, string> = { keyboard: "Esc", pad: "Start", touch: "the menu button" };
-
-export function controls_lede(state: SettingsState, device: Device): string {
-  if (device === Device.PAD) return "Triggers drive, the left stick steers.";
-  if (device === Device.TOUCH) return "Pedals on the right, steering on the left.";
-  const help = state.bindings.help;
-  return `These are the keys you need; ${keys_text(help) || "Settings, Controls"} lists the rest${help.keys.length ? " while driving" : ""}.`;
-}
-
-export const tour_lede = (device: Device) => `Four things worth knowing. All of them live in this menu; ${MENU_KEY[device]} opens it while driving.`;
-
-const LATER = "Change them any time in Settings, Driving.";
-
-export function aid_keys(bindings: Bindings): string {
-  const keys = AID_LIGHTS.map(([aid, label]) => [keys_text(bindings[aid]), label] as const);
-  if (!keys.every(([key]) => key)) return LATER;
-  return `While driving, keys switch each one: ${keys.map(([key, label]) => `${key} ${label}`).join(", ")}.`;
-}
-
-export const aid_note = (bindings: Bindings, device: Device) => `The dash shows which aids are on. ${device === Device.KEYBOARD ? aid_keys(bindings) : LATER}`;
 
 function shift_with(up: string, down: string): string {
   return up && down ? `Nothing helps. You shift with ${up} and ${down}.` : "Nothing helps. You shift yourself: set the keys in Settings, Controls.";

@@ -44,6 +44,8 @@ export function gate_row(shelves: readonly CarShelf[], picked: string | null): C
   return extra ? [...row.slice(0, ROW_CARS - 1), extra] : row;
 }
 
-export const first_pick = (row: readonly CarChoice[]): string | null => (row.find((c) => c.recommended) ?? row.find((c) => c.blocked === null))?.code ?? null;
+/** The car driven now when it fits the event, else the one the event recommends, else the first that fits. */
+export const first_pick = (row: readonly CarChoice[]): string | null =>
+  (row.find((c) => c.fitted && c.blocked === null) ?? row.find((c) => c.recommended && c.blocked === null) ?? row.find((c) => c.blocked === null))?.code ?? null;
 
 export const fits = (shelves: readonly CarShelf[], code: string) => shelves.some((shelf) => shelf.choices.some((c) => c.code === code && c.blocked === null));

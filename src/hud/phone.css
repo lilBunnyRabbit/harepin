@@ -75,25 +75,30 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
 }
 
 @media (pointer: coarse) {
-  /* Above style.css's own coarse :root, which loads after this sheet. */
-  :root[data-hud] {
-    --map-size: 88px;
-  }
-
   :root {
-    --phone-hand-h: 40px;
+    --phone-hand-h: 52px;
+    --phone-map-w: 136px;
+    --phone-map-h: 82px;
     --phone-brake-h: min(96px, 25vh);
     --phone-gas-h: calc(var(--phone-brake-h) + var(--phone-hand-h) + var(--space-2));
     --phone-slot: calc(var(--control-h) + var(--space-2));
     --phone-centre: calc(100vw - 2 * (max(var(--inset-left), var(--inset-right)) + max(3 * var(--phone-slot), var(--pedals)) + var(--space-3)));
   }
 
-  :root[data-hud] :is(.dock-break, .assists, #online-chip) {
+  body {
+    --phone-under-map: var(--inset-top);
+  }
+
+  :root:not([data-map="off"]) body:has(#mode-status:not([hidden])) {
+    --phone-under-map: calc(var(--inset-top) + var(--phone-map-h) + var(--gap-sm));
+  }
+
+  :is(.dock-break, #online-chip, #players, #map-note) {
     display: none;
   }
 
   /* Centred by margins, not a translate: a transform would trap the fixed restart button inside the strip. */
-  :root[data-hud] #strip {
+  :root #strip {
     position: fixed;
     top: var(--inset-top);
     bottom: auto;
@@ -114,7 +119,7 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     white-space: nowrap;
   }
 
-  :root[data-hud] #strip > div {
+  :root #strip > div {
     flex-direction: row;
     flex-basis: auto;
     align-items: baseline;
@@ -122,24 +127,24 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     min-width: 0;
   }
 
-  :root[data-hud] #strip > div:is(:nth-child(2), :nth-child(3)) {
+  :root #strip > div:is(:nth-child(2), :nth-child(3)) {
     display: none;
   }
 
-  :root[data-hud] #strip .lap {
+  :root #strip .lap {
     align-items: center;
     flex-shrink: 0;
   }
 
-  :root[data-hud] #gate {
+  :root #gate {
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  /* Restart holds the top left, rewind beside it: an anchor to the strip or the mode status, both later in the page, would not resolve. */
-  :root[data-hud] #restart-lap {
+  /* Restart and rewind hang under the map by a shared length: an anchor to the map card, later in the page, would not resolve. */
+  :root #restart-lap {
     position: fixed;
-    top: var(--inset-top);
+    top: var(--phone-under-map);
     left: var(--inset-left);
     width: var(--control-h);
     height: var(--control-h);
@@ -155,7 +160,7 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     zoom: 1;
   }
 
-  :root[data-hud] #mode-status {
+  :root #mode-status {
     anchor-name: --top-centre, --mode-status;
     top: var(--inset-top);
     left: 50%;
@@ -170,33 +175,33 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     white-space: nowrap;
   }
 
-  :root[data-hud] #mode-status > :not(:empty, #mode-status-more),
-  :root[data-hud] #mode-status[data-cup]::before {
+  :root #mode-status > :not(:empty, #mode-status-more),
+  :root #mode-status[data-cup]::before {
     display: flex;
     align-items: center;
     margin: 0;
     padding: 0 var(--space-4);
   }
 
-  :root[data-hud] #mode-status > :not(:empty) ~ :not(:empty),
-  :root[data-hud] #mode-status-more > :not([hidden]),
-  :root[data-hud] #mode-status[data-cup] > :not(:empty) {
+  :root #mode-status > :not(:empty) ~ :not(:empty),
+  :root #mode-status-more > :not([hidden]),
+  :root #mode-status[data-cup] > :not(:empty) {
     border-left: 1px solid var(--line);
   }
 
-  :root[data-hud] #mode-status > :not(:empty) ~ :not(:empty)::before,
-  :root[data-hud] #mode-status-more > ::before {
+  :root #mode-status > :not(:empty) ~ :not(:empty)::before,
+  :root #mode-status-more > ::before {
     content: none;
   }
 
-  :root[data-hud] #mode-status-more > :not([hidden]) {
+  :root #mode-status-more > :not([hidden]) {
     display: block;
     align-content: center;
     padding: 0 var(--space-4);
     line-height: 1.1;
   }
 
-  :root[data-hud] #mode-status-more > ::after {
+  :root #mode-status-more > ::after {
     content: attr(data-caption);
     display: block;
     font-family: var(--font-sans);
@@ -208,75 +213,74 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
   }
 
   /* The phone card keeps the figures; the event's name shows only when there is no clock to show. */
-  :root[data-hud] #mode-status:not(:has(#mode-status-clock:empty)) #mode-status-name {
+  :root #mode-status:not(:has(#mode-status-clock:empty)) #mode-status-name {
     display: none;
   }
 
-  :root[data-hud] :is(#mode-status-clock, #mode-status-more) {
+  :root :is(#mode-status-clock, #mode-status-more) {
     font-family: var(--font-mono);
     font-weight: 700;
   }
 
-  :root[data-hud] #mode-status-clock {
+  :root #mode-status-clock {
     color: var(--cottontail);
   }
 
-  :root[data-scheme="light"][data-hud] #mode-status-clock {
+  :root[data-scheme="light"] #mode-status-clock {
     color: var(--foreground);
   }
 
   /* Hack's `ch` is its one glyph width: "M:SS.sss" is 8 of them. */
-  :root[data-hud] #mode-status-clock[data-time] {
+  :root #mode-status-clock[data-time] {
     box-sizing: content-box;
     width: 8ch;
     height: auto;
   }
 
-  :root[data-hud] #mode-status-clock[data-time="9"] {
+  :root #mode-status-clock[data-time="9"] {
     width: 9ch;
   }
 
-  :root[data-hud] #mode-status-more {
+  :root #mode-status-more {
     display: contents;
   }
 
-  :root[data-hud] #mode-status-more > :last-child {
+  :root #mode-status-more > :last-child {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  :root[data-hud] #mode-status-more > :last-child::after {
+  :root #mode-status-more > :last-child::after {
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   /* Roaming keeps the top clear like a run does. */
-  :root[data-hud] #strip[data-idle] {
+  :root #strip[data-idle] {
     display: contents;
     anchor-name: none;
   }
 
-  :root[data-hud] #strip[data-idle] > div {
+  :root #strip[data-idle] > div {
     display: none;
   }
 
   /* A mode run brings its own status line in the strip's place. */
-  :root[data-hud] body:has(#mode-status:not([hidden])) #strip {
+  :root body:has(#mode-status:not([hidden])) #strip {
     display: contents;
   }
 
-  :root[data-hud] body:has(#mode-status:not([hidden])) #strip > div {
+  :root body:has(#mode-status:not([hidden])) #strip > div {
     display: none;
   }
 
-  :root[data-hud] .touch-buttons {
-    top: var(--inset-top);
+  :root .touch-buttons {
+    top: var(--phone-under-map);
     left: calc(var(--inset-left) + var(--phone-slot));
-    right: auto;
   }
 
-  :root[data-hud] body:has(#mode-status:not([hidden])) .touch-buttons {
+  :root body:has(#mode-status:not([hidden])) .touch-buttons {
     display: none;
   }
 
@@ -291,9 +295,20 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     text-shadow: none;
   }
 
-  /* The phone keeps driving controls only: no map, the speed a pill between the thumbs. */
-  :root[data-hud] .top-right {
+  /* The thumbs own the bottom corners, so the map takes the top left and lets touches through to the steer zone. Only in
+     a run: roaming, that corner is the Next up ticket's. */
+  .top-right {
     display: none;
+  }
+
+  :root:not([data-map="off"]) body:has(#mode-status:not([hidden])) .top-right {
+    display: flex;
+    inset: var(--inset-top) auto auto var(--inset-left);
+    zoom: 1;
+    width: var(--phone-map-w);
+    height: var(--phone-map-h);
+    padding: var(--gap-sm);
+    pointer-events: none;
   }
 
   .pedal {
@@ -308,61 +323,78 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     height: var(--phone-hand-h);
   }
 
-  :root[data-hud] .bottom-right,
-  :root[data-hud][data-dash] .bottom-right {
-    inset: auto auto var(--inset-bottom) 50%;
-    translate: -50% 0;
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
+  /* The car sits in the centre third under the top row, so the speed stays out of it: the bar is a chip in the top
+     row beside pause, the dial a small card under pause and over the gas pad. Touches pass through to the pedal zone. */
+  .bottom-right {
+    inset: var(--inset-top) calc(var(--inset-right) + var(--phone-slot)) auto auto;
+    zoom: 1;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--gap-sm);
     width: auto;
-    min-width: 0;
-    height: auto;
-    min-height: 0;
-    padding: var(--space-1) var(--space-4);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    background: var(--surface);
+    height: var(--control-h);
+    padding: 0 var(--space-3);
+    pointer-events: none;
   }
 
-  :root[data-hud] .bottom-right :is(.dial, .rpm, .nitro, .unit) {
+  .bottom-right :is(.nitro, .unit) {
     display: none;
   }
 
-  :root[data-hud] .speedo {
+  .speedo {
     display: flex;
     align-items: baseline;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
   }
 
-  :root[data-hud] #speed {
+  #speed {
     min-width: 3ch;
-    font-family: var(--font-mono);
-    font-size: var(--text-3xl);
-    font-weight: 700;
-    letter-spacing: 0;
-    text-align: center;
+    font-size: var(--text-2xl);
+    line-height: 1;
+    text-align: right;
   }
 
-  /* The gear shows only in manual, where the driver picks it. */
-  :root[data-hud] #gear {
-    position: static;
-    translate: none;
+  #gear {
+    min-width: 1ch;
+    font-size: var(--text-xl);
+    line-height: 1;
+    color: var(--primary);
+  }
+
+  .rpm {
+    position: absolute;
+    inset: auto var(--space-3) var(--gap-xs);
+    height: 3px;
+  }
+
+  #recenter {
+    top: calc(100% + var(--gap-sm));
+    bottom: auto;
+  }
+
+  :root[data-speedo="dial"] .bottom-right {
+    --dial: 76px;
+    inset: calc(var(--inset-top) + var(--phone-slot)) var(--inset-right) auto auto;
+    grid-template-rows: var(--dial);
+    width: 92px;
+    height: 92px;
+    padding: 0;
+    place-content: center;
+  }
+
+  :root[data-speedo="dial"] #speed {
     min-width: 0;
-    height: auto;
-    padding: 0 var(--space-1);
-    font-size: var(--text-lg);
+    font-size: var(--text-2xl);
   }
 
-  :root[data-hud] #gear:not([data-mode="M"]) {
-    display: none;
+  :root[data-speedo="dial"] #gear {
+    font-size: var(--text-md);
+    color: var(--foreground);
   }
 
-  :root[data-hud] #recenter {
-    top: auto;
-    bottom: calc(100% + var(--space-2));
-    right: 50%;
-    translate: 50% 0;
+  :root[data-speedo="dial"] #recenter {
+    top: 0;
+    right: calc(100% + var(--gap-sm));
   }
 
   /* Round pads: each key's box keeps its size, since the pedal zone reads gas and brake travel from it; the circle is
@@ -422,9 +454,21 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
   }
 
   .touch-brake .touch-key {
+    align-self: center;
+    width: var(--phone-hand-h);
     border: 1.5px solid var(--ghost-line);
     border-radius: var(--radius-full);
     background: var(--ghost-fill);
+  }
+
+  .touch-brake .touch-key[data-held] {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+
+  .hand-key svg {
+    width: 26px;
+    height: 26px;
   }
 
   .touch-steer-buttons .touch-key {

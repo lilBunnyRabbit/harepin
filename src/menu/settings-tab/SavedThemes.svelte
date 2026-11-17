@@ -46,7 +46,7 @@
   .set-empty {
     margin: 0;
     padding: var(--space-4);
-    color: var(--set-dim);
+    color: var(--dim);
     font-size: var(--text-md);
   }
 </style>

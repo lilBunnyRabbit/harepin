@@ -131,6 +131,10 @@ export class Lobby {
     return { ...status, left_out: status.next !== null && this.left_out(status.next.route) };
   }
 
+  peer_ready(id: string, now: number): boolean {
+    return this.readies.is_ready(id, now);
+  }
+
   /** The route leaves out the car this player drives. */
   left_out(route: string): boolean {
     const car = this.car?.();

@@ -7,7 +7,7 @@ import { guide_seen_on_load, seen_flag } from "./guide-rules";
 import { clean_name } from "../net/net";
 import { parse_last_seed, parse_last_world } from "./saved-pick";
 import type { WorldKind } from "../worldgen/types";
-import { clean_map_code, map_code, parse_map_code } from "../worldgen/kinds/map-code";
+import { clean_map_code } from "../worldgen/kinds/map-code";
 
 export const QualityMode = {
   AUTO: "auto",
@@ -43,15 +43,6 @@ export const SpeedZoom = {
 } as const;
 export type SpeedZoom = (typeof SpeedZoom)[keyof typeof SpeedZoom];
 
-/** Where the HUD pieces sit; each is a CSS layout keyed on `data-hud` on the root. */
-export const HudLayout = {
-  MINIMAL: "minimal",
-  CLASSIC: "classic",
-  RACING: "racing",
-  COMPACT: "compact",
-} as const;
-export type HudLayout = (typeof HudLayout)[keyof typeof HudLayout];
-
 export const HudSize = {
   SMALL: "small",
   MEDIUM: "medium",
@@ -59,31 +50,18 @@ export const HudSize = {
 } as const;
 export type HudSize = (typeof HudSize)[keyof typeof HudSize];
 
-/** Where the dash (speed, gear, revs, aid switches) sits in Classic and Minimal; Racing always centres it, Compact keeps it up top. */
-export const DashPlace = {
-  RIGHT: "right",
-  CENTER: "center",
-} as const;
-export type DashPlace = (typeof DashPlace)[keyof typeof DashPlace];
-
-/** How Classic draws the speed on a desk: a rev ring round it, or a rev bar under it the way Forza Horizon does. */
+/** How the speed card draws: a big speed over a rev bar, or the speed inside a rev dial. */
 export const SpeedoStyle = {
-  RING: "ring",
   BAR: "bar",
+  DIAL: "dial",
 } as const;
 export type SpeedoStyle = (typeof SpeedoStyle)[keyof typeof SpeedoStyle];
 
-/** Which corner Classic puts the map card in on a desk; touch always keeps it top right, clear of the thumbs. */
-export const MapCorner = {
-  BOTTOM_LEFT: "bottom-left",
-  TOP_RIGHT: "top-right",
-} as const;
-export type MapCorner = (typeof MapCorner)[keyof typeof MapCorner];
-
+/** What the map card shows: the map's picture north up, the run's route alone, the road ahead turning with the car, or nothing. */
 export const MapView = {
-  FULL: "full",
+  REAL: "real",
+  LINE: "line",
   CLOSE: "close",
-  PACE: "pace",
   OFF: "off",
 } as const;
 export type MapView = (typeof MapView)[keyof typeof MapView];
@@ -136,12 +114,9 @@ export interface SettingsState {
   /** Master volume, 0..1. */
   volume: number;
   muted: boolean;
-  hud: HudLayout;
   hud_size: HudSize;
-  dash: DashPlace;
   speedo: SpeedoStyle;
   map: MapView;
-  map_corner: MapCorner;
   /** Sends the country guessed from the time zone with this player's directory entry. */
   show_country: boolean;
   /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
@@ -149,8 +124,6 @@ export interface SettingsState {
   last_seed: number | null;
   /** The custom map picked with `last_world`, as its code; null for the plain map. */
   last_map: string | null;
-  /** Maps the player named on the Create-world page, newest first. */
-  saved_maps: SavedMap[];
   /** The mainland map last driven, for Play's map and its Keep driving while the player is on a mini map. */
   last_mainland_seed: number | null;
   /** Set by Drive, Skip or the last step of the first-run guide; never by an invite link. */
@@ -159,28 +132,6 @@ export interface SettingsState {
   smooth_steer: boolean;
 }
 export type SettingKey = keyof SettingsState;
-
-export interface SavedMap {
-  name: string;
-  code: string;
-}
-
-export const SAVED_MAPS_MAX = 50;
-export const MAP_NAME_LENGTH = 32;
-
-function parse_saved_maps(raw: unknown): SavedMap[] {
-  if (!Array.isArray(raw)) return [];
-  const maps: SavedMap[] = [];
-  for (const entry of raw.slice(0, SAVED_MAPS_MAX)) {
-    if (!entry || typeof entry !== "object") continue;
-    const { name, code } = entry as Record<string, unknown>;
-    if (typeof name !== "string" || typeof code !== "string") continue;
-    const read = parse_map_code(code);
-    const clean = [...name.replace(/\p{C}/gu, "").trim()].slice(0, MAP_NAME_LENGTH).join("").trim();
-    if (clean && read.ok && map_code(read.map) === code) maps.push({ name: clean, code });
-  }
-  return maps;
-}
 
 interface Field<T> {
   fallback: T;
@@ -227,17 +178,13 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   ai_difficulty: one_of(Object.values(Difficulty), Difficulty.NORMAL),
   volume: { fallback: 0.8, parse: (raw) => (typeof raw === "number" && Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : 0.8) },
   muted: flag(false),
-  hud: one_of(Object.values(HudLayout), HudLayout.CLASSIC),
   hud_size: one_of(Object.values(HudSize), HudSize.MEDIUM),
-  dash: one_of(Object.values(DashPlace), DashPlace.RIGHT),
-  speedo: one_of(Object.values(SpeedoStyle), SpeedoStyle.RING),
-  map: one_of(Object.values(MapView), MapView.FULL),
-  map_corner: one_of(Object.values(MapCorner), MapCorner.BOTTOM_LEFT),
+  speedo: one_of(Object.values(SpeedoStyle), SpeedoStyle.BAR),
+  map: one_of(Object.values(MapView), MapView.REAL),
   show_country: flag(true),
   last_world: { fallback: null, parse: parse_last_world },
   last_seed: { fallback: null, parse: parse_last_seed },
   last_map: { fallback: null, parse: clean_map_code },
-  saved_maps: { fallback: [], parse: parse_saved_maps },
   last_mainland_seed: { fallback: null, parse: parse_last_seed },
   guide_seen: { fallback: false, parse: seen_flag },
   smooth_steer: flag(true),

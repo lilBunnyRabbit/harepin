@@ -111,7 +111,7 @@ body:has(> .settings:not([hidden])) #toast[data-road] {
 }
 
 /* With no card up top (roaming, idle lap) the anchor is gone and the toast takes the card's place. */
-:root[data-hud="classic"] #toast {
+:root #toast {
   position-anchor: --top-centre;
   top: anchor(bottom, var(--corner-top));
   left: anchor(center, 50%);
@@ -121,7 +121,7 @@ body:has(> .settings:not([hidden])) #toast[data-road] {
 
 /* On touch the pedals and map crowd the sides, so a long note wraps to the title's width instead. */
 @media (pointer: coarse) {
-  :root[data-hud="classic"] #toast {
+  :root #toast {
     max-width: anchor-size(width, var(--phone-centre));
     white-space: normal;
     text-wrap: balance;
@@ -150,6 +150,11 @@ body:has(> .settings:not([hidden])) #toast[data-road] {
     width: 64px;
     height: 58px;
     color: var(--primary);
+  }
+
+  /* The menu works upright, and the prompt showed through between its cards: it waits for the road. */
+  body:has(> .settings:not([hidden])) > #rotate {
+    display: none;
   }
 }
 

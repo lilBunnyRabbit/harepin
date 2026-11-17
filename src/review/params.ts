@@ -2,6 +2,8 @@
 // `vite build --mode review` (or dev) build: import sites test `REVIEW_BUILD` inline, so a production build drops them.
 export const REVIEW_BUILD = import.meta.env.MODE === "review" || import.meta.env.DEV;
 export const SHOWCASE_PARAM = "showcase";
+/** `?showcase=ui`: every shared menu piece in every state, on a page frame. The other sheets are model renders (`catalog.ts`). */
+export const UI_SHEET = "ui";
 /** `?release=card|page|updates`: the updated card, the story page or the Updates page, wearing the draft story. */
 export const RELEASE_PARAM = "release";
 export const VIEW_PARAM = "view";

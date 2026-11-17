@@ -9,11 +9,12 @@
   import { car_facts, type CarFacts } from "./car-facts";
   import CarFactsLine from "./CarFactsLine.svelte";
   import type { Garage } from "./garage.svelte";
-  import Badge from "./ui/Badge.svelte";
   import Button from "./ui/Button.svelte";
   import IconButton from "./ui/IconButton.svelte";
   import SectionHead from "./ui/SectionHead.svelte";
-  import SpecCard from "./ui/SpecCard.svelte";
+  import Chip from "./ui/Chip.svelte";
+  import ClassBadge from "./ui/ClassBadge.svelte";
+  import Row from "./ui/Row.svelte";
   import TextField from "./ui/TextField.svelte";
   import { COPIED_MS } from "./widgets";
 
@@ -52,8 +53,9 @@
   );
 
   // A delete drops the row: focus stays on that row, else the next, else the one before.
-  async function keep_place(event: Event, action: () => void) {
-    const from = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+  async function keep_place(event: Event | null, action: () => void) {
+    const origin = event ? event.currentTarget : document.activeElement;
+    const from = origin instanceof HTMLElement ? origin : null;
     const rows = () => [...(sheet?.querySelectorAll<HTMLElement>(".garage-build") ?? [])];
     const row = from?.closest<HTMLElement>(".garage-build");
     const at = row ? rows().indexOf(row) : -1;
@@ -123,19 +125,13 @@
   }
 </script>
 
-{#snippet entry(title: string, sub: string, build_code_of: string, entry_rating: Rating, facts: CarFacts, load: (event: Event) => void)}
+{#snippet entry(title: string, sub: string, build_code_of: string, entry_rating: Rating, facts: CarFacts, load: () => void)}
+  {#snippet badge()}<ClassBadge rating={entry_rating} />{/snippet}
   {#snippet line()}<CarFactsLine {facts} />{/snippet}
-  {#snippet on_car()}<Badge tone="primary">On your car</Badge>{/snippet}
-  <SpecCard
-    {title}
-    meta={sub}
-    rating={entry_rating}
-    meters={facts.meters}
-    facts={line}
-    tag={build_code_of === fitted ? on_car : undefined}
-    selected={build_code_of === fitted}
-    onclick={load}
-  />
+  {#snippet state()}
+    {#if build_code_of === fitted}<Chip inner icon="icon-check">On your car</Chip>{:else}<Chip inner>Load</Chip>{/if}
+  {/snippet}
+  <Row label={title} help={sub} {badge} detail={line} control={state} fill focused={build_code_of === fitted} onclick={load} />
 {/snippet}
 
 <div class="garage-group">
@@ -176,7 +172,7 @@
   <ol class="garage-builds">
     {#each presets as preset (preset.index)}
       <li class="garage-build">
-        {@render entry(preset.name, preset.blurb, preset.code, preset.rating, preset.facts, (event) => keep_place(event, () => garage.load_preset(preset.index)))}
+        {@render entry(preset.name, preset.blurb, preset.code, preset.rating, preset.facts, () => keep_place(null, () => garage.load_preset(preset.index)))}
       </li>
     {/each}
   </ol>
@@ -203,7 +199,7 @@
             <Button variant="quiet" onclick={(event) => keep_place(event, () => (garage.renaming = null))}>Cancel</Button>
           </form>
         {:else}
-          {@render entry(build.name, build.sub, build.code, build.rating, build.facts, (event) => keep_place(event, () => garage.load(build.code)))}
+          {@render entry(build.name, build.sub, build.code, build.rating, build.facts, () => keep_place(null, () => garage.load(build.code)))}
           <div class="garage-build-tools">
             <IconButton icon="icon-edit" label={`Rename ${build.name}`} data-rename onclick={() => start_rename(build.name)} />
             {#if armed === build.name}
@@ -223,14 +219,14 @@
 <style>
   .garage-group {
     display: grid;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     min-width: 0;
   }
 
   .garage-form {
     display: flex;
     align-items: start;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     min-width: 0;
   }
 
@@ -243,9 +239,9 @@
     min-width: 0;
     align-self: center;
     overflow: hidden;
-    color: var(--set-dim);
+    color: var(--dim);
     font-family: var(--font-mono);
-    font-size: var(--text-md);
+    font-size: var(--type-small);
     text-overflow: ellipsis;
     white-space: nowrap;
     user-select: text;
@@ -253,7 +249,7 @@
 
   .garage-builds {
     display: grid;
-    gap: var(--space-2);
+    gap: var(--gap-sm);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -262,8 +258,8 @@
   .garage-build {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-    gap: var(--space-2);
+    align-items: center;
+    gap: var(--gap-sm);
   }
 
   .garage-build:has(.garage-rename) {
@@ -272,8 +268,8 @@
 
   .garage-build-tools {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
+    align-items: center;
+    gap: var(--gap-xs);
   }
 
   .garage-rename {

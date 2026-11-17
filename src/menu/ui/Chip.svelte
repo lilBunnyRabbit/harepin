@@ -4,15 +4,17 @@
 
   interface Props {
     variant?: "status" | "toggle";
+    inner?: boolean;
     icon?: string;
     pressed?: boolean;
     tone?: "live" | "idle" | "error";
+    focused?: boolean;
     title?: string;
     onclick?: () => void;
     children: Snippet;
   }
 
-  let { variant = "status", icon, pressed = $bindable(false), tone = "idle", title, onclick, children }: Props = $props();
+  let { variant = "status", inner = false, icon, pressed = $bindable(false), tone, focused = false, title, onclick, children }: Props = $props();
 
   function flip() {
     pressed = !pressed;
@@ -20,35 +22,43 @@
   }
 </script>
 
+{#snippet body()}
+  {#if tone}<span class="ui-dot" data-tone={tone}></span>{/if}
+  {#if icon}<Icon name={icon} />{/if}
+  {@render children()}
+{/snippet}
+
 {#if variant === "toggle"}
-  <button type="button" class="ui-chip" aria-pressed={pressed} {title} onclick={flip}>
-    {#if icon}<Icon name={icon} />{/if}
-    {@render children()}
-  </button>
+  <button type="button" class="ui-chip" class:ui-inner={inner} data-focused={focused ? "" : undefined} aria-pressed={pressed} {title} onclick={flip}>{@render body()}</button>
 {:else}
-  <span class="ui-chip" {title}>
-    <span class="ui-dot" data-tone={tone}></span>
-    {@render children()}
-  </span>
+  <span class="ui-chip" class:ui-inner={inner} data-focused={focused ? "" : undefined} {title}>{@render body()}</span>
 {/if}
 
 <style>
   .ui-chip {
-    --icon-size: var(--text-lg);
+    --icon-size: 1.15em;
     display: inline-flex;
+    flex: none;
     align-items: center;
-    gap: var(--space-2);
+    gap: 0.45em;
     min-width: 0;
-    height: var(--control-h);
-    padding: 0 var(--space-3);
-    border: 1px solid var(--set-line);
+    height: var(--chip-h);
+    padding: 0 var(--gap-md);
+    border: 1px solid var(--line-strong);
     border-radius: var(--radius-full);
-    background: var(--set-panel);
+    background: var(--surface);
     color: var(--foreground);
     font: inherit;
-    font-size: var(--text-md);
-    font-weight: 600;
+    font-size: var(--type-small);
+    font-weight: 700;
     white-space: nowrap;
+  }
+
+  .ui-inner {
+    height: var(--chip-h-in);
+    padding: 0 var(--gap-sm);
+    border-color: var(--line);
+    background: var(--fill);
   }
 
   button.ui-chip {
@@ -56,25 +66,33 @@
   }
 
   button.ui-chip:hover {
-    border-color: var(--line-strong);
+    border-color: var(--dim);
+  }
+
+  button.ui-chip[aria-pressed="false"] {
+    color: var(--dim);
   }
 
   button.ui-chip[aria-pressed="true"] {
     border-color: var(--primary);
-    background: var(--set-raised);
   }
 
+  .ui-chip[data-focused] {
+    background: var(--row-on);
+  }
+
+  [data-focused],
   button.ui-chip:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
+    outline: var(--mark-w) solid var(--cottontail);
+    outline-offset: var(--space-0);
   }
 
   .ui-dot {
     flex: none;
-    width: var(--space-2);
-    height: var(--space-2);
-    border-radius: var(--radius-full);
-    background: var(--set-dim);
+    width: 0.6em;
+    height: 0.6em;
+    border-radius: 50%;
+    background: var(--dim);
   }
 
   [data-tone="live"] {

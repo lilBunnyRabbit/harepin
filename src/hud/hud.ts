@@ -4,12 +4,11 @@ import type { Lobby } from "../net/lobby";
 import type { Net } from "../net/net";
 import type { Race } from "../race";
 import { dark } from "../theme/palette";
-import { HudLayout, MapView } from "../menu/prefs";
+import { MapView } from "../menu/prefs";
 import { HOT_RATIO, tach } from "../car/tach";
 import type { World } from "../world/world";
 import type { RouteRun } from "../modes/mode";
 import { Minimap } from "./minimap";
-import { PaceCard } from "./pace-card";
 import "./hud.css";
 import "./top-bar.css";
 import "./corner.css";
@@ -87,12 +86,11 @@ function row(name: string, time: string, you: boolean, note = ""): HTMLLIElement
 }
 
 const TOAST_MS = 1200;
-// Display names add an id suffix when two cars share a name, which allocates, so the map's labels refresh at this rate.
-const NAMES_MS = 1000;
 /** The lobby's route id when no race is on; lap gates belong to it. */
 const CIRCUIT = "circuit";
 const NONE: readonly { x: number; z: number }[] = [];
-/** Driving this long above CALM_KMH lets the touch HUD (and the Minimal layout) fade back; stopping brings it back. */
+const NO_CARS: readonly Car[] = [];
+/** Driving this long above CALM_KMH lets the touch HUD fade back; stopping brings it back. */
 const CALM_MS = 3000;
 const CALM_KMH = 12;
 const STOP_KMH = 4;
@@ -120,7 +118,7 @@ export class Hud {
     dial_fill: svg("dial-fill"),
     dial_hot: svg("dial-hot"),
     dial_zone: svg("dial-zone"),
-    map_note: $("map-note"),
+    map_label: $("map-label"),
     event_name: $("event-name"),
     map_dist: $("map-dist"),
     players: $("players"),
@@ -134,18 +132,19 @@ export class Hud {
     strip: $("strip"),
   };
   private map: Minimap;
-  private pace: PaceCard;
-  private view: MapView = MapView.FULL;
+  private view: MapView = MapView.REAL;
+  private place = "";
+  private picture: (() => Promise<string>) | null = null;
   /** The route a mode run drives, if any; it wins over the lobby's. */
   run_route: () => RouteRun | null = () => null;
   /** A mode run is on: the free lap's gate and panel step aside, even for a run with no route of its own. */
   in_run: () => boolean = () => false;
+  /** The AI cars racing now: rivals on the map beside the net's. */
+  field: () => readonly Car[] = () => NO_CARS;
   private toast_timer = 0;
   private players: PlayerRow[] = [];
   private results_key = "";
   private moving_since = 0;
-  private readonly names = new Map<string, string>();
-  private names_at = -Infinity;
   private dial_at = -1;
   private metres = -1;
 
@@ -162,17 +161,27 @@ export class Hud {
     this.map = new Minimap(canvas, world.routes, world.tiles.ext.size, network);
     this.el.dial_zone.style.strokeDasharray = `0 ${DIAL_HOT} ${100 - DIAL_HOT} 100`;
     this.el.rpm.parentElement?.style.setProperty("--rpm-hot", percent(HOT_RATIO));
-    this.pace = new PaceCard(world.routes);
-    canvas.after(this.pace.el);
   }
 
   set_markers(markers: readonly MapMarker[]) {
     this.map.set_markers(markers);
   }
 
-  set_layout(layout: HudLayout) {
-    document.documentElement.dataset.hud = layout;
-    this.map.set_disc(layout === HudLayout.CLASSIC);
+  /** The map card's line while no gate is aimed at, and where the Realistic map's picture comes from, asked for on its first draw. */
+  set_place(name: string, picture: () => Promise<string>) {
+    this.place = name;
+    this.picture = picture;
+  }
+
+  private async load_picture(url: Promise<string>) {
+    try {
+      const image = new Image();
+      image.src = await url;
+      await image.decode();
+      this.map.set_picture(image);
+    } catch (error) {
+      console.warn("minimap picture failed, drawing roads alone", error);
+    }
   }
 
   set_map(view: MapView) {
@@ -262,8 +271,14 @@ export class Hud {
 
   private draw_note(car: Car, gate: { x: number; z: number } | null) {
     const { el } = this;
-    set_hidden(el.map_note, gate === null);
-    if (!gate) return;
+    // A roaming car on a circuit map always has a lit gate ahead; the card names the place until a lap or a run is on.
+    const aimed = gate !== null && (this.race.started > 0 || this.in_run() || this.lobby.state.kind !== "idle");
+    set_text(el.map_label, aimed ? "Next gate" : this.place);
+    if (!gate || !aimed) {
+      this.metres = -1;
+      set_text(el.map_dist, "");
+      return;
+    }
     const metres = Math.round(Math.hypot(gate.x - car.pos.x, gate.z - car.pos.z) / 10) * 10;
     if (metres === this.metres) return;
     this.metres = metres;
@@ -300,14 +315,18 @@ export class Hud {
     const gate = run ? run.gate : this.in_run() ? null : route === CIRCUIT ? (this.world.checkpoints[this.race.next] ?? null) : null;
     const later = run ? run.later : NONE;
     this.draw_note(car, gate);
-    if (this.view === MapView.FULL || this.view === MapView.CLOSE) this.map.show_route(route);
-    if ((this.view === MapView.FULL || this.view === MapView.CLOSE) && now - this.names_at >= NAMES_MS) {
-      this.names_at = now;
-      this.names.clear();
-      for (const remote of this.net.remotes.values()) this.names.set(remote.id, this.net.display_name(remote));
+    if (this.view === MapView.OFF) return;
+    this.map.show_route(route);
+    const remotes = this.net.remotes.values();
+    const field = this.field();
+    if (this.view === MapView.CLOSE) return this.map.close(car, gate, later, remotes, field, Math.max(0, run?.progress ?? 0), now);
+    // The race line is a run's own; roaming has none, so it shows the map.
+    const racing = run !== null || this.lobby.state.kind !== "idle";
+    if (this.view === MapView.LINE && racing && this.map.line(car, gate, remotes, field)) return;
+    if (this.picture) {
+      void this.load_picture(this.picture());
+      this.picture = null;
     }
-    if (this.view === MapView.FULL) this.map.full(car, gate, later, this.net.remotes.values(), this.names);
-    else if (this.view === MapView.CLOSE) this.map.close(car, gate, later, this.net.remotes.values(), this.names, now);
-    else if (this.view === MapView.PACE) this.pace.update(car, route);
+    this.map.real(car, gate, later, remotes, field);
   }
 }

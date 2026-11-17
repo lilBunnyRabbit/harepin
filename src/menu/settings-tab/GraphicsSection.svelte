@@ -58,7 +58,7 @@
     gap: var(--space-2) var(--space-4);
     padding: var(--space-3) var(--space-4);
     border-radius: var(--radius-md);
-    background: var(--set-well);
+    background: var(--row);
     font-size: var(--text-md);
     font-weight: 600;
   }
@@ -70,7 +70,7 @@
   .set-stat {
     display: inline-flex;
     gap: var(--space-2);
-    color: var(--set-dim);
+    color: var(--dim);
     font-weight: 400;
   }
 

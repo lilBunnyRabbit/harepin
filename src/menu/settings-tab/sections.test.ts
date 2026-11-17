@@ -1,15 +1,24 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_SETTINGS, HudLayout, MapView } from "../prefs";
+import { DEFAULT_SETTINGS, MapView, SpeedoStyle } from "../prefs";
 import { SettingsNav } from "./nav.svelte";
-import { CHANGES, chips, summary, wire_boxes } from "./sections";
+import { CHANGES, LIST, SECTIONS, chips, summary, wire_boxes, type SummaryLive } from "./sections";
+
+const LIVE: SummaryLive = { tier: "high", theme: "Brand Dark", name: "Hare" };
 
 describe("settings tab", () => {
-  test("pace notes halve the map box and Off drops it", () => {
-    const full = wire_boxes(HudLayout.CLASSIC, MapView.FULL).find((box) => box.part === "map");
-    const pace = wire_boxes(HudLayout.CLASSIC, MapView.PACE).find((box) => box.part === "map");
-    expect(full?.card).toBe(false);
-    expect(pace?.card).toBe(true);
-    expect(wire_boxes(HudLayout.CLASSIC, MapView.OFF).some((box) => box.part === "map")).toBe(false);
+  test("the HUD wire draws the picked map and speedometer, and Off drops the map", () => {
+    const boxes = wire_boxes(MapView.LINE, SpeedoStyle.DIAL);
+    expect(boxes.find((box) => box.part === "map")?.look).toBe("line");
+    expect(boxes.find((box) => box.part === "speed")?.look).toBe("dial");
+    expect(wire_boxes(MapView.OFF, SpeedoStyle.BAR).some((box) => box.part === "map")).toBe(false);
+  });
+
+  test("the Display card names the theme, the map and the speedometer", () => {
+    expect(summary("display", { ...DEFAULT_SETTINGS, map: "close", speedo: "dial" }, LIVE)).toEqual(["Brand Dark", "Close-up map", "Dial speedometer"]);
+  });
+
+  test("every section card has live values", () => {
+    for (const section of SECTIONS) expect(summary(section.id, DEFAULT_SETTINGS, LIVE).length).toBeGreaterThan(0);
   });
 
   test("key list cells split into chips and separators", () => {
@@ -24,16 +33,21 @@ describe("settings tab", () => {
   });
 
   test("summaries read the state", () => {
-    expect(summary("audio", { ...DEFAULT_SETTINGS, muted: true }, "high", "Brand Dark")).toBe("Muted");
-    expect(summary("graphics", { ...DEFAULT_SETTINGS, quality: "auto" }, "medium", "Brand Dark")).toBe("Auto, running Medium");
+    expect(summary("audio", { ...DEFAULT_SETTINGS, muted: true }, LIVE)).toEqual(["Muted"]);
+    expect(summary("graphics", { ...DEFAULT_SETTINGS, quality: "auto" }, { ...LIVE, tier: "medium" })).toEqual(["Auto, running Medium"]);
+    expect(summary("driving", { ...DEFAULT_SETTINGS, tcs: true, abs: true, assist: false, stability: false, auto: false, ai_difficulty: "hard" }, LIVE)).toEqual(["2 of 4 aids", "Manual gears", "AI hard"]);
+    expect(summary("net", { ...DEFAULT_SETTINGS, show_country: false }, LIVE)).toEqual(["Hare", "Country hidden"]);
   });
 
-  test("sections step round the tabs, deep pages and What's new step from their tab", () => {
+  test("Settings opens on the list, a section steps to the next one, a deep page steps from its section", () => {
     let state = { ...DEFAULT_SETTINGS };
     const nav = new SettingsNav(
       (key, value) => (state = { ...state, [key]: value }),
       () => state,
     );
+    expect(nav.sub).toBe(LIST);
+    nav.step(1);
+    expect(nav.sub).toBe(LIST);
     nav.show("graphics");
     nav.step(-1);
     expect(nav.sub).toBe("net");
@@ -41,10 +55,10 @@ describe("settings tab", () => {
     expect(nav.parent()).toBe("controls");
     nav.step(1);
     expect(nav.sub).toBe("audio");
-    nav.show(CHANGES);
+    nav.close();
+    expect(nav.sub).toBe(LIST);
     expect(nav.keys()).toEqual([]);
-    nav.step(1);
-    expect(nav.sub).toBe("graphics");
+    expect(nav.has(CHANGES)).toBe(false);
   });
 
   test("reset puts back only the open section's settings", () => {

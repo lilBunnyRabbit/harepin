@@ -60,6 +60,10 @@ export function svelte_page(menu: Menu, meta: PageMeta, component: Component<Pag
     on_hide() {
       shown = false;
     },
+    back() {
+      const back = instance?.back;
+      return typeof back === "function" ? back() === true : false;
+    },
     destroy() {
       if (instance) void unmount(instance);
       instance = null;

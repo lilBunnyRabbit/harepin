@@ -129,7 +129,7 @@
     align-items: center;
     gap: var(--space-2);
     margin: 0;
-    color: var(--set-dim);
+    color: var(--dim);
     font-family: var(--font-mono);
     font-size: var(--text-sm);
   }
@@ -162,7 +162,7 @@
   .story-text {
     max-width: 65ch;
     margin: 0;
-    color: var(--set-dim);
+    color: var(--dim);
     font-size: var(--text-lg);
     line-height: 1.5;
     text-wrap: pretty;
@@ -176,7 +176,7 @@
   }
 
   figcaption {
-    color: var(--set-dim);
+    color: var(--dim);
     font-size: var(--text-sm);
     font-weight: 600;
   }
@@ -188,7 +188,7 @@
     gap: var(--space-2);
     padding: var(--space-4) var(--space-3) var(--space-3);
     border-radius: var(--radius-lg);
-    background: var(--set-well);
+    background: var(--row);
   }
 
   .story-lineup figcaption {
@@ -207,9 +207,9 @@
     gap: var(--space-2);
     min-width: 0;
     padding: var(--space-5);
-    border: 1px solid var(--set-line);
+    border: 1px solid var(--line);
     border-radius: var(--radius-lg);
-    background: var(--set-panel);
+    background: var(--surface);
   }
 
   .story-coming {
@@ -217,7 +217,7 @@
     place-items: center;
     aspect-ratio: 16 / 9;
     border-radius: var(--radius-md);
-    background: var(--set-well);
+    background: var(--row);
   }
 
   .story-pairs {
@@ -233,9 +233,9 @@
     align-items: end;
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    border: 1px solid var(--set-line);
+    border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    background: var(--set-panel);
+    background: var(--surface);
   }
 
   .story-pair figcaption {
@@ -269,7 +269,7 @@
     gap: var(--space-6);
     padding: var(--space-5) var(--space-6);
     border-radius: var(--radius-lg);
-    background: var(--set-well);
+    background: var(--row);
   }
 
   .story-tease-text {
@@ -292,9 +292,9 @@
     align-content: start;
     gap: var(--space-1);
     padding: var(--space-4);
-    border: 1px solid var(--set-line);
+    border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    background: var(--set-panel);
+    background: var(--surface);
   }
 
   .story-also b {

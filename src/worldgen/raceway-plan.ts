@@ -9,6 +9,30 @@ export const ATTEMPTS = 600;
 /** A seed that draws on its first attempts: the lap of any seed that runs out of them. */
 export const FALLBACK_SEED = 0;
 export const LAP_LENGTH = [2800, 4200] as const;
+
+type Range = readonly [number, number];
+
+export interface LapRecipe {
+  /** Metres a lap may run; inside LAP_LENGTH. */
+  length: Range;
+  /** Metres a straight between two corners is drawn at, and the back straight. */
+  link: Range;
+  back: Range;
+  /** Odds of a second hairpin, the double apex, the kink and the chicane. */
+  odds: { hairpin: number; double: number; kink: number; chicane: number };
+  /** Tightest radius drawn for a counter bend and for a sweeper, metres. */
+  counter: Range;
+  sweeper: Range;
+}
+
+export const LAP: LapRecipe = {
+  length: LAP_LENGTH,
+  link: [60, 240],
+  back: [500, 800],
+  odds: { hairpin: 0.3, double: 0.4, kink: 0.5, chicane: 0.6 },
+  counter: [50, 140],
+  sweeper: [120, 300],
+};
 export const BOUND = 880;
 /** Closest two stretches may come in plan, centre to centre: two road halves plus both stamps' shoulders. */
 export const CLEARANCE = 44;
@@ -21,8 +45,8 @@ const EASE_SHARE = 0.8;
 const ARC_MAX = 340;
 const PIT_AHEAD = { draw: [260, 420], min: 250, max: 460 } as const;
 const PIT_BEHIND = { draw: [150, 230], min: 150, max: 240 } as const;
-const BACK = { draw: [500, 800], min: 450, max: 900 } as const;
-const LINK = { draw: [60, 240], min: 40, max: 400 } as const;
+const BACK = { min: 450, max: 900 } as const;
+const LINK = { min: 40, max: 400 } as const;
 const SOLVE_MIN = 0.05;
 const CLOSED = 1e-6;
 
@@ -48,12 +72,14 @@ export interface Lap {
   brakes: Corner;
   /** The draw that made it; ATTEMPTS when the fallback seed's lap stands in. */
   attempt: number;
+  /** The recipe it was drawn from: the plain one when the asked one drew no lap. */
+  recipe: LapRecipe;
 }
 
 const arc = (angle: number, radius: number): Piece => ({ kind: "arc", angle, radius: Math.min(radius, ARC_MAX / Math.abs(angle)) });
 const fixed = (length: number): Piece => ({ kind: "straight", length, min: length, max: length });
 
-function turns(next: () => number, dir: number): Turn[] | null {
+function turns(next: () => number, dir: number, recipe: LapRecipe): Turn[] | null {
   const range = (lo: number, hi: number) => lo + (hi - lo) * next();
   const side = () => (next() < 0.5 ? 1 : -1);
   const out: Turn[] = [];
@@ -62,16 +88,16 @@ function turns(next: () => number, dir: number): Turn[] | null {
     out.push({ kind, pieces });
     for (const p of pieces) if (p.kind === "arc") turned += p.angle * dir;
   };
-  const hairpins = next() < 0.3 ? 2 : 1;
+  const hairpins = next() < recipe.odds.hairpin ? 2 : 1;
   for (let k = 0; k < hairpins; k++) add(Corner.HAIRPIN, [arc(dir * range(150, 185) * DEG, range(27, 36))]);
   const counters = next() < 0.5 ? 2 : 1;
-  for (let k = 0; k < counters; k++) add(Corner.COUNTER, [arc(-dir * range(40, 100) * DEG, range(50, 140))]);
-  if (next() < 0.4) add(Corner.DOUBLE, [arc(dir * 70 * DEG, 90), fixed(range(20, 40)), arc(dir * 100 * DEG, 60)]);
-  if (next() < 0.5) add(Corner.KINK, [arc(side() * range(15, 35) * DEG, range(250, 400))]);
+  for (let k = 0; k < counters; k++) add(Corner.COUNTER, [arc(-dir * range(40, 100) * DEG, range(recipe.counter[0], recipe.counter[1]))]);
+  if (next() < recipe.odds.double) add(Corner.DOUBLE, [arc(dir * 70 * DEG, 90), fixed(range(20, 40)), arc(dir * 100 * DEG, 60)]);
+  if (next() < recipe.odds.kink) add(Corner.KINK, [arc(side() * range(15, 35) * DEG, range(250, 400))]);
   const swing = side();
   const leans = Array.from({ length: next() < 0.5 ? 3 : 5 }, (_, k) => (k % 2 ? -1 : 1) * swing * range(15, 27) * DEG);
   add(Corner.ESSES, [...leans, 0].map((lean, k) => arc(lean - (leans[k - 1] ?? 0), range(60, 110))));
-  if (next() < 0.6) {
+  if (next() < recipe.odds.chicane) {
     const angle = side() * range(25, 40) * DEG;
     const radius = range(20, 35);
     add(Corner.CHICANE, [arc(angle, radius), fixed(range(10, 20)), arc(-angle, radius)]);
@@ -83,7 +109,7 @@ function turns(next: () => number, dir: number): Turn[] | null {
   for (const share of shares) {
     const angle = (rest * share) / whole;
     if (angle < 40 * DEG || angle > 140 * DEG) return null;
-    add(Corner.SWEEPER, [arc(dir * angle, range(120, 300))]);
+    add(Corner.SWEEPER, [arc(dir * angle, range(recipe.sweeper[0], recipe.sweeper[1]))]);
   }
   return out;
 }
@@ -98,23 +124,23 @@ function ordered(next: () => number, list: Turn[]): Turn[] | null {
   return list.some((t, i) => t.kind === Corner.HAIRPIN && list[i + 1]?.kind === Corner.HAIRPIN) ? null : list;
 }
 
-function draw(next: () => number): { pieces: Piece[]; corners: Corner[]; back: number } | null {
+function draw(next: () => number, recipe: LapRecipe): { pieces: Piece[]; corners: Corner[]; back: number } | null {
   const range = (lo: number, hi: number) => lo + (hi - lo) * next();
-  const straight = (s: { draw: readonly [number, number]; min: number; max: number }): Piece => ({ kind: "straight", length: range(s.draw[0], s.draw[1]), min: s.min, max: s.max });
+  const straight = (drawn: Range, s: { min: number; max: number }): Piece => ({ kind: "straight", length: range(drawn[0], drawn[1]), min: s.min, max: s.max });
   const dir = next() < 0.5 ? 1 : -1;
-  const list = turns(next, dir);
+  const list = turns(next, dir, recipe);
   const order = list && ordered(next, list);
   if (!order) return null;
   // The one heavy braking zone: the back straight ends in a hairpin, or in the chicane when the only hairpin already ends the pit straight.
   const ends = (kind: Corner) => order.findIndex((t, i) => i > 0 && t.kind === kind);
   const back = ends(Corner.HAIRPIN) > 0 ? ends(Corner.HAIRPIN) : ends(Corner.CHICANE);
   if (back < 0) return null;
-  const pieces: Piece[] = [straight(PIT_AHEAD)];
+  const pieces: Piece[] = [straight(PIT_AHEAD.draw, PIT_AHEAD)];
   order.forEach((turn, i) => {
-    if (i > 0) pieces.push(straight(i === back ? BACK : LINK));
+    if (i > 0) pieces.push(i === back ? straight(recipe.back, BACK) : straight(recipe.link, LINK));
     pieces.push(...turn.pieces);
   });
-  pieces.push(straight(PIT_BEHIND));
+  pieces.push(straight(PIT_BEHIND.draw, PIT_BEHIND));
   return { pieces, corners: order.map((t) => t.kind), back };
 }
 
@@ -230,16 +256,16 @@ export function crowded(path: Path): boolean {
   return false;
 }
 
-function attempt(seed: number, k: number): Omit<Lap, "attempt"> | null {
+function attempt(seed: number, k: number, recipe: LapRecipe): Omit<Lap, "attempt" | "recipe"> | null {
   const next = mulberry32(sub(seed, `raceway:${k}`));
   const heading = next() * 2 * Math.PI;
-  const drawn = draw(next);
+  const drawn = draw(next, recipe);
   if (!drawn) return null;
   const { pieces, corners } = drawn;
   const first = trace(pieces, heading);
   if (!close(pieces, first.headings, first.x, first.z)) return null;
   const length = pieces.reduce((sum, p) => sum + (p.kind === "straight" ? p.length : Math.abs(p.angle) * p.radius + ease_of(p.radius, Math.abs(p.angle) * p.radius)), 0);
-  if (length < LAP_LENGTH[0] || length > LAP_LENGTH[1]) return null;
+  if (length < recipe.length[0] || length > recipe.length[1]) return null;
   const straights = pieces.flatMap((p) => (p.kind === "straight" && p.max > p.min ? [p.length] : []));
   const pit = straights[0] + straights[straights.length - 1];
   const back = straights[drawn.back];
@@ -264,11 +290,13 @@ function attempt(seed: number, k: number): Omit<Lap, "attempt"> | null {
   return crowded(path) ? null : { path, corners, length, pit, back, brakes: corners[drawn.back] };
 }
 
-export function raceway_lap(seed: number): Lap {
+/** A recipe no draw of this seed meets falls back to this seed's plain lap, so it never hands out another seed's. */
+export function raceway_lap(seed: number, recipe: LapRecipe = LAP): Lap {
   for (let k = 0; k < ATTEMPTS; k++) {
-    const lap = attempt(seed, k);
-    if (lap) return { ...lap, attempt: k };
+    const lap = attempt(seed, k, recipe);
+    if (lap) return { ...lap, attempt: k, recipe };
   }
+  if (recipe !== LAP) return raceway_lap(seed, LAP);
   if (seed === FALLBACK_SEED) throw new Error("raceway: the fallback seed drew no lap");
   return { ...raceway_lap(FALLBACK_SEED), attempt: ATTEMPTS };
 }

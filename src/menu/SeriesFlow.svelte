@@ -12,7 +12,7 @@
     snapTargetInline: Element | null;
   }
 
-  let { season, progress, states, table, done, wallet, onstart, onback, onreset, seasons, at, onseason, lock, car, ongarage }: SeriesView = $props();
+  let { season, progress, states, table, done, wallet, onstart, onfront, onreset, seasons, at, onseason, lock }: SeriesView = $props();
 
   const round = $derived(round_line(progress));
 
@@ -24,13 +24,14 @@
     strip?.children[i]?.scrollIntoView({ inline: "center", block: "nearest", behavior });
   }
 
+  $effect(() => onfront?.(focus));
+
   const step = (dir: 1 | -1) => show(step_focus(focus, dir, last + 1));
 
   function start_front() {
     const event = season.events[focus];
     if (!event || states[focus] === "locked") return;
-    if (car) ongarage();
-    else onstart(event.id);
+    onstart(event.id);
   }
 
   $effect(() => {
@@ -69,7 +70,7 @@
 </script>
 
 <div class="fl" data-series>
-  <SeriesHead {season} {progress} {table} credits={wallet.credits} {onback}>
+  <SeriesHead {season} {progress} {table} credits={wallet.credits}>
     {#snippet title()}<SeriesSeasons {seasons} {at} {onseason} />{/snippet}
     {terms_line(season)}{#if round} · {round}{/if}
   </SeriesHead>
@@ -80,7 +81,7 @@
       {#each season.events as event, i (event.id)}
         <li data-i={i}>
           <div class="fl-card">
-            <SeriesCard {event} n={i + 1} state={states[i]} score={event_score(season, progress, event)} front={i === focus} reward={event.final ? reward_line(season, wallet, progress) : null} {lock} {car} {ongarage} {onstart} onpick={() => show(i)} />
+            <SeriesCard {event} n={i + 1} state={states[i]} score={event_score(season, progress, event)} front={i === focus} reward={event.final ? reward_line(season, wallet, progress) : null} {lock} onpick={() => (i === focus ? start_front() : show(i))} />
           </div>
         </li>
       {/each}

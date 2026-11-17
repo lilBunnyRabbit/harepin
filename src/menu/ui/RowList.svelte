@@ -18,7 +18,7 @@
 <style>
   .ui-rows {
     display: grid;
-    gap: var(--space-1);
+    gap: var(--gap-xs);
     min-width: 0;
   }
 
@@ -27,10 +27,16 @@
   }
 
   .ui-divided > :global(* + *) {
-    border-top: 1px solid var(--set-line);
+    border-top: 1px solid var(--line);
   }
 
+  /* A settings list: taller rows parted by a line; the row under the cursor keeps its corners. */
   .ui-divided > :global(*) {
+    min-height: var(--top-h);
+    padding: var(--gap-md);
+  }
+
+  .ui-divided > :global(:not([data-focused])) {
     border-radius: 0;
   }
 </style>

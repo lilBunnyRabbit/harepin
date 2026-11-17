@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { SteerMode } from "../car/car";
 import { DEFAULT_BINDINGS, rebind_key } from "../hud/bindings";
 import { DEFAULT_PAD_RESPONSE } from "../hud/pad-curve";
-import { DEFAULT_SETTINGS, SAVED_MAPS_MAX, pad_settings, parse_settings, type SettingsState } from "./prefs";
+import { DEFAULT_SETTINGS, pad_settings, parse_settings, type SettingsState } from "./prefs";
 
 describe("parse_settings", () => {
   test("nothing stored gives the defaults, with the guide seen only by a returning player", () => {
@@ -47,17 +47,13 @@ describe("parse_settings", () => {
       ai_difficulty: "hard",
       volume: 0.25,
       muted: true,
-      hud: "compact",
       hud_size: "large",
-      dash: "center",
-      speedo: "bar",
-      map: "pace",
-      map_corner: "top-right",
+      speedo: "dial",
+      map: "line",
       show_country: false,
       last_world: "sky",
       last_seed: 4294967295,
       last_map: "1S3ZZZZZZ-A0",
-      saved_maps: [{ name: "Gap run", code: "1S3ZZZZZZ-A0" }, { name: "Plain", code: "1C000001A" }],
       last_mainland_seed: 12,
       guide_seen: false,
       smooth_steer: true,
@@ -66,14 +62,14 @@ describe("parse_settings", () => {
   });
 
   test("wrong types fall back per field", () => {
-    const parsed = parse_settings({ quality: 1, laps: "3", tcs: "no", volume: "0.5", hud: null, bindings: [], last_world: 2, last_seed: "12", name: 7, guide_seen: "yes" });
+    const parsed = parse_settings({ quality: 1, laps: "3", tcs: "no", volume: "0.5", map: null, bindings: [], last_world: 2, last_seed: "12", name: 7, guide_seen: "yes" });
     expect(parsed).toEqual({ ...DEFAULT_SETTINGS, guide_seen: true });
   });
 
   test("out-of-range values fall back or clamp", () => {
     expect(parse_settings({ laps: 4 }).laps).toBe(3);
     expect(parse_settings({ quality: "ultra" }).quality).toBe("auto");
-    expect(parse_settings({ map_corner: "top-left" }).map_corner).toBe("bottom-left");
+    expect(parse_settings({ map: "radar" }).map).toBe("real");
     expect(parse_settings({ hud_size: "huge" }).hud_size).toBe("medium");
     expect(parse_settings({ volume: 3 }).volume).toBe(1);
     expect(parse_settings({ volume: -1 }).volume).toBe(0);
@@ -87,11 +83,14 @@ describe("parse_settings", () => {
     expect(parse_settings({ last_map: "1Z000001A-E2" }).last_map).toBeNull();
   });
 
-  test("saved maps keep only named entries with a canonical code, capped", () => {
-    const maps = [{ name: " Mine ", code: "1C000001A-E2" }, { name: "", code: "1C000001A" }, { name: "Lower", code: "1c000001a" }, { name: "Newer", code: "1Z000001A" }, "x", null];
-    expect(parse_settings({ saved_maps: maps }).saved_maps).toEqual([{ name: "Mine", code: "1C000001A-E2" }]);
-    expect(parse_settings({ saved_maps: Array(80).fill({ name: "a", code: "1C000001A" }) }).saved_maps).toHaveLength(SAVED_MAPS_MAX);
-    expect(parse_settings({ saved_maps: { name: "a" } }).saved_maps).toEqual([]);
+  test("a save from the four-layout HUD keeps its size and takes the new map and speedometer defaults", () => {
+    const parsed = parse_settings({ hud: "racing", hud_size: "large", dash: "center", speedo: "ring", map: "full", map_corner: "top-right" });
+    expect(parsed).toEqual({ ...DEFAULT_SETTINGS, hud_size: "large", guide_seen: true });
+    expect(parsed.speedo).toBe("bar");
+    expect(parsed.map).toBe("real");
+    expect(parse_settings({ map: "close", speedo: "dial" })).toMatchObject({ map: "close", speedo: "dial" });
+    // Rally pace notes are gone: a save that picked them shows the map.
+    expect(parse_settings({ map: "pace" }).map).toBe("real");
   });
 
   test("saves from before the pad settings get the old fixed pad curve", () => {
