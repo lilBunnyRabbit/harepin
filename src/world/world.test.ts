@@ -62,6 +62,28 @@ test("a low bar on the ground stops a grounded car and a flying one clears it", 
   expect(world.collide(car_at(GROUND + 1.6))).toBe(0);
 });
 
+test("a tyre wall stops a car without throwing it back, and reports a softer hit than concrete", () => {
+  const wall: Solid = { kind: "box", x: X, y: GROUND - 1, z: Z, hw: 4, hd: 0.25, cos: 1, sin: 0, height: 2.2 };
+  const tyres = world_with({ ...wall, soft: true });
+  const hard = car_at(GROUND + 0.5);
+  const soft = car_at(GROUND + 0.5);
+  const concrete = world_with(wall).collide(hard);
+  const cushioned = tyres.collide(soft);
+  expect(hard.vel.z).toBeLessThan(-1);
+  expect(soft.vel.z).toBeCloseTo(0, 9);
+  expect(soft.pos.z).toBe(hard.pos.z);
+  expect(cushioned).toBeGreaterThan(0);
+  expect(cushioned).toBeLessThan(concrete);
+  const glance = car_at(GROUND + 0.5);
+  glance.vel.set(30, 0, 3);
+  tyres.collide(glance);
+  expect(glance.vel.x).toBeLessThan(27);
+  expect(glance.vel.x).toBeGreaterThan(24);
+  glance.vel.z = 0.02;
+  for (let step = 0; step < 90; step++) tyres.collide(glance);
+  expect(glance.vel.x).toBeGreaterThan(23);
+});
+
 test("a contact reports its point on the face, the normal out of it and the speed along and into it", () => {
   const world = world_with(bar(-1, 1.2));
   const car = car_at(GROUND + 0.5);

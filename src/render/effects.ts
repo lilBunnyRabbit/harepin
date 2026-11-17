@@ -104,6 +104,7 @@ export class Smoke {
       [SurfaceId.SLUSH]: snow,
       [SurfaceId.LAVA]: dust,
       [SurfaceId.SAND]: sand,
+      [SurfaceId.GRAVEL]: scree,
     };
     // Unlit, a puff is a soft flat disc in its own tint, the same by day and at dusk: lit, dusk left it near black.
     const material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.55, depthWrite: false });

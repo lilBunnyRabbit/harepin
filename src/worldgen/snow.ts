@@ -31,6 +31,7 @@ export const SNOW_KIT: SnowKit = {
     [SurfaceId.LAVA]: SurfaceId.LAVA,
     [SurfaceId.SLUSH]: SurfaceId.SLUSH,
     [SurfaceId.SAND]: SurfaceId.SNOW,
+    [SurfaceId.GRAVEL]: SurfaceId.SNOW,
   },
   shore: SurfaceId.SLUSH,
   // Clear of the checkpoint posts at the asphalt's edge, and gone where trees may stand.

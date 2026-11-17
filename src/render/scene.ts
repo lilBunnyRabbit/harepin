@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { by_chunk, soup_geometry, TownChunks, type TownChunk } from "../world/buildings";
 import { JumpsView } from "../world/jumps";
 import { LandmarksView } from "../world/landmarks";
-import { color, lighten, linear, mix, tones } from "../theme/palette";
+import { brand, color, dark, lighten, linear, mix, tones } from "../theme/palette";
 import { World, type RoadPoint, type Tree } from "../world/world";
 import { CHUNK } from "../worldgen/chunk-grid";
 import { fog_reach } from "./lighting";
@@ -30,6 +30,8 @@ const ASH_DARK = 0.55;
 const SCREE_EARTH = 0.35;
 const CINDER_RUST = 0.35;
 const EMBER_SOOT = 0.45;
+// Dry grass is the sand tone itself, so a trap in plain sand vanished on it: gravel sits toward the pale end.
+const GRAVEL = dark ? mix(tones.sand, brand.foreground, 0.5) : mix(tones.sand, brand.background_lightest, 0.4);
 /** Packed snow over a winter road's asphalt. */
 const ROAD_SNOW = 0.35;
 const LANE_WIDTH = 3;
@@ -59,6 +61,7 @@ function terrain_lut(upland: Lab): Float32Array {
     [Ground.SCREE]: mix(tones.rock, tones.dirt, SCREE_EARTH),
     [Ground.CINDER]: mix(tones.dirt, tones.lava, CINDER_RUST),
     [Ground.EMBER]: mix(tones.lava, tones.asphalt, EMBER_SOOT),
+    [Ground.GRAVEL]: GRAVEL,
   };
   const bases = terrain_bases(surface, (t) => mix(tones.rock, t, 0.5), tones.rock, tones.snow);
   const lut = new Float32Array(bases.length * JITTER_LEVELS * 3);

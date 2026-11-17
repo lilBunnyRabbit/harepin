@@ -1,5 +1,6 @@
 import { SPAWN_INDEX, type World } from "../world/world";
-import { DECK_STRIDE, type RoadPoint } from "../worldgen/types";
+import { curvatures } from "../worldgen/raceway-layout";
+import { DECK_STRIDE, WorldKind, type RoadPoint } from "../worldgen/types";
 import type { RiverPoint } from "../worldgen/water";
 import { VIEWS, type ViewName } from "./catalog";
 
@@ -166,9 +167,41 @@ function bank_view(world: World, name: "bowl" | "rim"): View | null {
   return name === "bowl" ? { at, from: off(-34, -half - 1, 5 - rise), to: off(8, half * 0.4, rise * 0.3) } : { at, from: off(-44, half + 16, rise + 14), to: off(14, -half * 0.3, -rise * 0.4) };
 }
 
+const VENUE_VIEWS = ["grid", "hairpin", "pits", "trap"] as const;
+type VenueView = (typeof VENUE_VIEWS)[number];
+const is_venue_view = (name: ViewName): name is VenueView => VENUE_VIEWS.some((view) => view === name);
+
+/** A raceway's venue: `grid` down the pit straight, `pits` over it, `hairpin` into the tightest bend, `trap` over its gravel. */
+function venue_view(world: World, name: VenueView): View | null {
+  if (world.kind !== WorldKind.RACEWAY) return null;
+  const { road } = world;
+  const n = road.length;
+  const at = (s: number) => road[((s % n) + n) % n];
+  const k = curvatures(road);
+  if (name === "hairpin" || name === "trap") {
+    let apex = 0;
+    for (let s = 0; s < n; s++) if (Math.abs(k[s]) > Math.abs(k[apex])) apex = s;
+    const p = at(apex - 34);
+    const q = at(apex);
+    const inside = Math.sign(k[apex]);
+    if (name === "trap") return { at: (apex - 34 + n) % n, from: [q.x + q.tz * inside * 80 - q.tx * 70, q.y + 62, q.z - q.tx * inside * 80 - q.tz * 70], to: [q.x + q.tz * inside * 6, q.y, q.z - q.tx * inside * 6] };
+    return { at: (apex - 34 + n) % n, from: [p.x - p.tx * 15 - p.tz * inside * 2, p.y + 6.5, p.z - p.tz * 15 + p.tx * inside * 2], to: [q.x, q.y + 1, q.z] };
+  }
+  if (name === "grid") {
+    const p = at(-55);
+    return { at: (n - 55) % n, from: [p.x - p.tx * 13, p.y + 5, p.z - p.tz * 13], to: [p.x + p.tx * 60, p.y + 3, p.z + p.tz * 60] };
+  }
+  let turned = 0;
+  for (const v of k) turned += v;
+  const inside = Math.sign(turned) || 1;
+  const p = at(10);
+  const off = (along: number, out: number, up: number): V3 => [p.x + p.tx * along - p.tz * inside * out, p.y + up, p.z + p.tz * along + p.tx * inside * out];
+  return { at: (n - 40) % n, from: off(-118, 50, 36), to: off(10, -12, 2) };
+}
+
 export async function view_of(world: World, name: string): Promise<View | null> {
   const known = VIEWS.find((view) => view === name);
-  const view = known === "crest" ? await crest_view(world) : known === "bowl" || known === "rim" ? bank_view(world, known) : known && plan_views(world)[known];
+  const view = known === "crest" ? await crest_view(world) : known === "bowl" || known === "rim" ? bank_view(world, known) : known && (is_venue_view(known) ? venue_view(world, known) : plan_views(world)[known]);
   if (!view) return null;
   const [x, y, z] = view.from;
   await world.tiles.ensure(x, z);

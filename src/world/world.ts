@@ -55,6 +55,14 @@ const ROAD_CELL = 32;
 /** Cell of the wedge grid; a ramp is listed in every cell its reach circle touches, a metre over for rounding. */
 const WEDGE_CELL = 32;
 const RESTITUTION = 1.25;
+/**
+ * A tyre wall gives: nothing thrown back along the hit, and it drags the car by SOFT_DRAG times the speed it took, so a
+ * graze costs a little and a square hit stops the car. A share of speed per contact stopped a car that only brushed it:
+ * with no bounce the car stays on the face and touches again every step.
+ */
+const SOFT_RESTITUTION = 1;
+const SOFT_DRAG = 1.5;
+const SOFT_IMPACT = 0.5;
 /** Share of planar speed a sky rail takes per unit sine of the angle into it: a head-on hit keeps 88%, a 10° graze 98%. */
 export const GLIDE_LOSS = 0.12;
 /** Yaw rate (rad/s per rad of nose-to-rail angle) a rail hit eases the car toward, and how far it eases per contact. */
@@ -833,7 +841,7 @@ export class World implements Ground {
     const contact = circle_contact(solid, pos.x + rx, pos.z + rz, spec.radius, -fx * Math.sign(offset || 1), -fz * Math.sign(offset || 1));
     if (!contact) return 0;
     this.report(car, contact, rx, rz);
-    const impact = KINDS[this.kind].rails && solid.kind === "box" ? this.glide(car, contact) : this.resolve(car, contact, rx, rz);
+    const impact = KINDS[this.kind].rails && solid.kind === "box" ? this.glide(car, contact) : this.resolve(car, contact, rx, rz, solid.kind === "box" && solid.soft === true);
     if (impact > 0) this.contacts_++;
     return impact;
   }
@@ -878,7 +886,7 @@ export class World implements Ground {
     return -into;
   }
 
-  private resolve(car: Collider, { nx, nz, depth }: Contact, rx: number, rz: number): number {
+  private resolve(car: Collider, { nx, nz, depth }: Contact, rx: number, rz: number, soft: boolean): number {
     const { pos, vel, ang, spec } = car;
     const mass = spec.mass;
     const yaw_inertia = spec.inertia[1];
@@ -887,13 +895,16 @@ export class World implements Ground {
     const arm = rz * nx - rx * nz;
     const into = vel.x * nx + vel.z * nz + ang.y * arm;
     if (into >= 0) return 0;
-    const impulse = (-into * RESTITUTION) / (1 / mass + (arm * arm) / yaw_inertia);
+    const impulse = (-into * (soft ? SOFT_RESTITUTION : RESTITUTION)) / (1 / mass + (arm * arm) / yaw_inertia);
     vel.x += (nx * impulse) / mass;
     vel.z += (nz * impulse) / mass;
     ang.y += (arm * impulse) / yaw_inertia;
-    vel.multiplyScalar(0.9);
+    if (soft) {
+      const speed = hypot(vel.x, vel.z);
+      if (speed > 0) vel.multiplyScalar(Math.max(0, 1 - (SOFT_DRAG * -into) / speed));
+    } else vel.multiplyScalar(0.9);
     ang.x *= 0.7;
     ang.z *= 0.7;
-    return -into;
+    return soft ? -into * SOFT_IMPACT : -into;
   }
 }

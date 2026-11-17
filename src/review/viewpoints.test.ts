@@ -12,7 +12,7 @@ import { VIEWS } from "./catalog";
 import { plan_views, view_of } from "./viewpoints";
 
 const finite = (v: readonly number[]) => v.every(Number.isFinite);
-const ROAD_VIEWS = VIEWS.filter((name) => name !== "crest" && name !== "bowl" && name !== "rim" && name !== "ice" && name !== "cabin");
+const ROAD_VIEWS = VIEWS.filter((name) => name !== "crest" && name !== "bowl" && name !== "rim" && name !== "ice" && name !== "cabin" && name !== "grid" && name !== "hairpin" && name !== "pits" && name !== "trap");
 
 test("every island view stands clear of the ground, on the circuit, looking somewhere else", async () => {
   for (const seed of sweep(3)) {
