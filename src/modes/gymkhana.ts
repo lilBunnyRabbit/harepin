@@ -126,18 +126,25 @@ export function footprint(levels: readonly GymLevel[] = LEVELS): { u0: number; u
 }
 
 function site_score(ground: SiteGround, site: Site, area: ReturnType<typeof footprint>, solids: readonly Solid[]): number {
+  // The frame of `to_world` and `to_local`, with the site's sine and cosine taken once: this runs for every solid near every candidate site.
+  const c = cos(site.heading);
+  const s = sin(site.heading);
   let low = Infinity;
   let high = -Infinity;
   for (let u = area.u0; u <= area.u1; u += SITE_STEP)
     for (let v = area.v0; v <= area.v1; v += SITE_STEP) {
-      const { x, z } = to_world(site, u, v);
+      const x = site.x + u * c + v * s;
+      const z = site.z - u * s + v * c;
       const y = ground.height(x, z);
       if (y < SITE_MIN_Y || ground.distance_to_road(x, z) < SITE_ROAD_CLEAR) return Infinity;
       low = Math.min(low, y);
       high = Math.max(high, y);
     }
   for (const solid of solids) {
-    const { u, v } = to_local(site, solid.x, solid.z);
+    const dx = solid.x - site.x;
+    const dz = solid.z - site.z;
+    const u = dx * c - dz * s;
+    const v = dx * s + dz * c;
     const reach = solid.kind === "circle" ? solid.radius : hypot(solid.hw, solid.hd);
     if (u > area.u0 - reach && u < area.u1 + reach && v > area.v0 - reach && v < area.v1 + reach) return Infinity;
   }
