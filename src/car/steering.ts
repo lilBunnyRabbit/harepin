@@ -99,12 +99,15 @@ const SMOOTH_KEYS: KeyProfile = {
 // Released, a held wheel centres over this many metres rolled: 0.5 s at 100 km/h, about 25 s of creeping at 2 km/h.
 const HOLD_CENTRE_DISTANCE = 14;
 
+/** Cornering (share of g) `grip_lock` is sized for: a full wheel asks for this much turn at any speed. */
+export const LOCK_GRIP = 1.05;
+
 /**
  * Lock (rad) at `speed` m/s that a grip-limited corner needs: kinematic L/R plus front-minus-rear slip, which is small
  * because body slip already loads the fronts. Past it the fronts go over peak, lose yaw damping and the car wallows.
  */
 export function grip_lock(spec: CarSpec, speed: number): number {
-  return (spec.wheelbase * GRAVITY * 1.05) / Math.max(1, speed * speed) + spec.peak_angle * 0.45;
+  return (spec.wheelbase * GRAVITY * LOCK_GRIP) / Math.max(1, speed * speed) + spec.peak_angle * 0.45;
 }
 
 /**

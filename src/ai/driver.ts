@@ -1,5 +1,7 @@
 import { Quaternion, Vector3 } from "three";
 import { ride_height, type Car, type Controls, type Ground } from "../car/car";
+import { GRAVITY } from "../car/rigid-body";
+import { grip_lock, LOCK_GRIP } from "../car/steering";
 import { ROAD_HALF } from "../worldgen/types";
 import { CURVE_SPAN, grip_at, inverse_radius, type RaceLine } from "./line";
 import { AI_TUNING } from "./tuning";
@@ -14,9 +16,10 @@ const PASS_EDGE = 1;
 const RAMP_SIDE = 0.5;
 /**
  * Share over the plan a late brake carries, at most MISTAKE_SPEED m/s, the share of its pace a hesitation gives up, and
- * over how many road points. A flat 3 m/s took a 10 m/s hairpin at 30% over the plan, off the road.
+ * over how many road points. A flat 3 m/s took a 10 m/s hairpin at 30% over the plan, off the road; a tenth over a
+ * plan at 85% of the car's grip is more than it has, and the mistake was a spin, not a wide line.
  */
-const MISTAKE_OVER = 0.1;
+const MISTAKE_OVER = 0.05;
 const MISTAKE_SPEED = 3;
 const MISTAKE_LIFT = 0.12;
 const MISTAKE_SPAN = 60;
@@ -243,7 +246,9 @@ export class Driver {
       const li = this.lateral_at(car, i);
       const lc = this.lateral_at(car, c);
       const bend = inverse_radius(road[a].x + road[a].tz * la, road[a].z - road[a].tx * la, road[i].x + road[i].tz * li, road[i].z - road[i].tx * li, road[c].x + road[c].tz * lc, road[c].z - road[c].tx * lc);
-      const v = Math.min(plan[i], Math.sqrt((this.push > 1 ? Math.min(AI_TUNING.pass_max * line.scale.slow, grip_at(bend, line.scale) * AI_TUNING.pass_grip) : grip_at(bend, line.scale)) / Math.max(1e-9, Math.abs(bend))));
+      // Onto a kicker's pin the path steps to the centre: no bend to slow for, and a lane braked for it met the lip at 16 m/s (seed 49).
+      const pinned = line.room[a] === 0 || line.room[i] === 0 || line.room[c] === 0;
+      const v = pinned ? plan[i] : Math.min(plan[i], Math.sqrt((this.push > 1 ? Math.min(AI_TUNING.pass_max * line.scale.slow, grip_at(bend, line.scale) * AI_TUNING.pass_grip) : grip_at(bend, line.scale) * AI_TUNING.aside_grip) / Math.max(1e-9, Math.abs(bend))));
       pace = Math.min(pace, Math.sqrt(v * v + 2 * brake * run));
       for (let s = 0; s < HOLD_STRIDE; s++) run += line.step[(i + s) % n];
     }
@@ -287,13 +292,47 @@ export class Driver {
     // ran 2 m past it into the posts (seeds 12, 30). Held off the line past its room, it aims as far back inside as it
     // is over; on the line it runs past the room out of hairpins clear of the posts, and pulling it in only cost pace.
     const back = over > 0 && this.aside !== 0 && line.room[at] > 0 ? Math.sign(me) * over : 0;
-    if (this.aside !== 0 || this.nudge !== 0 || back !== 0) {
+    const shifted = this.aside !== 0 || this.nudge !== 0 || back !== 0;
+    if (shifted) {
       const p = line.road[at];
       const lateral = pass_clamp(car, line, at, pass_clamp(car, line, at, (Number.isNaN(this.launch) ? line.offset[at] + this.aside : this.launch) + this.nudge) - back);
       ax = p.x + p.tz * lateral;
       az = p.z - p.tx * lateral;
     }
     const err = wrap_angle(atan2(ax - car.pos.x, az - car.pos.z) - car.heading);
+    // On its path and along it, the aim still sits off the nose through a bend. Steered at that whole angle, a car ran
+    // 2 m inside its line in every bend and turned into hairpins 3 m early, on the road's edge at each apex. The wheel
+    // holds the bend itself and corrects what the car is off its path by. A full wheel is LOCK_GRIP g of turn at any
+    // speed (`grip_lock`), so the bend takes its share of that; the slip part of the lock goes by the tyres' load, or a
+    // car pressed to twice its weight (the fujin at 65 m/s) turned in on a full wheel for a bend it needed a fifth for.
+    const before = (this.index - 1 + n) % n;
+    const after = (this.index + 1) % n;
+    let hx = line.x[this.index];
+    let hz = line.z[this.index];
+    let tx = line.x[after] - line.x[before];
+    let tz = line.z[after] - line.z[before];
+    let px = line.x[at];
+    let pz = line.z[at];
+    if (shifted) {
+      const b = line.road[before];
+      const a = line.road[after];
+      const p = line.road[at];
+      const lb = this.lateral_at(car, before);
+      const lh = this.lateral_at(car, this.index);
+      const la = this.lateral_at(car, after);
+      const lp = this.lateral_at(car, at);
+      hx = here.x + here.tz * lh;
+      hz = here.z - here.tx * lh;
+      tx = a.x + a.tz * la - (b.x + b.tz * lb);
+      tz = a.z - a.tx * la - (b.z - b.tx * lb);
+      px = p.x + p.tz * lp;
+      pz = p.z - p.tx * lp;
+    }
+    const stray = wrap_angle(err - wrap_angle(atan2(px - hx, pz - hz) - atan2(tx, tz)));
+    const square = Math.max(1, speed * speed);
+    const slip_lock = 1 - (car.spec.wheelbase * GRAVITY * LOCK_GRIP) / square / grip_lock(car.spec, speed);
+    const pressed = (car.spec.downforce * square) / (car.spec.mass * GRAVITY);
+    const hold_bend = ((speed * speed * line.bend[this.index]) / (LOCK_GRIP * GRAVITY)) * (1 - (slip_lock * pressed) / (1 + pressed));
     // Wide of its path, the arc back to the aim is far tighter than the plan's bend: on full lock and full throttle
     // over it, cars ran off the far side of the road (seeds 9, 40). The aim's arc (pure pursuit) caps the speed there;
     // on its path the plan already holds the bend, and the cap only cost pace.
@@ -319,7 +358,7 @@ export class Driver {
     this.last_err = err;
     this.last_at = at;
     this.last_swing = swing;
-    c.steer = airborne ? 0 : Math.max(-1, Math.min(1, -err * AI_TUNING.steer_gain - swing * AI_TUNING.steer_damp));
+    c.steer = airborne ? 0 : Math.max(-1, Math.min(1, hold_bend - stray * AI_TUNING.steer_gain - swing * AI_TUNING.steer_damp));
     c.throttle = speed < target ? 1 : 0;
     // Behind a car the brake is not eased for the turn: running into it costs more than a wide line.
     const capped = this.cap < free;

@@ -2,6 +2,8 @@
 import { describe, expect, test } from "bun:test";
 import { Car, drop_height, type Controls, type Ground } from "../car/car";
 import { COUPE } from "../car/cars";
+import { GRAVITY } from "../car/rigid-body";
+import { LOCK_GRIP } from "../car/steering";
 import { World } from "../world/world";
 import { RouteKind } from "../worldgen/types";
 import { Driver, pass_room } from "./driver";
@@ -100,9 +102,30 @@ describe("AI driver", () => {
     expect(placed(pinned, 1, 3, 2).driver.target).toBe(3);
   });
 
-  /** A driver on a wide ring road with its car `side` m off the line at `speed` m/s, turned `yaw` rad off the road, holding `aside` m off the line, after one step. */
-  function on_ring(side: number, speed: number, yaw: number, aside = 0) {
-    const line = race_line(ring(800), [], COUPE.radius);
+  test("in a lane beside the line, the step onto a kicker's pin is no bend to slow for", () => {
+    const world = new World(44);
+    const route = world.routes.find((r) => r.kind === RouteKind.CIRCUIT);
+    if (!route) throw new Error("island seed 44 has no circuit");
+    const line = race_line(route.points, world.ramps, COUPE.radius);
+    const pin = line.room.findIndex((r, i) => r === 0 && line.room[i - 1] > 0);
+    const at = pin - 8;
+    const side = line.offset[at] > 0 ? -2.5 : 2.5;
+    const driver = new Driver(line);
+    driver.place(at);
+    driver.aside = driver.hold = side;
+    const car = new Car(COUPE);
+    const p = route.points[at];
+    const lateral = line.offset[at] + side;
+    const x = p.x + p.tz * lateral;
+    const z = p.z - p.tx * lateral;
+    car.place(x, world.height(x, z) + drop_height(COUPE, 0.75), z, Math.atan2(p.tx, p.tz));
+    driver.drive(car, DT);
+    expect(driver.target).toBeGreaterThan(0.9 * line.speed[at]);
+  });
+
+  /** A driver on a wide ring road of `radius` m with its car `side` m off the line at `speed` m/s, turned `yaw` rad off the road, holding `aside` m off the line, after one step. */
+  function on_ring(side: number, speed: number, yaw: number, aside = 0, radius = 800) {
+    const line = race_line(ring(radius), [], COUPE.radius);
     const driver = new Driver(line);
     driver.place(100);
     driver.aside = aside;
@@ -120,6 +143,17 @@ describe("AI driver", () => {
     const { driver, line } = on_ring(3, 20, 1);
     expect(driver.target).toBeLessThan(line.speed[driver.index] * 0.5);
     expect(on_ring(0, 20, 0).driver.target).toBeCloseTo(line.speed[driver.index], 6);
+  });
+
+  test("on its line and along it through a bend, the wheel holds the bend's share of a full wheel, not the aim's whole angle", () => {
+    const { controls, line, driver } = on_ring(0, 20, 0, 0, 60);
+    const share = (20 * 20 * Math.abs(line.bend[driver.index])) / (LOCK_GRIP * GRAVITY);
+    expect(share).toBeGreaterThan(0.5);
+    expect(Math.abs(controls.steer)).toBeCloseTo(share, 1);
+    // A metre wide of it, it turns in harder; a metre inside, less.
+    const inward = Math.sign(controls.steer);
+    expect(on_ring(1, 20, 0, 0, 60).controls.steer * inward).toBeGreaterThan(share + 0.1);
+    expect(on_ring(-1, 20, 0, 0, 60).controls.steer * inward).toBeLessThan(share - 0.1);
   });
 
   test("held off the line past the edge of its room, it aims back inside by as much as it is over, not along the edge", () => {

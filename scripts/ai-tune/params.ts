@@ -11,8 +11,8 @@ export interface Param {
 }
 
 export const PARAMS: readonly Param[] = [
-  { name: "line_grip", lo: 5, hi: 7.5, read: (t) => t.line_grip, write: (t, v) => (t.line_grip = v) },
-  { name: "fast_grip", lo: 6, hi: 8.5, read: (t) => t.fast_grip, write: (t, v) => (t.fast_grip = v) },
+  { name: "line_grip", lo: 5, hi: 8.5, read: (t) => t.line_grip, write: (t, v) => (t.line_grip = v) },
+  { name: "fast_grip", lo: 6, hi: 9.5, read: (t) => t.fast_grip, write: (t, v) => (t.fast_grip = v) },
   { name: "line_brake", lo: 4, hi: 10, read: (t) => t.line_brake, write: (t, v) => (t.line_brake = v) },
   { name: "late_brake", lo: 5, hi: 11.5, read: (t) => t.late_brake, write: (t, v) => (t.late_brake = v) },
   { name: "crest_light", lo: 0.2, hi: 0.8, read: (t) => t.crest_light, write: (t, v) => (t.crest_light = v) },
@@ -30,6 +30,7 @@ export const PARAMS: readonly Param[] = [
 
 /** The driver's pedal, aim and grip-band limits and the level 3 personality rows: `scripts/ai-ml` searches them, `ai-tune.ts` keeps to PARAMS. */
 export const DRIVER_PARAMS: readonly Param[] = [
+  { name: "aside_grip", lo: 0.7, hi: 1, read: (t) => t.aside_grip, write: (t, v) => (t.aside_grip = v) },
   { name: "brake_max", lo: 0.3, hi: 1, read: (t) => t.brake_max, write: (t, v) => (t.brake_max = v) },
   { name: "late_pedal", lo: 0.5, hi: 1, read: (t) => t.late_pedal, write: (t, v) => (t.late_pedal = v) },
   { name: "brake_slack", lo: 0.2, hi: 2.5, read: (t) => t.brake_slack, write: (t, v) => (t.brake_slack = v) },
