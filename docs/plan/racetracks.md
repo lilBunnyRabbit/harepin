@@ -270,7 +270,7 @@ The owner picked look C. It is the raceway's normal build, `RACEWAY_VERSION` 4.
 - `worldgen/raceway-venue.ts` turns the layout into data: box solids chained 4 m at a time for concrete, rail and tyres, one box per terrace module and garage, two posts for the gantry, the lines `Stamp.paint` lays gravel and the pit lane's hardpack along, and the discs trees keep out of.
 - `worlds/raceway-stadium.ts` draws it: 10 draw calls, swept barriers in the same 4 m pieces as their solids.
 - Gravel is `SurfaceId.GRAVEL` (grip 0.66, roll 60): a ground surface like sand, painted on the terrain as `Ground.GRAVEL`. No extra mesh.
-- Tyre walls are box solids with `soft`: the hit takes the speed into the wall and a quarter of the rest, throws nothing back, and reports half the impact.
+- Tyre walls are box solids with `soft`: the hit takes the speed into the wall, drags the car by 1.5 times that, throws nothing back, and reports half the impact. A 7° graze at 36 m/s leaves 23 m/s; 20° or squarer stops the car.
 - Run-off Narrow carries its own terrace (4 modules, 3 tiers); a module with another stretch of the lap behind it is left out.
 - Pit lane: hardpack under the drawn asphalt from half its width on; the first 25 m of each taper is verge.
 - Cost, phone screen and phone tier, seeds 1, 4, 7 from three views, against 0.64.2: draw calls 47.6 to 54.9 (worst view 63 to 73), triangles 156k to 176k, frame 2.97 to 3.15 ms on a desktop GPU with the processor slowed four times (single runs move about 1 ms). The lead took the rise.
