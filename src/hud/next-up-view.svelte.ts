@@ -1,8 +1,7 @@
 import { mount } from "svelte";
-import { MAX_EVENT_STARS, type Stars } from "../career/career";
+import type { Stars } from "../career/career";
 import { event_ticket, type EventTicket } from "../career/event-ticket";
 import { HOLD_EVENT } from "../menu/dom";
-import { mode_name } from "../modes/modes";
 import type { MapMarker } from "../career/markers";
 import type { MapSpec } from "../worldgen/kinds/kinds";
 import { arrow_turn, next_up } from "./next-up";
@@ -13,7 +12,6 @@ const DISTANCE_STEP = 10;
 
 export interface NextUpTicket extends EventTicket {
   id: string;
-  line: string;
 }
 
 export interface NextUpHost {
@@ -74,10 +72,7 @@ function flag_of(flags: readonly MapMarker[], id: string): MapMarker | null {
 function ticket_of(stars: Stars, here: MapSpec): NextUpTicket | null {
   const up = next_up(stars, here);
   if (!up) return null;
-  const { event, place } = up;
-  const have = stars[event.id] ?? 0;
-  const run = have ? `best ${have} of ${MAX_EVENT_STARS} ★` : "not run yet";
-  return { ...event_ticket(event, place), id: event.id, line: `${mode_name(event)} · ${run}` };
+  return { ...event_ticket(up.event, up.place), id: up.event.id };
 }
 
 export function show_next_up(host: NextUpHost): NextUpView {
