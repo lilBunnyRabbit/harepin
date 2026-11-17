@@ -148,6 +148,7 @@ export class WorkerSim implements Sim {
       out.touches = read.touches;
     }
     this.replies.length = 0;
+    this.car.nitro.barred = this.field_cars.length > 0;
     return out;
   }
 

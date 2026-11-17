@@ -58,9 +58,10 @@ export class Touch {
     return this.steer_mode === TouchSteer.BUTTONS;
   }
 
-  show_nitro(fitted: boolean) {
-    this.nitro_key.hidden = !fitted;
-    if (!fitted) this.set_nitro(false);
+  show_nitro(usable: boolean) {
+    if (this.nitro_key.hidden === !usable) return;
+    this.nitro_key.hidden = !usable;
+    if (!usable) this.set_nitro(false);
   }
 
   /** Turns the burn off once the tank runs dry, so the next tap starts a fresh one. */

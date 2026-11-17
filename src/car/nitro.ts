@@ -43,6 +43,8 @@ export class Nitro {
   /** Boost seconds left, 0..capacity. */
   fill: number;
   boosting = false;
+  /** Off for the race: the tank neither burns nor earns, and the HUD hides it. Set by whoever steps the car. */
+  barred = false;
   private close = false;
   private scraped = false;
   private target: Near = null;
@@ -57,6 +59,11 @@ export class Nitro {
 
   get fitted(): boolean {
     return this.capacity > 0;
+  }
+
+  /** Fitted and not barred: what the HUD shows and the step burns. */
+  get usable(): boolean {
+    return this.fitted && !this.barred;
   }
 
   get level(): number {
@@ -117,7 +124,7 @@ export class Nitro {
   }
 
   step(dt: number, want: boolean, sense: NitroSense): boolean {
-    if (!this.fitted) return (this.boosting = false);
+    if (!this.usable) return (this.boosting = false);
     this.clock += dt;
     let earn = TRICKLE;
     if (Math.abs(sense.slide) > DRIFT_ANGLE && sense.speed > DRIFT_SPEED) earn += DRIFT_RATE;
@@ -129,7 +136,7 @@ export class Nitro {
 
   // Paid when the pass ends, so brushing along a wall pays once, and a pass that touched pays nothing.
   pass(near: Near, hit: boolean, speed: number) {
-    if (!this.fitted) return;
+    if (!this.usable) return;
     if (near !== null && speed > NEAR_SPEED) {
       if (!this.close) {
         this.scraped = false;

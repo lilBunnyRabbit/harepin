@@ -80,6 +80,46 @@ describe("sim packet", () => {
   });
 });
 
+describe("nitro and the AI field", () => {
+  const world = new World(SEED);
+  const circuit = world.routes.find((r) => r.kind === RouteKind.CIRCUIT);
+  if (!circuit) throw new Error(`seed ${SEED} has no circuit`);
+  const route = circuit;
+  world.place(route.closure);
+  const spec = { ...COUPE, nitro: 4 };
+  const gas: Controls = { steer: 0, throttle: 1, brake: 0, handbrake: 0, analog: true, nitro: true };
+
+  function drive(field: boolean): { host: SimHost; boosted: boolean } {
+    const host = new SimHost(world, spec);
+    const p = route.points[0];
+    host.apply({ type: "park", x: p.x, z: p.z, heading: Math.atan2(p.tx, p.tz) });
+    if (field) host.apply({ type: "field", route: route.id, specs: [COUPE], traits: personalities(SEED, 1), seed: SEED, laps: 1 });
+    let boosted = false;
+    for (let k = 0; k < 180; k++) {
+      host.frame({ kind: FrameKind.STEP, steps: 6, controls: gas, now: k * 1000 / 60, blend: 0, peers: [] });
+      boosted ||= host.car.nitro.boosting;
+    }
+    return { host, boosted };
+  }
+
+  test("free roam and a lobby race, with no AI field: the nitro input burns the tank", () => {
+    const { host, boosted } = drive(false);
+    expect(host.car.nitro.usable).toBe(true);
+    expect(boosted).toBe(true);
+    expect(host.car.nitro.fill).toBeLessThan(4);
+  });
+
+  test("an AI race: the nitro input does nothing, the tank stays as it was and the HUD hides it", () => {
+    const { host, boosted } = drive(true);
+    expect(host.car.nitro.usable).toBe(false);
+    expect(boosted).toBe(false);
+    expect(host.car.nitro.fill).toBe(4);
+    host.apply({ type: "field_stop" });
+    host.frame({ kind: FrameKind.HOLD, steps: 0, controls: gas, now: 0, blend: 0, peers: [] });
+    expect(host.car.nitro.usable).toBe(true);
+  });
+});
+
 describe("sim worker", () => {
   const workers: Worker[] = [];
   afterAll(() => {

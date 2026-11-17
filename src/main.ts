@@ -306,7 +306,6 @@ new CursorIdle(() => !input.blocked()).start();
 const menu_over = () => garage.is_open || settings.is_open || pause.is_open || map_open();
 chat.blocked = menu_over;
 input.touch.start();
-input.touch.show_nitro(driver.car.nitro.fitted);
 input.mouse.start();
 const recenter = $("recenter", HTMLButtonElement);
 recenter.addEventListener("click", () => chase.recenter());
@@ -611,7 +610,6 @@ garage.on_change = (next) => {
   // After `car_changed`, which settles whether the change stays on a borrowed event car or becomes the player's own.
   if (!modes.fitting && !modes.borrowed) for (const id of build_goals(next)) goals.done(id);
   apply_car_settings(settings.state);
-  input.touch.show_nitro(driver.car.nitro.fitted);
 };
 
 const on_this_map = (to: CareerEvent) => place_of(event_map(to), built).here;
@@ -902,7 +900,6 @@ if (lab_id !== null)
         drive: (build, spec, aids) => {
           driver.swap(build, false, spec);
           apply_car_settings({ ...settings.state, ...aids });
-          input.touch.show_nitro(driver.car.nitro.fitted);
         },
         aids: () => settings.state,
         place: async (spot, current) => {
@@ -1157,6 +1154,7 @@ function frame(time: number) {
     if (effect) input.rumble(effect);
   } else rumble.reset(now);
 
+  input.touch.show_nitro(car.nitro.usable);
   if (input.touch.nitro && car.nitro.fill <= 0) input.touch.tank_empty();
   // The menu covers the HUD, so its writes and the minimap wait for the frame the menu closes on.
   if (!settings.is_open) hud.update(car, now, rewinding);

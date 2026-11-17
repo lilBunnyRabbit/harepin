@@ -232,7 +232,7 @@ export class Hud {
     set_data(el.dial_fill, "shift", shift);
     set_data(el.dial_hot, "shift", shift);
     set_data(el.gear, "shift", shift);
-    set_hidden(el.nitro, !car.nitro.fitted);
+    set_hidden(el.nitro, !car.nitro.usable);
     set_style(el.nitro_fill, "width", percent(car.nitro.level));
     el.nitro.toggleAttribute("data-boost", car.nitro.boosting);
     el.nitro.toggleAttribute("data-idle", car.gear < 2);

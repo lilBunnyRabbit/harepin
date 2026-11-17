@@ -197,6 +197,8 @@ export class SimHost {
     out.stepped = 0;
     out.impact = 0;
     out.blend = request.blend;
+    // The AI races without nitro until it learns to use it, so a field bars the player's too.
+    car.nitro.barred = this.field !== null;
     if (request.kind !== FrameKind.STEP) {
       // Not stepped, the field stands where it is at any blend.
       this.mark_field();
@@ -257,7 +259,7 @@ export class SimHost {
     const { car, miss } = this;
     miss.near = null;
     miss.touched = false;
-    if (!car.nitro.fitted) return miss;
+    if (!car.nitro.usable) return miss;
     miss.touched = impact > 0;
     const solid = this.world.grazes(car, NEAR_GAP);
     if (solid) {
