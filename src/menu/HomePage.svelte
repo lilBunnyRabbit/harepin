@@ -249,5 +249,11 @@
     .home-bay {
       display: none;
     }
+
+    /* Three tiles in a row leave each too narrow for its name: they stack. */
+    .home-others {
+      grid-auto-flow: row;
+      gap: var(--gap-sm);
+    }
   }
 </style>
