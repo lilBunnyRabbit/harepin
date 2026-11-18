@@ -4,7 +4,7 @@ import { DESIGNS, type Detail } from "./designs";
 import { GLASS_BAR, GLASS_BAR_PROUD, centred, outlet, pipe, screen_band, screen_bar, side_pipe } from "./detail-parts";
 import { face_at, tail_at, type Part, type Point } from "./geometry";
 
-const { coupe, hatch, muscle, rally, sturm, raijin, tsumuji, formula } = DESIGNS;
+const { coupe, hatch, muscle, rally, hagel, sturm, raijin, tsumuji, formula } = DESIGNS;
 
 const UPRIGHT = Math.PI / 2;
 
@@ -94,21 +94,30 @@ const MUSCLE: Detail[] = [
 // Hung from the rear foot of each wheel opening, inside the body edge and swept back.
 const rally_flap = (axle: number): Part => ({ size: [0.24, 0.24, 0.03], at: [0.75, 0.29, axle - 0.48], tilt: [0.25, 0, 0] });
 const on_rally_roof = (part: Part): Part => ({ ...part, size: [part.size[0] / 0.9, part.size[1], part.size[2]], at: [part.at[0] / 0.9, part.at[1], part.at[2]] });
+const MUDFLAPS: Detail = { on: "knobbly", cue: "Red mudflaps behind all four wheels, with gravel tyres", red: [rally_flap(1.27), rally_flap(-1.27)] };
+// Two round lamps a side in a black box, their faces at `z` and centres at `y`.
+const lamp_pod = (y: number, z: number): Pick<Detail, "heads" | "trim"> => ({
+  heads: [0.13, 0.37].map((x): Part => ({ size: [0.17, 0.17, 0.04], at: [x, y, z], round: true })),
+  trim: [{ size: [0.52, 0.2, 0.1], at: [0.26, y - 0.01, z - 0.06] }],
+});
+const sump_guard = (outline: Point[], plate_z: number, plate = 0.6): Part[] => [centred(1.0, 0.1, 0.05, 0.31, face_at(outline, 0.4) - 0.03), centred(1.0, 0.04, plate, 0.28, plate_z)];
 const RALLY: Detail[] = [
-  { on: "knobbly", cue: "Red mudflaps behind all four wheels, with gravel tyres", red: [rally_flap(1.27), rally_flap(-1.27)] },
+  MUDFLAPS,
   {
     on: "street",
     cue: "Roof scoop",
     paint: [{ ...on_rally_roof({ size: [0.4, 0.08 + SCOOP_SINK, 0.42], at: [0, 1.45 - SCOOP_SINK / 2, 0.2] }), shape: "wedge", one: true }],
     trim: [on_rally_roof({ size: [0.14, 0.045, 0.02], at: [0.07, 1.45, 0.414] })],
   },
-  {
-    on: "race",
-    cue: "Four-lamp pod on the bonnet for night stages",
-    heads: [0.13, 0.37].map((x): Part => ({ size: [0.17, 0.17, 0.04], at: [x, 0.86, 2.0], round: true })),
-    trim: [{ size: [0.52, 0.2, 0.1], at: [0.26, 0.85, 1.94] }],
-  },
-  { on: "race", cue: "Sump guard under the nose", chrome: [centred(1.0, 0.1, 0.05, 0.31, face_at(rally.outline, 0.4) - 0.03), centred(1.0, 0.04, 0.6, 0.28, 1.74)] },
+  { on: "race", cue: "Four-lamp pod on the bonnet for night stages", ...lamp_pod(0.86, 2.0) },
+  { on: "race", cue: "Sump guard under the nose", chrome: sump_guard(rally.outline, 1.74) },
+];
+
+// The lamp pod is the Hagel's own cue, so it comes with the first kit; the roof stays clean.
+const HAGEL: Detail[] = [
+  MUDFLAPS,
+  { on: "street", cue: "Four-lamp pod on the bonnet edge", ...lamp_pod(0.89, 1.95) },
+  { on: "race", cue: "Sump guard under the nose", chrome: sump_guard(hagel.outline, 1.7, 0.5) },
 ];
 
 const KAZE: Detail[] = [
@@ -194,6 +203,7 @@ export const DETAILS: Record<BodyStyle, Detail[]> = {
   hatch: HATCH,
   muscle: MUSCLE,
   rally: RALLY,
+  hagel: HAGEL,
   kaze: KAZE,
   sturm: STURM,
   raijin: RAIJIN,

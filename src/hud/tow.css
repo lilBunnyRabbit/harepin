@@ -1,0 +1,54 @@
+.bottom-right {
+  --tow: 0;
+  --tow-ink: var(--secondary);
+  --tow-thick: 3px;
+  --tow-thick-full: 4px;
+}
+
+/* The fill and the shift flash round their own corners, so the bar needs no clip and the tow line can sit above it. */
+.bottom-right .rpm {
+  overflow: visible;
+}
+
+.tow-line {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--gap-xs));
+  width: calc(var(--tow) * 100%);
+  height: var(--tow-thick);
+  border-radius: var(--radius-full);
+  background: var(--tow-ink);
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    height 0.15s ease,
+    width 0.2s;
+}
+
+.tow-arc {
+  stroke: var(--tow-ink);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: calc(var(--tow) * 100) 100;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    stroke-width 0.15s ease,
+    stroke-dasharray 0.2s;
+}
+
+[data-tow] :is(.tow-line, .tow-arc) {
+  opacity: calc(0.35 + 0.4 * var(--tow));
+}
+
+[data-tow="full"] :is(.tow-line, .tow-arc) {
+  opacity: 1;
+}
+
+[data-tow="full"] .tow-line {
+  height: var(--tow-thick-full);
+}
+
+[data-tow="full"] .tow-arc {
+  stroke-width: 4.5;
+}

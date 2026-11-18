@@ -10,6 +10,7 @@ import type { World } from "../world/world";
 import type { RouteRun } from "../modes/mode";
 import { GREEN_MS } from "../modes/start-steps";
 import { Minimap } from "./minimap";
+import { TowCue } from "./tow";
 import "./hud.css";
 import "./top-bar.css";
 import "./corner.css";
@@ -148,6 +149,7 @@ export class Hud {
   private moving_since = 0;
   private dial_at = -1;
   private metres = -1;
+  private readonly tow: TowCue;
 
   constructor(
     private world: World,
@@ -162,6 +164,9 @@ export class Hud {
     this.map = new Minimap(canvas, world.routes, world.tiles.ext.size, network);
     this.el.dial_zone.style.strokeDasharray = `0 ${DIAL_HOT} ${100 - DIAL_HOT} 100`;
     this.el.rpm.parentElement?.style.setProperty("--rpm-hot", percent(HOT_RATIO));
+    const card = this.el.rpm.closest<HTMLElement>(".bottom-right");
+    if (!card) throw new Error("the speedometer card is missing");
+    this.tow = new TowCue(card);
   }
 
   set_markers(markers: readonly MapMarker[]) {
@@ -238,6 +243,7 @@ export class Hud {
     el.nitro.toggleAttribute("data-idle", car.gear < 2);
     set_style(el.nitro_key, "--tank", String(Math.round(car.nitro.level * 100) / 100));
     el.nitro_key.toggleAttribute("data-boost", car.nitro.boosting);
+    this.tow.set(car.tow);
     set_text(el.lap, format(race.started ? now - race.started : null));
     set_text(el.best, format(race.best));
     set_text(el.last, format(race.last));
