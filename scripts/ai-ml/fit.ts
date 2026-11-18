@@ -110,6 +110,8 @@ interface Score {
   ai_mae: number;
   /** R² and MAE on each held-out island alone. */
   islands_of: Map<string, { r2: number; mae: number }>;
+  /** Per car, on the held-out predictions: `bias` is the mean of oracle minus prediction, what a per-car term would take up. */
+  cars_of: Map<string, { r2: number; mae: number; bias: number }>;
 }
 
 const r2_of = (ys: number[], ps: number[]) => {
@@ -124,6 +126,7 @@ function hold_out(all: readonly CornerRow[], t: Target): Score {
   const ys: number[] = [];
   const ps: number[] = [];
   const ai: number[] = [];
+  const cars: string[] = [];
   const islands_of = new Map<string, { r2: number; mae: number }>();
   for (const g of groups) {
     const from = ys.length;
@@ -137,10 +140,18 @@ function hold_out(all: readonly CornerRow[], t: Target): Score {
       ys.push(t.raw(r, t.fit(r)));
       ps.push(t.raw(r, predict(m, r.x)));
       ai.push(real(r.ai[t.name]));
+      cars.push(r.car);
     }
     islands_of.set(g, { r2: r2_of(ys.slice(from), ps.slice(from)), mae: mae_of(ys.slice(from), ps.slice(from)) });
   }
-  return { target: t, rows: rows.length, islands: groups.length, r2: r2_of(ys, ps), mae: mae_of(ys, ps), ai_r2: r2_of(ys, ai), ai_mae: mae_of(ys, ai), islands_of };
+  const cars_of = new Map<string, { r2: number; mae: number; bias: number }>();
+  for (const car of new Set(cars)) {
+    const at = cars.flatMap((c, i) => (c === car ? [i] : []));
+    const cy = at.map((i) => ys[i]);
+    const cp = at.map((i) => ps[i]);
+    cars_of.set(car, { r2: r2_of(cy, cp), mae: mae_of(cy, cp), bias: cy.reduce((s, y, i) => s + y - cp[i], 0) / cy.length });
+  }
+  return { target: t, rows: rows.length, islands: groups.length, r2: r2_of(ys, ps), mae: mae_of(ys, ps), ai_r2: r2_of(ys, ai), ai_mae: mae_of(ys, ai), islands_of, cars_of };
 }
 
 /** `share = top (1 - k used²)` through the PULL_QUANTILE of each bin of the bend's share of the grip: k, least squares. */
@@ -178,6 +189,15 @@ if (import.meta.main) {
     console.log(`| ${g} | ${scores.map((s) => {
       const v = s.islands_of.get(g);
       return v ? `${v.r2.toFixed(2)} / ${v.mae.toFixed(1)}` : "-";
+    }).join(" | ")} |`);
+  }
+  console.log(`
+| car | rows | ${scores.map((s) => `${s.target.name} R² / MAE / bias`).join(" | ")} |`);
+  console.log(`|---|---|${scores.map(() => "---").join("|")}|`);
+  for (const car of [...scores[0].cars_of.keys()].sort()) {
+    console.log(`| ${car} | ${set.rows.filter((r) => r.car === car).length} | ${scores.map((s) => {
+      const v = s.cars_of.get(car);
+      return v ? `${v.r2.toFixed(2)} / ${v.mae.toFixed(2)} / ${v.bias >= 0 ? "+" : ""}${v.bias.toFixed(2)}` : "-";
     }).join(" | ")} |`);
   }
   const fits = Object.fromEntries(
