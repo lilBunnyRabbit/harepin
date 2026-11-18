@@ -65,7 +65,7 @@ import { PadMenu } from "./menu/pad-menu";
 import { Net, WRONG_PASSWORD } from "./net/net";
 import { Quality } from "./render/quality";
 import { CursorIdle } from "./theme/cursor";
-import { brand, color, rgba, tones } from "./theme/palette";
+import { brand, rgba } from "./theme/palette";
 import { Race } from "./race";
 import { Remotes } from "./net/remotes";
 import { warm_rtc } from "./net/warm";
@@ -104,6 +104,7 @@ import { Replay } from "./replay/replay";
 import { save_replay } from "./replay/replay-store";
 import { pack_replay, type SavedReplay } from "./replay/saved";
 import { REVIEW_BUILD, review_wanted } from "./review/params";
+import { gate_look_of } from "./car/gate-looks";
 import { show_map_overlay } from "./hud/map-overlay.svelte";
 import { show_next_up } from "./hud/next-up-view.svelte";
 import { roam_card, run_card } from "./hud/pause-card";
@@ -215,12 +216,14 @@ const world_view = new WorldView(world, quality.mobile, WORLDS[world.kind].kit.t
 const dome = sky();
 scene.add(...(WORLDS[world.kind].backdrop === "sky" ? [dome.add(clouds(world.seed))] : []), world_view.root);
 let gate_views: readonly (Gate | undefined)[] = [];
+// `?gate=a|b|c` (dev and review builds): the gate looks up for the owner's pick.
+const gate_look = REVIEW_BUILD ? gate_look_of(params.get("gate")) : null;
 // Dressing and gates stand on terrain all round the world, so they go in once every chunk has arrived. A streamed
 // world never holds every chunk: its dress stands on nothing it reads, and its curbs and gates come and go per chunk.
 // Modes are built after the spawn wait; a chunk in before then has no run's marks to lay again.
 let chunk_in = (_index: number) => {};
 if (world.tiles.streamed) {
-  const trackside = new ChunkTrackside(world);
+  const trackside = new ChunkTrackside(world, gate_look);
   gate_views = trackside.gates;
   scene.add(...WORLDS[world.kind].dress(world), trackside.root);
   stream.listen({
@@ -239,7 +242,7 @@ if (world.tiles.streamed) {
   void world.tiles.whole().then(() => {
     performance.mark("world:whole");
     scene.add(...WORLDS[world.kind].dress(world), ...kit_meshes(world, WORLDS[world.kind].kit.pieces, quality.mobile));
-    const all = gates(world);
+    const all = gates(world, gate_look);
     gate_views = all;
     for (const g of all) scene.add(g.group);
   }, (error: unknown) => area_fade.fail(error));
@@ -793,9 +796,6 @@ function rewind_step(now: number) {
   if (driver.rewind.step(now) && race.started) ghost.rewind_to(now - race.started);
 }
 
-const lit = color(brand.accent);
-const unlit = color(tones.gate);
-const black = new THREE.Color(0, 0, 0);
 function update_gates(t: number) {
   // In a mode run the arch lit is the run's next gate, when one stands there; the free lap's next would point elsewhere.
   const target = modes.active ? (modes.route?.gate ?? null) : null;
@@ -804,8 +804,8 @@ function update_gates(t: number) {
     if (!g) continue;
     const cp = world.checkpoints[i];
     const next = modes.active ? target !== null && Math.hypot(cp.x - target.x, cp.z - target.z) < 1 : i === race.next;
-    g.material.color.copy(next ? lit : unlit);
-    g.material.emissive.copy(next ? lit : black).multiplyScalar(next ? 0.55 + Math.sin(t * 6) * 0.25 : 0);
+    g.material.color.copy(next ? g.cue.lit : g.cue.unlit);
+    g.material.emissive.copy(g.cue.glow).multiplyScalar(next ? 0.55 + Math.sin(t * 6) * 0.25 : g.cue.rest);
   }
 }
 
