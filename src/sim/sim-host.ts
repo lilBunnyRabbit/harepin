@@ -59,6 +59,8 @@ export interface FieldStart {
   laps?: number;
   /** The field's driver drives the player's car too: a dev autopilot for shots and frame-time runs. */
   drive_rival?: boolean;
+  /** False: no car tows another. */
+  slipstream?: boolean;
   /** The player's grid slot, 0 on pole; last without one. */
   grid?: number;
 }
@@ -239,12 +241,13 @@ export class SimHost {
     return this.field?.progress ?? NO_PROGRESS;
   }
 
-  private start_field({ route, specs, traits, seed, laps, drive_rival, grid }: FieldStart) {
+  private start_field({ route, specs, traits, seed, laps, drive_rival, grid, slipstream }: FieldStart) {
     const on = this.world.routes.find((r) => r.id === route);
     if (!on) throw new Error(`no route ${route} for the field`);
     this.field = new Field(this.world, on, specs, traits, seed, grid);
     this.field_laps = laps ?? FIELD_LAPS;
     this.field.drives_rival = drive_rival === true;
+    this.field.tows = slipstream !== false;
     this.field.rival = this.car;
     this.field_cars = this.field.racers.map((r) => r.car);
     this.field_from = this.field_cars.map((car) => ({ pos: car.pos.clone(), quat: car.quat.clone() }));

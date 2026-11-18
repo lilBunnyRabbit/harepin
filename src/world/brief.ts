@@ -3,6 +3,8 @@ import { limit_text } from "../car/car-pick";
 import type { CarId } from "../car/cars";
 import { PRESETS } from "../car/presets";
 import { event_place, marks_of, type Mark } from "../career/gate";
+import { FORMAT_NAMES, length_text } from "../menu/events-view";
+import { RaceFormat, grid_of } from "../modes/custom-race";
 import { MODES, mode_name } from "../modes/modes";
 import { type_of } from "../runs/runs";
 import type { Travel } from "./travel";
@@ -37,6 +39,15 @@ export function brief_of(travel: Travel): BriefFacts {
     const { season, event } = travel.series;
     const eyebrow = `${season.name} Series · Round ${season.events.indexOf(event) + 1} of ${season.events.length}`;
     return { eyebrow, name: event.name, goal: goal_of("race"), marks: [], specs: [{ label: "Car", value: limit_text(season.cap) }], lent: null, start: "Starts on the grid, engine running" };
+  }
+  if ("custom" in travel) {
+    const setup = travel.custom;
+    const specs = [
+      { label: "Rivals", value: String(setup.rivals) },
+      { label: setup.format === RaceFormat.TIMED ? "Time" : "Laps", value: length_text(setup) },
+      { label: "Grid", value: `P${grid_of(setup) + 1}` },
+    ];
+    return { eyebrow: `Custom race · ${FORMAT_NAMES[setup.format]}`, name: "Custom race", goal: goal_of("race"), marks: [], specs, lent: null, start: "Starts on the grid, engine running" };
   }
   const { event } = travel;
   const preset = "preset" in event.car ? PRESETS.find((one) => "preset" in event.car && one.name === event.car.preset) : undefined;

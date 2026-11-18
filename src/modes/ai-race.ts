@@ -98,7 +98,7 @@ export class AiRace implements ModeRun, FieldRace {
     this.grid = Math.max(0, Math.min(this.builds.length, Math.trunc(host.event?.grid ?? this.builds.length)));
     this.run = this.grid_run();
     this.standings = new Standings(this.builds.length + 1, route.points.length, this.laps, this.builds.length);
-    this.stewards = new Stewards(level.rules, course.line, route.gate_hw);
+    this.stewards = new Stewards(host.event?.rules ?? level.rules, course.line, route.gate_hw);
     this.tally = new FieldTally(this.builds.length + 1, route.points.length, this.laps, host.event?.knockout === true);
     this.route = { id: route.id, gate: this.run.gate, later: this.later(0), respawn: course.line[0] };
     const spot = grid_spot(route, this.grid);
@@ -137,7 +137,7 @@ export class AiRace implements ModeRun, FieldRace {
     const { route } = this.course;
     const { world } = this.ctx;
     const count = this.builds.length;
-    this.field.start(world, route, { route: route.id, specs: this.specs, traits: at_difficulty(field_personalities(world.seed, this.host.cars.slice(0, count)), this.host.difficulty()), seed: world.seed, laps: this.laps, drive_rival: this.host.autopilot, grid: this.grid });
+    this.field.start(world, route, { route: route.id, specs: this.specs, traits: at_difficulty(field_personalities(world.seed, this.host.cars.slice(0, count)), this.host.difficulty()), seed: world.seed, laps: this.laps, drive_rival: this.host.autopilot, grid: this.grid, slipstream: this.host.event?.slipstream });
     this.started = true;
     this.touches = this.host.sim.field_touches;
   }
