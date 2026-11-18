@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { merge, tint } from "./geometry";
 import { brand, color, tones } from "../theme/palette";
 import { freeze, ribbon, ribbon_material } from "../render/scene";
 import { cast_instanced } from "../render/shadow-depth";
@@ -9,63 +8,21 @@ import { KERB_OUT } from "../worldgen/road-layers";
 import { KERB_IN, type KerbMarks } from "../world/kerbs";
 import type { Solid } from "../worldgen/types";
 import { cos, sin } from "../sim-math";
-import { GATE_LOOKS, type GateLook } from "./gate-looks";
-
-/** How a gate shows it is the next one: its material's colour, and its emissive as a share of `glow`. */
-export interface GateCue {
-  lit: THREE.Color;
-  unlit: THREE.Color;
-  glow: THREE.Color;
-  /** Emissive share while the gate is not the next one. */
-  rest: number;
-}
+import { GATE_POST, GATE_TOP, gate_kit, type GateKit } from "./gate-kit";
 
 export interface Gate {
   group: THREE.Group;
   material: THREE.MeshLambertMaterial;
-  cue: GateCue;
 }
 
-export interface GateKit {
-  frame: THREE.BufferGeometry;
-  /** The start line's frame, when the look builds its checker into it. */
-  start_frame?: THREE.BufferGeometry;
-  checker?: THREE.Mesh;
-  material: () => THREE.MeshLambertMaterial;
-  cue: GateCue;
-}
-
-export function gate_kit(look: GateLook | null = null): GateKit {
-  if (look) return GATE_LOOKS[look]();
-  const frame = merge(
-    [-1, 1].map((side) => new THREE.BoxGeometry(0.7, 6.4, 0.7).translate(side * (ROAD_HALF + 1.7), 3.2, 0)),
-    new THREE.BoxGeometry(ROAD_HALF * 2 + 3.4, 0.5, 0.5).translate(0, 6.2, 0),
-  );
-  const columns = 14;
-  const tiles: THREE.BufferGeometry[] = [];
-  for (let row = 0; row < 2; row++)
-    for (let col = 0; col < columns; col++) {
-      const tile = new THREE.BoxGeometry(1, 0.55, 0.3).translate((col - (columns - 1) / 2) * 1, 6.9 + row * 0.55, 0);
-      tiles.push(tint(tile, color((row + col) % 2 ? tones.check_dark : tones.check_light)));
-    }
-  const lit = color(brand.accent);
-  return {
-    frame,
-    checker: new THREE.Mesh(merge(...tiles), new THREE.MeshLambertMaterial({ vertexColors: true })),
-    material: () => new THREE.MeshLambertMaterial({ color: color(tones.gate), emissive: new THREE.Color(0, 0, 0) }),
-    cue: { lit, unlit: color(tones.gate), glow: lit, rest: 0 },
-  };
-}
-
-/** A gate at the origin facing +z; the start line's carries the checker board. */
+/** A gate at the origin facing +z; the start line's carries the checker flags. */
 export function gate_view(kit: GateKit, start: boolean): Gate {
   const group = new THREE.Group();
   const material = kit.material();
-  const mesh = new THREE.Mesh(start && kit.start_frame ? kit.start_frame : kit.frame, material);
+  const mesh = new THREE.Mesh(start ? kit.start : kit.frame, material);
   mesh.castShadow = true;
   group.add(mesh);
-  if (start && kit.checker) group.add(kit.checker);
-  return { group, material, cue: kit.cue };
+  return { group, material };
 }
 
 function gate(world: World, kit: GateKit, index: number): Gate {
@@ -77,8 +34,9 @@ function gate(world: World, kit: GateKit, index: number): Gate {
   return view;
 }
 
-export function gates(world: World, look: GateLook | null = null): Gate[] {
-  const kit = gate_kit(look);
+/** `gantry`: the world stands its own start gantry over gate 0, which keeps only its cue. */
+export function gates(world: World, gantry = false): Gate[] {
+  const kit = gate_kit(gantry);
   return world.checkpoints.map((_, index) => gate(world, kit, index));
 }
 
@@ -172,10 +130,10 @@ function gate_solids(world: World, at: number): Solid[] {
   const tx = sin(cp.heading);
   const tz = cos(cp.heading);
   return [-1, 1].map((side) => {
-    const off = side * (ROAD_HALF + 1.7);
+    const off = side * GATE_POST;
     const x = cp.x - tz * off;
     const z = cp.z + tx * off;
-    return { kind: "circle", x, y: world.height(x, z), z, radius: 0.5, height: 7 };
+    return { kind: "circle", x, y: world.height(x, z), z, radius: 0.5, height: GATE_TOP };
   });
 }
 
@@ -195,8 +153,8 @@ export class ChunkTrackside {
   private readonly checkpoints = new Map<number, number[]>();
   private readonly built = new Map<number, { part: THREE.Group; gates: number[]; unplace: (() => void)[] }>();
 
-  constructor(private readonly world: World, look: GateLook | null = null) {
-    this.kit = gate_kit(look);
+  constructor(private readonly world: World, gantry = false) {
+    this.kit = gate_kit(gantry);
     this.root.matrixAutoUpdate = false;
     const { ext } = world.tiles;
     this.marks = world.kerbs;

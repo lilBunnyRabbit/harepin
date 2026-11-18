@@ -22,4 +22,5 @@ export const raceway: WorldDef = {
   facts: (f) => lap_facts(f, "lap"),
   dress: (world) => [curbs(world), ...stadium(world)],
   kit: PLAIN_KIT,
+  start_gantry: true,
 };

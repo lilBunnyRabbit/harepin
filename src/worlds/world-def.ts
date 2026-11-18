@@ -48,6 +48,8 @@ export interface WorldDef {
   /** Scene pieces beyond the world view, sky and clouds. */
   dress(world: World): THREE.Object3D[];
   kit: Kit;
+  /** The world stands its own start gantry over the line, so gate 0 keeps only its cue. */
+  start_gantry?: boolean;
   /** Deck bank, radians, past which the chase view rolls with the deck so the car reads upright on a wall; unset or null keeps the view level. */
   wall_view?(world: World): number | null;
 }

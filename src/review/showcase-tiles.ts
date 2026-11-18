@@ -4,8 +4,8 @@ import { CARS, is_car, type CarId } from "../car/cars";
 import { contact_shadow, fit_contact_shadow } from "../car/contact-shadow";
 import { build_view, rest_wheels } from "../car/models";
 import { rest_neon } from "../car/neon-look";
-import { gate_kit, gate_view } from "../car/trackside";
-import { GateLook } from "../car/gate-looks";
+import { gate_view } from "../car/trackside";
+import { gate_kit, light_gate } from "../car/gate-kit";
 import { TIERS } from "../career/career";
 import { reward_paint_name } from "../career/rewards";
 import { MarkerView } from "../career/marker-view";
@@ -142,11 +142,10 @@ function flag(tier: number, open: boolean): THREE.Object3D {
   return view.root;
 }
 
-function gate(start: boolean, lit: boolean, look: GateLook | null = null): THREE.Object3D {
-  const { group, material, cue } = gate_view(gate_kit(look), start);
+function gate(start: boolean, lit: boolean): THREE.Object3D {
+  const { group, material } = gate_view(gate_kit(), start);
   // As main.ts lights the next gate, at its pulse's middle.
-  material.color.copy(lit ? cue.lit : cue.unlit);
-  material.emissive.copy(cue.glow).multiplyScalar(lit ? 0.55 : cue.rest);
+  light_gate(material, lit, 0);
   return group;
 }
 
@@ -157,11 +156,6 @@ function track(): SheetLayout {
   tiles.push({ label: "gate", object: gate(false, false), ground: road, yaw: 20, pitch: 10 });
   tiles.push({ label: "gate · next", object: gate(false, true), ground: road, yaw: 20, pitch: 10 });
   tiles.push({ label: "gate · start", object: gate(true, false), ground: road, yaw: 20, pitch: 10 });
-  for (const look of Object.values(GateLook)) {
-    tiles.push({ label: `gate ${look}`, object: gate(false, false, look), ground: road, yaw: 20, pitch: 10 });
-    tiles.push({ label: `gate ${look} · next`, object: gate(false, true, look), ground: road, yaw: 20, pitch: 10 });
-    tiles.push({ label: `gate ${look} · start`, object: gate(true, false, look), ground: road, yaw: 20, pitch: 10 });
-  }
   return { tiles, columns: null, same_scale: false };
 }
 
