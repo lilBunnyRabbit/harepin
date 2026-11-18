@@ -99,7 +99,7 @@ describe("AI driver", () => {
     const pinned = (l: ReturnType<typeof race_line>) => l.ramp.findIndex((r, i) => r >= 0 && l.room[i] === 0);
     // Tucked up behind a car making 16 m/s, the follow cap drops to 3: the floor still holds.
     const { driver, line } = placed(pinned, 1, 3, 16);
-    expect(driver.target).toBeGreaterThanOrEqual(Math.min(20, line.speed[driver.index]));
+    expect(driver.target).toBeGreaterThanOrEqual(Math.min(22, line.speed[driver.index]));
     expect(placed(pinned, 1, 3, 2).driver.target).toBe(3);
   });
 

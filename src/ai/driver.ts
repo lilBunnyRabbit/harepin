@@ -42,10 +42,12 @@ const EASE_SPEED = 5;
 const SLOPE_SPAN = 3;
 const COAST_DECEL = 1;
 /**
- * m/s a car keeps over a kicker's toe and run under a car ahead: under it, it falls short into the frame. A car ahead
- * making under KICK_YIELD along the road is stopped or wedged there, and the floor gives way to it rather than run into it.
+ * m/s a car keeps over a kicker's toe and run under a car ahead: under it, it falls short into the frame. At 20 the run's
+ * climb left a hatch 17 m/s at the lip and it hung on the frame's low bar (seed 20); at the kicker's design 24 the field
+ * reached the next bends in another order and a coupe slid off in one (seed 48). A car ahead making under KICK_YIELD
+ * along the road is stopped or wedged there, and the floor gives way to it rather than run into it.
  */
-const KICK_MIN = 20;
+const KICK_MIN = 22;
 const KICK_YIELD = 8;
 /** Metres off the path it drives (the line, `aside` off it, or its grid lane) past which it slows for the arc back to its aim. */
 const AIM_OFF = 2;
