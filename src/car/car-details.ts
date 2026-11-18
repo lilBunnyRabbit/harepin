@@ -1,10 +1,10 @@
 import type { BodyStyle } from "./cars";
 import { canard, rod } from "./design-parts";
-import { DESIGNS, type Detail } from "./designs";
+import { DESIGNS, type Cabin, type Detail } from "./designs";
 import { GLASS_BAR, GLASS_BAR_PROUD, centred, outlet, pipe, screen_band, screen_bar, side_pipe } from "./detail-parts";
 import { face_at, tail_at, type Part, type Point } from "./geometry";
 
-const { coupe, hatch, muscle, rally, hagel, sturm, raijin, tsumuji, formula } = DESIGNS;
+const { coupe, hatch, muscle, orkan, rally, hagel, sturm, raijin, tsumuji, formula } = DESIGNS;
 
 const UPRIGHT = Math.PI / 2;
 
@@ -62,12 +62,29 @@ const MUSCLE_KIT_PIPE = muscle_pipe(1.11, 0.21);
 // a rail at each side that stands taller than any slat edge, so no slat end shows past it.
 const LOUVRE_HALF = 0.6;
 const LOUVRE_RAIL: [number, number] = [0.08, 0.04];
-const LOUVRE_SLATS = [0.1, 0.28, 0.46, 0.64, 0.82].map((share): Part => {
-  const band = screen_band(muscle.cabin, 2, share - 0.1, share + 0.1, LOUVRE_HALF);
-  return { ...band, size: [LOUVRE_HALF - 0.03, 0.022, 0.15], at: [(LOUVRE_HALF - 0.03) / 2, band.at[1], band.at[2]], tilt: [(band.tilt?.[0] ?? 0) * 0.6, 0, 0] };
+const louvres = (cabin: Cabin, shares: number[], flat: number): Detail => ({
+  on: "street",
+  cue: "Rear window louvres",
+  louvres: [
+    ...shares.map((share): Part => {
+      const band = screen_band(cabin, 2, share - 0.1, share + 0.1, LOUVRE_HALF);
+      return { ...band, size: [LOUVRE_HALF - 0.03, 0.022, 0.15], at: [(LOUVRE_HALF - 0.03) / 2, band.at[1], band.at[2]], tilt: [(band.tilt?.[0] ?? 0) * flat, 0, 0] };
+    }),
+    screen_bar(cabin, 2, [LOUVRE_HALF, 0.03], [LOUVRE_HALF, 0.97], 0.06, ...LOUVRE_RAIL),
+  ],
 });
 // The race engine's scoop: taller and narrower than the stock one, on the same spot.
 const SHAKER = 0.2;
+const SIDE_PIPES: Detail[] = [
+  { on: "tuned", until: "street", cue: "Chrome side pipes under the sills, in place of tailpipes and the sill strip", ...MUSCLE_PIPE, swaps: ["pipes", "bulge", "sill"] },
+  { on: "tuned", with: "street", cue: "The side pipes under the kit's wider sills", ...MUSCLE_KIT_PIPE, swaps: ["pipes", "bulge"] },
+];
+const SHAKER_SCOOP: Detail = {
+  on: "race_engine",
+  cue: "Tall shaker scoop grown out of the hood",
+  hood: [{ size: [0.5, SHAKER + SCOOP_SINK, 0.6], at: [0, 0.845 + (SHAKER - SCOOP_SINK) / 2, MUSCLE_HOOD_Z], tilt: [HOOD_FALL, 0, 0], shape: "wedge", one: true }],
+  trim: [{ size: [0.16, 0.11, 0.02], at: [0.08, 0.845 + SHAKER / 2 - 0.02, MUSCLE_HOOD_Z + 0.305] }],
+};
 const MUSCLE: Detail[] = [
   {
     on: "base",
@@ -76,19 +93,24 @@ const MUSCLE: Detail[] = [
     hood: [{ size: [0.74, 0.1 + SCOOP_SINK, 0.56], at: [0, 0.895 - SCOOP_SINK / 2, MUSCLE_HOOD_Z], tilt: [HOOD_FALL, 0, 0], shape: "wedge", one: true }],
     trim: [{ size: [0.25, 0.055, 0.02], at: [0.125, 0.895, 1.485] }],
   },
-  { on: "tuned", until: "street", cue: "Chrome side pipes under the sills, in place of tailpipes and the sill strip", ...MUSCLE_PIPE, swaps: ["pipes", "bulge", "sill"] },
-  { on: "tuned", with: "street", cue: "The side pipes under the kit's wider sills", ...MUSCLE_KIT_PIPE, swaps: ["pipes", "bulge"] },
+  ...SIDE_PIPES,
+  louvres(muscle.cabin, [0.1, 0.28, 0.46, 0.64, 0.82], 0.6),
+  SHAKER_SCOOP,
+];
+
+// The fastback's glass lies too flat for slats laid flatter than it: they stand steeper instead.
+const NOSTRIL = 0.07;
+const ORKAN: Detail[] = [
   {
-    on: "street",
-    cue: "Rear window louvres",
-    louvres: [...LOUVRE_SLATS, screen_bar(muscle.cabin, 2, [LOUVRE_HALF, 0.03], [LOUVRE_HALF, 0.97], 0.06, ...LOUVRE_RAIL)],
+    on: "base",
+    until: "race_engine",
+    cue: "Twin nostril scoops on the hood",
+    hood: [{ size: [0.24, NOSTRIL + SCOOP_SINK, 0.62], at: [0.25, 0.847 + (NOSTRIL - SCOOP_SINK) / 2, MUSCLE_HOOD_Z], tilt: [HOOD_FALL, 0, 0], shape: "wedge" }],
+    trim: [{ size: [0.17, 0.04, 0.02], at: [0.25, 0.835 + NOSTRIL / 2, MUSCLE_HOOD_Z + 0.315] }],
   },
-  {
-    on: "race_engine",
-    cue: "Tall shaker scoop grown out of the hood",
-    hood: [{ size: [0.5, SHAKER + SCOOP_SINK, 0.6], at: [0, 0.845 + (SHAKER - SCOOP_SINK) / 2, MUSCLE_HOOD_Z], tilt: [HOOD_FALL, 0, 0], shape: "wedge", one: true }],
-    trim: [{ size: [0.16, 0.11, 0.02], at: [0.08, 0.845 + SHAKER / 2 - 0.02, MUSCLE_HOOD_Z + 0.305] }],
-  },
+  ...SIDE_PIPES,
+  louvres(orkan.cabin, [0.09, 0.2, 0.31, 0.42, 0.53, 0.64, 0.75, 0.86], 1.5),
+  SHAKER_SCOOP,
 ];
 
 // Hung from the rear foot of each wheel opening, inside the body edge and swept back.
@@ -202,6 +224,7 @@ export const DETAILS: Record<BodyStyle, Detail[]> = {
   coupe: COUPE,
   hatch: HATCH,
   muscle: MUSCLE,
+  orkan: ORKAN,
   rally: RALLY,
   hagel: HAGEL,
   kaze: KAZE,

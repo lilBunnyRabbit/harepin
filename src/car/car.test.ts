@@ -159,6 +159,7 @@ const OLD_SMOOTH_LANE_SETTLE: Record<CarId, number> = {
   hatch: 2.39,
   coupe: 2.37,
   muscle: 2.49,
+  orkan: 2.49,
   rally: 2.46,
   hagel: 2.46,
   kaze: 2.37,
@@ -321,8 +322,8 @@ describe("parking", () => {
   });
 });
 
-test("the car-sized list is exactly the eleven cars, so a body change can't silently drop one from the car tests", () => {
-  expect(Object.values(CARS).filter(car_sized).map((spec) => spec.id).sort()).toEqual(["coupe", "formula", "fujin", "hagel", "hatch", "kaze", "muscle", "raijin", "rally", "sturm", "tsumuji"]);
+test("the car-sized list is exactly the twelve cars, so a body change can't silently drop one from the car tests", () => {
+  expect(Object.values(CARS).filter(car_sized).map((spec) => spec.id).sort()).toEqual(["coupe", "formula", "fujin", "hagel", "hatch", "kaze", "muscle", "orkan", "raijin", "rally", "sturm", "tsumuji"]);
 });
 
 test("dropped at drop_height for a mode start or a reset, every car settles without bouncing", () => {

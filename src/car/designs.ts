@@ -9,6 +9,7 @@ import { HAGEL_DESIGN } from "./hagel-design";
 import { HATCH_DESIGN } from "./hatch-design";
 import { KAZE_DESIGN } from "./kaze-design";
 import { MUSCLE_DESIGN } from "./muscle-design";
+import { ORKAN_DESIGN } from "./orkan-design";
 import { RAIJIN_DESIGN } from "./raijin-design";
 import { RALLY_DESIGN } from "./rally-design";
 import { SAJIN_DESIGN } from "./sajin-design";
@@ -236,6 +237,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
   coupe: COUPE_DESIGN,
   hatch: HATCH_DESIGN,
   muscle: MUSCLE_DESIGN,
+  orkan: ORKAN_DESIGN,
   rally: RALLY_DESIGN,
   hagel: HAGEL_DESIGN,
   kaze: KAZE_DESIGN,

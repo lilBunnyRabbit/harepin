@@ -1,7 +1,7 @@
 import { seed_of } from "../rng";
 
 export type Drive = "rwd" | "fwd" | "awd";
-export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "hagel" | "kaze" | "formula" | "fujin" | "sturm" | "raijin" | "bus" | "tsumuji" | "sajin";
+export type BodyStyle = "hatch" | "coupe" | "muscle" | "orkan" | "rally" | "hagel" | "kaze" | "formula" | "fujin" | "sturm" | "raijin" | "bus" | "tsumuji" | "sajin";
 export type Triple = [number, number, number];
 
 /** Engine voice; the limiter cuts in just under `redline`. */
@@ -770,6 +770,7 @@ const SAJIN_FRAME: FrameSpec = {
 
 export const FRAMES: Record<FrameId, FrameSpec> = { hatch: HATCH_FRAME, coupe: COUPE_FRAME, muscle: MUSCLE_FRAME, rally: RALLY_FRAME, sturm: STURM_FRAME, raijin: RAIJIN_FRAME, formula: FORMULA_FRAME, fujin: FUJIN_FRAME, tsumuji: TSUMUJI_FRAME, bus: BUS_FRAME, sajin: SAJIN_FRAME };
 
+const MUSCLE_SOUND: EngineSound = { cylinders: 8, pulses: [1, 0.7, 1.15, 0.82, 0.68, 1.1, 0.78, 1.05], jitter: 0.3, pulse_ms: 2, formants: [90, 250, 700], shift: 0.2, muffler: [450, 1900], drive: 2.6, rasp: 0.4, intake: 0.35, crackle: 0.9, turbo: 0 };
 const RALLY_SOUND: EngineSound = { cylinders: 4, pulses: [1, 0.9, 1.02, 0.88], jitter: 0.14, pulse_ms: 0.9, formants: [150, 470, 1700], shift: 0.3, muffler: [800, 3800], drive: 3, rasp: 0.9, intake: 0.65, crackle: 0.75, turbo: 1 };
 
 export const BODIES: Record<CarId, BodySpec> = {
@@ -789,7 +790,13 @@ export const BODIES: Record<CarId, BodySpec> = {
     name: "Muscle",
     frame: "muscle",
     size: { length: 5.0, width: 2.0, height: 1.25 },
-    sound: { cylinders: 8, pulses: [1, 0.7, 1.15, 0.82, 0.68, 1.1, 0.78, 1.05], jitter: 0.3, pulse_ms: 2, formants: [90, 250, 700], shift: 0.2, muffler: [450, 1900], drive: 2.6, rasp: 0.4, intake: 0.35, crackle: 0.9, turbo: 0 },
+    sound: MUSCLE_SOUND,
+  },
+  orkan: {
+    name: "Orkan",
+    frame: "muscle",
+    size: { length: 5.0, width: 2.0, height: 1.22 },
+    sound: MUSCLE_SOUND,
   },
   rally: {
     name: "Rally",

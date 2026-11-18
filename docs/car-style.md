@@ -61,6 +61,7 @@ Most rounds' notes were about spoilers. They must look attached and intentional.
 | Hatch | own design | thin black arch lips, roof spoiler on the roof edge |
 | Coupe | 90s Japanese liftback | low wedge nose, glass fastback; black blade on the kit wing |
 | Muscle | late-60s American | long flat hood, upright quad-lamp grille, short notchback |
+| Orkan | 70s American fastback, on the Muscle frame | the Muscle's long hood, screen further back, one roofline falling to a ducktail; wide grille with a beak and two round lamps, triple tail lamps, haunches over the rear wheels |
 | Rally | Ford Fiesta (2011 WRC / gymkhana) | short supermini hatch, steep tailgate, rising window line; black arches; WRC kit with roof wing |
 | Hagel | 80s Group B / Group A hatch, on the Rally frame | ruler-straight box: upright nose, level belt, long flat roof, squared tail with one lamp band; body-colour box arches |
 | Kaze | Nissan 350Z | long hood, short tail; black wing blade |
@@ -82,6 +83,7 @@ On top of the kit, each car wears the cues of its own tuning scene, each brought
 | Hatch | track day | offset tow hooks, centre-exit pipes, cage cross in the hatch glass |
 | Coupe | 90s highway | bazooka pipes, front-mount intercooler |
 | Muscle | pro street | chrome side pipes, rear louvres, blower through the hood, wheelie bars |
+| Orkan | pro street | twin nostril scoops, chrome side pipes, louvres down the fastback glass, the Muscle's shaker |
 | Rally | gravel stage | red mudflaps, roof scoop, lamp pod, sump guard |
 | Hagel | night stage | red mudflaps, four-lamp pod on the bonnet edge, sump guard; clean roof |
 | Kaze | pro drift | camber, tow straps, bash bar in place of the rear bumper |
