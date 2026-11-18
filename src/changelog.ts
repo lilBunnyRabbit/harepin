@@ -51,6 +51,22 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.65.0",
+    date: "2026-11-18",
+    title: "Raceway venue",
+    changes: [
+      { kind: NEW, text: "Raceway is a real circuit now: a terrace on the straight, pit garages, a start gantry, concrete walls and steel rail, gravel traps with tyre walls" },
+      { kind: IMPROVED, text: "Gravel slows you and walls scrub speed instead of stopping you dead" },
+      { kind: NEW, text: "Start lights beep" },
+      { kind: NEW, text: "Chat button on the drive screen" },
+      { kind: IMPROVED, text: "The rear-view mirror hangs under the race timer" },
+      { kind: IMPROVED, text: "Nitro is off in races against the AI" },
+      { kind: FIXED, text: "AI race cars no longer wear neon" },
+      { kind: FIXED, text: "Finish order rows stay compact and show gaps in milliseconds" },
+      { kind: FIXED, text: "Enter resumes from pause" },
+    ],
+  },
+  {
     version: "0.64.3",
     date: "2026-11-17",
     title: "Smooth at speed",
