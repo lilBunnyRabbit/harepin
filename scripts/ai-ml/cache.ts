@@ -3,6 +3,7 @@ import { availableParallelism, freemem } from "node:os";
 import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AI_TUNING } from "../../src/ai/tuning";
+import { CARS, spec_hash, type CarSpec } from "../../src/car/cars";
 
 const sources = (dir: URL, keep: (name: string) => boolean = () => true) =>
   readdirSync(dir)
@@ -14,11 +15,14 @@ const here = (name: string) => new URL(name, import.meta.url);
 
 const IMPORT = /(?:from|import)\s*\(?\s*"(\.{1,2}\/[^"]+)"/g;
 const REPO = new URL("../../", import.meta.url);
+const CARS_TS = "src/car/cars.ts";
+/** cars.ts as its frames' physics: a body's name, design or CarAi field moves no key built on it. */
+export const car_frames = (cars: Readonly<Record<string, CarSpec>> = CARS) => [...new Set(Object.values(cars).map(spec_hash))].sort().join("");
 
 /**
  * Every .ts file `entries` import, transitively, each as its repo path and text: a key on it moves with any edit that can
  * change what they compute, and stays put for files outside it. Paths are relative to `repo`, so two checkouts of one
- * commit key alike.
+ * commit key alike. cars.ts counts by its frames' `spec_hash`, not its text.
  */
 export function closure(entries: readonly URL[], repo: URL = REPO): string {
   const seen = new Set<string>();
@@ -34,7 +38,7 @@ export function closure(entries: readonly URL[], repo: URL = REPO): string {
   return [...seen]
     .map((href) => ({ name: relative(fileURLToPath(repo), fileURLToPath(href)).replaceAll("\\", "/"), href }))
     .sort((a, b) => (a.name < b.name ? -1 : 1))
-    .map(({ name, href }) => name + readFileSync(new URL(href), "utf8"))
+    .map(({ name, href }) => name + (name === CARS_TS ? car_frames() : readFileSync(new URL(href), "utf8")))
     .join("");
 }
 

@@ -49,8 +49,8 @@ export function solo_run(world: World, route: Route, spec: CarSpec, flying: numb
 
 /**
  * Keys oracle laps on what decides their time: the world and car physics (WORLDGEN_HASH holds world.ts's closure) and the
- * oracle's drive. src/ai is left out on purpose: the oracle searches every limit around the race line, so an AI change
- * does not make its ceiling stale.
+ * oracle's drive. src/ai and the CarAi fields (`closure` keys cars.ts on frame physics) are left out on purpose: the
+ * oracle searches every limit around the race line, so an AI change does not make its ceiling stale.
  */
 export const PACE_HASH = Bun.hash(WORLDGEN_HASH + closure([new URL("../../src/car/car.ts", import.meta.url)]) + readFileSync(new URL("./drive.ts", import.meta.url), "utf8")).toString(36);
 
