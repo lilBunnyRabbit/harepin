@@ -11,7 +11,7 @@ import type { FrameKind, FrameOut, FrameRequest, SimCommand } from "./sim-host";
  * times laps and modes and picks reset spots from the car it reads, and those must match the sim on main bit for bit.
  * Append-only inside each block; reordering or resizing a field bumps `SIM_PACKET`, which both sides check.
  */
-export const SIM_PACKET = 3;
+export const SIM_PACKET = 4;
 
 export type SimRequest =
   | { type: "init"; seed: number; plan: WorldData; levels: readonly number[]; spec: CarSpec }
@@ -28,7 +28,7 @@ const AI = 7;
 const TOUCHES = 8;
 const HEADER = 9;
 
-const CAR = 39;
+const CAR = 40;
 const WHEEL = 12;
 const AI_CAR = 15;
 const AI_WHEEL = 3;
@@ -105,6 +105,7 @@ export function write_packet(out: Float64Array, epoch: number, frame: FrameOut, 
   out[at++] = scrape.nz;
   out[at++] = scrape.slide;
   out[at++] = scrape.into;
+  out[at++] = car.tow;
   for (const w of car.wheels) {
     out[at++] = w.contact ? 1 : 0;
     at = put3(out, at, w.point);
@@ -173,6 +174,7 @@ export function read_packet(from: Float64Array, frame: FrameOut, car: Car, pose:
   scrape.nz = from[at++];
   scrape.slide = from[at++];
   scrape.into = from[at++];
+  car.tow = from[at++];
   for (const w of car.wheels) {
     w.contact = from[at++] === 1;
     at = get3(from, at, w.point);
