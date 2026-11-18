@@ -2,14 +2,14 @@
   import { untrack } from "svelte";
   import { MAX_EVENT_STARS, event_of } from "../career/career";
   import type { CarPicker } from "./car-pick.svelte";
-  import { aim_or_go, bare_enter } from "./drive-picks";
+  import { aim_or_go, bare_enter, link_key } from "./drive-picks";
   import { target_of, type StartTarget } from "./events-view";
   import { thumb_url } from "./map-thumb";
   import { MAKE_PAGE, MAPS_PAGE, first_pick, map_stops, type MapEvent, type MapPin, type MapStop } from "./maps";
   import MenuFrame from "./MenuFrame.svelte";
   import StartSheet from "./StartSheet.svelte";
   import Card from "./ui/Card.svelte";
-  import Icon from "./ui/Icon.svelte";
+  import KeyLink from "./ui/KeyLink.svelte";
   import MapPins from "./ui/MapPins.svelte";
   import PlaceLine from "./ui/PlaceLine.svelte";
   import PrimaryAction from "./ui/PrimaryAction.svelte";
@@ -34,7 +34,6 @@
   const stops = $derived(map_stops(live.stars, here, here_name));
   let code = $state<string | null>(null);
   let picked = $state<string | null>(null);
-  let making = $state(false);
   let thumbs = $state<Record<string, string>>({});
   // With nothing left to start here, the page opens on the next map that has something.
   const stop = $derived(stops.find((one) => one.code === code) ?? stops.find((one) => one.events.some((event) => event.open)) ?? stops[0]);
@@ -44,8 +43,8 @@
   const pins = $derived<MapPin[]>(markers.map((marker) => ({ id: marker.label, x: marker.x, z: marker.z, ink: marker.ink, label: event_of(marker.label)?.name ?? marker.label })));
   const you = $derived(stop.place.here ? (live.live(() => host.map_players()).find((player) => player.you) ?? null) : null);
   const away = $derived(stop.place.here ? null : stop.place.name);
-  const verb = $derived(making ? "Make a map" : event ? `Race ${event.title}` : away ? `Travel to ${away}` : `Drive ${stop.name.split(" · ")[0]}`);
-  const note = $derived(making ? "Roll a map of any type and tune it" : away ? `Double-click or Enter to go.${event ? "" : " Travel loads the map."}` : "");
+  const verb = $derived(event ? `Race ${event.title}` : away ? `Travel to ${away}` : `Drive ${stop.name.split(" · ")[0]}`);
+  const note = $derived(away ? `Double-click or Enter to go.${event ? "" : " Travel loads the map."}` : "");
   let target = $state.raw<StartTarget | null>(null);
 
   export function back(): boolean {
@@ -75,7 +74,6 @@
     view.stop();
     code = null;
     picked = null;
-    making = false;
   });
 
   $effect(() => {
@@ -90,19 +88,16 @@
   });
 
   function pick_map(next: MapStop) {
-    making = false;
     if (next.code === stop.code) return;
     code = next.code;
     picked = null;
   }
 
   function pick_event(id: string) {
-    making = false;
     picked = id;
   }
 
   function go() {
-    if (making) return menu.show(MAKE_PAGE);
     if (event) return void (target = target_of(host, "event", event.id));
     if (stop.place.here) return menu.close();
     menu.drive(stop.map.seed, stop.map.kind, stop.map.levels);
@@ -111,7 +106,9 @@
   const press = (click: MouseEvent, aim: () => void) => aim_or_go(click, aim, go);
 
   function key(press: KeyboardEvent) {
-    if (!shown || target || !bare_enter(press)) return;
+    if (!shown || target) return;
+    if (link_key(press) === "n") return menu.show(MAKE_PAGE);
+    if (!bare_enter(press)) return;
     press.preventDefault();
     go();
   }
@@ -146,7 +143,7 @@
           <ScrollArea class="maps-events">
             {#each stop.events as one (one.id)}
               {#if one.open}
-                <Row fill label={one.title} help={one.eyebrow} focused={!making && one.id === event?.id} onfocus={() => pick_event(one.id)} onclick={(click) => press(click, () => pick_event(one.id))}>
+                <Row fill label={one.title} help={one.eyebrow} focused={one.id === event?.id} onfocus={() => pick_event(one.id)} onclick={(click) => press(click, () => pick_event(one.id))}>
                   {#snippet control()}
                     <span class="maps-stars" role="img" aria-label={`${one.stars} of ${MAX_EVENT_STARS} stars`}><b>{"★".repeat(one.stars)}</b>{"★".repeat(MAX_EVENT_STARS - one.stars)}</span>
                   {/snippet}
@@ -164,7 +161,7 @@
 
     <nav class="maps-rail" aria-label="Maps">
       {#each stops as one (one.code)}
-        <Card pad="sm" flat class="maps-stop" focused={!making && one.code === stop.code} label={one.name} onfocus={() => pick_map(one)} onclick={(click) => press(click, () => pick_map(one))}>
+        <Card pad="sm" flat class="maps-stop" focused={one.code === stop.code} label={one.name} onfocus={() => pick_map(one)} onclick={(click) => press(click, () => pick_map(one))}>
           {#snippet picture()}
             <img src={thumbs[one.code] ?? preview(one.map.kind)} alt="" decoding="async" />
           {/snippet}
@@ -177,11 +174,12 @@
           {/if}
         </Card>
       {/each}
-      <Card pad="sm" flat class="maps-make" focused={making} onfocus={() => (making = true)} onclick={(click) => press(click, () => (making = true))}>
-        <b class="maps-add"><Icon name="icon-dice" />Make a map</b>
-      </Card>
     </nav>
   </div>
+
+  {#snippet links()}
+    <KeyLink keys={{ key: "N" }} onclick={() => menu.show(MAKE_PAGE)}>Make a map</KeyLink>
+  {/snippet}
 
   {#snippet primary()}
     <PrimaryAction onclick={go}>{verb}</PrimaryAction>
@@ -291,13 +289,14 @@
   }
 
   .maps-rail > :global(.maps-stop) {
-    flex: 1 0 auto;
+    flex: none;
     flex-direction: row;
-    min-height: calc(var(--row-h) * 2);
+    height: calc(var(--row-h) * 2.5);
   }
 
   .maps-rail > :global(.maps-stop > .ui-card-pic) {
-    flex: 0 0 34%;
+    flex: none;
+    aspect-ratio: 1;
   }
 
   .maps-rail > :global(.maps-stop > .ui-card-cap) {
@@ -306,31 +305,12 @@
     gap: var(--gap-xs);
   }
 
-  .maps-rail > :global(.maps-make) {
-    flex: 0.7 0 auto;
-    align-items: center;
-    justify-content: center;
-    min-height: calc(var(--row-h) * 1.5);
-    border-style: dashed;
-  }
-
-  .maps-name,
-  .maps-add {
-    font-size: var(--type-small);
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
   .maps-name {
     overflow: hidden;
+    font-size: var(--type-body);
+    font-weight: 700;
     text-overflow: ellipsis;
-  }
-
-  .maps-add {
-    --icon-size: 1.15em;
-    display: flex;
-    align-items: center;
-    gap: var(--gap-sm);
+    white-space: nowrap;
   }
 
   @media (max-height: 500px) {
@@ -357,11 +337,8 @@
       overflow: auto hidden;
     }
 
-    .maps-rail > :global(.maps-stop),
-    .maps-rail > :global(.maps-make) {
-      flex: none;
+    .maps-rail > :global(.maps-stop) {
       width: calc(var(--top-h) * 5);
-      min-height: calc(var(--row-h) * 2);
     }
 
     .maps > :global(.maps-big) {
