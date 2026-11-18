@@ -247,10 +247,20 @@ export class Driver {
 
   /** Metres off the line its easing has it at road point `j`: `aside` now, moved toward what it eases to by the time it gets there. */
   private aside_at(car: Car, j: number): number {
+    return this.eased(j, Math.max(EASE_SPEED, hypot(car.vel.x, car.vel.z)));
+  }
+
+  /** `aside_at` with the car's speed floored at EASE_SPEED (`ease`) read once by the caller. */
+  private eased(j: number, ease: number): number {
     const n = this.line.road.length;
     const ahead = ((j - this.index + n + (n >> 1)) % n) - (n >> 1);
-    const move = ahead > 0 ? (LATERAL_RATE * ahead * this.line.step[this.index]) / Math.max(EASE_SPEED, hypot(car.vel.x, car.vel.z)) : 0;
+    const move = ahead > 0 ? (LATERAL_RATE * ahead * this.line.step[this.index]) / ease : 0;
     return this.aside + Math.max(-move, Math.min(move, this.easing_to - this.aside));
+  }
+
+  private eased_lateral(car: Car, j: number, ease: number): number {
+    if (!Number.isNaN(this.launch)) return pass_clamp(car, this.line, j, this.launch);
+    return pass_clamp(car, this.line, j, this.line.offset[j] + this.eased(j, ease));
   }
 
   // Off the line it plans on the bend of the path it drives, the line shifted and clamped to the road: where the line
@@ -262,23 +272,30 @@ export class Driver {
     const n = road.length;
     const plan = this.late ? line.late : line.speed;
     const brake = (this.late ? AI_TUNING.late_brake : AI_TUNING.line_brake) * line.scale.brake;
+    // Back onto the line it drifts at LATERAL_RATE, no bend of its own: read along the ramp, the kink where the easing
+    // starts at the car was a bend on top of the line's, and a car let out of its grid lane into the first bend planned
+    // 28 m/s where the line holds 41, the field queued behind it.
+    const drift = this.easing_to === 0 && Number.isNaN(this.launch);
+    const ease = Math.max(EASE_SPEED, hypot(car.vel.x, car.vel.z));
     let pace = Infinity;
     let run = 0;
     for (let k = 0; k < HOLD_LOOK; k += HOLD_STRIDE) {
       const i = (this.index + k) % n;
+      // Braked back from here even out of a standstill, no point can bring the pace lower: its bend is never read.
+      if (!(Math.sqrt(2 * brake * run) < pace)) break;
       const a = (i - CURVE_SPAN + n) % n;
       const c = (i + CURVE_SPAN) % n;
-      // Back onto the line it drifts at LATERAL_RATE, no bend of its own: read along the ramp, the kink where the easing
-      // starts at the car was a bend on top of the line's, and a car let out of its grid lane into the first bend planned
-      // 28 m/s where the line holds 41, the field queued behind it.
-      const drift = this.easing_to === 0 && Number.isNaN(this.launch);
-      const li = this.lateral_at(car, i);
-      const la = drift ? pass_clamp(car, line, a, line.offset[a] + this.aside_at(car, i)) : this.lateral_at(car, a);
-      const lc = drift ? pass_clamp(car, line, c, line.offset[c] + this.aside_at(car, i)) : this.lateral_at(car, c);
-      const bend = inverse_radius(road[a].x + road[a].tz * la, road[a].z - road[a].tx * la, road[i].x + road[i].tz * li, road[i].z - road[i].tx * li, road[c].x + road[c].tz * lc, road[c].z - road[c].tx * lc);
       // Onto a kicker's pin the path steps to the centre: no bend to slow for, and a lane braked for it met the lip at 16 m/s (seed 49).
       const pinned = line.room[a] === 0 || line.room[i] === 0 || line.room[c] === 0;
-      const v = pinned ? plan[i] : Math.min(plan[i], Math.sqrt((this.push > 1 ? Math.min(AI_TUNING.pass_max * line.scale.slow, grip_at(bend, line.scale) * AI_TUNING.pass_grip) : grip_at(bend, line.scale) * AI_TUNING.aside_grip) / Math.max(1e-9, Math.abs(bend))));
+      let v = plan[i];
+      if (!pinned) {
+        const li = this.eased_lateral(car, i, ease);
+        const shift = drift ? this.eased(i, ease) : 0;
+        const la = drift ? pass_clamp(car, line, a, line.offset[a] + shift) : this.eased_lateral(car, a, ease);
+        const lc = drift ? pass_clamp(car, line, c, line.offset[c] + shift) : this.eased_lateral(car, c, ease);
+        const bend = inverse_radius(road[a].x + road[a].tz * la, road[a].z - road[a].tx * la, road[i].x + road[i].tz * li, road[i].z - road[i].tx * li, road[c].x + road[c].tz * lc, road[c].z - road[c].tx * lc);
+        v = Math.min(plan[i], Math.sqrt((this.push > 1 ? Math.min(AI_TUNING.pass_max * line.scale.slow, grip_at(bend, line.scale) * AI_TUNING.pass_grip) : grip_at(bend, line.scale) * AI_TUNING.aside_grip) / Math.max(1e-9, Math.abs(bend))));
+      }
       pace = Math.min(pace, Math.sqrt(v * v + 2 * brake * run));
       for (let s = 0; s < HOLD_STRIDE; s++) run += line.step[(i + s) % n];
     }
