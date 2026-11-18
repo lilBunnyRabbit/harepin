@@ -108,6 +108,8 @@ interface Score {
   /** The same scores for the shipped AI's own value in the corner, read as a prediction of the oracle's. */
   ai_r2: number;
   ai_mae: number;
+  /** R² and MAE on each held-out island alone. */
+  islands_of: Map<string, { r2: number; mae: number }>;
 }
 
 const r2_of = (ys: number[], ps: number[]) => {
@@ -122,7 +124,9 @@ function hold_out(all: readonly CornerRow[], t: Target): Score {
   const ys: number[] = [];
   const ps: number[] = [];
   const ai: number[] = [];
+  const islands_of = new Map<string, { r2: number; mae: number }>();
   for (const g of groups) {
+    const from = ys.length;
     const train = rows.filter((r) => island(r) !== g);
     const m = ridge(
       train.map((r) => r.x),
@@ -134,8 +138,9 @@ function hold_out(all: readonly CornerRow[], t: Target): Score {
       ps.push(t.raw(r, predict(m, r.x)));
       ai.push(real(r.ai[t.name]));
     }
+    islands_of.set(g, { r2: r2_of(ys.slice(from), ps.slice(from)), mae: mae_of(ys.slice(from), ps.slice(from)) });
   }
-  return { target: t, rows: rows.length, islands: groups.length, r2: r2_of(ys, ps), mae: mae_of(ys, ps), ai_r2: r2_of(ys, ai), ai_mae: mae_of(ys, ai) };
+  return { target: t, rows: rows.length, islands: groups.length, r2: r2_of(ys, ps), mae: mae_of(ys, ps), ai_r2: r2_of(ys, ai), ai_mae: mae_of(ys, ai), islands_of };
 }
 
 /** `share = top (1 - k used²)` through the PULL_QUANTILE of each bin of the bend's share of the grip: k, least squares. */
@@ -161,9 +166,19 @@ if (import.meta.main) {
   console.log(`corner set ${set.data}: ${set.rows.length} rows, ${tracks.size} oracle runs, ${new Set(set.rows.map(island)).size} islands, cars ${[...new Set(set.rows.map((r) => r.car))].join(", ")}\n`);
   console.log("| target | rows | islands | hold-out R² | hold-out MAE | shipped AI R² | shipped AI MAE |");
   console.log("|---|---|---|---|---|---|---|");
-  for (const t of TARGETS) {
-    const s = hold_out(set.rows, t);
+  const scores = TARGETS.map((t) => hold_out(set.rows, t));
+  for (const s of scores) {
+    const t = s.target;
     console.log(`| ${t.name} | ${s.rows} | ${s.islands} | ${s.r2.toFixed(3)} | ${s.mae.toFixed(2)} ${t.unit} | ${s.ai_r2.toFixed(3)} | ${s.ai_mae.toFixed(2)} ${t.unit} |`);
+  }
+  console.log(`
+| island | ${scores.map((s) => `${s.target.name} R² / MAE`).join(" | ")} |`);
+  console.log(`|---|${scores.map(() => "---").join("|")}|`);
+  for (const g of [...scores[0].islands_of.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))) {
+    console.log(`| ${g} | ${scores.map((s) => {
+      const v = s.islands_of.get(g);
+      return v ? `${v.r2.toFixed(2)} / ${v.mae.toFixed(1)}` : "-";
+    }).join(" | ")} |`);
   }
   const fits = Object.fromEntries(
     TARGETS.map((t) => {
