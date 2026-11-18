@@ -1,8 +1,8 @@
 import { TOW } from "../car/slipstream";
 import "./tow.css";
 
-/** Share of the most tow past which the cue reads as full: the wake's edge and taper rarely give all of it. */
-const FULL_SHARE = 0.95;
+/** Share of the most tow past which the cue reads as full: the taper starts at the car ahead's centre, so a car tucked a length behind gets 0.9 at best. */
+const FULL_SHARE = 0.8;
 /** Steps the cue moves in, so a tow that drifts writes the DOM a few times a second at most. */
 const STEPS = 20;
 
