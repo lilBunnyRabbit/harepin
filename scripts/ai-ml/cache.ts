@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { availableParallelism, freemem } from "node:os";
 import { AI_TUNING } from "../../src/ai/tuning";
 
 const sources = (dir: URL, keep: (name: string) => boolean = () => true) =>
@@ -62,6 +63,17 @@ export function seed_list(text: string): number[] {
     const [a, b] = part.split("-").map(Number);
     return b === undefined ? [a] : Array.from({ length: b - a + 1 }, (_, i) => a + i);
   });
+}
+
+/** MB one pool worker holds at its peak, a built island world in it, and MB left free for the rest of the machine. */
+const JOB_MB = 400;
+const KEEP_FREE_MB = 4096;
+/** The PC froze at 10 jobs. */
+const MAX_JOBS = 6;
+
+export function default_jobs(): number {
+  const fit = Math.floor((freemem() / 2 ** 20 - KEEP_FREE_MB) / JOB_MB);
+  return Math.max(1, Math.min(MAX_JOBS, availableParallelism() - 1, fit));
 }
 
 /** Workers kept for a whole run: each caches its worlds, which take a second or two to build. */

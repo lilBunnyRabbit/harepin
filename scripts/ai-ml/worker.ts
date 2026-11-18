@@ -5,6 +5,7 @@ import { circuits } from "../ai-race";
 import { apply, type Values } from "../ai-tune/params";
 import { autolaps, races, solos, type FieldSetup, type RaceResult, type SoloResult } from "../ai-tune/race";
 import { ai_lap, oracle_lap, track_of, type LapResult, type Track } from "./drive";
+import { island_data } from "./worlds";
 
 declare const self: Worker;
 

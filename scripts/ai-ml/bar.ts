@@ -3,15 +3,15 @@ import { Car } from "../../src/car/car";
 import { car_spec } from "../../src/car/cars";
 import { at_difficulty, Difficulty } from "../../src/ai/difficulty";
 import { Field, grid_spot, personalities } from "../../src/ai/field";
-import { World } from "../../src/world/world";
 import { ROAD_HALF } from "../../src/worldgen/types";
 import { CutCheck, LineMeasure, track_side } from "../../src/modes/track-limits";
 import { race_course } from "../../src/modes/races";
 import { circuits, FIELD_SLACK } from "../ai-race";
 import { DT } from "../autolap";
-import { Pool, seed_list } from "./cache";
+import { default_jobs, Pool, seed_list } from "./cache";
+import { island } from "./worlds";
 
-// bun scripts/ai-ml/bar.ts <out.json> <cars,> [eps,] [seeds] [jobs] [difficulty]: the owner's AI bar on island field races, (a) mistakes and (b) ugly failures per car and eps
+// bun scripts/ai-ml/bar.ts <out.json> <cars,> [eps,] [seeds] [jobs, default from free RAM] [difficulty]: the owner's AI bar on island field races, (a) mistakes and (b) ugly failures per car and eps
 // The player is a seventh car on the field's own line follower, mid-grid, blind to the cars around it: a hard touch counts
 // against the AI unless the player ran into the back of a car ahead.
 
@@ -63,18 +63,32 @@ interface BarRace {
   counts: Record<Kind, number>;
 }
 
-interface BarJob {
+/** One race: circuit `route` (an index into `circuits`) of `seed`, so a seed with two circuits fills two workers. */
+interface RaceJob {
+  type: "race";
   id: string;
   seed: number;
+  route: number;
   car: string;
   eps: number;
   difficulty: Difficulty;
 }
 
-interface BarResult {
+interface RoutesJob {
+  type: "routes";
   id: string;
-  races: BarRace[];
+  seed: number;
 }
+
+type BarJob = RaceJob | RoutesJob;
+
+interface RouteInfo {
+  id: string;
+  length: number;
+  excludes: readonly string[];
+}
+
+type BarResult = { type: "race"; id: string; race: BarRace } | { type: "routes"; id: string; routes: RouteInfo[] };
 
 interface Rolls {
   mistake_at: number;
@@ -88,150 +102,168 @@ function rolling(driver: unknown): boolean {
   return d.mistake_at >= 0 && (((d.index - d.mistake_at) % n) + n) % n < ROLLED_SPAN;
 }
 
-function race(job: BarJob): BarRace[] {
-  const world = new World(job.seed);
+function race(job: RaceJob): BarRace {
+  const world = island(job.seed);
   const base = car_spec(job.car);
   const ai = base.ai ?? { slow: 1, fast: 1, brake: 1 };
   const off = 1 + job.eps;
   const spec = { ...base, ai: { ...ai, slow: ai.slow * off, fast: ai.fast * off, brake: ai.brake * off } };
-  const out: BarRace[] = [];
-  for (const route of circuits(world)) {
-    if (route.excludes?.includes(spec.id)) continue;
-    const unplace = world.place(route.closure);
-    const field = new Field(world, route, Array.from({ length: 6 }, () => spec), at_difficulty(personalities(job.seed, 6), job.difficulty), job.seed, PLAYER_SLOT);
-    const player = new Car(spec);
-    const spot = grid_spot(route, PLAYER_SLOT);
-    player.park(spot.x, spot.z, spot.heading, world);
-    field.rival = player;
-    field.drives_rival = true;
-    const me = field.racers.length;
-    let lost = 0;
-    let grace = 0;
-    let plan = 0;
-    for (let i = 0; i < field.line.step.length; i++) plan += field.line.step[i] / field.line.speed[i];
-    const limit = plan * 2 * FIELD_SLACK + 30;
-    const rs = field.racers;
-    const spacing = route.length / route.points.length;
-    const measure = new LineMeasure(race_course(route).line);
-    const cuts = rs.map(() => new CutCheck(measure, route.gate_hw));
-    const n_points = route.points.length;
-    const seen = rs.map(() => ({ spins: 0, resets: 0, reverses: 0, off: 0, wide: 0, long: false }));
-    const events: Incident[] = [];
-    let piled = false;
-    let steps = 0;
-    const done = () => rs.every((r) => r.stats.laps.length >= 2);
-    while (field.t < limit && !done()) {
-      player.step(DT, field.rival_controls(DT), world);
-      world.collide(player);
-      field.step(DT, 2);
-      if (field.impacts[me] > HARD_HIT && field.t > grace) {
-        grace = field.t + PLAYER_GRACE;
-        let near = -1;
-        let near_d = Infinity;
-        rs.forEach((r, k) => {
-          const d = Math.hypot(r.car.pos.x - player.pos.x, r.car.pos.z - player.pos.z);
-          if (d < near_d) {
-            near_d = d;
-            near = k;
-          }
-        });
-        if ((rs[near].driver.progress - field.progress[me]) * spacing < RUN_INTO) events.push({ t: field.t, car: near, kind: Kind.PLAYER, rolled: false });
-      }
-      if (++steps % SAMPLE) continue;
-      const dt = DT * SAMPLE;
-      const adrift = world.distance_to_road(player.pos.x, player.pos.z) > OFF_ROAD || (field.t > GRID_TIME && Math.hypot(player.vel.x, player.vel.z) < STOPPED);
-      lost = adrift ? lost + dt : 0;
-      if (lost > PLAYER_LOST) {
-        const n = route.points.length;
-        const p = route.points[((Math.round(field.progress[me]) % n) + n) % n];
-        player.park(p.x, p.z, Math.atan2(p.tx, p.tz), world);
-        player.parked = false;
-        lost = 0;
-        grace = field.t + PLAYER_GRACE;
-      }
-      let pile = 0;
+  const route = circuits(world)[job.route];
+  const unplace = world.place(route.closure);
+  const field = new Field(world, route, Array.from({ length: 6 }, () => spec), at_difficulty(personalities(job.seed, 6), job.difficulty), job.seed, PLAYER_SLOT);
+  const player = new Car(spec);
+  const spot = grid_spot(route, PLAYER_SLOT);
+  player.park(spot.x, spot.z, spot.heading, world);
+  field.rival = player;
+  field.drives_rival = true;
+  const me = field.racers.length;
+  let lost = 0;
+  let grace = 0;
+  let plan = 0;
+  for (let i = 0; i < field.line.step.length; i++) plan += field.line.step[i] / field.line.speed[i];
+  const limit = plan * 2 * FIELD_SLACK + 30;
+  const rs = field.racers;
+  const spacing = route.length / route.points.length;
+  const measure = new LineMeasure(race_course(route).line);
+  const cuts = rs.map(() => new CutCheck(measure, route.gate_hw));
+  const n_points = route.points.length;
+  const seen = rs.map(() => ({ spins: 0, resets: 0, reverses: 0, off: 0, wide: 0, long: false }));
+  const events: Incident[] = [];
+  let piled = false;
+  let steps = 0;
+  const done = () => rs.every((r) => r.stats.laps.length >= 2);
+  while (field.t < limit && !done()) {
+    player.step(DT, field.rival_controls(DT), world);
+    world.collide(player);
+    field.step(DT, 2);
+    if (field.impacts[me] > HARD_HIT && field.t > grace) {
+      grace = field.t + PLAYER_GRACE;
+      let near = -1;
+      let near_d = Infinity;
       rs.forEach((r, k) => {
-        const s = seen[k];
-        const add = (kind: Kind) => events.push({ t: field.t, car: k, kind, rolled: rolling(r.driver) });
-        if (r.stats.spins > s.spins) add(Kind.SPIN);
-        if (r.stats.reverses > s.reverses) add(Kind.REVERSE);
-        const reset = r.stats.resets > s.resets;
-        if (reset) add(Kind.RESET);
-        const at = Math.max(0, r.driver.progress);
-        const lap = Math.floor(at / n_points);
-        if (reset) cuts[k].reset();
-        else cuts[k].update(track_side(r.car, world), measure.at(lap, Math.floor(at) - lap * n_points, r.car.pos.x, r.car.pos.z), r.car.pos.x, r.car.pos.z, Math.hypot(r.car.vel.x, r.car.vel.z), dt);
-        s.spins = r.stats.spins;
-        s.reverses = r.stats.reverses;
-        s.resets = r.stats.resets;
-        const d = world.distance_to_road(r.car.pos.x, r.car.pos.z);
-        s.off = d > OFF_ROAD && !reset ? s.off + dt : 0;
-        if (s.off > LONG_OFF && !s.long) add(Kind.LONG_OFF);
-        s.long = s.off > LONG_OFF;
-        const wide = d > ROAD_HALF && !reset ? s.wide + dt : 0;
-        if (wide >= WIDE_MIN && s.wide < WIDE_MIN) add(Kind.WIDE);
-        s.wide = wide;
-        if (field.t < GRID_TIME || r.stats.laps.length >= 2 || Math.hypot(r.car.vel.x, r.car.vel.z) > STOPPED) return;
-        let near = 0;
-        for (const o of rs) if (o.stats.laps.length < 2 && Math.hypot(o.car.vel.x, o.car.vel.z) <= STOPPED && Math.abs(o.driver.progress - r.driver.progress) * spacing < PILE_SPAN) near++;
-        pile = Math.max(pile, near);
+        const d = Math.hypot(r.car.pos.x - player.pos.x, r.car.pos.z - player.pos.z);
+        if (d < near_d) {
+          near_d = d;
+          near = k;
+        }
       });
-      if (pile >= PILE_CARS && !piled) events.push({ t: field.t, car: -1, kind: Kind.PILE, rolled: false });
-      piled = pile >= PILE_CARS;
+      if ((rs[near].driver.progress - field.progress[me]) * spacing < RUN_INTO) events.push({ t: field.t, car: near, kind: Kind.PLAYER, rolled: false });
     }
-    if (!done()) events.push({ t: field.t, car: -1, kind: Kind.STUCK, rolled: false });
-    unplace();
-    const counts = Object.fromEntries(Object.values(Kind).map((k) => [k, 0])) as Record<Kind, number>;
-    for (const e of events) counts[e.kind]++;
-    const bad = events.filter((e) => UGLY.includes(e.kind));
-    let ugly = 0;
-    let last = -Infinity;
-    for (const e of bad) {
-      if (e.t - last > MERGE) ugly++;
-      last = e.t;
+    if (++steps % SAMPLE) continue;
+    const dt = DT * SAMPLE;
+    const adrift = world.distance_to_road(player.pos.x, player.pos.z) > OFF_ROAD || (field.t > GRID_TIME && Math.hypot(player.vel.x, player.vel.z) < STOPPED);
+    lost = adrift ? lost + dt : 0;
+    if (lost > PLAYER_LOST) {
+      const n = route.points.length;
+      const p = route.points[((Math.round(field.progress[me]) % n) + n) % n];
+      player.park(p.x, p.z, Math.atan2(p.tx, p.tz), world);
+      player.parked = false;
+      lost = 0;
+      grace = field.t + PLAYER_GRACE;
     }
-    // A mistake is the car's own and over by itself: one that runs into an ugly event, or sits in a pile-up, is that event.
-    const own = events.filter((e) => !UGLY.includes(e.kind) && !bad.some((b) => (b.car === e.car || b.car < 0) && Math.abs(b.t - e.t) <= MERGE));
-    let mistakes = 0;
-    let rolled = 0;
-    const at = rs.map(() => -Infinity);
-    for (const e of own) {
-      if (e.t - at[e.car] > MERGE) {
-        mistakes++;
-        if (e.rolled) rolled++;
-      }
-      at[e.car] = e.t;
-    }
-    const fin = rs.filter((r) => Number.isFinite(r.stats.finish));
-    out.push({
-      route: route.id,
-      lap: fin.length ? fin.reduce((s, r) => s + r.stats.finish, 0) / fin.length / 2 : NaN,
-      finished: fin.length,
-      contacts: rs.reduce((s, r) => s + r.stats.contacts, 0) / 2,
-      mistakes,
-      rolled,
-      ugly,
-      cuts: cuts.reduce((sum, c) => sum + c.cuts, 0),
-      counts,
+    let pile = 0;
+    rs.forEach((r, k) => {
+      const s = seen[k];
+      const add = (kind: Kind) => events.push({ t: field.t, car: k, kind, rolled: rolling(r.driver) });
+      if (r.stats.spins > s.spins) add(Kind.SPIN);
+      if (r.stats.reverses > s.reverses) add(Kind.REVERSE);
+      const reset = r.stats.resets > s.resets;
+      if (reset) add(Kind.RESET);
+      const at = Math.max(0, r.driver.progress);
+      const lap = Math.floor(at / n_points);
+      if (reset) cuts[k].reset();
+      else cuts[k].update(track_side(r.car, world), measure.at(lap, Math.floor(at) - lap * n_points, r.car.pos.x, r.car.pos.z), r.car.pos.x, r.car.pos.z, Math.hypot(r.car.vel.x, r.car.vel.z), dt);
+      s.spins = r.stats.spins;
+      s.reverses = r.stats.reverses;
+      s.resets = r.stats.resets;
+      const d = world.distance_to_road(r.car.pos.x, r.car.pos.z);
+      s.off = d > OFF_ROAD && !reset ? s.off + dt : 0;
+      if (s.off > LONG_OFF && !s.long) add(Kind.LONG_OFF);
+      s.long = s.off > LONG_OFF;
+      const wide = d > ROAD_HALF && !reset ? s.wide + dt : 0;
+      if (wide >= WIDE_MIN && s.wide < WIDE_MIN) add(Kind.WIDE);
+      s.wide = wide;
+      if (field.t < GRID_TIME || r.stats.laps.length >= 2 || Math.hypot(r.car.vel.x, r.car.vel.z) > STOPPED) return;
+      let near = 0;
+      for (const o of rs) if (o.stats.laps.length < 2 && Math.hypot(o.car.vel.x, o.car.vel.z) <= STOPPED && Math.abs(o.driver.progress - r.driver.progress) * spacing < PILE_SPAN) near++;
+      pile = Math.max(pile, near);
     });
+    if (pile >= PILE_CARS && !piled) events.push({ t: field.t, car: -1, kind: Kind.PILE, rolled: false });
+    piled = pile >= PILE_CARS;
   }
-  return out;
+  if (!done()) events.push({ t: field.t, car: -1, kind: Kind.STUCK, rolled: false });
+  unplace();
+  const counts = Object.fromEntries(Object.values(Kind).map((k) => [k, 0])) as Record<Kind, number>;
+  for (const e of events) counts[e.kind]++;
+  const bad = events.filter((e) => UGLY.includes(e.kind));
+  let ugly = 0;
+  let last = -Infinity;
+  for (const e of bad) {
+    if (e.t - last > MERGE) ugly++;
+    last = e.t;
+  }
+  // A mistake is the car's own and over by itself: one that runs into an ugly event, or sits in a pile-up, is that event.
+  const own = events.filter((e) => !UGLY.includes(e.kind) && !bad.some((b) => (b.car === e.car || b.car < 0) && Math.abs(b.t - e.t) <= MERGE));
+  let mistakes = 0;
+  let rolled = 0;
+  const at = rs.map(() => -Infinity);
+  for (const e of own) {
+    if (e.t - at[e.car] > MERGE) {
+      mistakes++;
+      if (e.rolled) rolled++;
+    }
+    at[e.car] = e.t;
+  }
+  const fin = rs.filter((r) => Number.isFinite(r.stats.finish));
+  return {
+    route: route.id,
+    lap: fin.length ? fin.reduce((s, r) => s + r.stats.finish, 0) / fin.length / 2 : NaN,
+    finished: fin.length,
+    contacts: rs.reduce((s, r) => s + r.stats.contacts, 0) / 2,
+    mistakes,
+    rolled,
+    ugly,
+    cuts: cuts.reduce((sum, c) => sum + c.cuts, 0),
+    counts,
+  };
+}
+
+function routes(seed: number): RouteInfo[] {
+  return circuits(island(seed)).map((r) => ({ id: r.id, length: r.length, excludes: r.excludes ?? [] }));
 }
 
 if (!Bun.isMainThread) {
-  self.onmessage = (event: MessageEvent<BarJob>) => postMessage({ id: event.data.id, races: race(event.data) } satisfies BarResult);
+  self.onmessage = (event: MessageEvent<BarJob>) => {
+    const job = event.data;
+    if (job.type === "routes") postMessage({ type: "routes", id: job.id, routes: routes(job.seed) } satisfies BarResult);
+    else postMessage({ type: "race", id: job.id, race: race(job) } satisfies BarResult);
+  };
 } else {
-  const [out, cars_arg, eps_arg = "1e-7,1e-6,1e-5", seeds_arg = "0-49", jobs_arg = "10", difficulty = Difficulty.NORMAL] = process.argv.slice(2);
+  const [out, cars_arg, eps_arg = "1e-7,1e-6,1e-5", seeds_arg = "0-49", jobs_arg = "", difficulty = Difficulty.NORMAL] = process.argv.slice(2);
   const cars = cars_arg.split(",");
   const epses = (eps_arg || "1e-7,1e-6,1e-5").split(",").map(Number);
   const seeds = seed_list(seeds_arg || "0-49");
-  const jobs: BarJob[] = [];
-  for (const car of cars) for (const eps of epses) for (const seed of seeds) jobs.push({ id: `${car}/${eps}/${seed}`, seed, car, eps, difficulty: difficulty as Difficulty });
-  const pool = new Pool<BarJob, BarResult>(new URL(import.meta.url), Number(jobs_arg));
+  const pool = new Pool<BarJob, BarResult>(new URL(import.meta.url), jobs_arg ? Number(jobs_arg) : default_jobs());
   pool.start();
-  const rows: Record<string, BarRace[]> = {};
-  for (const r of await pool.run(jobs)) rows[r.id] = r.races;
+  const circuits_of = new Map<number, RouteInfo[]>();
+  for (const r of await pool.run(seeds.map((seed): BarJob => ({ type: "routes", id: String(seed), seed })))) if (r.type === "routes") circuits_of.set(Number(r.id), r.routes);
+  const routes_of = (seed: number) => circuits_of.get(seed) ?? [];
+  const jobs: (RaceJob & { length: number })[] = [];
+  for (const car of cars)
+    for (const eps of epses)
+      for (const seed of seeds)
+        routes_of(seed).forEach((route, k) => {
+          if (!route.excludes.includes(car_spec(car).id)) jobs.push({ type: "race", id: `${car}/${eps}/${seed}/${k}`, seed, route: k, car, eps, difficulty: difficulty as Difficulty, length: route.length });
+        });
+  // Longest first: the wall is the last race to end, and a long one started late runs alone.
+  const done = new Map<string, BarRace>();
+  for (const r of await pool.run(jobs.toSorted((a, b) => b.length - a.length))) if (r.type === "race") done.set(r.id, r.race);
   pool.stop();
+  const rows: Record<string, BarRace[]> = {};
+  for (const car of cars)
+    for (const eps of epses)
+      for (const seed of seeds)
+        rows[`${car}/${eps}/${seed}`] = routes_of(seed).flatMap((_, k) => done.get(`${car}/${eps}/${seed}/${k}`) ?? []);
   writeFileSync(out, JSON.stringify(rows));
   for (const car of cars) {
     let ugly_50 = 0, per_race = 0, laps = 0, hits = 0, rolled_share = 0;
