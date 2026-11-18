@@ -14,6 +14,7 @@ import { SILVER_SHARE, grade, par_thresholds, type StarRun } from "./track";
 import { hypot } from "../sim-math";
 import { StartBeeps } from "./start-steps";
 import { NO_RULES, Stewards } from "./race-rules";
+import { faces_back } from "./wrong-way";
 
 // Never written: the dev ghost is read from the shipped asset, and a race keeps no ghost of the player's own.
 const DEV_GHOST_KEY = "harepin:ghost:career-dev";
@@ -98,8 +99,7 @@ class Race implements ModeRun {
     if (beep) ctx.beep(beep);
     this.hits?.update(sim_dt * 1000, run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING);
     if (run.status === RaceStatus.RUNNING) {
-      const call = this.stewards.limits(car, ctx.world, this.lap - 1, run.tracker.index, sim_dt);
-      if (call) ctx.toast(call);
+      this.call(this.stewards.limits(car, ctx.world, this.lap - 1, run.tracker.index, sim_dt));
     }
     if (this.traps && (run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING)) {
       const passed = this.traps.next;
@@ -121,6 +121,7 @@ class Race implements ModeRun {
       if (run.status !== RaceStatus.DONE) ctx.chime();
     }
     if (was !== RaceStatus.DONE && run.status === RaceStatus.DONE) {
+      this.call(this.stewards.settle(car, this.lap - 1, run.tracker.index));
       this.route.gate = null;
       ctx.hide_hint();
       view.unguide();
@@ -141,7 +142,7 @@ class Race implements ModeRun {
     const { gates } = run.course;
     const wrong = view.guide(run.tracker.index, car.heading, run.tracker.offset, !lobby_lap && this.lap < this.laps);
     ctx.hint(turn_to(car, gate.x, gate.z), wrong);
-    if (run.status === RaceStatus.RUNNING && this.stewards.wrong_way(wrong, sim_dt * 1000) && this.route.respawn) ctx.spawn_on(this.route.respawn);
+    if (run.status === RaceStatus.RUNNING && this.stewards.wrong_way(faces_back(run.course.line[run.tracker.index], car.heading), sim_dt * 1000) && this.route.respawn) ctx.spawn_on(this.route.respawn);
     const { status } = this;
     if (run.status === RaceStatus.READY) {
       status.clock = String(Math.ceil(run.countdown / 1000));
@@ -151,6 +152,10 @@ class Race implements ModeRun {
     status.clock = this.traps ? kmh(this.traps.total) : `${format(this.elapsed())}${penalty_text(this.hits, this.stewards)}`;
     status.gates = run.missed ? "go back" : (this.trap_text(now) ?? `${run.next + 1}/${gates.length}`);
     return status;
+  }
+
+  private call(text: string | null) {
+    if (text) this.ctx.toast(text);
   }
 
   private show_lap() {

@@ -8,15 +8,20 @@ const BACK = 0.5;
 /** Metres past the route's half width that still count as on it. */
 const SLACK = 4;
 
+const facing = (p: RoutePoint, heading: number) => sin(heading) * p.tx + cos(heading) * p.tz;
+
+/** The car points back down the route at `p`, whatever the latch says: a car driving forward across a run-off is not. */
+export const faces_back = (p: RoutePoint, heading: number) => facing(p, heading) < TURNED;
+
 /** Latches when the car faces back down its route and holds until it points along it again, on the route. */
 export class WrongWay {
   on = false;
 
   /** `p`: the route point nearest the car; `offset`: metres from it; `half`: the route's half width. */
   update(p: RoutePoint, heading: number, offset: number, half: number): boolean {
-    const facing = sin(heading) * p.tx + cos(heading) * p.tz;
-    if (this.on) this.on = facing < BACK || offset > half + SLACK;
-    else this.on = facing < TURNED;
+    const f = facing(p, heading);
+    if (this.on) this.on = f < BACK || offset > half + SLACK;
+    else this.on = f < TURNED;
     return this.on;
   }
 

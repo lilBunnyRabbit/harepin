@@ -48,8 +48,20 @@ export class Stewards {
     const limits = this.rules.limits;
     if (!check || !limits || index < 0) return null;
     const s = this.measure.at(lap, index, car.pos.x, car.pos.z);
-    if (!check.update(track_side(car, ground), s, hypot(car.vel.x, car.vel.z), dt)) return null;
-    if (check.cuts <= limits.warnings) return `Track limits · warning ${check.cuts}/${limits.warnings}`;
+    return check.update(track_side(car, ground), s, hypot(car.vel.x, car.vel.z), dt) ? this.call(limits) : null;
+  }
+
+  /** As the run's last lap ends: a cut still under way counts up to the line. */
+  settle(car: RulesCar, lap: number, index: number): string | null {
+    const { check } = this;
+    const limits = this.rules.limits;
+    if (!check || !limits || index < 0) return null;
+    return check.settle(this.measure.at(lap, index, car.pos.x, car.pos.z)) ? this.call(limits) : null;
+  }
+
+  private call(limits: LimitRules): string {
+    const cuts = this.cuts;
+    if (cuts <= limits.warnings) return `Track limits · warning ${cuts}/${limits.warnings}`;
     this.penalty_ms += limits.penalty_ms;
     return `Track limits · +${limits.penalty_ms / 1000} s`;
   }

@@ -16,6 +16,7 @@ import { RaceView } from "./race-view";
 import { COUNTDOWN_MS, RaceRun, TIMED_CAPTIONS, RaceStatus, type RaceCourse, type RaceLevel } from "./races";
 import { line, penalty_text, time_lines } from "./result";
 import { Stewards } from "./race-rules";
+import { faces_back } from "./wrong-way";
 
 /** Places that show two stars; nothing is recorded, as position grading is its own design (O9). */
 const PODIUM = 3;
@@ -63,6 +64,9 @@ export class AiRace implements ModeRun, FieldRace {
   private readonly grid: number;
   /** The order a knockout or a timed race ended on; a race to the line keeps filling in as the cars cross it. */
   private final: number[] | null = null;
+  /** The order the player's penalty placed them in at the line, cars still racing included; the rows keep it. */
+  private placed: readonly number[] | null = null;
+  private leader = NaN;
   private touches = 0;
   private touched = false;
   private led = false;
@@ -168,8 +172,7 @@ export class AiRace implements ModeRun, FieldRace {
     }
     if (this.result) this.write_rows();
     else if (run.status === RaceStatus.RUNNING) {
-      const call = this.stewards.limits(car, ctx.world, this.lap - 1, run.tracker.index, sim_dt);
-      if (call) ctx.toast(call);
+      this.call(this.stewards.limits(car, ctx.world, this.lap - 1, run.tracker.index, sim_dt));
     }
     if (taken >= 0) {
       this.route.respawn = this.course.line[this.course.gates[taken]];
@@ -178,6 +181,7 @@ export class AiRace implements ModeRun, FieldRace {
       if (run.status !== RaceStatus.DONE) ctx.chime();
     }
     if (was !== RaceStatus.DONE && run.status === RaceStatus.DONE) {
+      this.call(this.stewards.settle(car, this.lap - 1, run.tracker.index));
       this.route.gate = null;
       ctx.hide_hint();
       view.unguide();
@@ -194,7 +198,7 @@ export class AiRace implements ModeRun, FieldRace {
     if (!gate) return null;
     const wrong = view.guide(run.tracker.index, car.heading, run.tracker.offset, this.lap < this.laps);
     ctx.hint(turn_to(car, gate.x, gate.z), wrong);
-    if (run.status === RaceStatus.RUNNING && this.stewards.wrong_way(wrong, sim_dt * 1000) && this.route.respawn) ctx.spawn_on(this.route.respawn);
+    if (run.status === RaceStatus.RUNNING && this.stewards.wrong_way(faces_back(run.course.line[run.tracker.index], car.heading), sim_dt * 1000) && this.route.respawn) ctx.spawn_on(this.route.respawn);
     const { status } = this;
     if (run.status === RaceStatus.READY) {
       status.clock = String(Math.ceil(run.countdown / 1000));
@@ -245,6 +249,10 @@ export class AiRace implements ModeRun, FieldRace {
     return place;
   }
 
+  private call(text: string | null) {
+    if (text) this.ctx.toast(text);
+  }
+
   private show_lap() {
     if (!this.host.event?.limit_ms && this.laps > 1) this.status.lap = `${this.lap}/${this.laps}`;
   }
@@ -281,7 +289,9 @@ export class AiRace implements ModeRun, FieldRace {
       this.standings.finished(player, (ms + penalty) / 1000);
       if (this.tally.out.length) this.final = this.tally.final_order(this.standings.order);
     } else this.final = this.tally.final_order(this.standings.order);
-    const order = this.final ?? this.penalised(this.standings.order, penalty / 1000);
+    const live = this.standings.order;
+    const order = this.final ?? this.penalised(live, penalty / 1000);
+    if (!this.final && order !== live) this.placed = order;
     const place = order.indexOf(player) + 1;
     const field = this.builds.length + 1;
     this.rows = order.map(() => this.row());
@@ -326,19 +336,23 @@ export class AiRace implements ModeRun, FieldRace {
   // AI cars still racing when the player finishes fill their times in as they cross the line.
   private write_rows() {
     const { standings, rows } = this;
-    const order = this.final ?? standings.order;
-    const leader = standings.finish[order[0]];
+    const order = this.final ?? this.placed ?? standings.order;
+    // A penalty can place the player behind cars still racing, so the first time in may not top the table.
+    let leader = Infinity;
+    for (const car of order) leader = Math.min(leader, standings.finish[car]);
+    const fresh = leader !== this.leader;
+    this.leader = leader;
     for (let i = 0; i < order.length; i++) {
       const car = order[i];
       const row = rows[i];
       const done = standings.finish[car];
-      if (row.car === car && row.done === done) continue;
+      if (!fresh && row.car === car && row.done === done) continue;
       row.car = car;
       row.done = done;
       row.el.dataset.now = String(car === this.builds.length);
       row.place.textContent = String(i + 1);
       row.name.textContent = this.names[car];
-      row.time.textContent = this.tally.is_out(car) ? "out" : done === Infinity ? (this.final ? "--" : "racing") : i === 0 ? format(done * 1000) : `+${(done - leader).toFixed(3)} s`;
+      row.time.textContent = this.tally.is_out(car) ? "out" : done === Infinity ? (this.final ? "--" : "racing") : done === leader ? format(done * 1000) : `+${(done - leader).toFixed(3)} s`;
     }
   }
 

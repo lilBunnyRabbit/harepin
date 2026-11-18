@@ -175,3 +175,27 @@ test("stewards: the wrong way for its whole limit puts the car back once, and tu
   expect(stewards.wrong_way(true, step)).toBe(false);
   expect(new Stewards({ limits: null, wrong_way_ms: null }, LINE, HALF).wrong_way(true, 1e9)).toBe(false);
 });
+
+test("cut: one still off the road at the line is judged there", () => {
+  const measure = new LineMeasure(LINE);
+  const check = new CutCheck(measure, HALF);
+  const chord = straight(IN, OUT);
+  let s = 0;
+  drive([...APPROACH, ...chord.slice(1, Math.round(chord.length * 0.8))], flat(30), (c, index) => {
+    s = measure.at(0, index, c.pos.x, c.pos.z);
+    check.update(track_side(c, GROUND), s, c.vel.length(), DT);
+  });
+  expect(check.cuts).toBe(0);
+  expect(check.settle(s)).toBe(true);
+  expect(check.cuts).toBe(1);
+  expect(check.settle(s)).toBe(false);
+});
+
+test("cut: a car put back elsewhere while off starts over, never judged across the jump", () => {
+  const measure = new LineMeasure(LINE);
+  const check = new CutCheck(measure, HALF);
+  check.update(TrackSide.ON, 50, 30, DT);
+  for (let i = 0; i < 30; i++) check.update(TrackSide.OFF, 51 + i * 0.5, 30, DT);
+  expect(check.update(TrackSide.ON, 200, 0, DT)).toBe(false);
+  expect(check.cuts).toBe(0);
+});
