@@ -75,13 +75,10 @@ const STRAIGHT_LOOK = 300;
 const RUN_LEAD = 1.5;
 /** Metres a passed car must be behind before the pass is done. */
 const PASS_DONE = 5;
-/** A pass starts only where the next PASS_CALM road points hold their pace (CALM_SHARE of now) and bend gently (1/m): two abreast into a bend is where they touch. */
-const PASS_CALM = 60;
+/** Share of the pace here each road point ahead must hold for two abreast to fit. */
 const CALM_SHARE = 0.85;
 /** Sharpest bend (1/m) a pass starts into for a timid driver, plus this much at full aggression: two abreast fit a wide corner. */
 const CALM_BEND = 0.004;
-/** Aggression over which a driver starts a pass into a bend, and metres past the car ahead its pass lane must be clear. */
-const DIVE = 0.85;
 /** Aggression over which a driver goes around the outside of a car ahead covering the inside, rather than sitting out its braking zone. */
 const OUTSIDE = 0.6;
 const PASS_WINDOW = 15;
