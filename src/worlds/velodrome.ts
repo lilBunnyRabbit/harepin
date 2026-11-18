@@ -1,32 +1,16 @@
-import { masts, pylons } from "../render/arena";
-import { deck_marks, type DeckBand } from "../render/deck-marks";
 import { PLAIN_KIT } from "../render/prop-kit";
 import { cloud_floor, sky_tones } from "../render/sky";
-import { brand, carbon, dark, lighten, mix, tones } from "../theme/palette";
+import { brand, carbon, dark, lighten, mix } from "../theme/palette";
 import { WorldKind } from "../worldgen/types";
+import { bowl_dress } from "./sky";
 import { lap_facts, type WorldDef } from "./world-def";
 
 const DEG = Math.PI / 180;
-const BOWL = 25 * DEG;
-// Past this the low edge of a kick is the foot of a wall, and a line there read as a second rail.
-const EDGE_BANK = 60 * DEG;
-const PYLON_PITCH = 60;
 
 // Legend's graphite, a step up: the tow's own tone left the flat stretches a black ribbon at dusk.
 const DECK = lighten(carbon.thread, dark ? 0.1 : 0.06);
-const PAINT = dark ? lighten(brand.foreground, 0.18) : brand.background_lightest;
-const EDGES: DeckBand[] = [
-  { from: -0.94, to: -0.84, tone: PAINT },
-  { from: 0.84, to: 0.94, tone: PAINT },
-];
 // The cloud sea under a floodlit arena is lit by the sky alone: the theme's sunlit tan read as desert.
 const CLOUD_LIT = mix(sky_tones.skylight, brand.background, 0.45);
-const PYLON = mix(carbon.thread, carbon.base, 0.2);
-const LANES: DeckBand[] = [
-  { from: -0.34, to: -0.3, tone: PAINT, high: true, dash: 6, gap: 6 },
-  { from: 0.3, to: 0.34, tone: PAINT, high: true, dash: 6, gap: 6 },
-  { from: 0.72, to: 1, tone: mix(brand.error, carbon.base, 0.8), high: true },
-];
 
 export const velodrome: WorldDef = {
   kind: WorldKind.VELODROME,
@@ -47,14 +31,7 @@ export const velodrome: WorldDef = {
   facts: (f) => lap_facts(f, "track"),
   dress: (world) => {
     if (!world.deck) throw new Error("velodrome: no deck");
-    const deck = world.deck.deck;
-    return [
-      cloud_floor(world, CLOUD_LIT, brand.background_dark),
-      deck_marks(deck, LANES, (bank) => Math.abs(bank) >= BOWL),
-      deck_marks(deck, EDGES, (bank) => Math.abs(bank) < EDGE_BANK),
-      ...masts(deck, { post: carbon.thread, lamp: tones.head }, BOWL),
-      pylons(deck, PYLON, PYLON_PITCH),
-    ];
+    return [cloud_floor(world, CLOUD_LIT, brand.background_dark), ...bowl_dress(world.deck.deck)];
   },
   kit: PLAIN_KIT,
   wall_view: 20 * DEG,
