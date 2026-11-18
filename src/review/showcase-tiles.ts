@@ -4,7 +4,8 @@ import { CARS, is_car, type CarId } from "../car/cars";
 import { contact_shadow, fit_contact_shadow } from "../car/contact-shadow";
 import { build_view, rest_wheels } from "../car/models";
 import { rest_neon } from "../car/neon-look";
-import { gate_kit, gate_view } from "../car/trackside";
+import { gate_view } from "../car/trackside";
+import { gate_kit, light_gate } from "../car/gate-kit";
 import { TIERS } from "../career/career";
 import { reward_paint_name } from "../career/rewards";
 import { MarkerView } from "../career/marker-view";
@@ -143,11 +144,8 @@ function flag(tier: number, open: boolean): THREE.Object3D {
 
 function gate(start: boolean, lit: boolean): THREE.Object3D {
   const { group, material } = gate_view(gate_kit(), start);
-  if (lit) {
-    // As main.ts lights the next gate, at its pulse's middle.
-    material.color.copy(color(brand.accent));
-    material.emissive.copy(color(brand.accent)).multiplyScalar(0.55);
-  }
+  // As main.ts lights the next gate, at its pulse's middle.
+  light_gate(material, lit, 0);
   return group;
 }
 

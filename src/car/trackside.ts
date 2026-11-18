@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { merge, tint } from "./geometry";
 import { brand, color, tones } from "../theme/palette";
 import { freeze, ribbon, ribbon_material } from "../render/scene";
 import { cast_instanced } from "../render/shadow-depth";
@@ -9,40 +8,20 @@ import { KERB_OUT } from "../worldgen/road-layers";
 import { KERB_IN, type KerbMarks } from "../world/kerbs";
 import type { Solid } from "../worldgen/types";
 import { cos, sin } from "../sim-math";
+import { GATE_POST, GATE_TOP, gate_kit, type GateKit } from "./gate-kit";
 
 export interface Gate {
   group: THREE.Group;
   material: THREE.MeshLambertMaterial;
 }
 
-export interface GateKit {
-  frame: THREE.BufferGeometry;
-  checker: THREE.Mesh;
-}
-
-export function gate_kit(): GateKit {
-  const frame = merge(
-    [-1, 1].map((side) => new THREE.BoxGeometry(0.7, 6.4, 0.7).translate(side * (ROAD_HALF + 1.7), 3.2, 0)),
-    new THREE.BoxGeometry(ROAD_HALF * 2 + 3.4, 0.5, 0.5).translate(0, 6.2, 0),
-  );
-  const columns = 14;
-  const tiles: THREE.BufferGeometry[] = [];
-  for (let row = 0; row < 2; row++)
-    for (let col = 0; col < columns; col++) {
-      const tile = new THREE.BoxGeometry(1, 0.55, 0.3).translate((col - (columns - 1) / 2) * 1, 6.9 + row * 0.55, 0);
-      tiles.push(tint(tile, color((row + col) % 2 ? tones.check_dark : tones.check_light)));
-    }
-  return { frame, checker: new THREE.Mesh(merge(...tiles), new THREE.MeshLambertMaterial({ vertexColors: true })) };
-}
-
-/** A gate at the origin facing +z; the start line's carries the checker board. */
+/** A gate at the origin facing +z; the start line's carries the checker flags. */
 export function gate_view(kit: GateKit, start: boolean): Gate {
   const group = new THREE.Group();
-  const material = new THREE.MeshLambertMaterial({ color: color(tones.gate), emissive: new THREE.Color(0, 0, 0) });
-  const mesh = new THREE.Mesh(kit.frame, material);
+  const material = kit.material();
+  const mesh = new THREE.Mesh(start ? kit.start : kit.frame, material);
   mesh.castShadow = true;
   group.add(mesh);
-  if (start) group.add(kit.checker);
   return { group, material };
 }
 
@@ -55,8 +34,9 @@ function gate(world: World, kit: GateKit, index: number): Gate {
   return view;
 }
 
-export function gates(world: World): Gate[] {
-  const kit = gate_kit();
+/** `gantry`: the world stands its own start gantry over gate 0, which keeps only its cue. */
+export function gates(world: World, gantry = false): Gate[] {
+  const kit = gate_kit(gantry);
   return world.checkpoints.map((_, index) => gate(world, kit, index));
 }
 
@@ -84,8 +64,10 @@ function roadside_kit(): RoadsideKit {
 
 const POST_SPACING = 12;
 
-/** Curbs and posts along circuit `samples` (ascending): all of them on a compact world, one chunk's on a streamed one. */
-export function roadside(world: World, marks: KerbMarks = world.kerbs, kit: RoadsideKit = roadside_kit(), samples: readonly number[] = world.road.map((_, s) => s)): THREE.Group {
+const every_sample = (world: World): number[] => world.road.map((_, s) => s);
+
+/** Curbs along circuit `samples` (ascending): all of them on a compact world, one chunk's on a streamed one. */
+export function curbs(world: World, marks: KerbMarks = world.kerbs, kit: RoadsideKit = roadside_kit(), samples: readonly number[] = every_sample(world)): THREE.Group {
   const group = new THREE.Group();
   const { clear, inside } = marks;
   CURB_TONES.forEach((_, parity) => {
@@ -97,11 +79,16 @@ export function roadside(world: World, marks: KerbMarks = world.kerbs, kit: Road
       if (here.length) group.add(ribbon(world, from, to, 0.12, here, kit.curbs[parity]));
     }
   });
+  return group;
+}
 
-  const spots = samples.filter((s) => s % POST_SPACING === 0 && !clear.has(s));
+/** Marker posts with reflector caps down both sides of circuit `samples`. */
+export function posts(world: World, marks: KerbMarks = world.kerbs, kit: RoadsideKit = roadside_kit(), samples: readonly number[] = every_sample(world)): THREE.Group {
+  const group = new THREE.Group();
+  const spots = samples.filter((s) => s % POST_SPACING === 0 && !marks.clear.has(s));
   if (!spots.length) return group;
   const count = spots.length * 2;
-  const posts = new THREE.InstancedMesh(kit.post, kit.post_material, count);
+  const stems = new THREE.InstancedMesh(kit.post, kit.post_material, count);
   const caps = new THREE.InstancedMesh(kit.cap, kit.cap_material, count);
   const m = new THREE.Matrix4();
   let n = 0;
@@ -112,13 +99,20 @@ export function roadside(world: World, marks: KerbMarks = world.kerbs, kit: Road
       const x = p.x - p.tz * off;
       const z = p.z + p.tx * off;
       m.makeTranslation(x, world.height(x, z), z);
-      posts.setMatrixAt(n, m);
+      stems.setMatrixAt(n, m);
       caps.setMatrixAt(n, m);
       n++;
     }
   }
-  cast_instanced(posts);
-  group.add(posts, caps);
+  cast_instanced(stems);
+  group.add(stems, caps);
+  return group;
+}
+
+/** Curbs and posts along circuit `samples`. */
+export function roadside(world: World, marks: KerbMarks = world.kerbs, kit: RoadsideKit = roadside_kit(), samples: readonly number[] = every_sample(world)): THREE.Group {
+  const group = new THREE.Group();
+  group.add(...curbs(world, marks, kit, samples).children, ...posts(world, marks, kit, samples).children);
   return group;
 }
 
@@ -136,10 +130,10 @@ function gate_solids(world: World, at: number): Solid[] {
   const tx = sin(cp.heading);
   const tz = cos(cp.heading);
   return [-1, 1].map((side) => {
-    const off = side * (ROAD_HALF + 1.7);
+    const off = side * GATE_POST;
     const x = cp.x - tz * off;
     const z = cp.z + tx * off;
-    return { kind: "circle", x, y: world.height(x, z), z, radius: 0.5, height: 7 };
+    return { kind: "circle", x, y: world.height(x, z), z, radius: 0.5, height: GATE_TOP };
   });
 }
 
@@ -150,7 +144,7 @@ function gate_solids(world: World, at: number): Solid[] {
 export class ChunkTrackside {
   readonly root = new THREE.Group();
   readonly gates: (Gate | undefined)[];
-  private readonly kit = gate_kit();
+  private readonly kit: GateKit;
   private readonly roadside_kit = roadside_kit();
   private readonly marks: KerbMarks;
   /** Circuit samples per chunk, ascending. */
@@ -159,7 +153,8 @@ export class ChunkTrackside {
   private readonly checkpoints = new Map<number, number[]>();
   private readonly built = new Map<number, { part: THREE.Group; gates: number[]; unplace: (() => void)[] }>();
 
-  constructor(private readonly world: World) {
+  constructor(private readonly world: World, gantry = false) {
+    this.kit = gate_kit(gantry);
     this.root.matrixAutoUpdate = false;
     const { ext } = world.tiles;
     this.marks = world.kerbs;

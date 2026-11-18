@@ -4,7 +4,6 @@ import { PLAIN_CARS, REWARD_CARS } from "../career/rewards";
 import { ChangeKind, DRAFT_HIGHLIGHTS, TEASE, type Highlight, type Release } from "../changelog";
 import { parse_version_file } from "../version";
 import Changelog from "./Changelog.svelte";
-import ReleaseStories from "./ReleaseStories.svelte";
 import ReleaseStory from "./ReleaseStory.svelte";
 import UpdatedCard from "./UpdatedCard.svelte";
 import { story_of } from "./release-story";
@@ -88,28 +87,39 @@ const updates = (releases: Release[], reading: string | null = null) => {
   return render(Changelog, { props: { view, build: { version: "9.9.9", commit: "abc1234", built: 0 }, onapply: () => undefined, releases } }).body;
 };
 
-test("the Updates page lists every release with a story, the newest one leading with its banner", () => {
-  const { body } = render(ReleaseStories, { props: { releases: [versioned("9.9.9"), versioned("9.9.8", HIGHLIGHTS), versioned("9.9.7"), versioned("9.9.6", HIGHLIGHTS)], onopen: () => undefined } });
+test("the Updates page leads with the latest release and places every story on its own day", () => {
+  const releases = [versioned("9.9.9"), versioned("9.9.8", HIGHLIGHTS), versioned("9.9.7"), { ...versioned("9.9.6", HIGHLIGHTS), date: "2026-11-12" }];
+  const body = updates(releases);
+  expect(body).toMatch(/<h2[^>]*>Release 9\.9\.9</);
   expect(body.match(/See what's new</g)?.length).toBe(2);
-  expect(body).toMatch(/<h3[^>]*>Release 9\.9\.8</);
-  expect(body).toMatch(/>Two new cars\.<\/b> Lede\./);
   expect(body).toMatch(/aria-label="See what[^"]*new in v9.9.6"/);
-  expect(body).not.toContain("9.9.7");
-  expect(body.match(/class="banner svelte-/g)?.length).toBe(1);
+  expect(body.indexOf("Release 9.9.8")).toBeLessThan(body.indexOf("Release 9.9.7"));
+  expect(body.indexOf("Release 9.9.7")).toBeLessThan(body.indexOf("Release 9.9.6"));
+  expect(body.match(/class="banner svelte-/g)?.length).toBe(2);
+});
+
+test("the Updates page marks what came after the version last played", () => {
+  const releases = [versioned("9.9.9"), versioned("9.9.8"), versioned("9.9.7"), versioned("9.9.6")];
+  const body = render(Changelog, { props: { view: new UpdateView(), build: { version: "9.9.9", commit: "abc1234", built: 0 }, onapply: () => undefined, releases, seen: "9.9.7" } }).body;
+  expect(body).toContain("You last played v9.9.7");
+  expect(body.indexOf("Release 9.9.8")).toBeLessThan(body.indexOf("You last played"));
+  expect(body.indexOf("You last played")).toBeLessThan(body.indexOf("Release 9.9.7"));
+  expect(body).toMatch(/data-fresh=""/);
+  expect(updates(releases)).not.toContain("You last played");
 });
 
 test("the Updates page shows the list until a story is open, then that story alone", () => {
   const releases = [versioned("9.9.9", HIGHLIGHTS), versioned("9.9.8", HIGHLIGHTS), versioned("9.9.7")];
   const list = updates(releases);
   expect(list).toContain("See what's new");
-  expect(list).toContain("You have v9.9.9");
+  expect(list).toMatch(/<h2[^>]*>Release 9.9.9</);
   expect(list).not.toContain("Also new");
   const older = updates(releases, "9.9.8");
   expect(older).toContain("All updates");
   expect(older).toMatch(/<h3[^>]*>Release 9\.9\.8</);
-  expect(older).not.toContain("You have v9.9.9");
+  expect(older).not.toContain("Latest");
   expect(updates([], "9.9.8")).not.toContain("All updates");
-  expect(render(ReleaseStories, { props: { releases: [versioned("9.9.7")], onopen: () => undefined } }).body).not.toContain("See what's new");
+  expect(updates([versioned("9.9.7")])).not.toContain("See what's new");
 });
 
 test("What's new leads with the waiting update: its version, what reloads and Update now, held while it applies", () => {
@@ -123,7 +133,7 @@ test("What's new leads with the waiting update: its version, what reloads and Up
   expect(ready).toContain("v9.9.9 → v9.10.0 · the game reloads");
   expect(ready).toMatch(/<button[^>]*data-variant="primary"[^>]*>(<!--.*?-->)*Update now/);
   expect(ready).not.toMatch(/<button[^>]*disabled[^>]*>(<!--.*?-->)*Update now/);
-  expect(ready.indexOf("Update now")).toBeLessThan(ready.indexOf("You have v9.9.9"));
+  expect(ready.indexOf("Update now")).toBeLessThan(ready.indexOf("Latest"));
   expect(ready).toContain("Release 9.10.0");
   const waiting = pending(true, "Updating when this run ends");
   expect(waiting).toContain("Updating when this run ends");

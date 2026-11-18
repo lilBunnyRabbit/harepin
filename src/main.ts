@@ -59,13 +59,14 @@ import { CUSTOM_PARAM, custom_host, custom_route, custom_travel } from "./modes/
 import { field_routes } from "./modes/field-route";
 import { CUSTOM_PAGE } from "./menu/events-view";
 import { ChunkTrackside, gates, type Gate } from "./car/trackside";
+import { light_gate } from "./car/gate-kit";
 import { kept_random_name } from "./menu/guide-rules";
 import { watch_enter_focus } from "./menu/enter-key";
 import { PadMenu } from "./menu/pad-menu";
 import { Net, WRONG_PASSWORD } from "./net/net";
 import { Quality } from "./render/quality";
 import { CursorIdle } from "./theme/cursor";
-import { brand, color, rgba, tones } from "./theme/palette";
+import { brand, rgba } from "./theme/palette";
 import { Race } from "./race";
 import { Remotes } from "./net/remotes";
 import { warm_rtc } from "./net/warm";
@@ -220,7 +221,7 @@ let gate_views: readonly (Gate | undefined)[] = [];
 // Modes are built after the spawn wait; a chunk in before then has no run's marks to lay again.
 let chunk_in = (_index: number) => {};
 if (world.tiles.streamed) {
-  const trackside = new ChunkTrackside(world);
+  const trackside = new ChunkTrackside(world, WORLDS[world.kind].start_gantry);
   gate_views = trackside.gates;
   scene.add(...WORLDS[world.kind].dress(world), trackside.root);
   stream.listen({
@@ -239,7 +240,7 @@ if (world.tiles.streamed) {
   void world.tiles.whole().then(() => {
     performance.mark("world:whole");
     scene.add(...WORLDS[world.kind].dress(world), ...kit_meshes(world, WORLDS[world.kind].kit.pieces, quality.mobile));
-    const all = gates(world);
+    const all = gates(world, WORLDS[world.kind].start_gantry);
     gate_views = all;
     for (const g of all) scene.add(g.group);
   }, (error: unknown) => area_fade.fail(error));
@@ -793,9 +794,6 @@ function rewind_step(now: number) {
   if (driver.rewind.step(now) && race.started) ghost.rewind_to(now - race.started);
 }
 
-const lit = color(brand.accent);
-const unlit = color(tones.gate);
-const black = new THREE.Color(0, 0, 0);
 function update_gates(t: number) {
   // In a mode run the arch lit is the run's next gate, when one stands there; the free lap's next would point elsewhere.
   const target = modes.active ? (modes.route?.gate ?? null) : null;
@@ -804,8 +802,7 @@ function update_gates(t: number) {
     if (!g) continue;
     const cp = world.checkpoints[i];
     const next = modes.active ? target !== null && Math.hypot(cp.x - target.x, cp.z - target.z) < 1 : i === race.next;
-    g.material.color.copy(next ? lit : unlit);
-    g.material.emissive.copy(next ? lit : black).multiplyScalar(next ? 0.55 + Math.sin(t * 6) * 0.25 : 0);
+    light_gate(g.material, next, t);
   }
 }
 

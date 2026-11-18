@@ -2,7 +2,7 @@
   import { Difficulty } from "../ai/difficulty";
   import { RivalPick, field_presets } from "../ai/field-pick";
   import { CLASS_LABELS } from "../car/pi";
-  import { LEVEL_MAX, LEVEL_MIN, MAX_RIVALS, RaceFormat, TIMES, custom_map, custom_route, custom_travel, grid_of, type CustomRace } from "../modes/custom-race";
+  import { LEVEL_MAX, LEVEL_MIN, MAX_RIVALS, RaceFormat, TIMES, Temperament, custom_map, custom_route, custom_travel, grid_of, type CustomRace } from "../modes/custom-race";
   import { MAX_LAPS } from "../modes/race-laps";
   import { race_choices, type RaceChoice } from "../modes/races";
   import { KINDS } from "../worldgen/kinds/kinds";
@@ -60,7 +60,12 @@
     { value: RivalPick.ANY, label: "Any class" },
     { value: RivalPick.PICKED, label: "Picked" },
   ];
-  const AGGRESSION = ["Timid", "Careful", "Fair", "Pushy", "Ruthless"];
+  const TEMPERAMENTS: Option<Temperament>[] = [
+    { value: Temperament.CALM, label: "Calm" },
+    { value: Temperament.MIXED, label: "Mixed" },
+    { value: Temperament.AGGRESSIVE, label: "Aggressive" },
+  ];
+  const TEMPERAMENT_HELP: Record<Temperament, string> = { calm: "They lift early and leave you room", mixed: "Some yield, some fight for the place", aggressive: "They dive late and hold their line" };
   const MISTAKES = ["Flawless", "Rare", "Some", "Often", "Sloppy"];
   const PRESETS = field_presets().map((preset) => ({ name: preset.name, class: CLASS_LABELS[preset.rated.class] }));
   const BAD = "Not a map code";
@@ -118,6 +123,7 @@
   const slot = $derived(grid_of(setup));
   const slots = $derived(Array.from({ length: setup.rivals + 1 }, (_, i) => i));
   const picked_help = $derived(setup.cars === RivalPick.CLASS ? "The cars closest to yours in rating" : setup.cars === RivalPick.ANY ? "A spread from the slowest car to the fastest" : setup.picked.length ? "They take turns down the grid" : "None picked yet: your class races");
+  const rules_help = $derived(`${setup.limits ? "Cuts are warned, then cost time" : "Cut where you like"} · ${setup.slipstream ? "cars tow each other" : "clean air for all"}`);
   const summary = $derived(`${setup.rivals} ${setup.rivals === 1 ? "rival" : "rivals"} · ${timed ? length_text(setup) : setup.laps ? `${setup.laps} ${setup.laps === 1 ? "lap" : "laps"}` : "auto laps"} · from P${slot + 1}`);
 
   function toggle_preset(name: string) {
@@ -184,17 +190,14 @@
                 {#snippet control()}<Slider value={setup.laps} min={0} max={MAX_LAPS} label="Laps" format={(laps) => (laps ? String(laps) : "Auto")} onchange={(laps) => patch({ laps })} />{/snippet}
               </Row>
             {/if}
-            <Row label="Your grid slot" help={slot === setup.rivals ? "From the back" : slot === 0 ? "On pole" : `${slot} ahead of you`} stack>
-              {#snippet control()}<Slider value={slot + 1} min={1} max={setup.rivals + 1} label="Your grid slot" format={(n) => `P${n}`} onchange={(n) => patch({ grid: n > setup.rivals ? MAX_RIVALS : n - 1 })} />{/snippet}
+            <Row label="Rules" help={rules_help} stack>
+              {#snippet control()}
+                <span class="custom-rules" role="group" aria-label="Rules">
+                  <Chip variant="toggle" bind:pressed={() => setup.limits, (limits) => patch({ limits })}>Track limits</Chip>
+                  <Chip variant="toggle" bind:pressed={() => setup.slipstream, (slipstream) => patch({ slipstream })}>Slipstream</Chip>
+                </span>
+              {/snippet}
             </Row>
-            <div class="custom-extra">
-              <div class="custom-grid" role="img" aria-label={`Starting grid: you start P${slot + 1} of ${slots.length}`}>
-                <span class="custom-line"></span>
-                {#each slots as i (i)}
-                  <span class="custom-slot" data-you={i === slot ? "" : undefined} data-low={i % 2 ? "" : undefined} style:grid-column={i + 2}>{i === slot ? "You" : i + 1}</span>
-                {/each}
-              </div>
-            </div>
           </RowList>
         </ScrollArea>
       </Card>
@@ -206,6 +209,17 @@
             <Row label="Rivals" help={`${setup.rivals + 1} cars on the grid`} stack>
               {#snippet control()}<Slider value={setup.rivals} min={1} max={MAX_RIVALS} label="Rivals" onchange={(rivals) => patch({ rivals })} />{/snippet}
             </Row>
+            <Row label="Your grid slot" help={slot === setup.rivals ? "From the back" : slot === 0 ? "On pole" : `${slot} ahead of you`} stack>
+              {#snippet control()}<Slider value={slot + 1} min={1} max={setup.rivals + 1} label="Your grid slot" format={(n) => `P${n}`} onchange={(n) => patch({ grid: n > setup.rivals ? MAX_RIVALS : n - 1 })} />{/snippet}
+            </Row>
+            <div class="custom-extra custom-under">
+              <div class="custom-grid" role="img" aria-label={`Starting grid: you start P${slot + 1} of ${slots.length}`}>
+                <span class="custom-line"></span>
+                {#each slots as i (i)}
+                  <span class="custom-slot" data-you={i === slot ? "" : undefined} data-low={i % 2 ? "" : undefined} style:grid-column={i + 2}>{i === slot ? "You" : i + 1}</span>
+                {/each}
+              </div>
+            </div>
             <Row label="Their cars" help={picked_help} stack>
               {#snippet control()}<Segmented options={CAR_PICKS} value={setup.cars} label="Their cars" onchange={(cars) => patch({ cars })} />{/snippet}
             </Row>
@@ -219,8 +233,8 @@
             <Row label="Difficulty" help={DIFFICULTY_HELP[setup.difficulty]} stack>
               {#snippet control()}<Segmented options={DIFFICULTIES} value={setup.difficulty} label="Difficulty" onchange={(difficulty) => patch({ difficulty })} />{/snippet}
             </Row>
-            <Row label="Aggression" help="How hard they fight for a place" stack>
-              {#snippet control()}<Slider value={setup.aggression} min={LEVEL_MIN} max={LEVEL_MAX} label="Aggression" format={(level) => AGGRESSION[level - 1]} onchange={(aggression) => patch({ aggression })} />{/snippet}
+            <Row label="Temperament" help={TEMPERAMENT_HELP[setup.temperament]} stack>
+              {#snippet control()}<Segmented options={TEMPERAMENTS} value={setup.temperament} label="Temperament" onchange={(temperament) => patch({ temperament })} />{/snippet}
             </Row>
             <Row label="Mistakes" help="How often they miss a braking point" stack>
               {#snippet control()}<Slider value={setup.mistakes} min={LEVEL_MIN} max={LEVEL_MAX} label="Mistakes" format={(level) => MISTAKES[level - 1]} onchange={(mistakes) => patch({ mistakes })} />{/snippet}
@@ -260,6 +274,16 @@
     padding: var(--gap-sm) var(--gap-md) var(--gap-md);
   }
 
+  .custom-under {
+    padding-top: 0;
+  }
+
+  .custom-rules {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+  }
+
   .custom-hint {
     color: var(--dim);
     font-size: var(--type-small);
@@ -288,7 +312,7 @@
     grid-template-columns: var(--mark-w) repeat(8, minmax(0, 1fr));
     grid-template-rows: var(--chip-h-in) var(--chip-h-in);
     gap: var(--gap-xs);
-    padding: var(--gap-sm);
+    padding: var(--gap-xs);
     border-radius: var(--radius-sm);
     background: var(--row);
   }

@@ -9,6 +9,7 @@ import type { CarSpec } from "../car/cars";
 import type { Sim } from "../sim/sim-client";
 import type { World } from "../world/world";
 import type { Body, Pose } from "./gymkhana";
+import type { RaceRules } from "./race-rules";
 import type { Thresholds, Track } from "./track";
 import type { Bindable } from "../hud/bindings";
 import type { Hits } from "./hits";
@@ -97,6 +98,10 @@ export interface FieldEvent {
   readonly grid?: number;
   /** Laps a race to the line runs; the route's par decides when absent. A timed race runs the most a field may. */
   readonly laps?: number;
+  /** The stewards' rules; the route's own when absent. */
+  readonly rules?: RaceRules;
+  /** False: no car tows another, the player's included. */
+  readonly slipstream?: boolean;
   /** Called once as the player's race ends; returns lines for the result card. */
   finish(outcome: FieldOutcome): HTMLElement[];
   /** What the result card's Next does; read once the result has scored, so it can name what the result opened. */

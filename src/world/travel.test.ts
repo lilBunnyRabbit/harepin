@@ -1,6 +1,9 @@
 import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { SEASONS } from "../career/series-seasons";
+import { DEFAULT_CUSTOM } from "../modes/custom-race";
+import { plain_map } from "../worldgen/kinds/kinds";
+import { map_code } from "../worldgen/kinds/map-code";
 import { WorldKind } from "../worldgen/types";
 import { briefed_car, came_from, travel_of, travel_query } from "./travel";
 
@@ -56,6 +59,13 @@ test("a travel keeps the room, tune and car, but a car taken in the picker wins 
   const here = url("room=pals&car=coupe&tune&seed=7");
   expect(travel_query({ event: "r6" }, here, false).toString()).toBe("event=r6&room=pals&car=coupe&tune=");
   expect(travel_query({ event: "r6" }, here, true).toString()).toBe("event=r6&room=pals&tune=");
+});
+
+test("a custom race on another map travels there with its setup, and only when the load asks for it", () => {
+  const code = map_code(plain_map(WorldKind.ISLAND, 41));
+  const travel = travel_of(url(`custom=1&map=${code}`), null, saved, DEFAULT_CUSTOM);
+  expect(travel !== null && "custom" in travel && [travel.custom, travel.map.seed]).toEqual([DEFAULT_CUSTOM, 41]);
+  expect(travel_of(url(`map=${code}`), null, saved, DEFAULT_CUSTOM)).toBeNull();
 });
 
 test("a travel keeps the dev autopilot, so it drives the next series round too", () => {
