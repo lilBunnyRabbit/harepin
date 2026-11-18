@@ -483,6 +483,7 @@ function shifted(list: Triple[], dz: number): Triple[] {
 // mid-corner swings the heavy tail out. Torque stays soft below 3000 rpm and the boost lands hard above it.
 const STURM_FRAME: FrameSpec = {
   ...COUPE_FRAME,
+  ai: { slow: 1, fast: 0.92, brake: 1 },
   mass: 1450,
   inertia: [2300, 2900, 560],
   wheel: {
