@@ -12,10 +12,11 @@ import { default_jobs, Pool, seed_list } from "./cache";
 import { mean, ORACLE_DIR, oracle_laps, solo_run, type SoloRun } from "./pace";
 import { run_ab } from "./ab";
 import { run_rows, type BarJob, type BarResult, type RaceJob, type RouteInfo, type Rows, type Setup, type SoloJob, type SoloLaps } from "./bar-rows";
-import { island } from "./worlds";
+import type { WorldKind } from "../../src/worldgen/types";
+import { place_of, world_at } from "./worlds";
 
-// bun scripts/ai-ml/bar.ts <out.json> <cars,> [eps,] [seeds] [jobs] [difficulty] [--solo [--flying n] [--oracles dir]] [--ab <checkout> [--min n]]:
-// the owner's AI bar on island field races, (a) mistakes and (b) ugly failures per car and eps.
+// bun scripts/ai-ml/bar.ts <out.json> <cars,> [eps,] [seeds] [jobs] [difficulty] [--world kind] [--solo [--flying n] [--oracles dir]] [--ab <checkout> [--min n]]:
+// the owner's AI bar on field races on the island (or `--world` kind's circuits), (a) mistakes and (b) ugly failures per car and eps.
 // jobs: from free RAM, at most 6 on any box (the PC froze at 10).
 // --solo: each car alone instead, a standing lap then `--flying` laps (2), the standing lap as a share of the best oracle
 // lap in `--oracles` (ORACLE_DIR) found on this physics and worldgen (PACE_HASH).
@@ -49,7 +50,7 @@ const PLAYER_GRACE = 3;
 const ROLLED_SPAN = 90;
 const FLYING = 2;
 const MIN_PAIRS = 6;
-const VALUED = ["--flying", "--ab", "--min", "--oracles"];
+const VALUED = ["--flying", "--ab", "--min", "--oracles", "--world"];
 
 const Kind = { SPIN: "spin", WIDE: "wide", REVERSE: "reverse", RESET: "reset", LONG_OFF: "long_off", PILE: "pile", STUCK: "stuck", PLAYER: "player" } as const;
 type Kind = (typeof Kind)[keyof typeof Kind];
@@ -95,7 +96,7 @@ function perturbed(car: string, eps: number): CarSpec {
 }
 
 function race(job: RaceJob): BarRace {
-  const world = island(job.seed);
+  const world = world_at(job.seed, job.world);
   const spec = perturbed(job.car, job.eps);
   const route = circuits(world)[job.route];
   const unplace = world.place(route.closure);
@@ -217,12 +218,12 @@ function race(job: RaceJob): BarRace {
   };
 }
 
-function routes(seed: number): RouteInfo[] {
-  return circuits(island(seed)).map((r) => ({ id: r.id, length: r.length, excludes: r.excludes ?? [] }));
+function routes(seed: number, kind?: WorldKind): RouteInfo[] {
+  return circuits(world_at(seed, kind)).map((r) => ({ id: r.id, length: r.length, excludes: r.excludes ?? [] }));
 }
 
 function solo(job: SoloJob): SoloLaps {
-  const world = island(job.seed);
+  const world = world_at(job.seed, job.world);
   const route = circuits(world)[job.route];
   const unplace = world.place(route.closure);
   const run = solo_run(world, route, perturbed(job.car, job.eps), job.flying);
@@ -232,11 +233,11 @@ function solo(job: SoloJob): SoloLaps {
 
 const races_of = (rows: Rows): Record<string, BarRace[]> => Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, v.filter((r): r is BarRace => "ugly" in r)]));
 
-function solos_of(rows: Rows, oracles: Map<string, number>): Record<string, SoloRun[]> {
+function solos_of(rows: Rows, oracles: Map<string, number>, kind?: WorldKind): Record<string, SoloRun[]> {
   return Object.fromEntries(
     Object.entries(rows).map(([key, v]) => {
       const [car, , seed] = key.split("/");
-      return [key, v.filter((r): r is SoloLaps => "flying" in r).map((r): SoloRun => ({ ...r, oracle: oracles.get(`${seed}/${r.route}/${car}`) ?? null }))];
+      return [key, v.filter((r): r is SoloLaps => "flying" in r).map((r): SoloRun => ({ ...r, oracle: oracles.get(`${place_of(Number(seed), kind)}/${r.route}/${car}`) ?? null }))];
     }),
   );
 }
@@ -288,7 +289,7 @@ function print_solo(rows: Record<string, SoloRun[]>, setup: Setup, seeds: readon
 if (!Bun.isMainThread) {
   self.onmessage = (event: MessageEvent<BarJob>) => {
     const job = event.data;
-    if (job.type === "routes") postMessage({ type: "routes", id: job.id, routes: routes(job.seed) } satisfies BarResult);
+    if (job.type === "routes") postMessage({ type: "routes", id: job.id, routes: routes(job.seed, job.world) } satisfies BarResult);
     else if (job.type === "solo") postMessage({ type: "solo", id: job.id, run: solo(job) } satisfies BarResult);
     else postMessage({ type: "race", id: job.id, race: race(job) } satisfies BarResult);
   };
@@ -306,13 +307,14 @@ if (!Bun.isMainThread) {
     difficulty: difficulty as Difficulty,
     solo: argv.includes("--solo"),
     flying: Number(option("flying") ?? FLYING),
+    world: option("world") as WorldKind | undefined,
   };
   const seeds = seed_list(seeds_arg || "0-49");
   const jobs = jobs_arg ? Number(jobs_arg) : default_jobs();
   const other = option("ab");
   const oracles = setup.solo ? oracle_laps(option("oracles") ?? ORACLE_DIR) : new Map<string, number>();
-  const shape = (rows: Rows) => (setup.solo ? solos_of(rows, oracles) : races_of(rows));
-  const print = (rows: Rows, of: readonly number[]) => (setup.solo ? print_solo(solos_of(rows, oracles), setup, of) : print_bar(races_of(rows), setup, of));
+  const shape = (rows: Rows) => (setup.solo ? solos_of(rows, oracles, setup.world) : races_of(rows));
+  const print = (rows: Rows, of: readonly number[]) => (setup.solo ? print_solo(solos_of(rows, oracles, setup.world), setup, of) : print_bar(races_of(rows), setup, of));
   if (other) {
     const ab = await run_ab(other, seeds, setup, jobs, Number(option("min") ?? MIN_PAIRS));
     writeFileSync(out, JSON.stringify({ a: shape(ab.a), b: shape(ab.b), seeds: ab.seeds, looks: ab.looks, verdict: ab.verdict }));

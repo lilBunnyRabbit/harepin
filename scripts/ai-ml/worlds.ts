@@ -7,7 +7,7 @@ import { generate_world } from "../../src/worldgen/kinds/kinds";
 import { WORLD_VERSION, WorldKind, type WorldData } from "../../src/worldgen/types";
 import { closure, ROOT } from "./cache";
 
-/** Built island worlds one thread keeps, so a seed's next route on the same worker skips the rebuild. */
+/** Built worlds one thread keeps, so a seed's next route on the same worker skips the rebuild. */
 const KEPT = 2;
 
 const WORLDGEN = new URL("../../src/worldgen/", import.meta.url);
@@ -45,18 +45,19 @@ export function island_data(seed: number): WorldData {
   return data;
 }
 
-const kept = new Map<number, World>();
+const kept = new Map<string, World>();
 
-export function island(seed: number): World {
-  const hit = kept.get(seed);
+export function world_at(seed: number, kind: WorldKind = WorldKind.ISLAND): World {
+  const key = place_of(seed, kind);
+  const hit = kept.get(key);
   if (hit) {
-    kept.delete(seed);
-    kept.set(seed, hit);
+    kept.delete(key);
+    kept.set(key, hit);
     return hit;
   }
-  const world = new World(seed, island_data(seed));
-  kept.set(seed, world);
-  if (kept.size > KEPT) kept.delete(kept.keys().next().value as number);
+  const world = new World(seed, world_data(seed, kind));
+  kept.set(key, world);
+  if (kept.size > KEPT) kept.delete(kept.keys().next().value as string);
   return world;
 }
 
