@@ -39,13 +39,9 @@ const NUDGE_MARGIN = 0.4;
 const YIELD = 1.5;
 /** m/s under a faster passer alongside a timid driver (0) lifts to, none at full aggression: the bold ones make it a fight. */
 const CONCEDE = 1.5;
-/**
- * Metres a follower keeps behind a car in its lane, and the share of its own line braking it plans to close down to it
- * on. At a flat 4 m/s², under the line's braking, a follower fell back in every braking zone: on lap 1 it was 1.4 m/s
- * under its plan halfway through one. At the whole of it, cars behind ran wide out of the bend more often.
- */
+/** Metres a follower keeps behind a car in its lane, and the braking (m/s²) it plans to close down to it. At 0.75 of its own line braking it sat closer, touched more and hit the player more. */
 const FOLLOW = 10;
-const FOLLOW_SHARE = 0.75;
+const FOLLOW_BRAKE = 4;
 /** Metres of FOLLOW a fully aggressive driver closes up: on the bumper, it has the run to pull out. */
 const FOLLOW_BOLD = 5;
 /** Metres past its follow gap inside which a driver pulls out to pass: from farther back it only loses time off the line. */
@@ -240,7 +236,7 @@ export class Awareness {
       const across = gap > 0 ? Math.min(Math.abs(dl), Math.abs(this.lateral[j] - driver.lateral_at(this.cars[i], this.drivers[j].index))) : Math.abs(dl);
       if (gap > 0 && gap < LOOK + LOOK_PER * v && across < width) {
         // Every car ahead in its lane caps it, not the nearest alone: behind two cars a row apart, it ran into the slower one past the first.
-        this.hold(driver, j, this.follow(driver, j, gap, j === this.passing[i] ? PASS_FOLLOW : keep));
+        this.hold(driver, j, this.follow(j, gap, j === this.passing[i] ? PASS_FOLLOW : keep));
         if (gap < blocker_gap) {
           blocker = j;
           blocker_gap = gap;
@@ -283,7 +279,7 @@ export class Awareness {
         driver.hold = wait ? NaN : hold;
         driver.push = 1 + PUSH * aggression;
         driver.late = diving;
-        if (wait) this.hold(driver, target, this.follow(driver, target, gap, PASS_FOLLOW));
+        if (wait) this.hold(driver, target, this.follow(target, gap, PASS_FOLLOW));
         this.waited[i] = wait ? this.waited[i] + this.dt : 0;
         if (this.waited[i] > PASS_WAIT) this.end_pass(i);
         if (this.trouble[target] && gap > -ALONGSIDE) this.hold(driver, target, Math.max(0, this.along[target]) + TROUBLE_CLOSE);
@@ -475,7 +471,7 @@ export class Awareness {
     const give = gap > 0 || this.trouble[near] || near < this.driven ? 1 : 1 - driver.personality.aggression;
     driver.nudge = away * give * Math.min(NUDGE_MAX, near_in + NUDGE_MARGIN);
     if (gap <= 0) return;
-    const yield_to = this.kicker_ahead(driver) ? this.follow(driver, near, gap, FOLLOW) : this.speed[near] - YIELD;
+    const yield_to = this.kicker_ahead(driver) ? this.follow(near, gap, FOLLOW) : this.speed[near] - YIELD;
     this.hold(driver, near, Math.max(0, yield_to));
   }
 
@@ -533,13 +529,13 @@ export class Awareness {
     return false;
   }
 
-  /** Speed (m/s) `driver` closes down to `keep` metres behind car j at, `gap` metres ahead, and brakes off any metre inside it. */
-  private follow(driver: Driver, j: number, gap: number, keep: number): number {
+  /** Speed (m/s) that closes down to `keep` metres behind car j, `gap` metres ahead, and brakes off any metre inside it. */
+  private follow(j: number, gap: number, keep: number): number {
     // The speed the car ahead is about to hold, not the one it has: it brakes for the bend before the follower sees it slow. A
     // car in trouble holds only what it makes along the road.
     const vj = this.trouble[j] ? Math.max(0, this.along[j]) : Math.min(this.speed[j], this.drivers[j].target);
     const close = gap - keep;
-    return close > 0 ? Math.sqrt(vj * vj + 2 * FOLLOW_SHARE * AI_TUNING.line_brake * driver.line.scale.brake * close) : Math.max(0, vj + close * BACK_OFF);
+    return close > 0 ? Math.sqrt(vj * vj + 2 * FOLLOW_BRAKE * close) : Math.max(0, vj + close * BACK_OFF);
   }
 
   /**
