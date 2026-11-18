@@ -51,6 +51,17 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.71.0",
+    date: "2026-11-18",
+    title: "Smoother races",
+    changes: [
+      { kind: IMPROVED, text: "Races with AI run smoother on phones: the race simulation runs on its own thread" },
+      { kind: NEW, text: "Orkan, a 70s fastback, joins the Muscle" },
+      { kind: FIXED, text: "Sajin rivals no longer hang on a wall bar after a jump" },
+      { kind: FIXED, text: "Sturm rivals stay on the road through fast bends" },
+    ],
+  },
+  {
     version: "0.70.0",
     date: "2026-11-18",
     title: "Rivals that learned",
