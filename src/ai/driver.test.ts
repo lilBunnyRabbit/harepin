@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
 import { Car, drop_height, type Controls, type Ground } from "../car/car";
-import { COUPE } from "../car/cars";
+import { COUPE, HATCH, type CarSpec } from "../car/cars";
 import { GRAVITY } from "../car/rigid-body";
 import { LOCK_GRIP } from "../car/steering";
 import { World } from "../world/world";
@@ -60,7 +60,7 @@ describe("AI driver", () => {
     const line = race_line(route.points, world.ramps, COUPE.radius);
     const at = line.ramp.findIndex((r) => r >= 0);
     expect(at).toBeGreaterThanOrEqual(0);
-    const driver = new Driver(line, { pace: 1.1, brake_margin: 1.5, aggression: 1, mistakes: 0 });
+    const driver = new Driver(line, { pace: 1.1, brake_margin: 1.5, aggression: 1, dive_reach: 2, keep_lead: 2, mistakes: 0 });
     driver.push = 1.2;
     driver.place(at);
     const car = new Car(COUPE);
@@ -76,7 +76,7 @@ describe("AI driver", () => {
     const route = world.routes.find((r) => r.kind === RouteKind.CIRCUIT);
     if (!route) throw new Error("island seed 44 has no circuit");
     const line = plan_for(race_line(route.points, world.ramps, COUPE.radius), { ...UNIT_SCALE, slow: 0.81, fast: 0.81 });
-    const driver = new Driver(line, { pace, brake_margin: 1.5, aggression: 1, mistakes: 0 });
+    const driver = new Driver(line, { pace, brake_margin: 1.5, aggression: 1, dive_reach: 2, keep_lead: 2, mistakes: 0 });
     driver.push = 1.2;
     driver.cap = cap;
     driver.ahead_speed = ahead_speed;
@@ -166,6 +166,11 @@ describe("AI driver", () => {
     expect(driver.lateral_at(car, 160)).toBeCloseTo(0, 6);
   });
 
+  test("easing back onto the line through a bend, it plans on the line's bend, not on the kink where the easing starts", () => {
+    const { driver, line } = on_ring(3, 40, 0, 3, 250);
+    expect(driver.target).toBeGreaterThan(0.9 * line.speed[driver.index]);
+  });
+
   test("held off the line past the edge of its room, it aims back inside by as much as it is over, not along the edge", () => {
     const room = pass_room(new Car(COUPE), race_line(ring(800), [], COUPE.radius), 100);
     // Fast, so the aim is far ahead and the wheel stays off full lock; on the ring's outside, so its bend steers against.
@@ -174,5 +179,31 @@ describe("AI driver", () => {
     const inward = Math.sign(on_ring(-room, 60, 0).controls.steer);
     expect(Math.sign(over)).toBe(inward);
     expect(over * inward).toBeGreaterThan(edge * inward + 0.4);
+  });
+
+  /** `spec`'s car over its plan on a 60 m ring, its nose `slip` rad inside its travel, yawing at `yaw` rad/s: the pedals after one step. */
+  function sliding(spec: CarSpec, slip: number, yaw: number): Controls {
+    const line = race_line(ring(60), [], spec.radius);
+    const driver = new Driver(line);
+    driver.place(100);
+    const car = new Car(spec);
+    const p = line.road[100];
+    const heading = Math.atan2(p.tx, p.tz);
+    car.park(p.x, p.z, heading + slip, FLAT);
+    car.step(DT, { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: true }, FLAT);
+    car.vel.set(Math.sin(heading) * 40, 0, Math.cos(heading) * 40);
+    car.ang.set(0, yaw, 0);
+    return driver.drive(car, DT);
+  }
+
+  test("a car with slide_throttle drives its tail-out slide out off the brake; the catch swinging back and every other car stay off the gas", () => {
+    expect(HATCH.ai?.slide_throttle).toBe(1);
+    expect(COUPE.ai?.slide_throttle).toBeUndefined();
+    const out = sliding(HATCH, 0.1, 0.5);
+    expect([out.throttle, out.brake]).toEqual([1, 0]);
+    expect([sliding(HATCH, -0.1, -0.5).throttle, sliding(HATCH, -0.1, -0.5).brake]).toEqual([1, 0]);
+    expect(sliding(HATCH, 0.1, -0.5).throttle).toBe(0);
+    expect(sliding(HATCH, 0.04, 0.5).throttle).toBe(0);
+    expect(sliding(COUPE, 0.1, 0.5).throttle).toBe(0);
   });
 });

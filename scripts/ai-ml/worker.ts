@@ -60,7 +60,8 @@ self.onmessage = (event: MessageEvent<MlJob>) => {
     reset({});
     // The same block a hair off (`eps`, a share): a second draw of the field's chaos, as one bar swings 3 trouble on noise.
     const off = 1 + job.eps;
-    const spec = { ...car_spec(job.car), ai: { slow: job.ai.slow * off, fast: job.ai.fast * off, brake: job.ai.brake * off } };
+    const base = car_spec(job.car);
+    const spec = { ...base, ai: { ...base.ai, slow: job.ai.slow * off, fast: job.ai.fast * off, brake: job.ai.brake * off } };
     postMessage({ type: "car", id: job.id, seed: job.seed, races: races(job.seed, 6, 2, undefined, spec), solos: job.solo ? solos(job.seed, true, spec) : [] } satisfies MlResult);
   } else {
     reset(job.values);

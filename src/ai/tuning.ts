@@ -62,6 +62,9 @@ export interface AiTuning {
   brake_margin: [number, number];
   aggression: [number, number][];
   mistakes: [number, number][];
+  /** Per aggression level 1-5: metres behind the player a dive on it holds, and metres ahead past which a car keeps its line on it. */
+  dive_reach: number[];
+  keep_lead: number[];
 }
 
 export const AI_TUNING: AiTuning = {
@@ -96,4 +99,6 @@ export const AI_TUNING: AiTuning = {
   brake_margin: [0, 0.8],
   aggression: [[0, 0.6], [0.1, 0.8], [0.2, 1], [0.4, 1], [0.6, 1]],
   mistakes: [[0, 0.1], [0.02, 0.2], [0.05, 0.3], [0.1, 0.4], [0.2, 0.5]],
+  dive_reach: [0, 1, 2, 3, 4],
+  keep_lead: [4, 3, 2, 1, 0.5],
 };

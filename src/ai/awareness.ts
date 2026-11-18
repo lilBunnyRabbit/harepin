@@ -29,6 +29,9 @@ const PASS_TIGHT = 0.3;
 /** Metres along the road under which a car counts as alongside, and the side gap it keeps from it. */
 const ALONGSIDE = 5;
 const SIDE_GAP = 3.6;
+/** Metres to the side a car alongside is looked at (the road's width), and road points ahead its lane is read against the line. */
+const BESIDE = 9;
+const BESIDE_LOOK = 60;
 /** Most metres the guard moves the aim off a car alongside, and the metres past IN_LANE it aims to open the gap to. */
 const NUDGE_MAX = 1.5;
 const NUDGE_MARGIN = 0.4;
@@ -96,6 +99,8 @@ const DIVE_REACH = 15;
 const DIVE_SLOWER = 0.02;
 /** Metres the diver's centre may be behind the defender's for the two to count as overlapped: the defender gives it the apex. */
 const OVERLAP = 5;
+/** Road points ahead the player's turn-in is read over. */
+const TURN_IN = 20;
 
 /**
  * Runs at 20 Hz over the whole field: from each car's place on the road it picks a lane for every driver (follow the
@@ -223,7 +228,7 @@ export class Awareness {
       if (j === i) continue;
       const gap = this.gap(i, j);
       const dl = this.lateral[j] - me;
-      if (Math.abs(gap) < ALONGSIDE && Math.abs(dl) < SIDE_GAP + 0.5) beside = j;
+      if (Math.abs(gap) < ALONGSIDE && Math.abs(dl) < BESIDE) beside = j;
       // A car in trouble blocks the whole road, except to the car already going by it with TROUBLE_FLANK to spare.
       const width = this.trouble[j] ? (this.passing[i] === j ? TROUBLE_FLANK : HAZARD_LANE) : IN_LANE;
       // Beside its lane now, a car ahead may still sit where the driver's path runs by the time it gets there: the line swings
@@ -266,7 +271,10 @@ export class Awareness {
       const at = pass_clamp(this.cars[i], line, driver.index, base + hold);
       // Squeezed alongside with the nose still behind: the car being passed has come over, so the pass is off.
       const squeezed = gap > 0 && gap < ALONGSIDE && (wait || Math.abs(this.lateral[target] - at) < (this.trouble[target] ? TROUBLE_FLANK : IN_LANE - aggression * PASS_TIGHT));
-      if (gap > -PASS_DONE && gap < PASS_ABORT && !squeezed) {
+      // The player turns in without a look in the mirror: a dive further back than the driver's reach where its line comes over is off for the zone.
+      const shut = diving && target >= this.driven && gap > driver.personality.dive_reach && this.turns_in(target, at);
+      if (shut) this.dive_roll[i] = 0;
+      if (gap > -PASS_DONE && gap < PASS_ABORT && !squeezed && !shut) {
         // Waiting, it follows on its own line: held out on the passed car's flank, the road's edge bends its path tighter than the line.
         driver.hold = wait ? NaN : hold;
         driver.push = 1 + PUSH * aggression;
@@ -315,8 +323,9 @@ export class Awareness {
         return;
       }
     }
-    // A car covering the inside has left the outside open: a bold driver takes it into the braking zone.
-    if (blocker < 0 && cover >= 0 && aggression > OUTSIDE && driver.wary <= 0 && !kicker && !this.trouble[cover] && this.faster(i, cover)) {
+    // A car covering the inside has left the outside open: a bold driver takes it into the braking zone, from the reach a
+    // pass starts at. From as far as it sees one (75 m), the pass was off for the gap on the next tick and on again the tick after.
+    if (blocker < 0 && cover >= 0 && cover_gap < keep + PASS_REACH && aggression > OUTSIDE && driver.wary <= 0 && !kicker && !this.trouble[cover] && this.faster(i, cover)) {
       const outside = -Math.sign(this.lateral[cover]) || 1;
       if (this.side_open(i, cover, outside, lane, room, cover_gap + PASS_WINDOW)) {
         this.passing[i] = cover;
@@ -327,11 +336,18 @@ export class Awareness {
         return;
       }
     }
-    // Ahead of a car alongside, a driver keeps its line: the one behind has to find the room or lift.
-    if (beside >= 0 && !this.trouble[beside] && this.gap(i, beside) < 0 && beside >= this.driven) beside = -1;
+    // Clear ahead of the player alongside by its lead, a driver keeps its line: the one behind has to find the room or lift. Closer, neither has the corner.
+    if (beside >= 0 && !this.trouble[beside] && this.gap(i, beside) < -driver.personality.keep_lead && beside >= this.driven) beside = -1;
+    // Across the road from it, a car alongside is in the way only where the line swings over to its lane: the room is
+    // left from BESIDE_LOOK back, since the line crosses a road faster than a car can be eased off it. Two abreast into
+    // a hairpin, the car on the line turned in on the one at the inside edge (5 m/s hits at the apex).
+    if (beside >= 0 && Math.abs(this.lateral[beside] - me) >= SIDE_GAP + 0.5) {
+      const side = -Math.sign(this.lateral[beside] - me);
+      if (side * this.flank_hold(i, beside, side, SIDE_GAP, BESIDE_LOOK) <= 0) beside = -1;
+    }
     if (beside >= 0) {
       const dl = this.lateral[beside] - me;
-      const at = this.flank_hold(i, beside, -Math.sign(dl) || -1, SIDE_GAP);
+      const at = this.flank_hold(i, beside, -Math.sign(dl) || -1, SIDE_GAP, Math.abs(dl) < SIDE_GAP + 0.5 ? PASS_KEEP : BESIDE_LOOK);
       driver.hold = at;
       // Squeezed against the edge: the car with its nose behind gives the corner up rather than leaning on the other.
       if (Math.abs(base + at) > room && this.gap(i, beside) > 0) this.hold(driver, beside, Math.max(0, this.speed[beside] - YIELD));
@@ -547,16 +563,16 @@ export class Awareness {
   }
 
   /**
-   * Metres off the line that keep driver i `flank` m to `side` of car j over the next PASS_KEEP road points. Where the
+   * Metres off the line that keep driver i `flank` m to `side` of car j over the next `span` road points. Where the
    * line swings to the edge car j is on, the edge holds j and the line closes on it at 2 m/s: held a flank off where j
    * is now, the car alongside followed the line over and took j's road (seed 0).
    */
-  private flank_hold(i: number, j: number, side: number, flank: number): number {
+  private flank_hold(i: number, j: number, side: number, flank: number, span = PASS_KEEP): number {
     const driver = this.drivers[i];
     const { line } = driver;
     const n = line.road.length;
     let hold = this.rel[j] + side * flank;
-    for (let k = LANE_STRIDE; k < PASS_KEEP; k += LANE_STRIDE) {
+    for (let k = LANE_STRIDE; k < span; k += LANE_STRIDE) {
       const at = (driver.index + k) % n;
       const need = this.lane_of(j, line, at) + side * flank - line.offset[at];
       hold = side > 0 ? Math.max(hold, need) : Math.min(hold, need);
@@ -573,6 +589,14 @@ export class Awareness {
       if (gap > -ALONGSIDE && gap < reach && Math.abs(this.lateral[j] - at) < IN_LANE) return false;
     }
     return true;
+  }
+
+  /** Whether car j's lane comes inside IN_LANE of lateral spot `at` (m off the centre) over the next TURN_IN road points. */
+  private turns_in(j: number, at: number): boolean {
+    const { line, index } = this.drivers[j];
+    const n = line.road.length;
+    for (let k = 0; k < TURN_IN; k += LANE_STRIDE) if (Math.abs(this.lane_of(j, line, (index + k) % n) - at) < IN_LANE) return true;
+    return false;
   }
 
   /** Whether road point `index` is still short of `until` (within half a lap). */

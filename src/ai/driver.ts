@@ -57,6 +57,10 @@ export interface Personality {
   brake_margin: number;
   /** 0..1: how tight it passes, how readily it defends. */
   aggression: number;
+  /** Metres behind the player a dive on it holds on when the player turns in; further back, the dive is off. */
+  dive_reach: number;
+  /** Metres ahead of the player alongside past which it keeps its line; closer, it gives the player room. */
+  keep_lead: number;
   /** Chance every SECTOR road points of a mistake: a late brake that runs wide, or a hesitation that costs time. */
   mistakes: number;
 }
@@ -64,7 +68,7 @@ export interface Personality {
 /** Metres off the centre past which a car is off the road: a hazard to the field, and on the clock toward a reset. */
 export const OFF_ROAD = 7;
 
-export const STEADY: Personality = { pace: 1, brake_margin: 0, aggression: 0, mistakes: 0 };
+export const STEADY: Personality = { pace: 1, brake_margin: 0, aggression: 0, dive_reach: 2, keep_lead: 2, mistakes: 0 };
 
 /** How far off the centre (m) a car may go to pass or defend at road point `index`; over a kicker's run, only RAMP_SIDE: posts flank its lip. */
 export const pass_room = (car: Car, line: RaceLine, index: number) => (line.room[index] === 0 ? RAMP_SIDE : ROAD_HALF - car.spec.radius - PASS_EDGE);
@@ -74,6 +78,9 @@ export function pass_clamp(car: Car, line: RaceLine, index: number, lateral: num
   const room = pass_room(car, line, index);
   return Math.max(Math.max(-room, line.lo[index]), Math.min(Math.min(room, line.hi[index]), lateral));
 }
+
+/** Slip angle (rad) past which a car with `CarAi.slide_throttle` drives its slide out. */
+const SLIDE_GAS = 0.06;
 
 const wrap_angle = (a: number) => atan2(sin(a), cos(a));
 const never = () => 1;
@@ -233,10 +240,15 @@ export class Driver {
    */
   lateral_at(car: Car, j: number): number {
     if (!Number.isNaN(this.launch)) return pass_clamp(car, this.line, j, this.launch);
+    return pass_clamp(car, this.line, j, this.line.offset[j] + this.aside_at(car, j));
+  }
+
+  /** Metres off the line its easing has it at road point `j`: `aside` now, moved toward what it eases to by the time it gets there. */
+  private aside_at(car: Car, j: number): number {
     const n = this.line.road.length;
     const ahead = ((j - this.index + n + (n >> 1)) % n) - (n >> 1);
     const move = ahead > 0 ? (LATERAL_RATE * ahead * this.line.step[this.index]) / Math.max(EASE_SPEED, hypot(car.vel.x, car.vel.z)) : 0;
-    return pass_clamp(car, this.line, j, this.line.offset[j] + this.aside + Math.max(-move, Math.min(move, this.easing_to - this.aside)));
+    return this.aside + Math.max(-move, Math.min(move, this.easing_to - this.aside));
   }
 
   // Off the line it plans on the bend of the path it drives, the line shifted and clamped to the road: where the line
@@ -254,9 +266,13 @@ export class Driver {
       const i = (this.index + k) % n;
       const a = (i - CURVE_SPAN + n) % n;
       const c = (i + CURVE_SPAN) % n;
-      const la = this.lateral_at(car, a);
+      // Back onto the line it drifts at LATERAL_RATE, no bend of its own: read along the ramp, the kink where the easing
+      // starts at the car was a bend on top of the line's, and a car let out of its grid lane into the first bend planned
+      // 28 m/s where the line holds 41, the field queued behind it.
+      const drift = this.easing_to === 0 && Number.isNaN(this.launch);
       const li = this.lateral_at(car, i);
-      const lc = this.lateral_at(car, c);
+      const la = drift ? pass_clamp(car, line, a, line.offset[a] + this.aside_at(car, i)) : this.lateral_at(car, a);
+      const lc = drift ? pass_clamp(car, line, c, line.offset[c] + this.aside_at(car, i)) : this.lateral_at(car, c);
       const bend = inverse_radius(road[a].x + road[a].tz * la, road[a].z - road[a].tx * la, road[i].x + road[i].tz * li, road[i].z - road[i].tx * li, road[c].x + road[c].tz * lc, road[c].z - road[c].tx * lc);
       // Onto a kicker's pin the path steps to the centre: no bend to slow for, and a lane braked for it met the lip at 16 m/s (seed 49).
       const pinned = line.room[a] === 0 || line.room[i] === 0 || line.room[c] === 0;
@@ -364,7 +380,8 @@ export class Driver {
     }
     let airborne = true;
     for (let w = 0; w < car.wheels.length; w++) if (car.wheels[w].contact) airborne = false;
-    const slide = speed > 5 ? Math.abs(wrap_angle(atan2(vx, vz) - car.heading)) : 0;
+    const beta = speed > 5 ? wrap_angle(atan2(vx, vz) - car.heading) : 0;
+    const slide = Math.abs(beta);
     const ease = Math.max(0, 1 - slide / AI_TUNING.slide_let_go);
     // The aim steps a road point at a time: its jump read as a rate would kick the wheel to full lock for one step.
     const swing = Number.isNaN(this.last_err) ? 0 : at === this.last_at ? wrap_angle(err - this.last_err) / dt : this.last_swing;
@@ -382,6 +399,13 @@ export class Driver {
     const feed = Math.max(0, decel - COAST_DECEL) / (AI_TUNING.brake_gain * line.scale.brake);
     const pedal = capped ? Math.min(1, feed + (speed - target) / CAP_BRAKE_PER) : Math.min(this.late ? AI_TUNING.late_pedal : AI_TUNING.brake_max, feed + (speed - target) / AI_TUNING.brake_per);
     c.brake = speed > target + (decel > 0 ? 0 : AI_TUNING.brake_slack) ? pedal * turn * ease : 0;
+    // Tail out is the slip against the yaw: the nose turned in past where the car is going. Slip with the yaw is the
+    // catch swinging back, which the gas is not for.
+    const gas = car.spec.ai?.slide_throttle ?? 0;
+    if (gas > 0 && slide > SLIDE_GAS && beta * car.ang.y < 0 && !airborne) {
+      c.throttle = Math.max(c.throttle, gas);
+      c.brake = 0;
+    }
     return c;
   }
 

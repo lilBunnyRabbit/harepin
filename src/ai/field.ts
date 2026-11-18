@@ -87,7 +87,7 @@ export function grid_spot(route: Route, slot: number): { index: number; x: numbe
   return { index, x: p.x + p.tz * side, z: p.z - p.tx * side, heading: atan2(p.tx, p.tz), side };
 }
 
-const level = (table: readonly (readonly [number, number])[], at: number) => table[Math.max(1, Math.min(table.length, Math.round(at))) - 1];
+const level = <T>(table: readonly T[], at: number) => table[Math.max(1, Math.min(table.length, Math.round(at))) - 1];
 
 /** The owner's 1-5 levels one AI car draws its personality in (H5, H6). */
 export interface FieldCar {
@@ -99,11 +99,12 @@ export const LEVEL_3: FieldCar = { aggression: LEVEL, mistakes: LEVEL };
 
 /**
  * A personality per grid slot, drawn from the race seed, so the grid order says nothing about pace. Each car draws
- * inside its own levels' ranges, so a mixed field takes the same draws a field of one level would.
+ * inside its own levels' ranges, so a mixed field takes the same draws a field of one level would. Its room on the player
+ * comes straight from its aggression level, no draw.
  */
 export function field_personalities(seed: number, cars: readonly FieldCar[]): Personality[] {
   const rng = mulberry32(sub(seed, "ai-field"));
-  return cars.map((car) => ({ pace: between(rng, AI_TUNING.pace), brake_margin: between(rng, AI_TUNING.brake_margin), aggression: between(rng, level(AI_TUNING.aggression, car.aggression)), mistakes: between(rng, level(AI_TUNING.mistakes, car.mistakes)) }));
+  return cars.map((car) => ({ pace: between(rng, AI_TUNING.pace), brake_margin: between(rng, AI_TUNING.brake_margin), aggression: between(rng, level(AI_TUNING.aggression, car.aggression)), dive_reach: level(AI_TUNING.dive_reach, car.aggression), keep_lead: level(AI_TUNING.keep_lead, car.aggression), mistakes: between(rng, level(AI_TUNING.mistakes, car.mistakes)) }));
 }
 
 /** `count` cars all on the owner's levels `aggression` and `mistakes`. */
