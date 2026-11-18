@@ -84,8 +84,10 @@ function roadside_kit(): RoadsideKit {
 
 const POST_SPACING = 12;
 
-/** Curbs and posts along circuit `samples` (ascending): all of them on a compact world, one chunk's on a streamed one. */
-export function roadside(world: World, marks: KerbMarks = world.kerbs, kit: RoadsideKit = roadside_kit(), samples: readonly number[] = world.road.map((_, s) => s)): THREE.Group {
+const every_sample = (world: World): number[] => world.road.map((_, s) => s);
+
+/** Curbs along circuit `samples` (ascending): all of them on a compact world, one chunk's on a streamed one. */
+export function curbs(world: World, marks: KerbMarks = world.kerbs, kit: RoadsideKit = roadside_kit(), samples: readonly number[] = every_sample(world)): THREE.Group {
   const group = new THREE.Group();
   const { clear, inside } = marks;
   CURB_TONES.forEach((_, parity) => {
@@ -97,11 +99,16 @@ export function roadside(world: World, marks: KerbMarks = world.kerbs, kit: Road
       if (here.length) group.add(ribbon(world, from, to, 0.12, here, kit.curbs[parity]));
     }
   });
+  return group;
+}
 
-  const spots = samples.filter((s) => s % POST_SPACING === 0 && !clear.has(s));
+/** Marker posts with reflector caps down both sides of circuit `samples`. */
+export function posts(world: World, marks: KerbMarks = world.kerbs, kit: RoadsideKit = roadside_kit(), samples: readonly number[] = every_sample(world)): THREE.Group {
+  const group = new THREE.Group();
+  const spots = samples.filter((s) => s % POST_SPACING === 0 && !marks.clear.has(s));
   if (!spots.length) return group;
   const count = spots.length * 2;
-  const posts = new THREE.InstancedMesh(kit.post, kit.post_material, count);
+  const stems = new THREE.InstancedMesh(kit.post, kit.post_material, count);
   const caps = new THREE.InstancedMesh(kit.cap, kit.cap_material, count);
   const m = new THREE.Matrix4();
   let n = 0;
@@ -112,13 +119,20 @@ export function roadside(world: World, marks: KerbMarks = world.kerbs, kit: Road
       const x = p.x - p.tz * off;
       const z = p.z + p.tx * off;
       m.makeTranslation(x, world.height(x, z), z);
-      posts.setMatrixAt(n, m);
+      stems.setMatrixAt(n, m);
       caps.setMatrixAt(n, m);
       n++;
     }
   }
-  cast_instanced(posts);
-  group.add(posts, caps);
+  cast_instanced(stems);
+  group.add(stems, caps);
+  return group;
+}
+
+/** Curbs and posts along circuit `samples`. */
+export function roadside(world: World, marks: KerbMarks = world.kerbs, kit: RoadsideKit = roadside_kit(), samples: readonly number[] = every_sample(world)): THREE.Group {
+  const group = new THREE.Group();
+  group.add(...curbs(world, marks, kit, samples).children, ...posts(world, marks, kit, samples).children);
   return group;
 }
 
