@@ -3,7 +3,7 @@ import { hypot } from "../sim-math";
 
 /** Metres behind a car its wake reaches, and the share of the follower's drag it takes off on the bumper. */
 const WAKE = 45;
-const TOW = 0.4;
+export const TOW = 0.4;
 /** Metres to the side of the wake's centre the tow holds in full, and where it is gone. */
 const WAKE_CORE = 1.2;
 const WAKE_EDGE = 3.4;

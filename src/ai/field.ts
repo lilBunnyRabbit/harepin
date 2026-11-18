@@ -288,7 +288,7 @@ export class Field {
     if (++this.steps % AWARE_STEPS === 0) {
       for (const { driver } of racers) if (driver.progress >= this.launch_end) driver.launch = NaN;
       this.awareness.update(dt * AWARE_STEPS);
-      slipstream(this.cars);
+      slipstream(this.touching);
       this.recover(dt * AWARE_STEPS);
       this.count_passes();
       this.far();

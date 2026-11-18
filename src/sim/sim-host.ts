@@ -178,6 +178,7 @@ export class SimHost {
     else if (command.type === "field") this.start_field(command);
     else if (command.type === "field_stop") {
       this.field = null;
+      this.car.tow = 0;
       this.field_cars = [];
       this.field_from = [];
     } else if (command.type === "field_seen") {
