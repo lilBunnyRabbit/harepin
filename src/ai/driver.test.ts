@@ -70,6 +70,17 @@ describe("AI driver", () => {
     expect(driver.target).toBeLessThanOrEqual(line.speed[driver.index]);
   });
 
+  test("a car's own kicker pace caps its plan over every kick, under the line's", () => {
+    const world = new World(44);
+    const route = world.routes.find((r) => r.kind === RouteKind.CIRCUIT);
+    if (!route) throw new Error("island seed 44 has no circuit");
+    const line = race_line(route.points, world.ramps, COUPE.radius);
+    const slow = plan_for(line, { ...UNIT_SCALE, jump: 28 });
+    const kicks = [...line.kick.keys()].filter((i) => line.kick[i]);
+    expect(kicks.some((i) => line.speed[i] > 28)).toBe(true);
+    for (const i of kicks) expect(slow.speed[i]).toBeLessThanOrEqual(28);
+  });
+
   /** A driver placed at road point `at` of seed 44's circuit, its car parked there, after one step. */
   function placed(at: (line: ReturnType<typeof race_line>) => number, pace: number, cap = Infinity, ahead_speed = Infinity) {
     const world = new World(44);

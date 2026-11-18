@@ -138,6 +138,8 @@ export interface CarAi {
   slide_throttle?: number;
   /** Share (0-1) of the corner model's raise over the line's own corner speeds the plan takes. Absent is all of it. */
   model?: number;
+  /** m/s the plan takes a kicker at, under the line's own kicker pace: a tall car flown at that pace hits the top bar of a hoop or wall past the lip. Absent is the line's pace. */
+  jump?: number;
 }
 
 // Over the frame alone: a lab result or a measured build keeps its key when only the AI fields move, and every body
@@ -762,6 +764,7 @@ const SAJIN_FRAME: FrameSpec = {
   roll_resist: 2.4,
   offroad: 0.85,
   air_settle: 4,
+  ai: { slow: 1, fast: 1, brake: 1, jump: 28 },
   band: [SAJIN_FLOOR, SAJIN_TOP],
   circles: [1.05, -0.88],
   radius: 1.07,

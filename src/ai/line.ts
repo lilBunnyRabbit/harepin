@@ -131,8 +131,8 @@ function pull_pass(speed: Float64Array, step: Float64Array, bend: Float64Array, 
   }
 }
 
-/** m/s a bend held at `hold` m/s on the flat holds over a crest of `lift` and on a kick: the line's corner speed. */
-function corner_speed(hold: number, lift: number, kick: number): number {
+/** m/s a bend held at `hold` m/s on the flat holds over a crest of `lift` and on a kick, taken at most at `jump`: the line's corner speed. */
+function corner_speed(hold: number, lift: number, kick: number, jump: number): number {
   // Over a crest the car goes light by v² times the road's vertical curvature, and its grip with it: v² = G R / (1 + G R k / g).
   // A 9% climb into a 9% drop in a 200 m bend at 38 m/s took a third of the load, and the field spun there.
   const v2 = hold * hold;
@@ -140,7 +140,7 @@ function corner_speed(hold: number, lift: number, kick: number): number {
   // and landed on a lamp post (seed 30).
   const takeoff = lift > 0 ? Math.sqrt((CREST_HOLD * GRAVITY) / lift) : Infinity;
   // A step across the whole road is taken as a kicker is: at a pace that does not launch the car into what follows.
-  const cap = kick ? JUMP_PACE : Infinity;
+  const cap = kick ? Math.min(JUMP_PACE, jump) : Infinity;
   return Math.min(Math.sqrt(v2 / (1 + Math.min(AI_TUNING.crest_light, (v2 * lift) / GRAVITY))), takeoff, cap);
 }
 
@@ -320,8 +320,8 @@ export function plan_for(line: RaceLine, scale: PlanScale): RaceLine {
   const hold = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     const radius = 1 / Math.max(1e-9, Math.abs(bend[i]));
-    speed[i] = corner_speed(Math.sqrt(grip_at(bend[i], scale) * radius), lift[i], kick[i]);
-    hold[i] = corner_speed(trimmed_hold(radius, car, trim), lift[i], kick[i]);
+    speed[i] = corner_speed(Math.sqrt(grip_at(bend[i], scale) * radius), lift[i], kick[i], scale.jump);
+    hold[i] = corner_speed(trimmed_hold(radius, car, trim), lift[i], kick[i], scale.jump);
   }
   const brake = new Float64Array(n).fill(AI_TUNING.line_brake * scale.brake);
   model_corners(speed, hold, brake, line, scale, car);
