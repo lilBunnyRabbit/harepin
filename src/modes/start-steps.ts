@@ -41,3 +41,19 @@ export class StartSteps {
     this.at = 0;
   }
 }
+
+/** A start with no lamps, on the wall clock: the go is the first frame the countdown is out, so a later lap's fresh run stays quiet. */
+export class StartBeeps {
+  private readonly steps: StartSteps;
+  private go_at = -1;
+
+  constructor(reds: number) {
+    this.steps = new StartSteps(reds);
+  }
+
+  /** `countdown`: ms left before the go; `now`: the wall clock, ms. */
+  next(countdown: number, now: number): Beep | null {
+    if (this.go_at < 0 && countdown <= 0) this.go_at = now;
+    return this.steps.next(countdown, this.go_at < 0 ? -1 : now - this.go_at);
+  }
+}
