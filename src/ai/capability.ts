@@ -143,10 +143,14 @@ export function plan_scale(spec: CarSpec): PlanScale {
 
 export const UNIT_SCALE: PlanScale = plan_scale(COUPE);
 
-/** The car's grip and braking under the plan's `ai` trim: what a plan of `scale` may raise a corner to. */
-export function trimmed(scale: PlanScale): Capability {
+/**
+ * The plan's `ai` trim on the car's own grip and braking, each at most 1: what a plan of `scale` may raise a corner to.
+ * A trim over 1 (the formula's fast 1.074) lifts the line's own grip guess, not what the car holds.
+ */
+export function trim_of(scale: PlanScale): CarAi {
+  const { car } = scale;
   const ref = UNIT_SCALE.car;
-  return { ...scale.car, slow: ref.slow * scale.slow, fast: ref.fast * scale.fast, brake: ref.brake * scale.brake };
+  return { slow: Math.min(1, (ref.slow * scale.slow) / car.slow), fast: Math.min(1, (ref.fast * scale.fast) / car.fast), brake: Math.min(1, (ref.brake * scale.brake) / car.brake) };
 }
 
 /** Every build a field draws on, one per `spec_hash` (bodies on a frame share one), named by every build it covers: what `capability-table.ts` holds. */

@@ -1,4 +1,5 @@
 import type { RaceLine } from "./line";
+import type { CarAi } from "../car/cars";
 import { FAST_AT, SLOW_AT, type Capability } from "./capability";
 import { AI_TUNING } from "./tuning";
 
@@ -84,6 +85,16 @@ export function hold_speed(radius: number, car: Capability): number {
   const per = (car.fast - car.slow) / (FAST_AT * FAST_AT - SLOW_AT * SLOW_AT);
   const base = car.slow - per * SLOW_AT * SLOW_AT;
   return Math.sqrt((radius * base) / (1 - Math.min(DOWNFORCE_HOLD, radius * per)));
+}
+
+/**
+ * `hold_speed` under a grip trim that runs from `trim.slow` at SLOW_AT to `trim.fast` at FAST_AT in speed squared, as
+ * the grip does. Trimming the skidpad figures instead steepens the downforce line and raises the fast bends.
+ */
+export function trimmed_hold(radius: number, car: Capability, trim: CarAi): number {
+  const v = hold_speed(radius, car);
+  const k = Math.max(0, Math.min(1, (v * v - SLOW_AT * SLOW_AT) / (FAST_AT * FAST_AT - SLOW_AT * SLOW_AT)));
+  return v * Math.sqrt(trim.slow + (trim.fast - trim.slow) * k);
 }
 
 type ShapeLine = Pick<RaceLine, "bend" | "step" | "lift" | "kick" | "road">;

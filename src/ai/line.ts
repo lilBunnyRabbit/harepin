@@ -2,8 +2,8 @@ import { GRAVITY } from "../car/rigid-body";
 import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
 import { hazards, type LineGround } from "./hazards";
 import { AI_TUNING } from "./tuning";
-import { trimmed, UNIT_SCALE, type Capability, type PlanScale } from "./capability";
-import { corner_plans, grip_at_speed, hold_speed } from "./corners";
+import { trim_of, UNIT_SCALE, type Capability, type PlanScale } from "./capability";
+import { corner_plans, grip_at_speed, trimmed_hold } from "./corners";
 import { CORNER_MODEL } from "./corner-model";
 import { hypot } from "../sim-math";
 
@@ -175,8 +175,9 @@ function model_corners(speed: Float64Array, hold: Float64Array, brake: Float64Ar
   const pulled = speed.slice();
   pull_pass(pulled, step, bend, scale, car, CORNER_MODEL.pull_bend);
   const floor = AI_TUNING.line_brake * scale.brake;
+  const trim = trim_of(scale).brake;
   plans.forEach((c, k) => {
-    const top = Math.max(floor, c.peak * AI_TUNING.model_brake);
+    const top = Math.max(floor, c.peak * trim * AI_TUNING.model_brake);
     const v = speed[c.apex];
     let at = c.apex;
     let run = 0;
@@ -313,13 +314,14 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
 export function plan_for(line: RaceLine, scale: PlanScale): RaceLine {
   const { bend, lift, kick, step } = line;
   const n = bend.length;
-  const car = trimmed(scale);
+  const car = scale.car;
+  const trim = trim_of(scale);
   const speed = new Float64Array(n);
   const hold = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     const radius = 1 / Math.max(1e-9, Math.abs(bend[i]));
     speed[i] = corner_speed(Math.sqrt(grip_at(bend[i], scale) * radius), lift[i], kick[i]);
-    hold[i] = corner_speed(hold_speed(radius, car), lift[i], kick[i]);
+    hold[i] = corner_speed(trimmed_hold(radius, car, trim), lift[i], kick[i]);
   }
   const brake = new Float64Array(n).fill(AI_TUNING.line_brake * scale.brake);
   model_corners(speed, hold, brake, line, scale, car);
