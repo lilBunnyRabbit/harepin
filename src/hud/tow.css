@@ -5,8 +5,8 @@
   --tow-thick-full: 4px;
 }
 
-/* The fill and the shift flash round their own corners, so the bar needs no clip and the line can sit above it. */
-.rpm:has(.tow-line) {
+/* The fill and the shift flash round their own corners, so the bar needs no clip and the tow line can sit above it. */
+.bottom-right .rpm {
   overflow: visible;
 }
 
