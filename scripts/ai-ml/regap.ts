@@ -3,7 +3,8 @@ import { COUPE, car_spec } from "../../src/car/cars";
 import { World } from "../../src/world/world";
 import { circuits } from "../ai-race";
 import { AI_HASH, read_json, runs_dir, write_json } from "./cache";
-import { corner_run, corner_window, corners, gap_table } from "./corners";
+import { corners } from "../../src/ai/corners";
+import { corner_run, corner_window, gap_table } from "./corners";
 import { ai_lap, oracle_lap, track_of } from "./drive";
 import type { OracleConfig, OracleResult } from "./oracle";
 

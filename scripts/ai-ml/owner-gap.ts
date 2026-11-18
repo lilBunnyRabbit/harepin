@@ -1,5 +1,6 @@
 import type { RaceLine } from "../../src/ai/line";
-import { corner_run, corner_window, corners, gap_tags } from "./corners";
+import { corners } from "../../src/ai/corners";
+import { corner_run, corner_window, gap_tags } from "./corners";
 import type { Trace } from "./drive";
 import type { Flaw, OwnerLap } from "./owner-read";
 
