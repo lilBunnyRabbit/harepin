@@ -2,7 +2,9 @@ import { GRAVITY } from "../car/rigid-body";
 import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
 import { hazards, type LineGround } from "./hazards";
 import { AI_TUNING } from "./tuning";
-import { UNIT_SCALE, type PlanScale } from "./capability";
+import { trim_of, UNIT_SCALE, type Capability, type PlanScale } from "./capability";
+import { corner_plans, grip_at_speed, trimmed_hold } from "./corners";
+import { CORNER_MODEL } from "./corner-model";
 import { hypot } from "../sim-math";
 
 /** Grip (m/s²) the line plans a bend of signed curvature `bend` (1/m) on, for a car of `scale` over the coupe. */
@@ -97,27 +99,97 @@ function along(speed: number, bend: number, scale: PlanScale, load: number): num
 }
 
 /**
- * The speed profile over corner speeds `speed`, in place: backward so every bend ahead can be braked for at `brake`
- * m/s² less what the bend's turning takes of the grip, forward so no exit plans more than `drive_at` gives. Two laps
- * each way, as a curve from the slowest bend wraps past the start line. The forward pass takes no share for the turn:
- * the line corners under the car's real grip, and an exit held to the friction circle had it lifting a second a lap.
- * Over a crest (`lift`) the car is light, and the braking and the circle shrink with its load: braked at the flat's
- * 5 m/s² through a 250 m bend over a crest at 36 m/s, the hatch's tail came round (seeds 4, 15).
+ * Backward over corner speeds `speed`, in place, so every bend ahead can be braked for at `brake[i]` m/s² less what the
+ * bend's turning takes of the grip. Two laps, as a curve from the slowest bend wraps past the start line. Over a crest
+ * (`lift`) the car is light, and the braking and the circle shrink with its load: braked at the flat's 5 m/s² through a
+ * 250 m bend over a crest at 36 m/s, the hatch's tail came round (seeds 4, 15).
  */
-function profile(speed: Float64Array, step: Float64Array, bend: Float64Array, lift: Float64Array, brake: number, scale: PlanScale) {
+function brake_pass(speed: Float64Array, step: Float64Array, bend: Float64Array, lift: Float64Array, brake: Float64Array, scale: PlanScale) {
   const n = speed.length;
   for (let k = 2 * n - 1; k >= 0; k--) {
     const i = wrap(k, n);
     const v = speed[wrap(k + 1, n)];
     const load = 1 - Math.min(AI_TUNING.crest_light, (v * v * lift[i]) / GRAVITY);
-    speed[i] = Math.min(speed[i], Math.sqrt(v * v + 2 * brake * load * along(v, bend[i], scale, load) * step[i]));
+    speed[i] = Math.min(speed[i], Math.sqrt(v * v + 2 * brake[i] * load * along(v, bend[i], scale, load) * step[i]));
   }
+}
+
+/**
+ * Forward, in place, so no exit plans more than `drive_at` gives, less `bend_share` times the square of the share of
+ * the grip the bend takes. The plan takes none: the corner model's fitted `pull_bend` there cost 0.2-0.5% a lap, the
+ * driver lifting to a plan under what it pulls (the full friction circle cost a second). Brake points read it.
+ */
+function pull_pass(speed: Float64Array, step: Float64Array, bend: Float64Array, scale: PlanScale, car: Capability, bend_share: number) {
+  const n = speed.length;
   for (let k = 0; k < 2 * n; k++) {
     const i = wrap(k, n);
     const v = speed[i];
     const next = wrap(k + 1, n);
-    speed[next] = Math.min(speed[next], Math.sqrt(v * v + 2 * drive_at(v, scale) * step[i]));
+    const used = (v * v * Math.abs(bend[i])) / grip_at_speed(v, car);
+    const share = Math.max(GRIP_FLOOR, 1 - bend_share * used * used);
+    speed[next] = Math.min(speed[next], Math.sqrt(v * v + 2 * drive_at(v, scale) * share * step[i]));
   }
+}
+
+/** m/s a bend held at `hold` m/s on the flat holds over a crest of `lift` and on a kick: the line's corner speed. */
+function corner_speed(hold: number, lift: number, kick: number): number {
+  // Over a crest the car goes light by v² times the road's vertical curvature, and its grip with it: v² = G R / (1 + G R k / g).
+  // A 9% climb into a 9% drop in a 200 m bend at 38 m/s took a third of the load, and the field spun there.
+  const v2 = hold * hold;
+  // Under the take-off speed too: braked hard and late, a car met a crest in a 840 m bend at 52 m/s, flew 0.7 s wide
+  // and landed on a lamp post (seed 30).
+  const takeoff = lift > 0 ? Math.sqrt((CREST_HOLD * GRAVITY) / lift) : Infinity;
+  // A step across the whole road is taken as a kicker is: at a pace that does not launch the car into what follows.
+  const cap = kick ? JUMP_PACE : Infinity;
+  return Math.min(Math.sqrt(v2 / (1 + Math.min(AI_TUNING.crest_light, (v2 * lift) / GRAVITY))), takeoff, cap);
+}
+
+/**
+ * Corner speeds and braking from the corner model (`corners.ts`), in place: each corner's apex and exit speed scale the
+ * line's own corner speeds through it, under `hold` (the car's measured grip), and its braking zone plans the m/s² that
+ * puts the brake point where the model has it, between the line's braking and the model's hardest. All times the
+ * `model_pace` and `model_brake` margins; either at 0 leaves its part to the line alone.
+ */
+function model_corners(speed: Float64Array, hold: Float64Array, brake: Float64Array, line: RaceLine, scale: PlanScale, car: Capability) {
+  const { step, bend } = line;
+  const n = speed.length;
+  const plans = corner_plans(line, car, CORNER_MODEL);
+  const base = speed.slice();
+  if (AI_TUNING.model_pace > 0)
+    for (const c of plans) {
+      let low = Infinity;
+      for (let i = c.from; ; i = wrap(i + 1, n)) {
+        low = Math.min(low, base[i]);
+        if (i === c.to) break;
+      }
+      const at_apex = Math.max(1, (Math.min(c.speed, hold[c.apex]) * AI_TUNING.model_pace) / low);
+      const at_exit = Math.max(1, (Math.min(c.exit, hold[c.to]) * AI_TUNING.model_pace) / base[c.to]);
+      const rise = Math.max(1, wrap(c.to - c.apex, n));
+      for (let i = c.from, k = -wrap(c.apex - c.from, n); ; i = wrap(i + 1, n), k++) {
+        const f = k <= 0 ? at_apex : at_apex + ((at_exit - at_apex) * k) / rise;
+        speed[i] = Math.max(base[i], Math.min(base[i] * f, hold[i])) * scale.model + base[i] * (1 - scale.model);
+        if (i === c.to) break;
+      }
+    }
+  if (AI_TUNING.model_brake <= 0) return;
+  const pulled = speed.slice();
+  pull_pass(pulled, step, bend, scale, car, CORNER_MODEL.pull_bend);
+  const floor = AI_TUNING.line_brake * scale.brake;
+  const trim = trim_of(scale).brake;
+  plans.forEach((c, k) => {
+    const top = Math.max(floor, c.peak * trim * AI_TUNING.model_brake);
+    const v = speed[c.apex];
+    let at = c.apex;
+    let run = 0;
+    while (run < c.brake_m) {
+      at = wrap(at - 1, n);
+      run += step[at];
+    }
+    const want = run > 0 ? (pulled[at] ** 2 - v * v) / (2 * run) : top;
+    const decel = Math.max(floor, Math.min(top, want * AI_TUNING.model_brake));
+    const start = plans[wrap(k - 1, plans.length)].to;
+    for (let i = c.apex; i !== start; i = wrap(i - 1, n)) brake[i] = decel * scale.model + floor * (1 - scale.model);
+  });
 }
 
 /** Vertical curvature (1/m) of the road at point i, positive over a crest, 0 in a dip. */
@@ -242,21 +314,22 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
 export function plan_for(line: RaceLine, scale: PlanScale): RaceLine {
   const { bend, lift, kick, step } = line;
   const n = bend.length;
+  const car = scale.car;
+  const trim = trim_of(scale);
   const speed = new Float64Array(n);
+  const hold = new Float64Array(n);
   for (let i = 0; i < n; i++) {
-    // Over a crest the car goes light by v² times the road's vertical curvature, and its grip with it: v² = G R / (1 + G R k / g).
-    // A 9% climb into a 9% drop in a 200 m bend at 38 m/s took a third of the load, and the field spun there.
-    const grip = grip_at(bend[i], scale);
-    const hold = grip / Math.max(1e-9, Math.abs(bend[i]));
-    // Under the take-off speed too: braked hard and late, a car met a crest in a 840 m bend at 52 m/s, flew 0.7 s wide
-    // and landed on a lamp post (seed 30).
-    const takeoff = lift[i] > 0 ? Math.sqrt((CREST_HOLD * GRAVITY) / lift[i]) : Infinity;
-    // A step across the whole road is taken as a kicker is: at a pace that does not launch the car into what follows.
-    const cap = kick[i] ? JUMP_PACE : Infinity;
-    speed[i] = Math.min(Math.sqrt(hold / (1 + Math.min(AI_TUNING.crest_light, (hold * lift[i]) / GRAVITY))), takeoff, cap);
+    const radius = 1 / Math.max(1e-9, Math.abs(bend[i]));
+    speed[i] = corner_speed(Math.sqrt(grip_at(bend[i], scale) * radius), lift[i], kick[i]);
+    hold[i] = corner_speed(trimmed_hold(radius, car, trim), lift[i], kick[i]);
   }
+  const brake = new Float64Array(n).fill(AI_TUNING.line_brake * scale.brake);
+  model_corners(speed, hold, brake, line, scale, car);
   const late = speed.slice();
-  profile(speed, step, bend, lift, AI_TUNING.line_brake * scale.brake, scale);
-  profile(late, step, bend, lift, AI_TUNING.late_brake * scale.brake, scale);
+  const late_brake = brake.map((b) => Math.max(b, AI_TUNING.late_brake * scale.brake));
+  brake_pass(speed, step, bend, lift, brake, scale);
+  pull_pass(speed, step, bend, scale, car, 0);
+  brake_pass(late, step, bend, lift, late_brake, scale);
+  pull_pass(late, step, bend, scale, car, 0);
   return { ...line, speed, late, scale };
 }

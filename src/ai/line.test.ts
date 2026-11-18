@@ -1,6 +1,8 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
-import { drive_at, race_line } from "./line";
+import { drive_at, plan_for, race_line } from "./line";
+import { hold_speed } from "./corners";
+import { UNIT_SCALE } from "./capability";
 import { AI_TUNING } from "./tuning";
 import type { LineGround } from "./hazards";
 import { ROAD_HALF, type RoadPoint } from "../worldgen/types";
@@ -87,6 +89,38 @@ describe("race line", () => {
     expect(woven.kick[at]).toBe(1);
     expect(woven.kick[at + 2]).toBe(1);
     expect(woven.hi[at] - woven.lo[at]).toBe(2 * (ROAD_HALF - 1));
+  });
+
+  test("the corner model only raises the plan, and never past the car's measured grip", () => {
+    const { model_pace, model_brake } = AI_TUNING;
+    AI_TUNING.model_pace = 0;
+    AI_TUNING.model_brake = 0;
+    const plain = plan_for(line, UNIT_SCALE);
+    AI_TUNING.model_pace = model_pace;
+    AI_TUNING.model_brake = model_brake;
+    const modelled = plan_for(line, UNIT_SCALE);
+    for (let i = 0; i < road.length; i++) {
+      expect(modelled.speed[i]).toBeGreaterThanOrEqual(plain.speed[i] - 1e-9);
+      const radius = 1 / Math.max(1e-9, Math.abs(line.bend[i]));
+      expect(modelled.speed[i]).toBeLessThanOrEqual(Math.max(plain.speed[i], hold_speed(radius, UNIT_SCALE.car)) + 1e-9);
+    }
+  });
+
+  test("a car's model share takes that share of the raise: none plans as the line alone, half plans between", () => {
+    const { model_pace, model_brake } = AI_TUNING;
+    AI_TUNING.model_pace = 0;
+    AI_TUNING.model_brake = 0;
+    const plain = plan_for(line, UNIT_SCALE);
+    AI_TUNING.model_pace = model_pace;
+    AI_TUNING.model_brake = model_brake;
+    const full = plan_for(line, UNIT_SCALE);
+    const none = plan_for(line, { ...UNIT_SCALE, model: 0 });
+    const half = plan_for(line, { ...UNIT_SCALE, model: 0.5 });
+    expect(Array.from(none.speed)).toEqual(Array.from(plain.speed));
+    for (let i = 0; i < road.length; i++) {
+      expect(half.speed[i]).toBeGreaterThanOrEqual(plain.speed[i] - 1e-9);
+      expect(half.speed[i]).toBeLessThanOrEqual(full.speed[i] + 1e-9);
+    }
   });
 
   test("a solid on the road holds the line a car's width off it", () => {

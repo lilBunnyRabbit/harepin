@@ -18,14 +18,18 @@ export interface Capability {
   power: number;
 }
 
-export type PlanScale = Capability;
+/** A car's limits over the stock coupe's, its `ai` trim on the grip and braking, and the car's own untrimmed `car`. */
+export interface PlanScale extends Capability {
+  car: Capability;
+  /** The car's `ai.model`: the share of the corner model's raise its plan takes. */
+  model: number;
+}
 
-export const UNIT_SCALE: PlanScale = { slow: 1, fast: 1, brake: 1, drive: 1, power: 1 };
 const NO_TRIM: CarAi = { slow: 1, fast: 1, brake: 1 };
 
 const DT = 1 / 360;
-const SLOW_AT = 13;
-const FAST_AT = 25;
+export const SLOW_AT = 13;
+export const FAST_AT = 25;
 const BRAKE_FROM = 30;
 const BRAKE_TO = 10;
 const DRIVE_BAND = [5, 20] as const;
@@ -136,7 +140,19 @@ export function plan_scale(spec: CarSpec): PlanScale {
   const car = capability(spec);
   const ref = capability(COUPE);
   const ai = spec.ai ?? NO_TRIM;
-  return { slow: (car.slow / ref.slow) * ai.slow, fast: (car.fast / ref.fast) * ai.fast, brake: (car.brake / ref.brake) * ai.brake, drive: car.drive / ref.drive, power: car.power / ref.power };
+  return { slow: (car.slow / ref.slow) * ai.slow, fast: (car.fast / ref.fast) * ai.fast, brake: (car.brake / ref.brake) * ai.brake, drive: car.drive / ref.drive, power: car.power / ref.power, car, model: ai.model ?? 1 };
+}
+
+export const UNIT_SCALE: PlanScale = plan_scale(COUPE);
+
+/**
+ * The plan's `ai` trim on the car's own grip and braking, each at most 1: what a plan of `scale` may raise a corner to.
+ * A trim over 1 (the formula's fast 1.074) lifts the line's own grip guess, not what the car holds.
+ */
+export function trim_of(scale: PlanScale): CarAi {
+  const { car } = scale;
+  const ref = UNIT_SCALE.car;
+  return { slow: Math.min(1, (ref.slow * scale.slow) / car.slow), fast: Math.min(1, (ref.fast * scale.fast) / car.fast), brake: Math.min(1, (ref.brake * scale.brake) / car.brake) };
 }
 
 /** Every build a field draws on, one per `spec_hash` (bodies on a frame share one), named by every build it covers: what `capability-table.ts` holds. */

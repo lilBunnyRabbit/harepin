@@ -18,6 +18,12 @@ export interface AiTuning {
   /** Braking (m/s²) a driver diving down the inside plans on: it brakes later and harder than the line, into the apex. At 9.1 a dive that touched its car spun. It is also the most any driver carries into a bend, over its pace: at 9 over a line of 8.5, late brakers ran the coupe wide and off the road for seconds. */
   late_brake: number;
   /**
+   * Safety margins on the corner model (`corners.ts`, learned from the oracle): the share of its apex and exit speeds,
+   * each held under the car's measured grip, and of its braking, the line plans on.
+   */
+  model_pace: number;
+  model_brake: number;
+  /**
    * Traction (m/s²) and power (m²/s³: acceleration times speed) the line's forward pass lets a car pull out of a bend
    * with. The coupe pulls 5.5 to 30 m/s and 3.4 at 37; with margin, so no car on full throttle runs ahead of its plan.
    */
@@ -74,6 +80,8 @@ export const AI_TUNING: AiTuning = {
   fast_grip: 8.6,
   line_brake: 8,
   late_brake: 8.5,
+  model_pace: 1,
+  model_brake: 0.8,
   line_drive: 6.5,
   line_power: 140,
   crest_light: 0.5,
