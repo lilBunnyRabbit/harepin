@@ -37,7 +37,8 @@
 
   :root body:has(#race-panel:not([hidden])) :is(#mode-status, #strip) {
     position-anchor: --race-panel;
-    top: calc((anchor(bottom) + var(--space-2)) / var(--hud-scale, 1));
+    /* zoom scales the gap but not anchor(), which is already in page px. */
+    top: calc(anchor(bottom) + var(--space-2) / var(--hud-scale, 1));
   }
 
   :root #mode-status {
