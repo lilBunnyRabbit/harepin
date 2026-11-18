@@ -1,9 +1,11 @@
 <script lang="ts">
   import { CHANGELOG, type Release } from "../changelog";
   import { newer_releases, type VersionInfo } from "../version";
+  import ReleaseHero from "./ReleaseHero.svelte";
   import ReleaseNotes from "./ReleaseNotes.svelte";
-  import ReleaseStories from "./ReleaseStories.svelte";
   import ReleaseStory from "./ReleaseStory.svelte";
+  import ReleaseTimeline from "./ReleaseTimeline.svelte";
+  import { timeline_of } from "./release-days";
   import { story_of } from "./release-story";
   import Button from "./ui/Button.svelte";
   import Card from "./ui/Card.svelte";
@@ -14,14 +16,17 @@
     build: VersionInfo;
     onapply: () => void;
     releases?: readonly Release[];
+    /** The version the player ran before this boot: newer releases are marked as new since then. */
+    seen?: string | null;
+    now?: Date;
   }
 
-  let { view, build, onapply, releases = CHANGELOG }: Props = $props();
+  let { view, build, onapply, releases = CHANGELOG, seen = null, now = new Date() }: Props = $props();
 
   const reading = $derived(releases.find((release) => release.version === view.reading));
   const story = $derived(reading ? story_of(reading) : null);
-  // The page leads with the build the player has: its notes come first unless it is a big update, whose story card does.
-  const newest = $derived(releases[0] && !story_of(releases[0]) ? releases[0] : null);
+  const timeline = $derived(timeline_of(releases, seen, build.version));
+  const open = (version: string) => (view.reading = version);
   const fresh = $derived(view.pending?.remote ? newer_releases(view.pending.remote.notes, build.version) : []);
 </script>
 
@@ -46,10 +51,10 @@
       </div>
       <ReleaseStory release={reading} {story} />
     {:else}
-      <p class="changelog-build">You have v{build.version} · {build.commit}</p>
-      {#if newest}<ReleaseNotes release={newest} />{/if}
-      <ReleaseStories {releases} onopen={(version) => (view.reading = version)} />
-      {#each newest ? releases.slice(1) : releases as release (release.version)}<ReleaseNotes {release} />{/each}
+      {#if timeline.latest}
+        <ReleaseHero release={timeline.latest} story={story_of(timeline.latest)} fresh={timeline.fresh.has(timeline.latest.version)} {now} onopen={open} />
+      {/if}
+      <ReleaseTimeline {timeline} {now} onopen={open} />
     {/if}
   </div>
 </div>
@@ -57,6 +62,7 @@
 <style>
   .changelog-page {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--pad);
     font-size: var(--type-body);
   }
@@ -90,6 +96,7 @@
 
   .changelog {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: calc(2 * var(--gap-md));
     padding: var(--gap-sm) var(--gap) var(--gap);
     border-radius: var(--radius-md);
@@ -102,12 +109,5 @@
 
   .changelog-back {
     display: flex;
-  }
-
-  .changelog-build {
-    margin: 0;
-    color: var(--dim);
-    font-family: var(--font-mono);
-    font-size: var(--type-eyebrow);
   }
 </style>

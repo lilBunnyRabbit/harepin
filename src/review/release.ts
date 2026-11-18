@@ -27,10 +27,10 @@ const target = document.createElement("div");
 target.className = "review-release";
 document.body.append(target);
 const story = story_of(release);
-const wanted = new URLSearchParams(location.search).get(RELEASE_PARAM);
-// The Updates page with two stories on it: the draft's, and the same story on an older release for the list below it.
-const releases = [release, { ...CHANGELOG[1], highlights: DRAFT_HIGHLIGHTS }, ...CHANGELOG.slice(2)];
+const params = new URLSearchParams(location.search);
+const wanted = params.get(RELEASE_PARAM);
+// The Updates page on the real log; `?seen=<version>` marks what came after it.
 if (wanted === "page" && story) mount(ReleaseStory, { target, props: { release, story } });
-else if (wanted === "updates") mount(Changelog, { target, props: { view: new UpdateView(), build: { version: release.version, commit: "review", built: 0 }, onapply: () => undefined, releases } });
+else if (wanted === "updates") mount(Changelog, { target, props: { view: new UpdateView(), build: { version: CHANGELOG[0].version, commit: "review", built: 0 }, onapply: () => undefined, seen: params.get("seen") } });
 else mount(UpdatedCard, { target, props: { version: release.version, since: "From v0.41.0", releases: [release], onnotes: () => undefined, onclosed: () => undefined } });
 root.dataset.review = "shown";

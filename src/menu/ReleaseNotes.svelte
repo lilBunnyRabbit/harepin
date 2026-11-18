@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Release } from "../changelog";
-  import KindBadge from "./KindBadge.svelte";
+  import ChangeList from "./ChangeList.svelte";
   import Badge from "./ui/Badge.svelte";
 
   interface Props {
@@ -18,14 +18,7 @@
     {#if fresh}<Badge tone="primary">New</Badge>{/if}
     <time class="release-date" datetime={release.date}>{release.date}</time>
   </p>
-  <ul class="release-changes">
-    {#each release.changes as change, index (index)}
-      <li>
-        <span class="release-kind"><KindBadge kind={change.kind} /></span>
-        <span>{change.text}</span>
-      </li>
-    {/each}
-  </ul>
+  <ChangeList changes={release.changes} />
 </section>
 
 <style>
@@ -56,28 +49,5 @@
     color: var(--dim);
     font-family: var(--font-mono);
     font-size: var(--type-eyebrow);
-  }
-
-  .release-changes {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: var(--gap-md);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  li {
-    display: grid;
-    grid-column: 1 / -1;
-    grid-template-columns: subgrid;
-    align-items: baseline;
-    gap: var(--gap-md);
-    line-height: 1.45;
-    text-wrap: pretty;
-  }
-
-  .release-kind {
-    display: flex;
   }
 </style>
