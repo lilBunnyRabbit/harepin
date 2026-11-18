@@ -21,6 +21,8 @@ export interface Capability {
 /** A car's limits over the stock coupe's, its `ai` trim on the grip and braking, and the car's own untrimmed `car`. */
 export interface PlanScale extends Capability {
   car: Capability;
+  /** The car's `ai.model`: the share of the corner model's raise its plan takes. */
+  model: number;
 }
 
 const NO_TRIM: CarAi = { slow: 1, fast: 1, brake: 1 };
@@ -138,7 +140,7 @@ export function plan_scale(spec: CarSpec): PlanScale {
   const car = capability(spec);
   const ref = capability(COUPE);
   const ai = spec.ai ?? NO_TRIM;
-  return { slow: (car.slow / ref.slow) * ai.slow, fast: (car.fast / ref.fast) * ai.fast, brake: (car.brake / ref.brake) * ai.brake, drive: car.drive / ref.drive, power: car.power / ref.power, car };
+  return { slow: (car.slow / ref.slow) * ai.slow, fast: (car.fast / ref.fast) * ai.fast, brake: (car.brake / ref.brake) * ai.brake, drive: car.drive / ref.drive, power: car.power / ref.power, car, model: ai.model ?? 1 };
 }
 
 export const UNIT_SCALE: PlanScale = plan_scale(COUPE);

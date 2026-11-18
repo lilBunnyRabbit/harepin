@@ -106,6 +106,23 @@ describe("race line", () => {
     }
   });
 
+  test("a car's model share takes that share of the raise: none plans as the line alone, half plans between", () => {
+    const { model_pace, model_brake } = AI_TUNING;
+    AI_TUNING.model_pace = 0;
+    AI_TUNING.model_brake = 0;
+    const plain = plan_for(line, UNIT_SCALE);
+    AI_TUNING.model_pace = model_pace;
+    AI_TUNING.model_brake = model_brake;
+    const full = plan_for(line, UNIT_SCALE);
+    const none = plan_for(line, { ...UNIT_SCALE, model: 0 });
+    const half = plan_for(line, { ...UNIT_SCALE, model: 0.5 });
+    expect(Array.from(none.speed)).toEqual(Array.from(plain.speed));
+    for (let i = 0; i < road.length; i++) {
+      expect(half.speed[i]).toBeGreaterThanOrEqual(plain.speed[i] - 1e-9);
+      expect(half.speed[i]).toBeLessThanOrEqual(full.speed[i] + 1e-9);
+    }
+  });
+
   test("a solid on the road holds the line a car's width off it", () => {
     const post = { x: 30 + side * 3.5, z: 100 };
     const ground: LineGround = { ...flat, touches: (car, gap) => (Math.hypot(car.pos.x - post.x, car.pos.z - post.z) < car.spec.radius + 0.3 + gap ? 1 : 0) };

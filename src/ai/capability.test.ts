@@ -28,7 +28,7 @@ describe("car capability", () => {
     expect(formula.slow).toBeGreaterThan(1);
     expect(formula.brake).toBeGreaterThan(1);
     const bus = plan_scale(CARS.bus);
-    for (const [k, v] of Object.entries(bus)) if (k !== "car") expect(v).toBeLessThan(1);
+    for (const [k, v] of Object.entries(bus)) if (k !== "car" && k !== "model") expect(v).toBeLessThan(1);
   });
 
   test("better tyres on the same car measure more grip", () => {

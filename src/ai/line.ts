@@ -167,7 +167,7 @@ function model_corners(speed: Float64Array, hold: Float64Array, brake: Float64Ar
       const rise = Math.max(1, wrap(c.to - c.apex, n));
       for (let i = c.from, k = -wrap(c.apex - c.from, n); ; i = wrap(i + 1, n), k++) {
         const f = k <= 0 ? at_apex : at_apex + ((at_exit - at_apex) * k) / rise;
-        speed[i] = Math.max(base[i], Math.min(base[i] * f, hold[i]));
+        speed[i] = Math.max(base[i], Math.min(base[i] * f, hold[i])) * scale.model + base[i] * (1 - scale.model);
         if (i === c.to) break;
       }
     }
@@ -188,7 +188,7 @@ function model_corners(speed: Float64Array, hold: Float64Array, brake: Float64Ar
     const want = run > 0 ? (pulled[at] ** 2 - v * v) / (2 * run) : top;
     const decel = Math.max(floor, Math.min(top, want * AI_TUNING.model_brake));
     const start = plans[wrap(k - 1, plans.length)].to;
-    for (let i = c.apex; i !== start; i = wrap(i - 1, n)) brake[i] = decel;
+    for (let i = c.apex; i !== start; i = wrap(i - 1, n)) brake[i] = decel * scale.model + floor * (1 - scale.model);
   });
 }
 

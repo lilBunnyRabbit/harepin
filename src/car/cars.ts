@@ -136,6 +136,8 @@ export interface CarAi {
   brake: number;
   /** Throttle (0-1) the line driver holds, off the brake, while the tail is out: a front-drive car pulls its lift-off slide straight, a driven rear spins on it. Absent is none. */
   slide_throttle?: number;
+  /** Share (0-1) of the corner model's raise over the line's own corner speeds the plan takes. Absent is all of it. */
+  model?: number;
 }
 
 // Over the frame alone: a lab result or a measured build keeps its key when only the AI fields move, and every body
@@ -323,7 +325,7 @@ const MUSCLE_FRAME: FrameSpec = {
 
 const RALLY_FRAME: FrameSpec = {
   ...COUPE_FRAME,
-  ai: { slow: 0.9274, fast: 0.9377, brake: 0.951 },
+  ai: { slow: 0.9274, fast: 0.9377, brake: 0.951, model: 0.25 },
   mass: 1300,
   inertia: [2250, 2100, 560],
   drive: "awd",
