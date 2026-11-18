@@ -1,5 +1,5 @@
 /// <reference types="bun" />
-import { afterAll, describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, spyOn, test } from "bun:test";
 import { Car, type Controls } from "../car/car";
 import { COUPE, RALLY } from "../car/cars";
 import { personalities } from "../ai/field";
@@ -8,9 +8,9 @@ import { WorldJournal } from "../world/world-journal";
 import { generate } from "../worldgen/index";
 import { slice_tiles } from "../worldgen/tiles";
 import { RouteKind } from "../worldgen/types";
-import { LocalSim, open_sim_worker, WorkerSim } from "./sim-client";
+import { LocalSim, open_sim_worker, start_sim, WorkerSim, type SimPort } from "./sim-client";
 import { FrameKind, SimHost, type FrameRequest, type SimCommand } from "./sim-host";
-import { packet_size, read_packet, write_packet } from "./sim-packet";
+import { packet_size, read_packet, write_packet, type SimRequest } from "./sim-packet";
 
 const SEED = 1;
 const FIELD = 6;
@@ -121,7 +121,7 @@ describe("nitro and the AI field", () => {
 });
 
 describe("sim worker", () => {
-  const workers: Worker[] = [];
+  const workers: SimPort[] = [];
   afterAll(() => {
     for (const w of workers) w.terminate();
   });
@@ -188,4 +188,120 @@ describe("sim worker", () => {
     expect(Math.max(...progress.slice(0, FIELD))).toBeGreaterThan(50);
     expect(local.car.spec.id).toBe(RALLY.id);
   }, 60_000);
+});
+
+/** Steps a host on its own world as the sim worker does, replying in the same task; from frame `fail_at` on it errors or goes silent. */
+class FailingWorker extends EventTarget {
+  terminated = false;
+  private host: SimHost | null = null;
+  private frames = 0;
+
+  constructor(
+    private readonly fail_at: number,
+    private readonly how: "error" | "silent",
+  ) {
+    super();
+  }
+
+  postMessage(request: SimRequest) {
+    if (request.type === "init") {
+      this.host = new SimHost(new World(request.seed, structuredClone(request.plan), undefined, request.levels), request.spec);
+      return;
+    }
+    if (!this.host) throw new Error("a frame before init");
+    if (this.frames++ >= this.fail_at) {
+      if (this.how === "error") this.dispatchEvent(new ErrorEvent("error", { message: "boom" }));
+      return;
+    }
+    for (const command of request.commands) this.host.apply(command);
+    const frame = this.host.frame(request.frame);
+    const out = new Float64Array(packet_size(this.host.car, this.host.field_cars));
+    write_packet(out, request.epoch, frame, this.host.car, this.host.from, this.host.field_cars, this.host.field_from, this.host.field_progress);
+    this.dispatchEvent(new MessageEvent("message", { data: out }));
+  }
+
+  terminate() {
+    this.terminated = true;
+  }
+}
+
+describe("sim worker failure", () => {
+  const data = generate(SEED);
+  const gas: Controls = { steer: 0, throttle: 1, brake: 0, handbrake: 0, analog: true };
+  const step = (k: number): FrameRequest => ({ kind: FrameKind.STEP, steps: 6, controls: gas, now: (k * 1000) / 60, blend: 0, peers: [] });
+
+  function failing(fail_at: number, how: "error" | "silent") {
+    const world = new World(SEED, data);
+    world.journal = new WorldJournal();
+    const worker = new FailingWorker(fail_at, how);
+    const sim = WorkerSim.start(worker, world, data, world.journal, COUPE, { ms: 0, frames: 5 });
+    const p = world.road[world.clear_spawn(0)];
+    sim.send({ type: "park", x: p.x, z: p.z, heading: Math.atan2(p.tx, p.tz) });
+    return { world, worker, sim };
+  }
+
+  function drive(sim: WorkerSim, from: number, frames: number): number[] {
+    const moved: number[] = [];
+    for (let k = from; k < from + frames; k++) {
+      const before = sim.car.pos.clone();
+      sim.frame(step(k));
+      moved.push(before.distanceTo(sim.car.pos));
+    }
+    return moved;
+  }
+
+  test.each(["error", "silent"] as const)("a worker that turns %s mid-drive hands the car to main, which drives on from where it stood", (how) => {
+    const { world, worker, sim } = failing(60, how);
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    const before = drive(sim, 0, 60);
+    expect(sim.on_main).toBe(false);
+    const mirror = sim.car;
+    const after = drive(sim, 60, 60);
+    const warned = warn.mock.calls.length;
+    warn.mockRestore();
+    expect(sim.on_main).toBe(true);
+    expect(sim.car).toBe(mirror);
+    expect(worker.terminated).toBe(true);
+    expect(world.journal).toBeNull();
+    expect(warned).toBe(1);
+    const pace = Math.max(...before.slice(-10));
+    expect(pace).toBeGreaterThan(0.05);
+    expect(Math.max(...after.slice(0, 10))).toBeLessThan(pace * 1.5);
+    expect(after.slice(-10).every((m) => m > pace * 0.5)).toBe(true);
+  });
+
+  test("an AI field running when the worker fails starts again from its grid on main, and main hears so", async () => {
+    const { world, sim } = failing(80, "error");
+    const route = world.routes.find((r) => r.kind === RouteKind.CIRCUIT);
+    if (!route) throw new Error(`seed ${SEED} has no circuit`);
+    world.place(route.closure);
+    sim.send({ type: "field", route: route.id, specs: [COUPE, COUPE], traits: personalities(SEED, 2), seed: SEED, laps: 2 });
+    const heard: boolean[] = [];
+    sim.on_fall_back = (field) => heard.push(field);
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    drive(sim, 0, 120);
+    warn.mockRestore();
+    await Promise.resolve();
+    expect(heard).toEqual([true]);
+    expect(sim.field_cars).toHaveLength(2);
+    expect([...sim.field_progress].every(Number.isFinite)).toBe(true);
+  });
+
+  test("a worker refused or silent at start leaves the sim on main, and the world keeps no journal", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    const refused = await open_sim_worker(() => {
+      throw new Error("refused");
+    });
+    const silent = new FailingWorker(0, "silent");
+    const quiet = await open_sim_worker(() => silent, 10);
+    warn.mockRestore();
+    expect(refused).toBeNull();
+    expect(quiet).toBeNull();
+    expect(silent.terminated).toBe(true);
+    const world = new World(SEED, data);
+    world.journal = new WorldJournal();
+    const sim = start_sim(quiet, world, data, world.journal, COUPE);
+    expect(sim).toBeInstanceOf(LocalSim);
+    expect(world.journal).toBeNull();
+  });
 });

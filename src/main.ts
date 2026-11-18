@@ -112,8 +112,8 @@ import { show_pause, type PauseAct } from "./hud/pause-view.svelte";
 import { map_name, short_name } from "./worlds/map-name";
 import { StuckPrompt } from "./hud/stuck-prompt";
 import { pushing } from "./hud/stuck";
-import { LocalSim, open_sim_worker, SIM_MAIN_PARAM, WorkerSim, type Sim } from "./sim/sim-client";
-import { DT, FrameKind, SimHost, type FrameRequest } from "./sim/sim-host";
+import { LocalSim, open_sim_worker, SIM_MAIN_PARAM, start_sim, WorkerSim } from "./sim/sim-client";
+import { DT, FrameKind, type FrameRequest } from "./sim/sim-host";
 import { WorldJournal } from "./world/world-journal";
 import { AI_CARS, AI_CARS_PARAM, AI_RACE_PARAM, FieldView } from "./ai/field-view";
 import { LEVEL_3 } from "./ai/field";
@@ -270,9 +270,7 @@ const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
 const race = new Race(world, local_store());
 const worker = await sim_worker;
-// Unread, the journal would hold every chunk op for the session.
-if (!worker) world.journal = null;
-const sim: Sim = worker && journal ? WorkerSim.start(worker, world, stream.plan, journal, build_spec(build)) : new LocalSim(new SimHost(world, build_spec(build)));
+const sim = start_sim(worker, world, stream.plan, journal, build_spec(build));
 const driver = new Driver(scene, light, world, race, sim, chase, build);
 driver.arrive = (x, z) => area_fade.cover(world.tiles.ensure(x, z));
 if (review) review.place = (index) => driver.place_road(index);
@@ -564,6 +562,7 @@ if (ai_race) {
   const cars = Math.max(1, Math.min(AI_CARS, Math.trunc(Number(params.get(AI_CARS_PARAM))) || AI_CARS));
   modes.field_host = { sim, build: () => garage.build, rating: () => rating(garage.build), autopilot: params.has(AI_DRIVE_PARAM), cars: Array.from({ length: cars }, () => LEVEL_3), difficulty: () => settings.state.ai_difficulty };
 }
+if (sim instanceof WorkerSim) sim.on_fall_back = (field) => field && modes.active && modes.restart();
 modes.start();
 modes.result_next.mount($("mode-result"));
 chat.enter_taken = () => modes.result_up;
