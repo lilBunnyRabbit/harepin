@@ -7,6 +7,7 @@ import { GRAVITY } from "../../src/car/rigid-body";
 import { World } from "../../src/world/world";
 import { circuits } from "../ai-race";
 import { read_json } from "./cache";
+import { place_of, world_data } from "./worlds";
 import { corner_run, corner_window, type CornerRun } from "./corners";
 import { ai_lap, oracle_lap, track_of, type Trace } from "./drive";
 import type { OracleConfig, OracleResult } from "./oracle";
@@ -114,7 +115,7 @@ function rows_of(path: string): { rows: CornerRow[]; pull: PullSample[] } {
   if (result?.kind !== "oracle" || !result.oracle.clean) return { rows: [], pull: [] };
   const state = read_json<{ config: OracleConfig; best: { x: number[] } }>(path.replace(/\.result\.json$/, ".json"));
   const { config } = result;
-  const world = new World(config.seed);
+  const world = new World(config.seed, world_data(config.seed, config.world));
   const route = circuits(world).find((r) => r.id === config.route);
   if (!route) throw new Error(`seed ${config.seed} has no circuit ${config.route}`);
   world.place(route.closure);
@@ -146,7 +147,7 @@ function rows_of(path: string): { rows: CornerRow[]; pull: PullSample[] } {
       if (i === c.to) break;
     }
     rows.push({
-      track: `${config.seed}/${config.route}`,
+      track: `${place_of(config.seed, config.world)}/${config.route}`,
       car: config.car,
       oracle_name: result.name,
       replayed,
@@ -175,7 +176,7 @@ if (import.meta.main) {
   for (const file of files) {
     const r = read_json<OracleResult>(file);
     if (r?.kind !== "oracle" || !r.oracle.clean || r.config.assists === false) continue;
-    const key = `${r.config.car}/${r.config.seed}/${r.config.route}`;
+    const key = `${r.config.car}/${place_of(r.config.seed, r.config.world)}/${r.config.route}`;
     if ((seen.get(key)?.t ?? Infinity) > r.oracle.t) seen.set(key, { file, t: r.oracle.t });
   }
   const picked = [...seen.values()].map((s) => s.file).sort();

@@ -10,7 +10,7 @@ import type { Route } from "../../src/worldgen/types";
 import { DT } from "../autolap";
 import { closure, read_json } from "./cache";
 import type { OracleResult } from "./oracle";
-import { WORLDGEN_HASH } from "./worlds";
+import { place_of, WORLDGEN_HASH } from "./worlds";
 
 const LAP_LIMIT = 400;
 /** Road points before the line where a lap ends, as `ai-race.ts solo` and the oracle's lap end it. */
@@ -69,7 +69,7 @@ export function oracle_laps(dir = ORACLE_DIR): Map<string, number> {
   for (const name of names) {
     const r = read_json<OracleResult>(`${dir}/${name}`);
     if (r?.pace !== PACE_HASH || !r.oracle.clean || r.config.assists === false || !Number.isFinite(r.oracle.t)) continue;
-    const key = `${r.config.seed}/${r.config.route}/${r.config.car}`;
+    const key = `${place_of(r.config.seed, r.config.world)}/${r.config.route}/${r.config.car}`;
     best.set(key, Math.min(best.get(key) ?? Infinity, r.oracle.t));
   }
   return best;

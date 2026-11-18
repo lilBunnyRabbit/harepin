@@ -1,6 +1,7 @@
 import { availableParallelism } from "node:os";
 import { writeFileSync } from "node:fs";
 import { World } from "../../src/world/world";
+import type { WorldKind } from "../../src/worldgen/types";
 import { race_line } from "../../src/ai/line";
 import { COUPE, car_spec } from "../../src/car/cars";
 import { circuits } from "../ai-race";
@@ -13,6 +14,7 @@ import { unit_init, knot_count, type LapResult } from "./drive";
 import { PACE_HASH } from "./pace";
 import { rank, step } from "./rank";
 import type { MlJob, MlResult } from "./worker";
+import { world_data } from "./worlds";
 
 // bun scripts/ai-ml/oracle.ts <config.json> [--jobs n]: the fastest clean lap one car finds on one island circuit when
 // every limit is searched (drive.ts), by separable CMA-ES. Resumes from .ai-ml/<hash>/oracle/<name>.json; at the end
@@ -22,6 +24,8 @@ export interface OracleConfig {
   kind: "oracle";
   name: string;
   seed: number;
+  /** The kind of world the circuit is on; absent, the island. */
+  world?: WorldKind;
   route: string;
   car: string;
   /** Road points (about 2 m each) between knots. */
@@ -76,14 +80,14 @@ export async function run_oracle(path: string, jobs: number) {
     if (r.type !== "lap") throw new Error("expected a lap");
     return r.lap;
   };
-  const base = { seed: config.seed, route: config.route, car: config.car, assists: config.assists !== false };
+  const base = { seed: config.seed, world: config.world, route: config.route, car: config.car, assists: config.assists !== false };
   let state = read_json<State>(state_path);
   if (state && (state.hash !== AI_HASH || JSON.stringify({ ...state.config, gens: 0 }) !== JSON.stringify({ ...config, gens: 0 }))) throw new Error(`${state_path} was started on other code or config; rename the experiment`);
   if (!state) {
-    const [auto] = await pool.run([{ type: "auto", id: "auto", seed: config.seed }]);
+    const [auto] = await pool.run([{ type: "auto", id: "auto", seed: config.seed, world: config.world }]);
     if (auto.type !== "auto" || !(config.route in auto.laps)) throw new Error(`no autolap for ${config.route}`);
     const ai = await lap({ type: "ai_lap", id: "ai", ...base, values: {}, limit: SOLO_LIMIT });
-    const world = new World(config.seed);
+    const world = new World(config.seed, world_data(config.seed, config.world));
     const route = circuits(world).find((r) => r.id === config.route);
     if (!route) throw new Error(`seed ${config.seed} has no circuit ${config.route}`);
     const line = race_line(route.points, world.ramps, (config.car === COUPE.id ? COUPE : car_spec(config.car)).radius, world);
@@ -116,7 +120,7 @@ export async function run_oracle(path: string, jobs: number) {
   const ai = await lap({ type: "ai_lap", id: "ai", ...base, values: {}, limit: SOLO_LIMIT });
   pool.stop();
   if (!oracle.trace || !ai.trace) throw new Error("no trace");
-  const world = new World(config.seed);
+  const world = new World(config.seed, world_data(config.seed, config.world));
   const route = circuits(world).find((r) => r.id === config.route);
   if (!route) throw new Error(`no circuit ${config.route}`);
   const line = race_line(route.points, world.ramps, (config.car === COUPE.id ? COUPE : car_spec(config.car)).radius, world);
