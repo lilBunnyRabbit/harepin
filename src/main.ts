@@ -112,7 +112,7 @@ import { show_pause, type PauseAct } from "./hud/pause-view.svelte";
 import { map_name, short_name } from "./worlds/map-name";
 import { StuckPrompt } from "./hud/stuck-prompt";
 import { pushing } from "./hud/stuck";
-import { LocalSim, SIM_WORKER_PARAM, WorkerSim, type Sim } from "./sim/sim-client";
+import { LocalSim, open_sim_worker, SIM_MAIN_PARAM, WorkerSim, type Sim } from "./sim/sim-client";
 import { DT, FrameKind, SimHost, type FrameRequest } from "./sim/sim-host";
 import { WorldJournal } from "./world/world-journal";
 import { AI_CARS, AI_CARS_PARAM, AI_RACE_PARAM, FieldView } from "./ai/field-view";
@@ -170,7 +170,8 @@ for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
 const snowy = snow_of(map) !== null;
 const look = world_look(WORLDS[kind], snowy);
 // The lab records every physics step and a review shot sets the pose itself, so both keep the sim on main.
-const journal = params.has(SIM_WORKER_PARAM) && lab_id === null && !review_wanted(params) ? new WorldJournal() : null;
+const sim_worker = !params.has(SIM_MAIN_PARAM) && lab_id === null && !review_wanted(params) ? open_sim_worker() : null;
+const journal = sim_worker ? new WorldJournal() : null;
 const opening = WorldStream.open(pick, map, mesh_tones(snowy, WORLDS[kind].upland, WORLDS[kind].deck), journal);
 const mode_ids = MODES.map((mode) => mode.id);
 // Read beside the world's generation; a slow or refused IndexedDB leaves the records in localStorage for this session.
@@ -268,9 +269,10 @@ const runs = new Runs(local_store());
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
 const race = new Race(world, local_store());
-const sim: Sim = journal
-  ? WorkerSim.start(new Worker(new URL("./sim/sim-worker.ts", import.meta.url), { type: "module" }), world, stream.plan, journal, build_spec(build))
-  : new LocalSim(new SimHost(world, build_spec(build)));
+const worker = await sim_worker;
+// Unread, the journal would hold every chunk op for the session.
+if (!worker) world.journal = null;
+const sim: Sim = worker && journal ? WorkerSim.start(worker, world, stream.plan, journal, build_spec(build)) : new LocalSim(new SimHost(world, build_spec(build)));
 const driver = new Driver(scene, light, world, race, sim, chase, build);
 driver.arrive = (x, z) => area_fade.cover(world.tiles.ensure(x, z));
 if (review) review.place = (index) => driver.place_road(index);

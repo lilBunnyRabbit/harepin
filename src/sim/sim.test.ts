@@ -8,7 +8,7 @@ import { WorldJournal } from "../world/world-journal";
 import { generate } from "../worldgen/index";
 import { slice_tiles } from "../worldgen/tiles";
 import { RouteKind } from "../worldgen/types";
-import { LocalSim, WorkerSim } from "./sim-client";
+import { LocalSim, open_sim_worker, WorkerSim } from "./sim-client";
 import { FrameKind, SimHost, type FrameRequest, type SimCommand } from "./sim-host";
 import { packet_size, read_packet, write_packet } from "./sim-packet";
 
@@ -137,7 +137,8 @@ describe("sim worker", () => {
       journal.tile(index, tile);
     });
     const local = new LocalSim(new SimHost(world, COUPE));
-    const worker = new Worker(new URL("./sim-worker.ts", import.meta.url), { type: "module" });
+    const worker = await open_sim_worker();
+    if (!worker) throw new Error("the sim worker did not start");
     workers.push(worker);
     const remote = WorkerSim.start(worker, world, plan, journal, COUPE);
     let reply: (packet: Float64Array) => void = () => {};

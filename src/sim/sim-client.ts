@@ -7,8 +7,35 @@ import type { WorldData } from "../worldgen/types";
 import { FrameKind, SimHost, car_command, type FrameOut, type FrameRequest, type SimCommand } from "./sim-host";
 import { packet_epoch, read_packet, type Pose, type SimRequest } from "./sim-packet";
 
-/** `?simworker`: the sim runs in a worker and main draws from its replies. */
-export const SIM_WORKER_PARAM = "simworker";
+/** `?mainsim`: the sim steps on the main thread, as the lab and review shots always do, instead of in its worker. */
+export const SIM_MAIN_PARAM = "mainsim";
+const WORKER_WAIT_MS = 10_000;
+
+export function open_sim_worker(): Promise<Worker | null> {
+  let worker: Worker;
+  try {
+    worker = new Worker(new URL("./sim-worker.ts", import.meta.url), { type: "module" });
+  } catch (error) {
+    console.warn("Sim worker refused, the sim steps on the main thread:", error);
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    const settled = new AbortController();
+    const settle = (to: Worker | null) => {
+      settled.abort();
+      clearTimeout(timer);
+      resolve(to);
+    };
+    const give_up = (why: string) => {
+      worker.terminate();
+      console.warn(`Sim worker ${why}, the sim steps on the main thread`);
+      settle(null);
+    };
+    const timer = setTimeout(() => give_up(`silent for ${WORKER_WAIT_MS} ms`), WORKER_WAIT_MS);
+    worker.addEventListener("message", () => settle(worker), { signal: settled.signal });
+    worker.addEventListener("error", (event) => give_up(`failed to start (${event.message || "no message"})`), { signal: settled.signal });
+  });
+}
 
 export interface Sim {
   /** The player's car as main reads it: the stepped car itself, or a mirror of the worker's. */

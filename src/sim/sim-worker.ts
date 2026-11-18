@@ -19,3 +19,4 @@ addEventListener("message", (event: MessageEvent<SimRequest>) => {
   write_packet(out, request.epoch, frame, host.car, host.from, host.field_cars, host.field_from, host.field_progress);
   postMessage(out);
 });
+postMessage("ready");
