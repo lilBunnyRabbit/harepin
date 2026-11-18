@@ -7,14 +7,18 @@ export type ShiftMode = (typeof ShiftMode)[keyof typeof ShiftMode];
 export interface ShiftPoints {
   up: number;
   down: number;
-  /** The downshift line on full throttle: Eco kicks down at Normal's line so it never bogs on a hill. */
-  kick: number;
+  /**
+   * The lines on full throttle. Eco's kicks down at Normal's line and upshifts nearer it: on its part-throttle line the
+   * bus hunted 3rd-4th up a 20% grade.
+   */
+  kick_up: number;
+  kick_down: number;
 }
 
 export const SHIFT_POINTS: Record<ShiftMode, ShiftPoints> = {
-  sport: { up: 0.1, down: 0.25, kick: 0.25 },
-  normal: { up: 0, down: 0, kick: 0 },
-  eco: { up: -0.6, down: -0.15, kick: 0 },
+  sport: { up: 0.1, down: 0.25, kick_up: 0.1, kick_down: 0.25 },
+  normal: { up: 0, down: 0, kick_up: 0, kick_down: 0 },
+  eco: { up: -0.6, down: -0.15, kick_up: -0.2, kick_down: 0 },
 };
 
 export const KICK_PEDAL = 0.9;
@@ -31,11 +35,12 @@ export function shift_band(spec: CarSpec): number {
   return spec.redline - torque_peak(spec.torque);
 }
 
-export function upshift_rpm(spec: CarSpec, band: number, mode: ShiftMode): number {
-  return Math.min(spec.upshift + SHIFT_POINTS[mode].up * band, spec.redline - LIMITER_GAP);
+export function upshift_rpm(spec: CarSpec, band: number, mode: ShiftMode, pedal: number): number {
+  const points = SHIFT_POINTS[mode];
+  return Math.min(spec.upshift + (pedal > KICK_PEDAL ? points.kick_up : points.up) * band, spec.redline - LIMITER_GAP);
 }
 
 export function downshift_rpm(spec: CarSpec, band: number, mode: ShiftMode, pedal: number): number {
   const points = SHIFT_POINTS[mode];
-  return spec.downshift + (pedal > KICK_PEDAL ? points.kick : points.down) * band;
+  return spec.downshift + (pedal > KICK_PEDAL ? points.kick_down : points.down) * band;
 }

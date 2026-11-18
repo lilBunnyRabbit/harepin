@@ -555,12 +555,14 @@ export class Car {
       // A slide spins the driven wheels far past road speed, and the engine turns with them: judged on road speed at a
       // big drift angle, the box dropped a gear and put the engine on the limiter.
       const turning = Math.max(road_rpm, wheel_rpm);
-      const up = upshift_rpm(spec, this.band, this.shift_mode);
+      const up = upshift_rpm(spec, this.band, this.shift_mode, frame.pedal);
       const down = downshift_rpm(spec, this.band, this.shift_mode, frame.pedal);
+      // Judged on Sport's raised downshift line, wide-ratio boxes held 1st onto the limiter.
       if (wheel_rpm > up && this.gear < spec.gears.length) {
-        // On Sport's raised line, wide-ratio boxes held 1st onto the limiter; the `up - 600` check keeps the box from hunting.
         if (!spinning && landing >= Math.min(down, spec.downshift) * (1 + SHIFT_MARGIN)) this.shift(1);
-      } else if (turning < down && this.gear > 1 && turning * (spec.gears[this.gear - 2] / spec.gears[this.gear - 1]) < up - 600) this.shift(-1);
+      }
+      // Judged on Eco's early upshift, the bus kicked down only under its idle and lugged up a 25% grade.
+      else if (turning < down && this.gear > 1 && turning * (spec.gears[this.gear - 2] / spec.gears[this.gear - 1]) < Math.max(up, spec.upshift) - 600) this.shift(-1);
     }
   }
 
