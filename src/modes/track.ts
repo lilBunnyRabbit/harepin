@@ -64,6 +64,17 @@ export function record(runs: Readonly<Runs>, id: string, run: StarRun): Recorded
   return { runs: improved ? { ...runs, [id]: run } : { ...runs }, improved, first: !old };
 }
 
+/**
+ * A run with a cut: its stars count and open what they open, its time sets no best. The best kept stays the old one's;
+ * with none before, the run's own time, penalties in, stands until a clean run beats it.
+ */
+export function record_stars(runs: Readonly<Runs>, id: string, run: StarRun): Recorded {
+  const old = runs[id];
+  if (!old) return record(runs, id, run);
+  const improved = run.stars > old.stars;
+  return { runs: improved ? { ...runs, [id]: { ...old, stars: run.stars } } : { ...runs }, improved, first: false };
+}
+
 const is_run = (value: unknown): value is StarRun => {
   if (!value || typeof value !== "object") return false;
   const { stars, ms, score } = value as Record<string, unknown>;
@@ -158,7 +169,14 @@ export class Track {
   }
 
   record(id: string, run: StarRun): Recorded {
-    const result = record(this.runs_, id, run);
+    return this.keep(record(this.runs_, id, run));
+  }
+
+  record_stars(id: string, run: StarRun): Recorded {
+    return this.keep(record_stars(this.runs_, id, run));
+  }
+
+  private keep(result: Recorded): Recorded {
     if (result.improved) {
       this.runs_ = result.runs;
       write_json(this.store, this.key, this.runs_);

@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import { world_key } from "../worldgen/kinds/kinds";
-import { Track, add_race, placing, parse_race_record, parse_runs, record, stars_for, unlocked, type Store } from "./track";
+import { Track, add_race, placing, parse_race_record, parse_runs, record, record_stars, stars_for, unlocked, type Store } from "./track";
 
 const IDS = ["g1", "g2", "g3"];
 
@@ -76,4 +76,17 @@ test("podium needs four racers, a win needs one rival", () => {
 test("a race on another route counts its placing but sets no best", () => {
   const run = add_race({ best: { 1: 80_000 }, podiums: 0, wins: 0 }, null, 60_000, { win: true, podium: true });
   expect(run).toEqual({ record: { best: { 1: 80_000 }, podiums: 1, wins: 1 }, improved: false });
+});
+
+test("record_stars: a cut run keeps its stars and opens the next level, but never sets a best time", () => {
+  const first = record_stars({}, "a", { stars: 2, ms: 70000 });
+  expect(first.runs.a).toEqual({ stars: 2, ms: 70000 });
+  expect(unlocked(first.runs, ["a", "b"])).toBe(2);
+  const faster = record_stars(first.runs, "a", { stars: 2, ms: 50000 });
+  expect(faster.improved).toBe(false);
+  expect(faster.runs.a).toEqual({ stars: 2, ms: 70000 });
+  const more = record_stars(first.runs, "a", { stars: 3, ms: 50000 });
+  expect(more.improved).toBe(true);
+  expect(more.runs.a).toEqual({ stars: 3, ms: 70000 });
+  expect(record(more.runs, "a", { stars: 3, ms: 60000 }).runs.a).toEqual({ stars: 3, ms: 60000 });
 });

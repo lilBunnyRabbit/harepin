@@ -28,3 +28,14 @@ test("without a knockout nobody goes out, and each lap is timed from progress", 
   expect(tally.fastest(0)).toBe(true);
   expect(tally.fastest(1)).toBe(false);
 });
+
+test("beats: a lap time stands as fastest only when no other car went under it", () => {
+  const tally = new FieldTally(2, PER_LAP, 2, false);
+  tally.update(0, [0, 0], [0, 1]);
+  tally.update(50, [100, 90], [0, 1]);
+  tally.update(60, [120, 100], [0, 1]);
+  tally.update(95, [200, 180], [0, 1]);
+  expect(tally.beats(0, 45)).toBe(true);
+  expect(tally.beats(0, 61)).toBe(false);
+  expect(tally.beats(0, Infinity)).toBe(false);
+});

@@ -68,6 +68,9 @@ export class AiRace implements ModeRun, FieldRace {
   private ahead: number[] = [];
   private readonly shown: number[] = [];
   private leader = NaN;
+  /** s, the player's best lap without a cut: the fastest-lap bonus reads it, never a lap that went off. */
+  private best_clean = Infinity;
+  private lap_cuts = 0;
   private touches = 0;
   private touched = false;
   private led = false;
@@ -183,6 +186,7 @@ export class AiRace implements ModeRun, FieldRace {
     }
     if (was !== RaceStatus.DONE && run.status === RaceStatus.DONE) {
       this.call(this.stewards.settle(car, this.lap - 1, run.tracker.index));
+      this.lap_done(run.elapsed() / 1000);
       this.route.gate = null;
       ctx.hide_hint();
       view.unguide();
@@ -250,6 +254,12 @@ export class AiRace implements ModeRun, FieldRace {
     return place;
   }
 
+  private lap_done(lap_s: number) {
+    const { cuts } = this.stewards;
+    if (cuts === this.lap_cuts) this.best_clean = Math.min(this.best_clean, lap_s);
+    this.lap_cuts = cuts;
+  }
+
   private call(text: string | null) {
     if (text) this.ctx.toast(text);
   }
@@ -297,7 +307,7 @@ export class AiRace implements ModeRun, FieldRace {
     this.rows = order.map(() => this.row());
     this.write_rows();
     const how = end === End.OUT && place > 1 ? `Out in ${ordinal(place)}` : end === End.TIME ? `${ordinal(place)} at the flag` : `${ordinal(place)} of ${field}`;
-    const extra = this.host.event?.finish({ order, clean: !this.touched, led: this.led, fastest: this.laps > 1 && this.tally.fastest(player), from_back: this.grid === this.builds.length }) ?? [];
+    const extra = this.host.event?.finish({ order, clean: !this.touched, led: this.led, fastest: this.laps > 1 && this.tally.beats(player, this.best_clean), from_back: this.grid === this.builds.length }) ?? [];
     // A race run to the line did the laps it set; one cut short says how far it got.
     const laps = end === End.LINE ? [] : [line("laps done", String(this.lap - 1))];
     this.result = {

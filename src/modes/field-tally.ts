@@ -65,9 +65,13 @@ export class FieldTally {
 
   /** Car `i` has a lap no other car beat. */
   fastest(i: number): boolean {
-    const mine = this.best_lap[i];
-    if (mine === Infinity) return false;
-    for (let k = 0; k < this.count; k++) if (k !== i && this.best_lap[k] < mine) return false;
+    return this.beats(i, this.best_lap[i]);
+  }
+
+  /** No car but `i` set a lap under `lap` s. */
+  beats(i: number, lap: number): boolean {
+    if (lap === Infinity) return false;
+    for (let k = 0; k < this.count; k++) if (k !== i && this.best_lap[k] < lap) return false;
     return true;
   }
 }

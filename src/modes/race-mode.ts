@@ -229,14 +229,16 @@ class Race implements ModeRun {
     };
   }
 
-  // A run with a cut, warned or not, sets no best.
+  // A run with a cut, warned or not, keeps its stars but sets no best: the title never calls it one.
   private record(run: StarRun): { improved: boolean; first: boolean } {
-    if (this.stewards.cuts) return { improved: false, first: false };
-    return this.ctx.track.record(this.level.id, run);
+    const { track } = this.ctx;
+    if (!this.stewards.cuts) return track.record(this.level.id, run);
+    track.record_stars(this.level.id, run);
+    return { improved: false, first: false };
   }
 
   private void_line(): HTMLElement[] {
-    return this.stewards.cuts ? [line("record", "not set: track limits")] : [];
+    return this.stewards.cuts ? [line("best time", "not kept: track limits")] : [];
   }
 
   finished(): Finish | null {

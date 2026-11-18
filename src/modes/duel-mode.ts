@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { Ghost } from "../car/ghost";
+import { RACE_RULES, Stewards } from "./race-rules";
 import { format } from "../hud/hud";
 import { ROAD_HALF, type World } from "../world/world";
 import { DUEL_LEAD, DUEL_LEVELS, DuelRun, DuelStatus, build_route, duel_gates, type DuelLevel, type Route } from "./duel";
@@ -29,6 +30,7 @@ class Duel implements ModeRun {
   private readonly ghost_at = new THREE.Vector3();
   private result: Finish | null = null;
   private readonly hits: Hits | null;
+  private readonly stewards: Stewards;
   readonly route: RouteRun;
   private readonly status: ModeStatus;
 
@@ -51,6 +53,7 @@ class Duel implements ModeRun {
     void ghost.ready.then(() => (ghost.has_best ? null : ctx.dev_ghost())).then((lap) => lap && !ghost.has_best && ghost.use(lap));
     this.run = new DuelRun(route, gates);
     this.hits = ctx.hits();
+    this.stewards = new Stewards(RACE_RULES, route.points, circuit?.gate_hw ?? ROAD_HALF);
     this.route = { id: CIRCUIT, gate: this.run.gate, later: this.later(), respawn: route.points[0] };
     ctx.spawn_on(route.points[0]);
   }
@@ -67,6 +70,7 @@ class Duel implements ModeRun {
     this.hits?.update(sim_dt * 1000, run.status === DuelStatus.RUNNING || was === DuelStatus.RUNNING);
     const running = run.status === DuelStatus.RUNNING;
     if (running && sim_dt > 0) ghost.record(run.elapsed(), car);
+    if (running) this.call(this.stewards.limits(car, ctx.world, 0, run.tracker.index, sim_dt));
     ghost.update(running ? run.elapsed() : null, this.ctx.camera.position);
     view.update(sim_dt);
     if (taken >= 0) {
@@ -79,6 +83,7 @@ class Duel implements ModeRun {
       this.route.gate = null;
       ctx.hide_hint();
       view.unguide();
+      this.call(this.stewards.settle(car, 0, run.tracker.index));
       ghost.record(run.elapsed(), car);
       this.finish();
       return null;
@@ -96,7 +101,7 @@ class Duel implements ModeRun {
       return status;
     }
     const gap = run.gap(ghost.position(run.elapsed(), this.ghost_at));
-    status.clock = `${format(run.elapsed())}${penalty_text(this.hits)}`;
+    status.clock = `${format(run.elapsed())}${penalty_text(this.hits, this.stewards)}`;
     status.gap = gap === null ? (ghost.has_best ? "finished" : "none yet") : `${gap >= 0 ? "ahead" : "behind"} ${Math.abs(Math.round(gap))} m`;
     return status;
   }
@@ -105,19 +110,22 @@ class Duel implements ModeRun {
     const { run } = this;
     const { level, par_ms } = run.route;
     const { track } = this.ctx;
+    const { stewards } = this;
     const time = Math.round(run.elapsed());
-    const ms = time + (this.hits?.penalty_ms ?? 0);
+    const ms = time + (this.hits?.penalty_ms ?? 0) + stewards.penalty_ms;
     const par = this.ctx.thresholds(par_thresholds(par_ms));
-    const stars = grade(run.elapsed() + (this.hits?.penalty_ms ?? 0), par);
+    const stars = grade(run.elapsed() + (this.hits?.penalty_ms ?? 0) + stewards.penalty_ms, par);
     const before = track.runs[level.id];
     const against = before?.ms ?? this.ghost.best_ms;
-    const recorded = track.record(level.id, { stars, ms });
-    this.ghost.finish(recorded.improved);
+    // A lap with a cut keeps its stars, never a best time nor the ghost.
+    const cut = stewards.cuts > 0;
+    const recorded = cut ? track.record_stars(level.id, { stars, ms }) : track.record(level.id, { stars, ms });
+    this.ghost.finish(recorded.improved && !cut);
     const versus = against === null ? "new ghost" : `${ms <= against ? "−" : "+"}${(Math.abs(against - ms) / 1000).toFixed(2)} s`;
     this.result = {
-      title: result_title(level.name, recorded),
+      title: result_title(level.name, cut ? { improved: false, first: false } : recorded),
       stars,
-      lines: [...time_lines(time, this.hits), line("vs ghost", versus), line("par", format(par.three)), best_line(track.runs[level.id])],
+      lines: [...time_lines(time, this.hits, stewards), ...(cut ? [line("best time", "not kept: track limits")] : []), line("vs ghost", versus), line("par", format(par.three)), best_line(track.runs[level.id])],
     };
   }
 
@@ -127,6 +135,10 @@ class Duel implements ModeRun {
 
   ground_in(inside: (x: number, z: number) => boolean) {
     this.view.ground_in(inside);
+  }
+
+  private call(text: string | null) {
+    if (text) this.ctx.toast(text);
   }
 
   dispose() {
