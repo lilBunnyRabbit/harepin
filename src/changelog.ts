@@ -51,6 +51,18 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.69.0",
+    date: "2026-11-18",
+    title: "New gates, new timeline",
+    changes: [
+      { kind: IMPROVED, text: "Race gates are slim split posts with a light strip; the Raceway start uses its own gantry" },
+      { kind: IMPROVED, text: "What's new reads as a timeline: the latest on top, older updates by day, and what's new since you last played" },
+      { kind: NEW, text: "Custom race: track limits and slipstream on or off, and rival temperament (Calm, Mixed, Aggressive)" },
+      { kind: IMPROVED, text: "Custom races on another map get a race briefing" },
+      { kind: FIXED, text: "No lit posts along the Raceway" },
+    ],
+  },
+  {
     version: "0.68.0",
     date: "2026-11-18",
     title: "Race rules",
