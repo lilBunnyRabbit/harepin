@@ -130,6 +130,8 @@ export class Field {
   /** Tracks the rival along the road, and drives it when `drives_rival` (a dev autopilot for the player's car). */
   private rival_driver: Driver;
   drives_rival = false;
+  /** A car's wake tows the one behind it; off, every car runs in clean air. */
+  tows = true;
   private readonly coasting: Uint8Array;
   /** Closing speed (m/s) of each car's hardest touch on the last step, -1 for none; the rival's after the field's. */
   readonly impacts: Float64Array;
@@ -288,7 +290,7 @@ export class Field {
     if (++this.steps % AWARE_STEPS === 0) {
       for (const { driver } of racers) if (driver.progress >= this.launch_end) driver.launch = NaN;
       this.awareness.update(dt * AWARE_STEPS);
-      slipstream(this.touching);
+      if (this.tows) slipstream(this.touching);
       this.recover(dt * AWARE_STEPS);
       this.count_passes();
       this.far();

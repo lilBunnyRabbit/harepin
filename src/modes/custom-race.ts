@@ -4,6 +4,7 @@ import type { MapSpec } from "../worldgen/kinds/kinds";
 import { map_code, parse_map_code } from "../worldgen/kinds/map-code";
 import type { FieldEvent, FieldHost } from "./mode";
 import { MAX_LAPS } from "./race-laps";
+import { RACE_RULES, type RaceRules } from "./race-rules";
 
 /** `?custom`: the remembered custom race starts once its map has loaded. */
 export const CUSTOM_PARAM = "custom";
@@ -18,6 +19,13 @@ const MAX_NAME = 40;
 export const RaceFormat = { LAPS: "laps", KNOCKOUT: "knockout", TIMED: "timed" } as const;
 export type RaceFormat = (typeof RaceFormat)[keyof typeof RaceFormat];
 
+export const Temperament = { CALM: "calm", MIXED: "mixed", AGGRESSIVE: "aggressive" } as const;
+export type Temperament = (typeof Temperament)[keyof typeof Temperament];
+
+/** The aggression levels a field takes down its grid, pole first and round again. */
+const TEMPERS: Record<Temperament, readonly number[]> = { calm: [1, 2], mixed: [3, 2, 4], aggressive: [5, 4] };
+const NO_LIMITS: RaceRules = { ...RACE_RULES, limits: null };
+
 export interface CustomRace {
   /** The map's code; null races the map being driven. */
   map: string | null;
@@ -29,9 +37,12 @@ export interface CustomRace {
   laps: number;
   minutes: number;
   difficulty: Difficulty;
-  /** The owner's 1-5 levels every rival draws its personality in. */
-  aggression: number;
+  temperament: Temperament;
+  /** The owner's 1-5 level every rival draws its slips in. */
   mistakes: number;
+  /** Track limits: cuts are warned, then cost time. */
+  limits: boolean;
+  slipstream: boolean;
   /** The player's grid slot, 0 on pole; past the field it is the last slot, whatever the rival count. */
   grid: number;
   cars: RivalPick;
@@ -46,8 +57,10 @@ export const DEFAULT_CUSTOM: CustomRace = {
   laps: 0,
   minutes: 3,
   difficulty: Difficulty.NORMAL,
-  aggression: 3,
+  temperament: Temperament.MIXED,
   mistakes: 3,
+  limits: true,
+  slipstream: true,
   grid: MAX_RIVALS,
   cars: RivalPick.CLASS,
   picked: [],
@@ -68,8 +81,10 @@ export function parse_custom_race(raw: unknown): CustomRace {
     laps: whole(stored.laps, 0, MAX_LAPS, d.laps),
     minutes: among(stored.minutes, TIMES, d.minutes),
     difficulty: among(stored.difficulty, Object.values(Difficulty), d.difficulty),
-    aggression: whole(stored.aggression, LEVEL_MIN, LEVEL_MAX, d.aggression),
+    temperament: among(stored.temperament, Object.values(Temperament), d.temperament),
     mistakes: whole(stored.mistakes, LEVEL_MIN, LEVEL_MAX, d.mistakes),
+    limits: typeof stored.limits === "boolean" ? stored.limits : d.limits,
+    slipstream: typeof stored.slipstream === "boolean" ? stored.slipstream : d.slipstream,
     grid: whole(stored.grid, 0, MAX_RIVALS, d.grid),
     cars: among(stored.cars, Object.values(RivalPick), d.cars),
     picked: Array.isArray(stored.picked) ? stored.picked.filter((name): name is string => typeof name === "string" && name.length <= MAX_NAME).slice(0, MAX_RIVALS) : d.picked,
@@ -104,8 +119,11 @@ export function custom_host(base: CustomBase, setup: CustomRace, name: string, n
     limit_ms: setup.format === RaceFormat.TIMED ? setup.minutes * MINUTE_MS : null,
     grid: grid_of(setup),
     laps: setup.laps || undefined,
+    rules: setup.limits ? RACE_RULES : NO_LIMITS,
+    slipstream: setup.slipstream,
     finish: () => [],
     next,
   };
-  return { ...base, cars: Array.from({ length: setup.rivals }, () => ({ aggression: setup.aggression, mistakes: setup.mistakes })), difficulty: () => setup.difficulty, rivals: rival_cars(setup), event };
+  const levels = TEMPERS[setup.temperament];
+  return { ...base, cars: Array.from({ length: setup.rivals }, (_, i) => ({ aggression: levels[i % levels.length], mistakes: setup.mistakes })), difficulty: () => setup.difficulty, rivals: rival_cars(setup), event };
 }

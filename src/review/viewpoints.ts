@@ -24,8 +24,10 @@ const CREST_RUN = 8;
 const CREST_DROP = 15;
 const CREST_REACH = 480;
 const CREST_STEP = 4;
+/** Circuit samples the gate view's car stands before the start gate. */
+const GATE_BACK = 6;
 
-type Plan = Pick<World, "lots" | "road" | "towns" | "water_level" | "nearest_road" | "clear_spawn" | "ice">;
+type Plan = Pick<World, "checkpoints" | "lots" | "road" | "towns" | "water_level" | "nearest_road" | "clear_spawn" | "ice">;
 
 interface Frame {
   centre: V3;
@@ -60,6 +62,15 @@ function along(world: Plan, start: number, share: number): View {
   return { at, from: [p.x - p.tz * 28 - p.tx * 10, p.y + 10, p.z + p.tx * 28 - p.tz * 10], to: [p.x + p.tx * 6, p.y + 1, p.z + p.tz * 6] };
 }
 
+/** The start gate from the road before it, near enough to judge its build. */
+function gate_view(world: Plan): View {
+  const cp = world.checkpoints[0];
+  const n = world.road.length;
+  const at = (index_of(world, cp.x, cp.z) - GATE_BACK + n) % n;
+  const p = world.road[at];
+  return { at, from: [p.x - p.tx * 12 - p.tz * 3, p.y + 4, p.z - p.tz * 12 + p.tx * 3], to: [cp.x, world.road[index_of(world, cp.x, cp.z)].y + 3, cp.z] };
+}
+
 const index_of = (world: Plan, x: number, z: number) => world.road.indexOf(world.nearest_road(x, z));
 
 // Heights here are over the road; `view_of` lifts the camera clear of the ground once that has streamed in.
@@ -77,6 +88,7 @@ export function plan_views(world: Plan): Partial<Record<ViewName, View>> {
     q1: along(world, spawn, 0.25),
     q2: along(world, spawn, 0.5),
     q3: along(world, spawn, 0.75),
+    gate: gate_view(world),
   };
 
   const high = road.reduce((best, p) => (p.y > best.y ? p : best));

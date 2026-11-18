@@ -3,6 +3,7 @@ import { mount, unmount } from "svelte";
 import { registerSW } from "virtual:pwa-register";
 import { UpdateState, compare_versions, parse_version_file, type RemoteVersion, type VersionInfo } from "../version";
 import Changelog from "./Changelog.svelte";
+import { BOOT_SEEN } from "./seen-version";
 import UpdateToast from "./UpdateToast.svelte";
 import { UpdateView } from "./update-view.svelte";
 import { when_idle } from "./when-idle";
@@ -98,7 +99,7 @@ export class Updater {
     const say = (text: string) => {
       if (this.view.pending) this.view.pending.status = text;
     };
-    mount(Changelog, { target: page, props: { view: this.view, build: BUILD, onapply: () => this.request_apply(say) } });
+    mount(Changelog, { target: page, props: { view: this.view, build: BUILD, seen: BOOT_SEEN.version, onapply: () => this.request_apply(say) } });
     return page;
   }
 
