@@ -47,23 +47,7 @@
     if (!view.open || !free || document.documentElement.dataset.input === "touch") return;
     node.querySelector<HTMLElement>(".ui-primary")?.focus({ preventScroll: true, focusVisible: false });
   };
-
-  let pressed = 0;
-
-  // A tap counts only when it began on the card's button: the Enter that sent the car here is still down as the card shows.
-  function key_down(press: KeyboardEvent) {
-    if (press.key === "Enter" && !press.repeat && press.target instanceof Element && press.target.closest(".event-card .ui-primary")) pressed = press.timeStamp;
-  }
-
-  function key_up(press: KeyboardEvent) {
-    if (press.key !== "Enter" || !pressed) return;
-    const tap = press.timeStamp - pressed < HOLD_MS;
-    pressed = 0;
-    if (tap && choice && view.open) onmore();
-  }
 </script>
-
-<svelte:window onkeydown={key_down} onkeyup={key_up} />
 
 {#if marker && event}
   {#key `${event.id}:${view.open}`}
