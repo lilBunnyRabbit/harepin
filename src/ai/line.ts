@@ -3,8 +3,8 @@ import { ROAD_HALF, type Challenge, type Ramp, type RoadPoint } from "../worldge
 import { flight, ramp_local } from "../worldgen/jumps";
 import { hazards, type LineGround } from "./hazards";
 import { AI_TUNING } from "./tuning";
-import { trim_of, UNIT_SCALE, type Capability, type PlanScale } from "./capability";
-import { corner_plans, grip_at_speed, trimmed_hold } from "./corners";
+import { SLOW_AT, trim_of, UNIT_SCALE, type Capability, type PlanScale } from "./capability";
+import { corner_plans, downforce_per, DOWNFORCE_HOLD, grip_at_speed, trimmed_hold } from "./corners";
 import { CORNER_MODEL } from "./corner-model";
 import { hypot } from "../sim-math";
 
@@ -50,6 +50,14 @@ const RAMP_PIN = 20;
 const GRIP_FLOOR = 0.25;
 /** Most of the car's weight (share of g) a crest may take off it at the planned speed: past 1 it leaves the road. */
 const CREST_HOLD = 0.8;
+/**
+ * Most the downforce raises a bend's planned grip over `grip_at` (share), and the vertical curvature (1/m) of a crest at
+ * which it raises none. Planned flat, smooth Raceway sweepers ran 7 m/s under the car's hold and the oracle's pace. At
+ * 1.2 the coupe at 46 m/s cut 2.4 m inside its line onto a gate post (Raceway seed 1); at a flat 10.5 m/s² in every fast
+ * bend a coupe left the road over an island crest (seed 1).
+ */
+const AERO_MAX = 1.1;
+const SMOOTH_LIFT = 1e-3;
 
 /**
  * A closed racing line over a circuit, built once at the start: per road point a signed lateral offset (along the
@@ -133,8 +141,8 @@ export function drive_at(speed: number, scale: PlanScale = UNIT_SCALE): number {
 }
 
 /** Share of the tyres' grip left along the road at `speed` m/s through bend `bend` (1/m), the car at `load` of its weight: the friction circle, never under GRIP_FLOOR. */
-function along(speed: number, bend: number, scale: PlanScale, load: number): number {
-  const used = (speed * speed * Math.abs(bend)) / (grip_at(bend, scale) * load);
+function along(speed: number, bend: number, grip: number, load: number): number {
+  const used = (speed * speed * Math.abs(bend)) / (grip * load);
   return Math.max(GRIP_FLOOR, Math.sqrt(Math.max(0, 1 - used * used)));
 }
 
@@ -144,13 +152,13 @@ function along(speed: number, bend: number, scale: PlanScale, load: number): num
  * (`lift`) the car is light, and the braking and the circle shrink with its load: braked at the flat's 5 m/s² through a
  * 250 m bend over a crest at 36 m/s, the hatch's tail came round (seeds 4, 15).
  */
-function brake_pass(speed: Float64Array, step: Float64Array, bend: Float64Array, lift: Float64Array, brake: Float64Array, scale: PlanScale) {
+function brake_pass(speed: Float64Array, step: Float64Array, bend: Float64Array, lift: Float64Array, brake: Float64Array, grip: Float64Array) {
   const n = speed.length;
   for (let k = 2 * n - 1; k >= 0; k--) {
     const i = wrap(k, n);
     const v = speed[wrap(k + 1, n)];
     const load = 1 - Math.min(AI_TUNING.crest_light, (v * v * lift[i]) / GRAVITY);
-    speed[i] = Math.min(speed[i], Math.sqrt(v * v + 2 * brake[i] * load * along(v, bend[i], scale, load) * step[i]));
+    speed[i] = Math.min(speed[i], Math.sqrt(v * v + 2 * brake[i] * load * along(v, bend[i], grip[i], load) * step[i]));
   }
 }
 
@@ -169,6 +177,13 @@ function pull_pass(speed: Float64Array, step: Float64Array, bend: Float64Array, 
     const share = Math.max(GRIP_FLOOR, 1 - bend_share * used * used);
     speed[next] = Math.min(speed[next], Math.sqrt(v * v + 2 * drive_at(v, scale) * share * step[i]));
   }
+}
+
+function aero_grip(flat: number, radius: number, lift: number, car: Capability): number {
+  const per = downforce_per(car);
+  const share = flat / car.fast;
+  const v2 = (radius * share * (car.slow - per * SLOW_AT * SLOW_AT)) / (1 - Math.min(DOWNFORCE_HOLD, radius * share * per));
+  return flat + Math.max(0, Math.min(flat * AERO_MAX, v2 / radius) - flat) * Math.max(0, 1 - lift / SMOOTH_LIFT);
 }
 
 /** m/s a bend held at `hold` m/s on the flat holds over a crest of `lift` and on a kick, taken at most at `jump`: the line's corner speed. */
@@ -359,19 +374,21 @@ export function plan_for(line: RaceLine, scale: PlanScale): RaceLine {
   const caps = gaps.map((gap) => (gap ? Math.min(scale.jump, jump_cap(gap, scale.roof)) : scale.jump));
   const speed = new Float64Array(n);
   const hold = new Float64Array(n);
+  const grip = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     const radius = 1 / Math.max(1e-9, Math.abs(bend[i]));
     const jump = ramp[i] >= 0 ? (caps[ramp[i]] ?? scale.jump) : scale.jump;
-    speed[i] = corner_speed(Math.sqrt(grip_at(bend[i], scale) * radius), lift[i], kick[i], jump);
+    grip[i] = aero_grip(grip_at(bend[i], scale), radius, lift[i], car);
+    speed[i] = corner_speed(Math.sqrt(grip[i] * radius), lift[i], kick[i], jump);
     hold[i] = corner_speed(trimmed_hold(radius, car, trim), lift[i], kick[i], jump);
   }
   const brake = new Float64Array(n).fill(AI_TUNING.line_brake * scale.brake);
   model_corners(speed, hold, brake, line, scale, car);
   const late = speed.slice();
   const late_brake = brake.map((b) => Math.max(b, AI_TUNING.late_brake * scale.brake));
-  brake_pass(speed, step, bend, lift, brake, scale);
+  brake_pass(speed, step, bend, lift, brake, grip);
   pull_pass(speed, step, bend, scale, car, scale.pull_bend);
-  brake_pass(late, step, bend, lift, late_brake, scale);
+  brake_pass(late, step, bend, lift, late_brake, grip);
   pull_pass(late, step, bend, scale, car, scale.pull_bend);
   return { ...line, speed, late, scale };
 }

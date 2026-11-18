@@ -73,16 +73,17 @@ export interface CornerShape {
  * under the oracle's apex.
  */
 export function grip_at_speed(speed: number, car: Capability): number {
-  const per = (car.fast - car.slow) / (FAST_AT * FAST_AT - SLOW_AT * SLOW_AT);
-  return car.slow + per * (speed * speed - SLOW_AT * SLOW_AT);
+  return car.slow + downforce_per(car) * (speed * speed - SLOW_AT * SLOW_AT);
 }
 
+export const downforce_per = (car: Capability) => (car.fast - car.slow) / (FAST_AT * FAST_AT - SLOW_AT * SLOW_AT);
+
 /** Most of the grip downforce may add in a bend of radius R, as R times its growth per v²: past 1 no speed is too fast. */
-const DOWNFORCE_HOLD = 0.8;
+export const DOWNFORCE_HOLD = 0.8;
 
 /** m/s the car holds in a bend of `radius` m at `grip_at_speed`: v² = R g(v), solved for v. */
 export function hold_speed(radius: number, car: Capability): number {
-  const per = (car.fast - car.slow) / (FAST_AT * FAST_AT - SLOW_AT * SLOW_AT);
+  const per = downforce_per(car);
   const base = car.slow - per * SLOW_AT * SLOW_AT;
   return Math.sqrt((radius * base) / (1 - Math.min(DOWNFORCE_HOLD, radius * per)));
 }
