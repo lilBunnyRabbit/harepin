@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { readdirSync, readFileSync } from "node:fs";
 import { Car, drop_height } from "../../src/car/car";
 import type { CarSpec } from "../../src/car/cars";
@@ -54,7 +55,7 @@ export function solo_run(world: World, route: Route, spec: CarSpec, flying: numb
 export const PACE_HASH = Bun.hash(WORLDGEN_HASH + closure([new URL("../../src/car/car.ts", import.meta.url)]) + readFileSync(new URL("./drive.ts", import.meta.url), "utf8")).toString(36);
 
 /** 62 oracle runs (coupe, formula, hatch, muscle, rally) on the code PACE_HASH keys today; `--oracles <dir>` reads another. */
-export const ORACLE_DIR = "C:/Users/Andra/AppData/Local/Temp/claude/e1d87b4eb5de59d0/ccf992df-ff9c-447b-a79d-5b6da3c0a3e5/scratchpad/oracle-run/.ai-ml/1idhhngiks5x1/oracle";
+export const ORACLE_DIR = fileURLToPath(new URL("../../.ai-ml/oracle-62", import.meta.url));
 
 /** The fastest clean oracle lap per `seed/route/car` in `dir`, only from runs on this PACE_HASH: a lap on other code is no ceiling. */
 export function oracle_laps(dir = ORACLE_DIR): Map<string, number> {
