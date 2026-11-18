@@ -9,6 +9,8 @@ export const RELEASE_PARAM = "release";
 export const VIEW_PARAM = "view";
 export const REPLAY_PARAM = "replay";
 export const TIME_PARAM = "t";
+/** `?tow=0..0.4`: the speedometer tow line at a fixed tow, a mock until `Car.tow` is on master. */
+export const TOW_PARAM = "tow";
 
 export const review_wanted = (params: URLSearchParams) => REVIEW_BUILD && (params.has(VIEW_PARAM) || params.has(REPLAY_PARAM));
 

@@ -103,7 +103,7 @@ import { plain_map } from "./worldgen/kinds/kinds";
 import { Replay } from "./replay/replay";
 import { save_replay } from "./replay/replay-store";
 import { pack_replay, type SavedReplay } from "./replay/saved";
-import { REVIEW_BUILD, review_wanted } from "./review/params";
+import { REVIEW_BUILD, TOW_PARAM, review_wanted } from "./review/params";
 import { show_map_overlay } from "./hud/map-overlay.svelte";
 import { show_next_up } from "./hud/next-up-view.svelte";
 import { roam_card, run_card } from "./hud/pause-card";
@@ -778,8 +778,11 @@ void Promise.all(series.map((one) => one.load())).then(() => {
   }
 });
 // After `markers`: the Play page reads its map markers as soon as the menu opens.
+// `?tow` draws on the HUD, so the title stays shut. Tested inline, not through `REVIEW_BUILD`, so a production build drops the mock chunk outright.
+const tow_mock = (import.meta.env.MODE === "review" || import.meta.env.DEV) && params.has(TOW_PARAM);
+if (tow_mock) void import("./hud/tow").then((tow) => tow.mock_tow(params));
 if (REVIEW_BUILD && params.has(FINAL_PARAM)) settings.open(FINAL_PAGE);
-else if (!take_drive() && !event && !run && !review && lab_id === null && !ai_level && !series_on && !custom_on) {
+else if (!take_drive() && !event && !run && !review && lab_id === null && !ai_level && !series_on && !custom_on && !tow_mock) {
   if (prefs.guide_seen) settings.open_title();
   else settings.open_guide();
 }
