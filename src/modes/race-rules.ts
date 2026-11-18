@@ -48,7 +48,7 @@ export class Stewards {
     const limits = this.rules.limits;
     if (!check || !limits || index < 0) return null;
     const s = this.measure.at(lap, index, car.pos.x, car.pos.z);
-    return check.update(track_side(car, ground), s, hypot(car.vel.x, car.vel.z), dt) ? this.call(limits) : null;
+    return check.update(track_side(car, ground), s, car.pos.x, car.pos.z, hypot(car.vel.x, car.vel.z), dt) ? this.call(limits) : null;
   }
 
   /** As the run's last lap ends: a cut still under way counts up to the line. */

@@ -160,7 +160,7 @@ function race(job: BarJob): BarRace[] {
         const at = Math.max(0, r.driver.progress);
         const lap = Math.floor(at / n_points);
         if (reset) cuts[k].reset();
-        else cuts[k].update(track_side(r.car, world), measure.at(lap, Math.floor(at) - lap * n_points, r.car.pos.x, r.car.pos.z), Math.hypot(r.car.vel.x, r.car.vel.z), dt);
+        else cuts[k].update(track_side(r.car, world), measure.at(lap, Math.floor(at) - lap * n_points, r.car.pos.x, r.car.pos.z), r.car.pos.x, r.car.pos.z, Math.hypot(r.car.vel.x, r.car.vel.z), dt);
         s.spins = r.stats.spins;
         s.reverses = r.stats.reverses;
         s.resets = r.stats.resets;

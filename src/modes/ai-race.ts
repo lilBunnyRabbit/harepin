@@ -64,8 +64,9 @@ export class AiRace implements ModeRun, FieldRace {
   private readonly grid: number;
   /** The order a knockout or a timed race ended on; a race to the line keeps filling in as the cars cross it. */
   private final: number[] | null = null;
-  /** The order the player's penalty placed them in at the line, cars still racing included; the rows keep it. */
-  private placed: readonly number[] | null = null;
+  /** Cars still racing at the player's line that cross it inside the player's penalty: the player stays behind them. */
+  private ahead: number[] = [];
+  private readonly shown: number[] = [];
   private leader = NaN;
   private touches = 0;
   private touched = false;
@@ -289,9 +290,8 @@ export class AiRace implements ModeRun, FieldRace {
       this.standings.finished(player, (ms + penalty) / 1000);
       if (this.tally.out.length) this.final = this.tally.final_order(this.standings.order);
     } else this.final = this.tally.final_order(this.standings.order);
-    const live = this.standings.order;
-    const order = this.final ?? this.penalised(live, penalty / 1000);
-    if (!this.final && order !== live) this.placed = order;
+    if (!this.final) this.ahead = this.inside(penalty / 1000);
+    const order = [...this.order_now()];
     const place = order.indexOf(player) + 1;
     const field = this.builds.length + 1;
     this.rows = order.map(() => this.row());
@@ -310,17 +310,31 @@ export class AiRace implements ModeRun, FieldRace {
     };
   }
 
-  // Cars still racing that cross the line inside the player's penalty finish ahead: the place says so already.
-  private penalised(order: readonly number[], penalty_s: number): readonly number[] {
-    if (!penalty_s) return order;
+  private inside(penalty_s: number): number[] {
+    if (!penalty_s) return [];
     const player = this.builds.length;
     const { standings } = this;
-    const ahead = order.filter((car) => car !== player && standings.finish[car] === Infinity && standings.gap(player, car, this.t) < penalty_s);
-    if (!ahead.length) return order;
-    const rest = order.filter((car) => car !== player && !ahead.includes(car));
-    const at = rest.findIndex((car) => standings.finish[car] === Infinity);
-    const before = at < 0 ? rest : rest.slice(0, at);
-    return [...before, ...ahead, player, ...rest.slice(before.length)];
+    return standings.order.filter((car) => car !== player && standings.finish[car] === Infinity && standings.gap(player, car, this.t) < penalty_s);
+  }
+
+  // The live order, with the player's slot held behind every car its penalty let through; the rest keep sorting.
+  private order_now(): readonly number[] {
+    const live = this.standings.order;
+    if (this.final) return this.final;
+    if (!this.ahead.length) return live;
+    const player = this.builds.length;
+    const { shown, ahead } = this;
+    shown.length = 0;
+    let at = 0;
+    for (const car of live) {
+      if (car === player) at = Math.max(at, shown.length);
+      else {
+        shown.push(car);
+        if (ahead.includes(car)) at = Math.max(at, shown.length);
+      }
+    }
+    shown.splice(at, 0, player);
+    return shown;
   }
 
   private row(): Row {
@@ -336,7 +350,7 @@ export class AiRace implements ModeRun, FieldRace {
   // AI cars still racing when the player finishes fill their times in as they cross the line.
   private write_rows() {
     const { standings, rows } = this;
-    const order = this.final ?? this.placed ?? standings.order;
+    const order = this.order_now();
     // A penalty can place the player behind cars still racing, so the first time in may not top the table.
     let leader = Infinity;
     for (const car of order) leader = Math.min(leader, standings.finish[car]);

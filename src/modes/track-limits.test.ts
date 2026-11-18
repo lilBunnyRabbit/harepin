@@ -16,12 +16,12 @@ interface Spot {
   z: number;
 }
 
-const arc = (r: number, step = 1): Spot[] => {
+const arc = (r: number, sweep = Math.PI / 2, centre = CENTRE, step = 1): Spot[] => {
   const out: Spot[] = [];
-  const n = Math.ceil((r * Math.PI) / 2 / step);
+  const n = Math.ceil((r * sweep) / step);
   for (let i = 0; i <= n; i++) {
-    const a = Math.PI - (i / n) * (Math.PI / 2);
-    out.push({ x: CENTRE.x + r * Math.cos(a), z: CENTRE.z + r * Math.sin(a) });
+    const a = Math.PI - (i / n) * sweep;
+    out.push({ x: centre.x + r * Math.cos(a), z: centre.z + r * Math.sin(a) });
   }
   return out;
 };
@@ -35,17 +35,20 @@ const straight = (from: Spot, to: Spot, step = 1): Spot[] => {
 const APPROACH = straight({ x: 0, z: 0 }, { x: 0, z: 100 });
 const EXIT = straight({ x: RADIUS, z: 140 }, { x: 140, z: 140 });
 const CENTRE_LINE = [...APPROACH, ...arc(RADIUS).slice(1), ...EXIT.slice(1)];
-const LINE: RoutePoint[] = CENTRE_LINE.map((p, i) => {
-  const a = CENTRE_LINE[Math.max(0, i - 1)];
-  const b = CENTRE_LINE[Math.min(CENTRE_LINE.length - 1, i + 1)];
-  const d = Math.hypot(b.x - a.x, b.z - a.z);
-  return { x: p.x, z: p.z, tx: (b.x - a.x) / d, tz: (b.z - a.z) / d };
-});
+const line_of = (spots: Spot[]): RoutePoint[] =>
+  spots.map((p, i) => {
+    const a = spots[Math.max(0, i - 1)];
+    const b = spots[Math.min(spots.length - 1, i + 1)];
+    const d = Math.hypot(b.x - a.x, b.z - a.z);
+    return { x: p.x, z: p.z, tx: (b.x - a.x) / d, tz: (b.z - a.z) / d };
+  });
+const LINE = line_of(CENTRE_LINE);
 
-const GROUND = {
-  on_road: (x: number, z: number) => LINE.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < ON_ROAD ** 2),
+const ground_of = (line: readonly RoutePoint[]) => ({
+  on_road: (x: number, z: number) => line.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < ON_ROAD ** 2),
   on_kerb: () => false,
-};
+});
+const GROUND = ground_of(LINE);
 
 const car = () => ({ pos: new Vector3(), vel: new Vector3(), wheels: [-1, 1].flatMap((side) => [-1.4, 1.4].map(() => ({ contact: true, point: { x: 0, z: 0 }, side }))) });
 type TestCar = ReturnType<typeof car>;
@@ -57,9 +60,9 @@ function place(c: TestCar, at: Spot, dir: Spot, speed: number) {
 }
 
 /** Drives `path` at `speed(share of the way, where)` m/s, calling `frame` each step with the car and its nearest line point. */
-function drive(path: Spot[], speed: (share: number, at: Spot) => number, frame: (c: TestCar, index: number) => void) {
+function drive(path: Spot[], speed: (share: number, at: Spot) => number, frame: (c: TestCar, index: number) => void, line = LINE) {
   const c = car();
-  const tracker = new RouteTracker(LINE);
+  const tracker = new RouteTracker(line);
   const along = [0];
   for (let i = 1; i < path.length; i++) along.push(along[i - 1] + Math.hypot(path[i].x - path[i - 1].x, path[i].z - path[i - 1].z));
   const total = along[along.length - 1];
@@ -82,7 +85,7 @@ function drive(path: Spot[], speed: (share: number, at: Spot) => number, frame: 
 function cuts_on(path: Spot[], speed: (share: number, at: Spot) => number): number {
   const measure = new LineMeasure(LINE);
   const check = new CutCheck(measure, HALF);
-  drive(path, speed, (c, index) => check.update(track_side(c, GROUND), measure.at(0, index, c.pos.x, c.pos.z), c.vel.length(), DT));
+  drive(path, speed, (c, index) => check.update(track_side(c, GROUND), measure.at(0, index, c.pos.x, c.pos.z), c.pos.x, c.pos.z, c.vel.length(), DT));
   return check.cuts;
 }
 
@@ -183,7 +186,7 @@ test("cut: one still off the road at the line is judged there", () => {
   let s = 0;
   drive([...APPROACH, ...chord.slice(1, Math.round(chord.length * 0.8))], flat(30), (c, index) => {
     s = measure.at(0, index, c.pos.x, c.pos.z);
-    check.update(track_side(c, GROUND), s, c.vel.length(), DT);
+    check.update(track_side(c, GROUND), s, c.pos.x, c.pos.z, c.vel.length(), DT);
   });
   expect(check.cuts).toBe(0);
   expect(check.settle(s)).toBe(true);
@@ -194,8 +197,25 @@ test("cut: one still off the road at the line is judged there", () => {
 test("cut: a car put back elsewhere while off starts over, never judged across the jump", () => {
   const measure = new LineMeasure(LINE);
   const check = new CutCheck(measure, HALF);
-  check.update(TrackSide.ON, 50, 30, DT);
-  for (let i = 0; i < 30; i++) check.update(TrackSide.OFF, 51 + i * 0.5, 30, DT);
-  expect(check.update(TrackSide.ON, 200, 0, DT)).toBe(false);
+  check.update(TrackSide.ON, 50, 0, 50, 30, DT);
+  for (let i = 0; i < 30; i++) check.update(TrackSide.OFF, 51 + i * 0.5, -8, 51 + i * 0.5, 30, DT);
+  expect(check.update(TrackSide.ON, 200, 100, 140, 0, DT)).toBe(false);
   expect(check.cuts).toBe(0);
+});
+
+test("cut: across a hairpin's infield, where the nearest line point leaps from leg to leg, still counts", () => {
+  const r = 15;
+  const centre = { x: r, z: 100 };
+  // Points 2 m apart as the game's routes have them, so the tracker's window reaches across the infield as it does there.
+  const turn = arc(r, Math.PI, centre, 2);
+  const spots = [...straight({ x: 0, z: 0 }, { x: 0, z: 100 }, 2), ...turn.slice(1), ...straight({ x: 2 * r, z: 100 }, { x: 2 * r, z: 0 }, 2).slice(1)];
+  const line = line_of(spots);
+  const ground = ground_of(line);
+  for (const before of [5, 10, 15]) {
+    const measure = new LineMeasure(line);
+    const check = new CutCheck(measure, HALF);
+    const path = [...straight({ x: 0, z: 0 }, { x: 0, z: 100 - before }), ...straight({ x: 0, z: 100 - before }, { x: 2 * r, z: 100 - before }).slice(1), ...straight({ x: 2 * r, z: 100 - before }, { x: 2 * r, z: 0 }).slice(1)];
+    drive(path, flat(15), (c, index) => check.update(track_side(c, ground), measure.at(0, index, c.pos.x, c.pos.z), c.pos.x, c.pos.z, c.vel.length(), DT), line);
+    expect(check.cuts).toBe(1);
+  }
 });

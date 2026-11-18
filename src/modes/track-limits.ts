@@ -6,7 +6,7 @@ export const CUT_GAIN_S = 0.1;
 /** Metres past the route's half width a car's centre sits with a wheel still on the edge: the legal inside line runs here. */
 const EDGE_REACH = 1.5;
 const CUT_SPEED = 2;
-/** Metres the car's place along the line may move in one call before it reads as put back somewhere else, not driven. */
+/** Metres past what its speed covers that the car may move in one call before it reads as put back somewhere else, not driven. */
 const JUMP_M = 25;
 /** Lateral grip, in g, the legal line's bends are driven at: generous, so a cut is judged against a fast car, never a slow one. */
 const CORNER_G = 1.5;
@@ -94,17 +94,20 @@ export class CutCheck {
   private path = 0;
   private time = 0;
   private entry = 0;
-  private last = 0;
+  private last_x = 0;
+  private last_z = 0;
 
   constructor(
     private readonly measure: LineMeasure,
     private readonly half: number,
   ) {}
 
-  /** `s`: metres along the race (`LineMeasure.at`); `speed`: m/s over the ground; `dt`: s since the last call. True on the frame a cut ends. */
-  update(side: TrackSide, s: number, speed: number, dt: number): boolean {
-    if (this.off && Math.abs(s - this.last) > JUMP_M) this.off = false;
-    this.last = s;
+  /** `s`: metres along the race (`LineMeasure.at`) at (x, z); `speed`: m/s over the ground; `dt`: s since the last call. True on the frame a cut ends. */
+  update(side: TrackSide, s: number, x: number, z: number, speed: number, dt: number): boolean {
+    // Measured on the ground, not along the line: across a hairpin's infield the nearest line point leaps from leg to leg.
+    if (this.off && hypot(x - this.last_x, z - this.last_z) > speed * dt + JUMP_M) this.off = false;
+    this.last_x = x;
+    this.last_z = z;
     if (side === TrackSide.ON) {
       const was = this.off;
       this.off = false;
