@@ -23,7 +23,7 @@ export const Temperament = { CALM: "calm", MIXED: "mixed", AGGRESSIVE: "aggressi
 export type Temperament = (typeof Temperament)[keyof typeof Temperament];
 
 /** The aggression levels a field takes down its grid, pole first and round again. */
-const TEMPERS: Record<Temperament, readonly number[]> = { calm: [1, 2], mixed: [3], aggressive: [5, 4] };
+const TEMPERS: Record<Temperament, readonly number[]> = { calm: [1, 2], mixed: [3, 2, 4], aggressive: [5, 4] };
 const NO_LIMITS: RaceRules = { ...RACE_RULES, limits: null };
 
 export interface CustomRace {

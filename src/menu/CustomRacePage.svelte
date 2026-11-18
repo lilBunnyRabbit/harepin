@@ -25,7 +25,6 @@
   import Select from "./ui/Select.svelte";
   import Slider from "./ui/Slider.svelte";
   import TextField from "./ui/TextField.svelte";
-  import Toggle from "./ui/Toggle.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
   import type { Option } from "./ui/types";
   import { map_request, map_worker } from "./world-map.svelte";
@@ -124,6 +123,7 @@
   const slot = $derived(grid_of(setup));
   const slots = $derived(Array.from({ length: setup.rivals + 1 }, (_, i) => i));
   const picked_help = $derived(setup.cars === RivalPick.CLASS ? "The cars closest to yours in rating" : setup.cars === RivalPick.ANY ? "A spread from the slowest car to the fastest" : setup.picked.length ? "They take turns down the grid" : "None picked yet: your class races");
+  const rules_help = $derived(`${setup.limits ? "Cuts are warned, then cost time" : "Cut where you like"} · ${setup.slipstream ? "cars tow each other" : "clean air for all"}`);
   const summary = $derived(`${setup.rivals} ${setup.rivals === 1 ? "rival" : "rivals"} · ${timed ? length_text(setup) : setup.laps ? `${setup.laps} ${setup.laps === 1 ? "lap" : "laps"}` : "auto laps"} · from P${slot + 1}`);
 
   function toggle_preset(name: string) {
@@ -190,11 +190,13 @@
                 {#snippet control()}<Slider value={setup.laps} min={0} max={MAX_LAPS} label="Laps" format={(laps) => (laps ? String(laps) : "Auto")} onchange={(laps) => patch({ laps })} />{/snippet}
               </Row>
             {/if}
-            <Row label="Track limits" help={setup.limits ? "Cutting a corner is warned, then costs time" : "Cut where you like: no warnings, no penalties"}>
-              {#snippet control()}<Toggle checked={setup.limits} label="Track limits" onchange={(limits) => patch({ limits })} />{/snippet}
-            </Row>
-            <Row label="Slipstream" help={setup.slipstream ? "A car close ahead tows you, and them each other" : "Every car runs in clean air"}>
-              {#snippet control()}<Toggle checked={setup.slipstream} label="Slipstream" onchange={(slipstream) => patch({ slipstream })} />{/snippet}
+            <Row label="Rules" help={rules_help} stack>
+              {#snippet control()}
+                <span class="custom-rules" role="group" aria-label="Rules">
+                  <Chip variant="toggle" bind:pressed={() => setup.limits, (limits) => patch({ limits })}>Track limits</Chip>
+                  <Chip variant="toggle" bind:pressed={() => setup.slipstream, (slipstream) => patch({ slipstream })}>Slipstream</Chip>
+                </span>
+              {/snippet}
             </Row>
           </RowList>
         </ScrollArea>
@@ -210,7 +212,7 @@
             <Row label="Your grid slot" help={slot === setup.rivals ? "From the back" : slot === 0 ? "On pole" : `${slot} ahead of you`} stack>
               {#snippet control()}<Slider value={slot + 1} min={1} max={setup.rivals + 1} label="Your grid slot" format={(n) => `P${n}`} onchange={(n) => patch({ grid: n > setup.rivals ? MAX_RIVALS : n - 1 })} />{/snippet}
             </Row>
-            <div class="custom-extra">
+            <div class="custom-extra custom-under">
               <div class="custom-grid" role="img" aria-label={`Starting grid: you start P${slot + 1} of ${slots.length}`}>
                 <span class="custom-line"></span>
                 {#each slots as i (i)}
@@ -272,6 +274,16 @@
     padding: var(--gap-sm) var(--gap-md) var(--gap-md);
   }
 
+  .custom-under {
+    padding-top: 0;
+  }
+
+  .custom-rules {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+  }
+
   .custom-hint {
     color: var(--dim);
     font-size: var(--type-small);
@@ -300,7 +312,7 @@
     grid-template-columns: var(--mark-w) repeat(8, minmax(0, 1fr));
     grid-template-rows: var(--chip-h-in) var(--chip-h-in);
     gap: var(--gap-xs);
-    padding: var(--gap-sm);
+    padding: var(--gap-xs);
     border-radius: var(--radius-sm);
     background: var(--row);
   }

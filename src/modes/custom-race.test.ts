@@ -44,9 +44,9 @@ describe("custom race setup", () => {
     expect([host.event?.laps, host.event?.grid, host.event?.knockout, host.event?.limit_ms]).toEqual([4, 1, false, null]);
   });
 
-  test("mixed is every rival on the middle level, calm the two lowest; limits and slipstream ride on the event", () => {
-    const levels = (temperament: Temperament) => custom_host(base, { ...DEFAULT_CUSTOM, rivals: 3, temperament }, "Circuit", next).cars.map((car) => car.aggression);
-    expect([levels(Temperament.MIXED), levels(Temperament.CALM)]).toEqual([[3, 3, 3], [1, 2, 1]]);
+  test("mixed spreads the middle three levels down the grid, calm the two lowest; limits and slipstream ride on the event", () => {
+    const levels = (temperament: Temperament) => custom_host(base, { ...DEFAULT_CUSTOM, rivals: 4, temperament }, "Circuit", next).cars.map((car) => car.aggression);
+    expect([levels(Temperament.MIXED), levels(Temperament.CALM)]).toEqual([[3, 2, 4, 3], [1, 2, 1, 2]]);
     const on = custom_host(base, DEFAULT_CUSTOM, "Circuit", next).event;
     const off = custom_host(base, { ...DEFAULT_CUSTOM, limits: false, slipstream: false }, "Circuit", next).event;
     expect([on?.rules, on?.slipstream]).toEqual([RACE_RULES, true]);
