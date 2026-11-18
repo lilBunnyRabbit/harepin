@@ -4,7 +4,7 @@ import { deck_marks, type DeckBand } from "../render/deck-marks";
 import { PLAIN_KIT } from "../render/prop-kit";
 import { cloud_floor } from "../render/sky";
 import { brand, carbon, dark, lighten, mix, tones } from "../theme/palette";
-import { WorldKind, type Deck } from "../worldgen/types";
+import { DECK_STRIDE, WorldKind, type Deck } from "../worldgen/types";
 import { lap_facts, shown, type WorldDef } from "./world-def";
 
 const DEG = Math.PI / 180;
@@ -12,6 +12,8 @@ const BOWL = 25 * DEG;
 // Past this the low edge of a kick is the foot of a wall, and a line there read as a second rail.
 const EDGE_BANK = 60 * DEG;
 const PYLON_PITCH = 60;
+// Past the steepest bank and grade a plain track lays together (30° and 14°), so only Bowls & walls tracks reach it.
+const STEEP = 35 * DEG;
 
 const PAINT = dark ? lighten(brand.foreground, 0.18) : brand.background_lightest;
 const EDGES: DeckBand[] = [
@@ -25,8 +27,13 @@ const LANES: DeckBand[] = [
   { from: 0.72, to: 1, tone: mix(brand.error, carbon.base, 0.8), high: true },
 ];
 
+const has_bowls = (deck: Deck): boolean => {
+  for (let o = 5; o < deck.line.length; o += DECK_STRIDE) if (Math.abs(deck.line[o]) > STEEP) return true;
+  return false;
+};
+
 /** Lane paint over the bowls and pipes, edge lines, floodlight masts over the bowls and pylons under the deck. */
-export const bowl_dress = (deck: Deck): THREE.Object3D[] => [
+const bowl_dress = (deck: Deck): THREE.Object3D[] => [
   deck_marks(deck, LANES, (bank) => Math.abs(bank) >= BOWL),
   deck_marks(deck, EDGES, (bank) => Math.abs(bank) < EDGE_BANK),
   ...masts(deck, { post: carbon.thread, lamp: tones.head }, BOWL),
@@ -49,6 +56,7 @@ export const sky: WorldDef = {
   ground_puff: "grass",
   backdrop: "sky",
   facts: (f) => [...lap_facts(f, "track"), [shown(f, (f) => String(f.gaps)), f?.gaps === 1 ? "gap to fly over" : "gaps to fly over"]],
-  dress: (world) => [cloud_floor(world)],
+  dress: (world) => (world.deck && has_bowls(world.deck.deck) ? [cloud_floor(world), ...bowl_dress(world.deck.deck)] : [cloud_floor(world)]),
   kit: PLAIN_KIT,
+  wall_view: STEEP,
 };

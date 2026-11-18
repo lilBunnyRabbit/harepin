@@ -34,15 +34,12 @@ export const SURFACE_GROUND = [null, Ground.DIRT, Ground.PAN, null, Ground.DIRT,
 export const WORLD_VERSION = 14;
 
 /** Bump whenever `generate_sky` makes a different track for the same seed. */
-export const SKY_VERSION = 5;
+export const SKY_VERSION = 6;
 
 /** Bump whenever `generate_sky` makes a different rooftop track for the same seed. */
 export const ROOFTOPS_VERSION = 2;
 
-/** Bump whenever `generate_sky` makes a different velodrome track for the same seed. */
-export const VELODROME_VERSION = 3;
-
-export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine", TUNDRA: "tundra", ROOFTOPS: "rooftops", VOLCANO: "volcano", BIG_DUNES: "dunes", ICE_CANYON: "icecanyon", VELODROME: "velodrome", LAB: "lab", RACEWAY: "raceway" } as const;
+export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine", TUNDRA: "tundra", ROOFTOPS: "rooftops", VOLCANO: "volcano", BIG_DUNES: "dunes", ICE_CANYON: "icecanyon", LAB: "lab", RACEWAY: "raceway" } as const;
 export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];
 /** What a URL or save without a world, or with one this build doesn't know, drives. */
 export const DEFAULT_KIND: WorldKind = WorldKind.ISLAND;

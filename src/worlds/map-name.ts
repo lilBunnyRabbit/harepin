@@ -32,7 +32,7 @@ export const MAP_NAMES: Readonly<Record<string, string>> = {
   "1T0000008": "Lakes · Blewar",
   "1B0000004": "Big dunes · Meadburrbun",
   "1S0000007-F2Q2": "Sky · Pinwar · Wild, Exposed",
-  "1W0000004": "Velodrome · Burrwarwar",
+  "1S0000004-W1": "Sky · Pinlowble · Bowls & walls",
   "1C000000D": "Island · Owbrook",
   "1C0000002": "Island · Thimbun",
   "1C0000009": "Island · Harfenbun",

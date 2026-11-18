@@ -12,8 +12,14 @@ const HEAD = 2 + SEED_CHARS;
 const JOIN = "-";
 export const MAP_CODE_MAX = 64;
 
+/** A retired kind's char, read as another kind's map: `set` overrides first, fields in `drops` ignored. */
+interface Retired {
+  set: string;
+  drops: string;
+}
+
 /** Preset chars are append-only, like field letters. */
-export const PRESETS: readonly { char: string; kind: WorldKind }[] = [
+export const PRESETS: readonly { char: string; kind: WorldKind; retired?: Retired }[] = [
   { char: "C", kind: WorldKind.ISLAND },
   { char: "S", kind: WorldKind.SKY },
   { char: "D", kind: WorldKind.DESERT },
@@ -24,12 +30,13 @@ export const PRESETS: readonly { char: string; kind: WorldKind }[] = [
   { char: "R", kind: WorldKind.ROOFTOPS },
   { char: "B", kind: WorldKind.BIG_DUNES },
   { char: "F", kind: WorldKind.ICE_CANYON },
-  { char: "W", kind: WorldKind.VELODROME },
+  // Velodrome, now Sky with Bowls & walls; its Half-pipes and Wall ride options went with it.
+  { char: "W", kind: WorldKind.SKY, retired: { set: "W1", drops: "PR" } },
   { char: "K", kind: WorldKind.LAB },
   { char: "G", kind: WorldKind.RACEWAY },
 ];
 
-const preset_char = (kind: WorldKind) => PRESETS.find((p) => p.kind === kind)?.char ?? "";
+const preset_char = (kind: WorldKind) => PRESETS.find((p) => p.kind === kind && !p.retired)?.char ?? "";
 
 function seed_chars(seed: number): string {
   let out = "";
@@ -76,11 +83,14 @@ export function parse_map_code(text: string, kind: WorldKind = DEFAULT_KIND): Ma
   const { options } = KINDS[preset.kind];
   const levels = normal_levels(options);
   const seen = new Set<string>();
+  const set = preset.retired?.set ?? "";
+  for (let i = 0; i < set.length; i += 2) levels[options.findIndex((o) => o.field === set[i])] = ALPHABET.indexOf(set[i + 1]);
   for (let i = HEAD; i < code.length; i += 2) {
     const field = code[i];
     const level = ALPHABET.indexOf(code[i + 1]);
     if (seen.has(field)) return { ok: false, why: "bad" };
     seen.add(field);
+    if (preset.retired?.drops.includes(field)) continue;
     const at = options.findIndex((o) => o.field === field);
     if (at < 0 || level >= options[at].labels.length) return { ok: false, why: "newer" };
     levels[at] = level;

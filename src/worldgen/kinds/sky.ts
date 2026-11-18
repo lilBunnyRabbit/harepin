@@ -16,8 +16,7 @@ export const WALL = { bank: [60 * DEG, 64 * DEG], hold: [40, 60] } as const;
 // speed and crashed there.
 export const WALLED: SkyRecipe = {
   ...SKY,
-  kind: WorldKind.VELODROME,
-  // The Wall Ride kind this one took over: under "velodrome" seed 1, which every trackless seed falls back to, finds no track.
+  // The old Velodrome kind's salt, from the Wall Ride kind it took over: its tracks and career times carry over to Bowls & walls.
   salt: "wallride",
   odds: { eight: 1, helix: 0, hairpin: 0.35 },
   gaps: 1,
@@ -30,7 +29,7 @@ export const WALLED: SkyRecipe = {
   excludes: ["bus"],
 };
 
-const SKY_KNOBS: readonly Knob<SkyRecipe>[] = [
+const TUNE: readonly Knob<SkyRecipe>[] = [
   length_knob(SKY, [2400, 4400], [3800, 6400]),
   knob<SkyRecipe, SkyRecipe["odds"]>({
     field: "Q",
@@ -46,6 +45,16 @@ const SKY_KNOBS: readonly Knob<SkyRecipe>[] = [
   knob<SkyRecipe, SkyRecipe["open"]>({ field: "F", name: "Open sections", help: "Stretches with no rail to catch you.", labels: ["Railed", "Normal", "Exposed"], normal: 1, values: [[0, 0], SKY.open, [0.35, 0.55]], set: (r, open) => ({ ...r, open }) }),
 ];
 
+// Picks the recipe the other knobs tune, so at their normal levels it keeps its own twist, gaps and pads.
+const BOWLS = knob<SkyRecipe, SkyRecipe>({ field: "W", name: "Bowls & walls", help: "Steep banked bowls, half-pipes and a wall to ride.", labels: ["Off", "On"], switch: true, late: true, normal: 0, values: [SKY, WALLED], set: (_, base) => base });
+
+const SKY_KNOBS: readonly Knob<SkyRecipe>[] = [...TUNE, BOWLS];
+
+function generate(seed: number, levels: readonly number[]) {
+  const base = BOWLS.apply(SKY, levels[TUNE.length] ?? BOWLS.normal);
+  return generate_sky(seed, tune(base, TUNE, levels), base);
+}
+
 /** Base 1000 keeps it off the island's ids, so old builds see a sky peer as on a foreign map. */
 export const sky = kind_def({
   kind: WorldKind.SKY,
@@ -53,7 +62,7 @@ export const sky = kind_def({
   tag: "sky",
   version: SKY_VERSION,
   size: SIZE,
-  generate: (seed, levels) => generate_sky(seed, tune(SKY, SKY_KNOBS, levels)),
+  generate,
   options: SKY_KNOBS,
   recipe: null,
   open_ground: false,

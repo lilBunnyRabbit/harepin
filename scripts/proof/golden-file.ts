@@ -6,7 +6,7 @@ import type { Digest } from "./digest";
 
 const seeds = (n: number) => [...Array(n).keys()];
 
-export const GOLDEN_SEEDS: Record<WorldKind, number[]> = { island: seeds(20), sky: seeds(10), desert: seeds(10), mainland: [0, 1, 2], alpine: seeds(10), tundra: seeds(10), volcano: seeds(10), rooftops: seeds(10), dunes: [0, 1, 2], icecanyon: seeds(10), velodrome: seeds(10), lab: [0, 1], raceway: seeds(10) };
+export const GOLDEN_SEEDS: Record<WorldKind, number[]> = { island: seeds(20), sky: seeds(10), desert: seeds(10), mainland: [0, 1, 2], alpine: seeds(10), tundra: seeds(10), volcano: seeds(10), rooftops: seeds(10), dunes: [0, 1, 2], icecanyon: seeds(10), lab: [0, 1], raceway: seeds(10) };
 
 /** Maps off their kind's normal levels the golden keeps too, each set in its own file: Winter Mainland. */
 export interface GoldenMaps {
@@ -15,7 +15,10 @@ export interface GoldenMaps {
   seeds: number[];
 }
 
-export const GOLDEN_MAPS: readonly GoldenMaps[] = [{ kind: "mainland", levels: [1], seeds: [0, 1, 2] }];
+export const GOLDEN_MAPS: readonly GoldenMaps[] = [
+  { kind: "mainland", levels: [1], seeds: [0, 1, 2] },
+  { kind: "sky", levels: [1, 1, 1, 1, 1, 1], seeds: seeds(10) },
+];
 
 /** A golden file's name: the kind, plus `-<overrides>` for a map off its normal levels (`mainland-W1`). */
 export const golden_name = (kind: WorldKind, opts = "") => (opts ? `${kind}-${opts}` : kind);

@@ -50,8 +50,8 @@ const read = (text: string, kind?: WorldKind) => {
 
 test("map code field letters and preset chars never move", () => {
   const fields = Object.fromEntries(Object.values(WorldKind).map((kind) => [kind, KINDS[kind].options.map((o) => o.field).join("")]));
-  expect(fields).toEqual({ island: "EQYJCXHTGPZW", sky: "EQAVF", desert: "JCXHDKZW", mainland: "W", alpine: "YJCHTGZW", tundra: "JCHTZ", volcano: "", rooftops: "", dunes: "", icecanyon: "", velodrome: "EAVPR", lab: "", raceway: "EHCR" });
-  expect(PRESETS.map((p) => `${p.char}${p.kind}`)).toEqual(["Cisland", "Ssky", "Ddesert", "Mmainland", "Aalpine", "Ttundra", "Vvolcano", "Rrooftops", "Bdunes", "Ficecanyon", "Wvelodrome", "Klab", "Graceway"]);
+  expect(fields).toEqual({ island: "EQYJCXHTGPZW", sky: "EQAVFW", desert: "JCXHDKZW", mainland: "W", alpine: "YJCHTGZW", tundra: "JCHTZ", volcano: "", rooftops: "", dunes: "", icecanyon: "", lab: "", raceway: "EHCR" });
+  expect(PRESETS.map((p) => `${p.char}${p.kind}`)).toEqual(["Cisland", "Ssky", "Ddesert", "Mmainland", "Aalpine", "Ttundra", "Vvolcano", "Rrooftops", "Bdunes", "Ficecanyon", "Wsky", "Klab", "Graceway"]);
   for (const kind of Object.values(WorldKind)) {
     expect(new Set(fields[kind]).size).toBe(fields[kind].length);
     for (const field of fields[kind]) expect("ILOU0123456789").not.toContain(field);
@@ -94,7 +94,7 @@ test("overrides come out sorted, and ones equal to the preset drop out", () => {
 
 test("K2 codes read as the picked kind's plain preset plus their digits", () => {
   expect(read("42-121111")).toEqual({ kind: WorldKind.ISLAND, seed: 42, levels: [1, 2, 1, 1, 1, 1, 16, 16, 16, 16, 16, 0] });
-  expect(read("42", WorldKind.SKY)).toEqual({ kind: WorldKind.SKY, seed: 42, levels: [1, 1, 1, 1, 1] });
+  expect(read("42", WorldKind.SKY)).toEqual({ kind: WorldKind.SKY, seed: 42, levels: [1, 1, 1, 1, 1, 0] });
   expect(read("7-201", WorldKind.DESERT)).toEqual({ kind: WorldKind.DESERT, seed: 7, levels: [2, 0, 1, 16, 16, 16, 16, 0] });
   expect(map_code(read("42-121111"))).toBe("1C000001A-Q2");
   expect(map_code(read("42-111111"))).toBe("1C000001A");
@@ -114,7 +114,7 @@ test("a link's code that can't be read is named as newer or bad, and the plain m
   expect(pick_problem(pick("hello"))).toBe("bad");
   expect(pick_problem(pick(null))).toBeNull();
   expect(pick_problem(pick("1C000001A-E2"))).toBeNull();
-  expect(read_pick(pick("1Z000001A"))).toEqual({ kind: WorldKind.SKY, seed: 9, levels: [1, 1, 1, 1, 1] });
+  expect(read_pick(pick("1Z000001A"))).toEqual({ kind: WorldKind.SKY, seed: 9, levels: [1, 1, 1, 1, 1, 0] });
 });
 
 test("codes past the relief budget read as their clamped map, so one world has one code", () => {

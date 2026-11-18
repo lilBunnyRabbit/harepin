@@ -63,9 +63,9 @@ test("distances read in metres, then kilometres", () => {
 });
 
 test("Make a map: a kind comes back with the values it was left on, another kind plain", () => {
-  const plain = plain_map(WorldKind.VELODROME, 7);
+  const plain = plain_map(WorldKind.SKY, 7);
   const custom = plain.levels.map((level, at) => (at === 0 ? level + 1 : level));
-  const kept = new Map([[WorldKind.VELODROME, custom]]);
-  expect(kind_map(kept, WorldKind.VELODROME, 7)).toEqual({ kind: WorldKind.VELODROME, seed: 7, levels: custom });
+  const kept = new Map([[WorldKind.SKY, custom]]);
+  expect(kind_map(kept, WorldKind.SKY, 7)).toEqual({ kind: WorldKind.SKY, seed: 7, levels: custom });
   expect(kind_map(kept, WorldKind.RACEWAY, 7)).toEqual(plain_map(WorldKind.RACEWAY, 7));
 });
