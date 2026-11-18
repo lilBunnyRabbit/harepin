@@ -40,7 +40,7 @@ describe("auto gearbox modes", () => {
     expect(downshift_rpm(COUPE, band, ShiftMode.NORMAL, 0, 0)).toBe(COUPE.downshift);
     expect(downshift_rpm(COUPE, band, ShiftMode.NORMAL, 1, 0)).toBe(COUPE.downshift);
     expect(downshift_rpm(COUPE, band, ShiftMode.NORMAL, 0, 1)).toBe(COUPE.downshift);
-    expect(downshift_ceiling(COUPE, band, ShiftMode.NORMAL, 0, COUPE.downshift + 100)).toBe(COUPE.upshift - DOWNSHIFT_ROOM);
+    expect(downshift_ceiling(COUPE, band, ShiftMode.NORMAL, 0, COUPE.downshift + 100, 1)).toBe(COUPE.upshift - DOWNSHIFT_ROOM);
     expect(holds_gear(COUPE, ShiftMode.NORMAL, 0, 5000)).toBe(false);
   });
 
@@ -55,9 +55,15 @@ describe("auto gearbox modes", () => {
   test("Eco at part throttle never drops a gear to land above its own upshift line", () => {
     for (const spec of Object.values(CARS)) {
       const b = shift_band(spec);
-      expect(downshift_ceiling(spec, b, ShiftMode.ECO, 0.5, spec.downshift - 1)).toBeLessThanOrEqual(upshift_rpm(spec, b, ShiftMode.ECO, 0.5) - DOWNSHIFT_ROOM);
-      expect(downshift_ceiling(spec, b, ShiftMode.ECO, 1, spec.downshift - 1)).toBe(spec.upshift - DOWNSHIFT_ROOM);
+      expect(downshift_ceiling(spec, b, ShiftMode.ECO, 0.5, spec.downshift - 1, 2)).toBeLessThanOrEqual(upshift_rpm(spec, b, ShiftMode.ECO, 0.5) - DOWNSHIFT_ROOM);
+      expect(downshift_ceiling(spec, b, ShiftMode.ECO, 1, spec.downshift - 1, 2)).toBe(spec.upshift - DOWNSHIFT_ROOM);
     }
+  });
+
+  test("Sport's early downshift never picks 1st; one under the car's own line still does", () => {
+    expect(downshift_ceiling(COUPE, band, ShiftMode.SPORT, 0, COUPE.downshift + 100, 1)).toBe(-Infinity);
+    expect(downshift_ceiling(COUPE, band, ShiftMode.SPORT, 0, COUPE.downshift + 100, 2)).toBeGreaterThan(0);
+    expect(downshift_ceiling(COUPE, band, ShiftMode.SPORT, 0, COUPE.downshift - 100, 1)).toBeGreaterThan(0);
   });
 
   test("Sport holds its gear off the throttle, short of the redline", () => {

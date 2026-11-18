@@ -20,14 +20,16 @@ export interface ShiftPoints {
    * exit pulled one beat in 1st and shifted back up, 4 km/h down on Normal 2 s out of a 60 km/h bend in the Coupe.
    */
   early_room: number;
+  /** The lowest gear a downshift above the car's own line picks: into 1st, the Muscle's exit lost 3 km/h to the shift back. */
+  early_floor: number;
   /** The least throttle an upshift takes: Sport holds its gear off the throttle and on the brakes. */
   hold_pedal: number;
 }
 
 export const SHIFT_POINTS: Record<ShiftMode, ShiftPoints> = {
-  sport: { up: 0.1, down: 0.25, kick_up: 0.1, kick_down: 0.25, brake_down: 0.6, early_room: 0.4, hold_pedal: 0.1 },
-  normal: { up: 0, down: 0, kick_up: 0, kick_down: 0, brake_down: 0, early_room: 0, hold_pedal: -1 },
-  eco: { up: -0.6, down: -0.15, kick_up: -0.2, kick_down: 0, brake_down: -0.15, early_room: 0, hold_pedal: -1 },
+  sport: { up: 0.1, down: 0.25, kick_up: 0.1, kick_down: 0.25, brake_down: 0.6, early_room: 0.4, early_floor: 2, hold_pedal: 0.1 },
+  normal: { up: 0, down: 0, kick_up: 0, kick_down: 0, brake_down: 0, early_room: 0, early_floor: 1, hold_pedal: -1 },
+  eco: { up: -0.6, down: -0.15, kick_up: -0.2, kick_down: 0, brake_down: -0.15, early_room: 0, early_floor: 1, hold_pedal: -1 },
 };
 
 export const KICK_PEDAL = 0.9;
@@ -61,9 +63,12 @@ export function downshift_rpm(spec: CarSpec, band: number, mode: ShiftMode, peda
  * The most rpm the lower gear may land at. On full throttle it is Normal's upshift at least: judged on Eco's early
  * upshift, the bus kicked down only under its idle and lugged up a 25% grade.
  */
-export function downshift_ceiling(spec: CarSpec, band: number, mode: ShiftMode, pedal: number, turning: number): number {
+export function downshift_ceiling(spec: CarSpec, band: number, mode: ShiftMode, pedal: number, turning: number, lower: number): number {
+  const points = SHIFT_POINTS[mode];
+  const early = turning >= spec.downshift;
+  if (early && lower < points.early_floor) return -Infinity;
   const up = upshift_rpm(spec, band, mode, pedal);
-  const room = turning < spec.downshift ? 0 : SHIFT_POINTS[mode].early_room * band;
+  const room = early ? points.early_room * band : 0;
   return (pedal > KICK_PEDAL ? Math.max(up, spec.upshift) : up) - DOWNSHIFT_ROOM - room;
 }
 

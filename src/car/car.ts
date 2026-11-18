@@ -561,7 +561,7 @@ export class Car {
       if (wheel_rpm > up && this.gear < spec.gears.length) {
         if (!spinning && !holds_gear(spec, this.shift_mode, frame.pedal, wheel_rpm) && landing >= Math.min(down, spec.downshift) * (1 + SHIFT_MARGIN)) this.shift(1);
       }
-      else if (turning < down && this.gear > 1 && turning * (spec.gears[this.gear - 2] / spec.gears[this.gear - 1]) < downshift_ceiling(spec, this.band, this.shift_mode, frame.pedal, turning)) this.shift(-1);
+      else if (turning < down && this.gear > 1 && turning * (spec.gears[this.gear - 2] / spec.gears[this.gear - 1]) < downshift_ceiling(spec, this.band, this.shift_mode, frame.pedal, turning, this.gear - 1)) this.shift(-1);
     }
   }
 
