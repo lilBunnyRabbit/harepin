@@ -50,8 +50,13 @@ const BOWLS = knob<SkyRecipe, SkyRecipe>({ field: "W", name: "Bowls & walls", he
 
 const SKY_KNOBS: readonly Knob<SkyRecipe>[] = [...TUNE, BOWLS];
 
+const bowls_level = (levels: readonly number[]) => levels[TUNE.length] ?? BOWLS.normal;
+
+/** A sky map's levels lay Bowls & walls. */
+export const walled = (levels: readonly number[]): boolean => bowls_level(levels) === 1;
+
 function generate(seed: number, levels: readonly number[]) {
-  const base = BOWLS.apply(SKY, levels[TUNE.length] ?? BOWLS.normal);
+  const base = BOWLS.apply(SKY, bowls_level(levels));
   return generate_sky(seed, tune(base, TUNE, levels), base);
 }
 

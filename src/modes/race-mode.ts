@@ -12,6 +12,7 @@ import { KINDS } from "../worldgen/kinds/kinds";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
 import { SILVER_SHARE, grade, par_thresholds } from "./track";
 import { hypot } from "../sim-math";
+import { StartBeeps } from "./start-steps";
 
 // Never written: the dev ghost is read from the shipped asset, and a race keeps no ghost of the player's own.
 const DEV_GHOST_KEY = "harepin:ghost:career-dev";
@@ -28,6 +29,8 @@ class Race implements ModeRun {
   private readonly hits: Hits | null;
   private ghost: Ghost | null = null;
   private disposed = false;
+  /** A lobby lap starts on the lobby's countdown, which beeps on its own. */
+  private readonly beeps: StartBeeps | null;
   private readonly traps: TrapRun | null;
   private flash: { kmh: number; at: number } | null = null;
   /** A solo run over laps: the lap under way, and the time of the laps before it. */
@@ -50,6 +53,7 @@ class Race implements ModeRun {
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(course.route.closure);
     this.run = new RaceRun(course, ctx.lobby_lap() ? 0 : COUNTDOWN_MS);
+    this.beeps = ctx.lobby_lap() ? null : new StartBeeps(COUNTDOWN_MS / 1000);
     this.laps = ctx.lobby_lap() || !course.route.closed ? 1 : Math.max(1, ctx.laps);
     this.hits = ctx.hits();
     this.status.gates = "";
@@ -87,6 +91,8 @@ class Race implements ModeRun {
     const was = run.status;
     const taken = run.update(run.countdown > 0 ? wall : sim_dt * 1000, car.pos.x, car.pos.z);
     this.route.progress = run.tracker.index;
+    const beep = this.beeps?.next(run.countdown, now);
+    if (beep) ctx.beep(beep);
     this.hits?.update(sim_dt * 1000, run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING);
     if (this.traps && (run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING)) {
       const passed = this.traps.next;

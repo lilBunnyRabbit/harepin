@@ -12,7 +12,7 @@
   let { keys, onclick, children }: Props = $props();
 </script>
 
-<button type="button" class="ui-key-link" data-nav {onclick}>
+<button type="button" class="ui-key-link" {onclick}>
   {#if keys}<Glyph {...keys} />{/if}
   {@render children()}
 </button>

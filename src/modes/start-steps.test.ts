@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { COUNTDOWN_MS } from "./races";
-import { Beep, GREEN_MS, StartSteps, start_step } from "./start-steps";
+import { Beep, GREEN_MS, StartBeeps, StartSteps, start_step } from "./start-steps";
 
 const FRAME_MS = 1000 / 60;
 
@@ -56,5 +56,22 @@ describe("start beeps", () => {
     steps.reset();
     expect(steps.next(COUNTDOWN_MS, -1)).toBe(Beep.RED);
     expect(steps.step).toBe(1);
+  });
+});
+
+describe("solo start beeps", () => {
+  test("three red beeps down the countdown, one go beep, then laps 2+ start quiet", () => {
+    const beeps = new StartBeeps(COUNTDOWN_MS / 1000);
+    const log: Beep[] = [];
+    for (let t = 0; t < COUNTDOWN_MS + GREEN_MS * 2; t += FRAME_MS) {
+      const beep = beeps.next(Math.max(0, COUNTDOWN_MS - t), t);
+      if (beep) log.push(beep);
+    }
+    expect(log).toEqual([Beep.RED, Beep.RED, Beep.RED, Beep.GO]);
+    for (let lap = 2; lap <= 3; lap++) {
+      const t = COUNTDOWN_MS + lap * 60_000;
+      expect(beeps.next(0, t)).toBeNull();
+      expect(beeps.next(0, t + FRAME_MS)).toBeNull();
+    }
   });
 });

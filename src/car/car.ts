@@ -4,7 +4,7 @@ import { COUPE, type CarSpec } from "./cars";
 import { curve_at } from "./curve";
 import { NITRO_TORQUE, Nitro, type NitroSense } from "./nitro";
 import { GRAVITY, RigidBody } from "./rigid-body";
-import { ShiftMode, downshift_rpm, shift_band, upshift_rpm } from "./shift-mode";
+import { ShiftMode, downshift_ceiling, downshift_rpm, holds_gear, shift_band, upshift_rpm } from "./shift-mode";
 import { SteerMode, Steering } from "./steering";
 import { CurveCache, spin_free, suspend, tyre } from "./tyre";
 import { atan, atan2, axis_angle, hypot, tan } from "../sim-math";
@@ -558,13 +558,12 @@ export class Car {
       // big drift angle, the box dropped a gear and put the engine on the limiter.
       const turning = Math.max(road_rpm, wheel_rpm);
       const up = upshift_rpm(spec, this.band, this.shift_mode, frame.pedal);
-      const down = downshift_rpm(spec, this.band, this.shift_mode, frame.pedal);
+      const down = downshift_rpm(spec, this.band, this.shift_mode, frame.pedal, frame.brake);
       // Judged on Sport's raised downshift line, wide-ratio boxes held 1st onto the limiter.
       if (wheel_rpm > up && this.gear < spec.gears.length) {
-        if (!spinning && landing >= Math.min(down, spec.downshift) * (1 + SHIFT_MARGIN)) this.shift(1);
+        if (!spinning && !holds_gear(spec, this.shift_mode, frame.pedal, wheel_rpm) && landing >= Math.min(down, spec.downshift) * (1 + SHIFT_MARGIN)) this.shift(1);
       }
-      // Judged on Eco's early upshift, the bus kicked down only under its idle and lugged up a 25% grade.
-      else if (turning < down && this.gear > 1 && turning * (spec.gears[this.gear - 2] / spec.gears[this.gear - 1]) < Math.max(up, spec.upshift) - 600) this.shift(-1);
+      else if (turning < down && this.gear > 1 && turning * (spec.gears[this.gear - 2] / spec.gears[this.gear - 1]) < downshift_ceiling(spec, this.band, this.shift_mode, frame.pedal, turning, this.gear - 1)) this.shift(-1);
     }
   }
 

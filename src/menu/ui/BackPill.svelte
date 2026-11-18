@@ -9,7 +9,7 @@
   let { to, onclick }: Props = $props();
 </script>
 
-<KeyButton class="ui-back" data-nav variant="quiet" keys={{ key: "Esc", pad: "B", touch: "icon-back" }} {onclick}>{to}</KeyButton>
+<KeyButton class="ui-back" variant="quiet" keys={{ key: "Esc", pad: "B", touch: "icon-back" }} {onclick}>{to}</KeyButton>
 
 <style>
   :global(:root .ui-back) {

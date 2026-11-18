@@ -21,7 +21,7 @@ const MINUTE_MS = 60_000;
 
 const plain = (event: KeyboardEvent) => !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && !modal_open();
 
-/** Enter on the page itself or a nav link, not on a control that takes it (`takes_enter`), with no modal over the page. */
+/** Enter on the page itself, not on a control that takes it (`takes_enter`), with no modal over the page. */
 export const bare_enter = (event: KeyboardEvent) => free_enter(event) && !modal_open();
 
 /** What the click rule reads off a click: a `PointerEvent` in the browser, with no pointer type behind Enter or the pad's A. */

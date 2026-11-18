@@ -51,6 +51,21 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.66.0",
+    date: "2026-11-18",
+    title: "Sharper racing",
+    changes: [
+      { kind: IMPROVED, text: "AI rivals give you room by their temperament, and run far cleaner races" },
+      { kind: NEW, text: "Auto gearbox styles: Sport, Normal and Eco" },
+      { kind: NEW, text: "Sky Track has a Bowls and walls option (the Velodrome lives here now)" },
+      { kind: IMPROVED, text: "Maps page: Make a map is its own button (N), and map cards keep one size" },
+      { kind: IMPROVED, text: "Enter fires the main button only when nothing else is focused, and its key cap fades when something else takes Enter" },
+      { kind: IMPROVED, text: "Solo time trials beep at the start" },
+      { kind: FIXED, text: "The race timer card no longer overlaps the race panel at larger HUD sizes" },
+      { kind: FIXED, text: "The guide says nitro is off in races against the AI" },
+    ],
+  },
+  {
     version: "0.65.0",
     date: "2026-11-18",
     title: "Raceway venue",
