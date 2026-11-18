@@ -8,12 +8,14 @@ export interface AiTuning {
    * `line_grip` holds in a hairpin (`hairpin_radius` m and tighter), where the driver is already at full lock; it eases up to
    * `fast_grip` in a bend of `fast_radius` m or wider. The coupe holds 0.94 g on the skidpad and stops at 12.9 m/s²; the
    * owner's laps corner at 8 to 8.8 and brake at 8 to 10. Half a metre off the line at most is what these leave for: at
-   * 8.2 in hairpins, 9 in fast bends and braking at 8.3, one solo lap in fifteen left the road.
+   * 8.2 in hairpins, 9 in fast bends and braking at 8.3, one solo lap in fifteen left the road. The driver holds its
+   * braking plan to a few tenths of a m/s (`scripts/ai-ml/brakes.ts`), so the plan is the pace: braking at 6.75 cost the
+   * coupe 2 s a lap; at 9, and at 10 most of all, the field ran wide out of the bends.
    */
   line_grip: number;
   fast_grip: number;
   line_brake: number;
-  /** Braking (m/s²) a driver diving down the inside plans on: it brakes later and harder than the line, into the apex. At 9.1 a dive that touched its car spun. */
+  /** Braking (m/s²) a driver diving down the inside plans on: it brakes later and harder than the line, into the apex. At 9.1 a dive that touched its car spun. It is also the most any driver carries into a bend, over its pace. */
   late_brake: number;
   /**
    * Traction (m/s²) and power (m²/s³: acceleration times speed) the line's forward pass lets a car pull out of a bend
@@ -70,8 +72,8 @@ export interface AiTuning {
 export const AI_TUNING: AiTuning = {
   line_grip: 7.8,
   fast_grip: 8.6,
-  line_brake: 6.75,
-  late_brake: 7.5,
+  line_brake: 8.5,
+  late_brake: 9,
   line_drive: 6.5,
   line_power: 140,
   crest_light: 0.5,

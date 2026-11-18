@@ -233,7 +233,7 @@ const COUPE_FRAME: FrameSpec = {
 
 const HATCH_FRAME: FrameSpec = {
   ...COUPE_FRAME,
-  ai: { slow: 1, fast: 1, brake: 1, slide_throttle: 1 },
+  ai: { slow: 1, fast: 1, brake: 0.85, slide_throttle: 1 },
   air_settle: 2,
   mass: 1050,
   inertia: [1550, 1600, 430],
