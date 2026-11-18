@@ -28,7 +28,7 @@ export interface Driven {
   quat: THREE.Quaternion;
   readonly heading: number;
   readonly spec: CarSpec;
-  readonly wheels: readonly { readonly contact: boolean }[];
+  readonly wheels: readonly { readonly contact: boolean; readonly point: { readonly x: number; readonly z: number } }[];
 }
 
 export interface Level {
@@ -153,6 +153,8 @@ export interface ModeCtx {
   spawn(x: number, z: number, heading: number): void;
   spawn_on(p: { x: number; z: number; tx: number; tz: number }): void;
   chime(): void;
+  /** A rule call over the road, such as a track limits warning. */
+  toast(text: string): void;
   /** A start-light beep, on the frame its lamp changes. */
   beep(beep: Beep): void;
   /** Points the gate arrow `turn` radians off the car's nose; `wrong` shows the wrong-way card with it. */

@@ -14,7 +14,8 @@ import { RaceLights } from "./race-lights";
 import { race_laps } from "./race-laps";
 import { RaceView } from "./race-view";
 import { COUNTDOWN_MS, RaceRun, TIMED_CAPTIONS, RaceStatus, type RaceCourse, type RaceLevel } from "./races";
-import { line } from "./result";
+import { line, penalty_text, time_lines } from "./result";
+import { Stewards } from "./race-rules";
 
 /** Places that show two stars; nothing is recorded, as position grading is its own design (O9). */
 const PODIUM = 3;
@@ -57,6 +58,7 @@ export class AiRace implements ModeRun, FieldRace {
   private result: Finish | null = null;
   private rows: Row[] = [];
   private readonly tally: FieldTally;
+  private readonly stewards: Stewards;
   /** The player's grid slot: the event's, else last. */
   private readonly grid: number;
   /** The order a knockout or a timed race ended on; a race to the line keeps filling in as the cars cross it. */
@@ -88,6 +90,7 @@ export class AiRace implements ModeRun, FieldRace {
     this.grid = Math.max(0, Math.min(this.builds.length, Math.trunc(host.event?.grid ?? this.builds.length)));
     this.run = this.grid_run();
     this.standings = new Standings(this.builds.length + 1, route.points.length, this.laps, this.builds.length);
+    this.stewards = new Stewards(level.rules, course.line, route.gate_hw);
     this.tally = new FieldTally(this.builds.length + 1, route.points.length, this.laps, host.event?.knockout === true);
     this.route = { id: route.id, gate: this.run.gate, later: this.later(0), respawn: course.line[0] };
     const spot = grid_spot(route, this.grid);
@@ -164,6 +167,10 @@ export class AiRace implements ModeRun, FieldRace {
       return null;
     }
     if (this.result) this.write_rows();
+    else if (run.status === RaceStatus.RUNNING) {
+      const call = this.stewards.limits(car, ctx.world, this.lap - 1, run.tracker.index, sim_dt);
+      if (call) ctx.toast(call);
+    }
     if (taken >= 0) {
       this.route.respawn = this.course.line[this.course.gates[taken]];
       this.route.later = this.later(run.next);
@@ -185,14 +192,16 @@ export class AiRace implements ModeRun, FieldRace {
     const gate = run.gate;
     this.route.gate = gate;
     if (!gate) return null;
-    ctx.hint(turn_to(car, gate.x, gate.z), view.guide(run.tracker.index, car.heading, run.tracker.offset, this.lap < this.laps));
+    const wrong = view.guide(run.tracker.index, car.heading, run.tracker.offset, this.lap < this.laps);
+    ctx.hint(turn_to(car, gate.x, gate.z), wrong);
+    if (run.status === RaceStatus.RUNNING && this.stewards.wrong_way(wrong, sim_dt * 1000) && this.route.respawn) ctx.spawn_on(this.route.respawn);
     const { status } = this;
     if (run.status === RaceStatus.READY) {
       status.clock = String(Math.ceil(run.countdown / 1000));
       return status;
     }
     const place = this.place_now();
-    status.clock = format(this.banked + run.elapsed());
+    status.clock = `${format(this.banked + run.elapsed())}${penalty_text(null, this.stewards)}`;
     status.place = `P${place}/${this.tally.left()}`;
     status.gap = this.gap_text(place);
     status.gates = run.missed ? "go back" : `${run.next + 1}/${this.course.gates.length}`;
@@ -265,12 +274,14 @@ export class AiRace implements ModeRun, FieldRace {
   private finish(end: End) {
     const player = this.builds.length;
     const ms = Math.round(this.banked + this.run.elapsed());
+    const penalty = this.stewards.penalty_ms;
     if (end === End.LINE) {
       this.t = ms / 1000;
-      this.standings.finished(player, this.t);
+      // The clock runs on for the cars still racing; only the player's finish carries the penalty.
+      this.standings.finished(player, (ms + penalty) / 1000);
       if (this.tally.out.length) this.final = this.tally.final_order(this.standings.order);
     } else this.final = this.tally.final_order(this.standings.order);
-    const order = this.final ?? this.standings.order;
+    const order = this.final ?? this.penalised(this.standings.order, penalty / 1000);
     const place = order.indexOf(player) + 1;
     const field = this.builds.length + 1;
     this.rows = order.map(() => this.row());
@@ -284,9 +295,22 @@ export class AiRace implements ModeRun, FieldRace {
       stars: place === 1 ? 3 : place <= PODIUM ? 2 : 1,
       place,
       name: this.name,
-      lines: [line("finish", how), line("time", format(ms)), ...laps, ...extra],
+      lines: [line("finish", how), ...time_lines(ms, null, this.stewards), ...laps, ...extra],
       standings: this.rows.map((r) => r.el),
     };
+  }
+
+  // Cars still racing that cross the line inside the player's penalty finish ahead: the place says so already.
+  private penalised(order: readonly number[], penalty_s: number): readonly number[] {
+    if (!penalty_s) return order;
+    const player = this.builds.length;
+    const { standings } = this;
+    const ahead = order.filter((car) => car !== player && standings.finish[car] === Infinity && standings.gap(player, car, this.t) < penalty_s);
+    if (!ahead.length) return order;
+    const rest = order.filter((car) => car !== player && !ahead.includes(car));
+    const at = rest.findIndex((car) => standings.finish[car] === Infinity);
+    const before = at < 0 ? rest : rest.slice(0, at);
+    return [...before, ...ahead, player, ...rest.slice(before.length)];
   }
 
   private row(): Row {

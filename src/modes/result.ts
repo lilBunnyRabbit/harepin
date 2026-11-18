@@ -47,11 +47,22 @@ export function result_title(name: string, record: { improved: boolean; first: b
 /** The results stamp's headline: the place where cars raced, else the run's title. */
 export const stamp_text = (finish: Finish) => (finish.place === undefined ? finish.title : ordinal(finish.place));
 
-export const penalty_text = (hits: Hits | null) => (hits?.count ? ` (+${hits.penalty_ms / 1000} s)` : "");
+/** What a run's track limits cost: `Stewards` fits it. */
+export interface CutPenalty {
+  readonly cuts: number;
+  readonly penalty_ms: number;
+}
 
-export function time_lines(ms: number, hits: Hits | null): HTMLElement[] {
-  if (!hits) return [line("time", format(ms))];
-  return [line("time", format(ms)), line(`hits ×${hits.count}`, `+${hits.penalty_ms / 1000} s`), line("total", format(ms + hits.penalty_ms))];
+export function penalty_text(hits: Hits | null, limits: CutPenalty | null = null): string {
+  const ms = (hits?.penalty_ms ?? 0) + (limits?.penalty_ms ?? 0);
+  return ms ? ` (+${ms / 1000} s)` : "";
+}
+
+export function time_lines(ms: number, hits: Hits | null, limits: CutPenalty | null = null): HTMLElement[] {
+  const cut = limits?.cuts ? [line(`track limits ×${limits.cuts}`, limits.penalty_ms ? `+${limits.penalty_ms / 1000} s penalties` : "warned")] : [];
+  if (!hits && !limits?.penalty_ms) return [line("time", format(ms)), ...cut];
+  const hit = hits ? [line(`hits ×${hits.count}`, `+${hits.penalty_ms / 1000} s`)] : [];
+  return [line("time", format(ms)), ...hit, ...cut, line("total", format(ms + (hits?.penalty_ms ?? 0) + (limits?.penalty_ms ?? 0)))];
 }
 
 /** Where a result's Next goes, as its card shows it. */

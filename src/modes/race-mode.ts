@@ -10,9 +10,10 @@ import { AiRace } from "./ai-race";
 import { field_races } from "./field-route";
 import { KINDS } from "../worldgen/kinds/kinds";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
-import { SILVER_SHARE, grade, par_thresholds } from "./track";
+import { SILVER_SHARE, grade, par_thresholds, type StarRun } from "./track";
 import { hypot } from "../sim-math";
 import { StartBeeps } from "./start-steps";
+import { NO_RULES, Stewards } from "./race-rules";
 
 // Never written: the dev ghost is read from the shipped asset, and a race keeps no ghost of the player's own.
 const DEV_GHOST_KEY = "harepin:ghost:career-dev";
@@ -27,6 +28,7 @@ class Race implements ModeRun {
   private clock = 0;
   private result: Finish | null = null;
   private readonly hits: Hits | null;
+  private readonly stewards: Stewards;
   private ghost: Ghost | null = null;
   private disposed = false;
   /** A lobby lap starts on the lobby's countdown, which beeps on its own. */
@@ -56,6 +58,7 @@ class Race implements ModeRun {
     this.beeps = ctx.lobby_lap() ? null : new StartBeeps(COUNTDOWN_MS / 1000);
     this.laps = ctx.lobby_lap() || !course.route.closed ? 1 : Math.max(1, ctx.laps);
     this.hits = ctx.hits();
+    this.stewards = new Stewards(ctx.lobby_lap() ? NO_RULES : level.rules, course.line, course.route.gate_hw);
     this.status.gates = "";
     this.show_lap();
     void ctx.dev_ghost().then((lap) => {
@@ -94,6 +97,10 @@ class Race implements ModeRun {
     const beep = this.beeps?.next(run.countdown, now);
     if (beep) ctx.beep(beep);
     this.hits?.update(sim_dt * 1000, run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING);
+    if (run.status === RaceStatus.RUNNING) {
+      const call = this.stewards.limits(car, ctx.world, this.lap - 1, run.tracker.index, sim_dt);
+      if (call) ctx.toast(call);
+    }
     if (this.traps && (run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING)) {
       const passed = this.traps.next;
       const through = this.traps.update(run.tracker.index, run.tracker.offset, hypot(car.vel.x, car.vel.z));
@@ -132,14 +139,16 @@ class Race implements ModeRun {
     this.route.gate = gate;
     if (!gate) return null;
     const { gates } = run.course;
-    ctx.hint(turn_to(car, gate.x, gate.z), view.guide(run.tracker.index, car.heading, run.tracker.offset, !lobby_lap && this.lap < this.laps));
+    const wrong = view.guide(run.tracker.index, car.heading, run.tracker.offset, !lobby_lap && this.lap < this.laps);
+    ctx.hint(turn_to(car, gate.x, gate.z), wrong);
+    if (run.status === RaceStatus.RUNNING && this.stewards.wrong_way(wrong, sim_dt * 1000) && this.route.respawn) ctx.spawn_on(this.route.respawn);
     const { status } = this;
     if (run.status === RaceStatus.READY) {
       status.clock = String(Math.ceil(run.countdown / 1000));
       return status;
     }
     // A speed trap scores its km/h, so its total takes the clock and its traps the gates: both run its line under the touch chips.
-    status.clock = this.traps ? kmh(this.traps.total) : `${format(this.elapsed())}${penalty_text(this.hits)}`;
+    status.clock = this.traps ? kmh(this.traps.total) : `${format(this.elapsed())}${penalty_text(this.hits, this.stewards)}`;
     status.gates = run.missed ? "go back" : (this.trap_text(now) ?? `${run.next + 1}/${gates.length}`);
     return status;
   }
@@ -173,16 +182,18 @@ class Race implements ModeRun {
     const { track } = this.ctx;
     const { par_ms, length } = run.course.route;
     const { laps } = this;
+    const { stewards } = this;
     const time = Math.round(this.elapsed());
-    const ms = time + (this.hits?.penalty_ms ?? 0);
+    const penalty = (this.hits?.penalty_ms ?? 0) + stewards.penalty_ms;
+    const ms = time + penalty;
     const par = this.ctx.thresholds(par_thresholds(par_ms * laps));
-    const stars = grade(this.elapsed() + (this.hits?.penalty_ms ?? 0), par);
+    const stars = grade(this.elapsed() + penalty, par);
     if (this.traps) return this.trap_finish(ms);
-    const recorded = track.record(level.id, { stars, ms });
+    const recorded = this.record({ stars, ms });
     this.result = {
       title: result_title(level.name, recorded),
       stars,
-      lines: [...time_lines(time, this.hits), line("length", `${((length * laps) / 1000).toFixed(1)} km${laps > 1 ? ` · ${laps} laps` : ""}`), line("par", format(par.three)), best_line(track.runs[level.id])],
+      lines: [...time_lines(time, this.hits, stewards), ...this.void_line(), line("length", `${((length * laps) / 1000).toFixed(1)} km${laps > 1 ? ` · ${laps} laps` : ""}`), line("par", format(par.three)), best_line(track.runs[level.id])],
     };
   }
 
@@ -196,20 +207,31 @@ class Race implements ModeRun {
     const score = traps.total;
     // The finish is the run: crossing it is a star even with every trap missed.
     const stars = Math.max(1, drift_stars(score, { silver: marks.two, gold: marks.three }));
-    const recorded = track.record(level.id, { stars, ms, score });
+    const recorded = this.record({ stars, ms, score });
     this.result = {
       title: result_title(level.name, recorded),
       stars,
       lines: [
         line("traps", traps.kmh.map(kmh).join(" · ")),
         line("total", kmh(score)),
-        ...time_lines(Math.round(this.elapsed()), this.hits),
+        ...time_lines(Math.round(this.elapsed()), this.hits, this.stewards),
+        ...this.void_line(),
         line("length", `${((length * this.laps) / 1000).toFixed(1)} km`),
         line("par", format(par_thresholds(par_ms * this.laps).three)),
         line("★★ / ★★★", `${kmh(marks.two)} / ${kmh(marks.three)}`),
         best_line(track.runs[level.id], kmh),
       ],
     };
+  }
+
+  // A run with a cut, warned or not, sets no best.
+  private record(run: StarRun): { improved: boolean; first: boolean } {
+    if (this.stewards.cuts) return { improved: false, first: false };
+    return this.ctx.track.record(this.level.id, run);
+  }
+
+  private void_line(): HTMLElement[] {
+    return this.stewards.cuts ? [line("record", "not set: track limits")] : [];
   }
 
   finished(): Finish | null {

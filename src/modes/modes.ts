@@ -53,6 +53,7 @@ export const mode_name = (event: CareerEvent) => (event.stages ? "Championship" 
 
 const NOTICE_MS = 2500;
 const GOAL_MS = 4000;
+const RULE_MS = 2500;
 const DEG = 180 / Math.PI;
 const OPEN_WORLDS = LISTED.filter((w) => KINDS[w.kind].open_ground).map((w) => `the ${w.map_label}`).join(" or ");
 const OPEN_GROUND = `Needs open ground: drive ${OPEN_WORLDS} for it`;
@@ -574,6 +575,7 @@ export class Modes implements CarHooks {
       spawn,
       spawn_on: (p) => spawn(p.x, p.z, atan2(p.tx, p.tz)),
       chime: () => this.chime(),
+      toast: (text) => this.toast?.(text, "", RULE_MS),
       beep: (beep) => this.beep(beep),
       hint: (turn, wrong = false) => this.show_hint(turn, wrong),
       hide_hint: () => this.hide_hint(),

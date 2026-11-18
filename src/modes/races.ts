@@ -1,6 +1,7 @@
 import type { Route } from "../worldgen/types";
 import { RouteTracker, bend, straights, type RoutePoint } from "./route";
 import { stars_for } from "./track";
+import { RACE_RULES, TRAIL_RULES, type RaceRules } from "./race-rules";
 import type { StatusCaptions } from "./mode";
 
 /** Route points past its gate a car may get and still take it; past that the gate was skipped. */
@@ -20,6 +21,7 @@ export interface RaceLevel {
   /** A speed trap level: the route it runs on. The score is the km/h through its traps, the finish still required. */
   trap?: string;
   goal?: string;
+  rules: RaceRules;
 }
 
 interface LevelDef {
@@ -27,22 +29,24 @@ interface LevelDef {
   name: string;
   /** `place` is what the world calls itself: "island", "mainland". */
   brings(place: string): string;
+  /** RACE_RULES when absent. */
+  rules?: RaceRules;
 }
 
 /** In progression order; a seed lists only the routes it generated, so one without a canyon skips the offroad ids. */
 const LEVELS: readonly LevelDef[] = [
   { id: "circuit", name: "Circuit", brings: (place) => `One lap of the ${place} circuit from a standing start.` },
   { id: "street-1", name: "Town to town", brings: () => "Through the back streets of one town, round the circuit and into the next." },
-  { id: "offroad-1", name: "Trail", brings: (place) => `Point to point across the ${place} on dirt.` },
+  { id: "offroad-1", name: "Trail", brings: (place) => `Point to point across the ${place} on dirt.`, rules: TRAIL_RULES },
   { id: "street-2", name: "Cross town", brings: () => "Another pair of towns, every corner a square one." },
-  { id: "offroad-2", name: "Long trail", brings: () => "The longer way across, on dirt." },
+  { id: "offroad-2", name: "Long trail", brings: () => "The longer way across, on dirt.", rules: TRAIL_RULES },
   { id: "descent", name: "Rim to sea", brings: () => "One way off the crater rim: down the hairpins and the gully to the sea." },
   { id: "sprint", name: "Circuit sprint", brings: (place) => `The twistiest stretch of the ${place} circuit, one way from a standing start.` },
   { id: "banked", name: "Banked run", brings: (place) => `The most banked stretch of the ${place} circuit, one way from a standing start.` },
   { id: "circuit-rev", name: "Circuit reversed", brings: () => "The circuit the wrong way round: every corner is new." },
   { id: "trip", name: "Road trip", brings: (place) => `From town to town across the ${place}: the two farthest apart by road, one way.` },
   { id: "town", name: "Town circuit", brings: () => "Laps of one town's main street and the lane behind it, every corner a square one." },
-  { id: "crossing", name: "Dune crossing", brings: () => "One way downwind across the dune sea, crest to crest, to the tallest dune at the far end." },
+  { id: "crossing", name: "Dune crossing", brings: () => "One way downwind across the dune sea, crest to crest, to the tallest dune at the far end.", rules: TRAIL_RULES },
 ];
 
 /** After every race; compact worlds only, as a streamed world's chunks are not read for the straights (risk 10). */
@@ -55,9 +59,9 @@ const TRAP_GOAL = "Hit each radar trap flat out, then drive through the gates to
 const listed = (routes: readonly { id: string }[]) => LEVELS.filter((level) => routes.some((r) => r.id === level.id));
 
 export function race_levels(routes: readonly { id: string }[], place: string, streamed = false): RaceLevel[] {
-  const races = listed(routes).map(({ id, name, brings }) => ({ id, name, brings: brings(place) }));
+  const races = listed(routes).map(({ id, name, brings, rules = RACE_RULES }) => ({ id, name, brings: brings(place), rules }));
   if (streamed) return races;
-  const traps = TRAP_LEVELS.filter((level) => routes.some((r) => r.id === level.route)).map(({ id, name, brings, route }) => ({ id, name, brings: brings(place), trap: route, goal: TRAP_GOAL }));
+  const traps = TRAP_LEVELS.filter((level) => routes.some((r) => r.id === level.route)).map(({ id, name, brings, route }) => ({ id, name, brings: brings(place), trap: route, goal: TRAP_GOAL, rules: RACE_RULES }));
   return [...races, ...traps];
 }
 
