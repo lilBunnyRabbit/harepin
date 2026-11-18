@@ -3,7 +3,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSyn
 import { threadId } from "node:worker_threads";
 import { World } from "../../src/world/world";
 import { generate } from "../../src/worldgen/index";
-import { WORLD_VERSION, type WorldData } from "../../src/worldgen/types";
+import { generate_world } from "../../src/worldgen/kinds/kinds";
+import { WORLD_VERSION, WorldKind, type WorldData } from "../../src/worldgen/types";
 import { closure, ROOT } from "./cache";
 
 /** Built island worlds one thread keeps, so a seed's next route on the same worker skips the rebuild. */
@@ -58,3 +59,11 @@ export function island(seed: number): World {
   if (kept.size > KEPT) kept.delete(kept.keys().next().value as number);
   return world;
 }
+
+/** A world of any kind: the island's from its cache, another kind's generated (a raceway takes about 150 ms). */
+export function world_data(seed: number, kind: WorldKind = WorldKind.ISLAND): WorldData {
+  return kind === WorldKind.ISLAND ? island_data(seed) : generate_world(seed, kind);
+}
+
+/** What names a seed's world in run keys: the island's bare seed, so keys from before other kinds still match. */
+export const place_of = (seed: number, kind: WorldKind = WorldKind.ISLAND) => (kind === WorldKind.ISLAND ? String(seed) : `${kind}:${seed}`);

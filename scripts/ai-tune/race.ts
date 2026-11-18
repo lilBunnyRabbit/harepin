@@ -53,8 +53,7 @@ export interface SoloResult {
 }
 
 /** The autopilot's coupe lap (s) on every island circuit of `seed`, by route id. */
-export function autolaps(seed: number): Record<string, number> {
-  const world = new World(seed);
+export function autolaps(seed: number, world: World = new World(seed)): Record<string, number> {
   const out: Record<string, number> = {};
   for (const route of circuits(world)) {
     if (route.excludes?.includes(COUPE.id)) continue;
