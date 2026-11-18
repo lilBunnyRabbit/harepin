@@ -51,6 +51,17 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.68.0",
+    date: "2026-11-18",
+    title: "Race rules",
+    changes: [
+      { kind: NEW, text: "Track limits: cut a corner and gain, get a warning; after two, each cut adds 2 s. A lap with a cut never sets a best time" },
+      { kind: NEW, text: "Driving the wrong way for 5 s puts you back on the track" },
+      { kind: IMPROVED, text: "AI rivals brake later and harder, about 0.7% quicker a lap" },
+      { kind: FIXED, text: "AI cars no longer fall short of a jump ramp in traffic" },
+    ],
+  },
+  {
     version: "0.67.0",
     date: "2026-11-18",
     title: "Slipstream",
