@@ -1,6 +1,8 @@
 import { writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { Car } from "../../src/car/car";
-import { car_spec } from "../../src/car/cars";
+import { car_spec, type CarSpec } from "../../src/car/cars";
 import { at_difficulty, Difficulty } from "../../src/ai/difficulty";
 import { Field, grid_spot, personalities } from "../../src/ai/field";
 import { ROAD_HALF } from "../../src/worldgen/types";
@@ -9,9 +11,14 @@ import { race_course } from "../../src/modes/races";
 import { circuits, FIELD_SLACK } from "../ai-race";
 import { DT } from "../autolap";
 import { default_jobs, Pool, seed_list } from "./cache";
+import { oracle_laps, paired, solo_run, type Interval, type SoloRun } from "./pace";
 import { island } from "./worlds";
 
-// bun scripts/ai-ml/bar.ts <out.json> <cars,> [eps,] [seeds] [jobs, default from free RAM] [difficulty]: the owner's AI bar on island field races, (a) mistakes and (b) ugly failures per car and eps
+// bun scripts/ai-ml/bar.ts <out.json> <cars,> [eps,] [seeds] [jobs, default from free RAM] [difficulty] [--solo [--flying n]] [--ab <checkout> [--min n]]:
+// the owner's AI bar on island field races, (a) mistakes and (b) ugly failures per car and eps.
+// --solo: each car alone instead, a standing lap then `--flying` laps (2), the standing lap as a share of the best oracle lap on record.
+// --ab <checkout>: paired pace A/B, A run from that checkout's bar.ts (one with these job types), B from this one; seeds in batches
+// until the 99% interval of B - A excludes 0 (at least `--min` seeds, 6) or the seeds run out. Pace only: the full bar stays the gate.
 // The player is a seventh car on the field's own line follower, mid-grid, blind to the cars around it: a hard touch counts
 // against the AI unless the player ran into the back of a car ahead.
 
@@ -38,6 +45,9 @@ const PLAYER_LOST = 4;
 const PLAYER_GRACE = 3;
 /** Road points after a mistake's start in which an error counts as the rolled one: its span and the slide after it. */
 const ROLLED_SPAN = 90;
+const FLYING = 2;
+const MIN_PAIRS = 6;
+const VALUED = ["--flying", "--ab", "--min"];
 
 const Kind = { SPIN: "spin", WIDE: "wide", REVERSE: "reverse", RESET: "reset", LONG_OFF: "long_off", PILE: "pile", STUCK: "stuck", PLAYER: "player" } as const;
 type Kind = (typeof Kind)[keyof typeof Kind];
@@ -80,7 +90,19 @@ interface RoutesJob {
   seed: number;
 }
 
-type BarJob = RaceJob | RoutesJob;
+interface SoloJob {
+  type: "solo";
+  id: string;
+  seed: number;
+  route: number;
+  car: string;
+  eps: number;
+  flying: number;
+}
+
+type BarJob = RaceJob | RoutesJob | SoloJob;
+
+type SoloLaps = Omit<SoloRun, "oracle">;
 
 interface RouteInfo {
   id: string;
@@ -88,7 +110,7 @@ interface RouteInfo {
   excludes: readonly string[];
 }
 
-type BarResult = { type: "race"; id: string; race: BarRace } | { type: "routes"; id: string; routes: RouteInfo[] };
+type BarResult = { type: "race"; id: string; race: BarRace } | { type: "routes"; id: string; routes: RouteInfo[] } | { type: "solo"; id: string; run: SoloLaps };
 
 interface Rolls {
   mistake_at: number;
@@ -102,12 +124,16 @@ function rolling(driver: unknown): boolean {
   return d.mistake_at >= 0 && (((d.index - d.mistake_at) % n) + n) % n < ROLLED_SPAN;
 }
 
+function perturbed(car: string, eps: number): CarSpec {
+  const base = car_spec(car);
+  const ai = base.ai ?? { slow: 1, fast: 1, brake: 1 };
+  const off = 1 + eps;
+  return { ...base, ai: { ...ai, slow: ai.slow * off, fast: ai.fast * off, brake: ai.brake * off } };
+}
+
 function race(job: RaceJob): BarRace {
   const world = island(job.seed);
-  const base = car_spec(job.car);
-  const ai = base.ai ?? { slow: 1, fast: 1, brake: 1 };
-  const off = 1 + job.eps;
-  const spec = { ...base, ai: { ...ai, slow: ai.slow * off, fast: ai.fast * off, brake: ai.brake * off } };
+  const spec = perturbed(job.car, job.eps);
   const route = circuits(world)[job.route];
   const unplace = world.place(route.closure);
   const field = new Field(world, route, Array.from({ length: 6 }, () => spec), at_difficulty(personalities(job.seed, 6), job.difficulty), job.seed, PLAYER_SLOT);
@@ -232,39 +258,65 @@ function routes(seed: number): RouteInfo[] {
   return circuits(island(seed)).map((r) => ({ id: r.id, length: r.length, excludes: r.excludes ?? [] }));
 }
 
-if (!Bun.isMainThread) {
-  self.onmessage = (event: MessageEvent<BarJob>) => {
-    const job = event.data;
-    if (job.type === "routes") postMessage({ type: "routes", id: job.id, routes: routes(job.seed) } satisfies BarResult);
-    else postMessage({ type: "race", id: job.id, race: race(job) } satisfies BarResult);
-  };
-} else {
-  const [out, cars_arg, eps_arg = "1e-7,1e-6,1e-5", seeds_arg = "0-49", jobs_arg = "", difficulty = Difficulty.NORMAL] = process.argv.slice(2);
-  const cars = cars_arg.split(",");
-  const epses = (eps_arg || "1e-7,1e-6,1e-5").split(",").map(Number);
-  const seeds = seed_list(seeds_arg || "0-49");
-  const pool = new Pool<BarJob, BarResult>(new URL(import.meta.url), jobs_arg ? Number(jobs_arg) : default_jobs());
-  pool.start();
+function solo(job: SoloJob): SoloLaps {
+  const world = island(job.seed);
+  const route = circuits(world)[job.route];
+  const unplace = world.place(route.closure);
+  const run = solo_run(world, route, perturbed(job.car, job.eps), job.flying);
+  unplace();
+  return run;
+}
+
+interface Setup {
+  cars: string[];
+  epses: number[];
+  difficulty: Difficulty;
+  solo: boolean;
+  flying: number;
+}
+
+type Rows = Record<string, (BarRace | SoloLaps)[]>;
+
+async function run_rows(pool: Pool<BarJob, BarResult>, seeds: readonly number[], setup: Setup): Promise<Rows> {
   const circuits_of = new Map<number, RouteInfo[]>();
   for (const r of await pool.run(seeds.map((seed): BarJob => ({ type: "routes", id: String(seed), seed })))) if (r.type === "routes") circuits_of.set(Number(r.id), r.routes);
   const routes_of = (seed: number) => circuits_of.get(seed) ?? [];
-  const jobs: (RaceJob & { length: number })[] = [];
-  for (const car of cars)
-    for (const eps of epses)
+  const jobs: (BarJob & { length: number })[] = [];
+  for (const car of setup.cars)
+    for (const eps of setup.epses)
       for (const seed of seeds)
         routes_of(seed).forEach((route, k) => {
-          if (!route.excludes.includes(car_spec(car).id)) jobs.push({ type: "race", id: `${car}/${eps}/${seed}/${k}`, seed, route: k, car, eps, difficulty: difficulty as Difficulty, length: route.length });
+          if (route.excludes.includes(car_spec(car).id)) return;
+          const id = `${car}/${eps}/${seed}/${k}`;
+          jobs.push(setup.solo ? { type: "solo", id, seed, route: k, car, eps, flying: setup.flying, length: route.length } : { type: "race", id, seed, route: k, car, eps, difficulty: setup.difficulty, length: route.length });
         });
   // Longest first: the wall is the last race to end, and a long one started late runs alone.
-  const done = new Map<string, BarRace>();
-  for (const r of await pool.run(jobs.toSorted((a, b) => b.length - a.length))) if (r.type === "race") done.set(r.id, r.race);
-  pool.stop();
-  const rows: Record<string, BarRace[]> = {};
-  for (const car of cars)
-    for (const eps of epses)
+  const done = new Map<string, BarRace | SoloLaps>();
+  for (const r of await pool.run(jobs.toSorted((a, b) => b.length - a.length))) {
+    if (r.type === "race") done.set(r.id, r.race);
+    else if (r.type === "solo") done.set(r.id, r.run);
+  }
+  const rows: Rows = {};
+  for (const car of setup.cars)
+    for (const eps of setup.epses)
       for (const seed of seeds)
         rows[`${car}/${eps}/${seed}`] = routes_of(seed).flatMap((_, k) => done.get(`${car}/${eps}/${seed}/${k}`) ?? []);
-  writeFileSync(out, JSON.stringify(rows));
+  return rows;
+}
+
+const races_of = (rows: Rows): Record<string, BarRace[]> => Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, v.filter((r): r is BarRace => "ugly" in r)]));
+
+function solos_of(rows: Rows, oracles: Map<string, number>): Record<string, SoloRun[]> {
+  return Object.fromEntries(
+    Object.entries(rows).map(([key, v]) => {
+      const [car, , seed] = key.split("/");
+      return [key, v.filter((r): r is SoloLaps => "flying" in r).map((r): SoloRun => ({ ...r, oracle: oracles.get(`${seed}/${r.route}/${car}`) ?? null }))];
+    }),
+  );
+}
+
+function print_bar(rows: Record<string, BarRace[]>, setup: Setup, seeds: readonly number[]) {
+  const { cars, epses } = setup;
   for (const car of cars) {
     let ugly_50 = 0, per_race = 0, laps = 0, hits = 0, rolled_share = 0;
     for (const eps of epses) {
@@ -291,5 +343,116 @@ if (!Bun.isMainThread) {
     }
     const m = epses.length;
     console.log(`MEAN ${car}: (a) mistakes ${(per_race / m).toFixed(2)}/race rolled ${((100 * rolled_share) / m).toFixed(0)}% | (b) ugly ${(ugly_50 / m).toFixed(2)}/50 races | lap ${(laps / m).toFixed(3)} contacts ${(hits / m).toFixed(0)}`);
+  }
+}
+
+const mean = (xs: readonly number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : NaN);
+
+function print_solo(rows: Record<string, SoloRun[]>, setup: Setup, seeds: readonly number[]) {
+  for (const car of setup.cars)
+    for (const eps of setup.epses) {
+      const runs = seeds.flatMap((seed) => rows[`${car}/${eps}/${seed}`]);
+      const done = runs.filter((r) => r.done);
+      const shares = runs.flatMap((r) => (r.oracle !== null && Number.isFinite(r.standing) ? [r.oracle / r.standing] : []));
+      const stopped = runs.filter((r) => !r.done);
+      console.log(
+        `${car} ${eps}: solo runs ${runs.length} standing ${mean(done.map((r) => r.standing)).toFixed(3)} flying ${mean(done.flatMap((r) => r.flying)).toFixed(3)} | oracle share ${shares.length ? `${(100 * mean(shares)).toFixed(2)}% on ${shares.length}` : "none on record"} | off-road ${runs.reduce((s, r) => s + r.offroad, 0).toFixed(1)} s | stopped ${stopped.length}${stopped.length ? ` (${stopped.map((r) => r.route).join(" ")})` : ""}`,
+      );
+    }
+}
+
+/** A seed's pace: its mean flying lap alone (`--solo`), else its mean race lap, over every car, eps and circuit; NaN when a run stopped. */
+function seed_pace(rows: Rows, setup: Setup, seed: number): number {
+  const laps: number[] = [];
+  for (const car of setup.cars)
+    for (const eps of setup.epses)
+      for (const r of rows[`${car}/${eps}/${seed}`]) {
+        if (!("flying" in r)) laps.push(r.lap);
+        else if (r.done) laps.push(mean(r.flying));
+        else return NaN;
+      }
+  return mean(laps);
+}
+
+/** Paired A/B on pace: seeds in batches, A from the checkout at `other`, B from this one; stops once the 99% interval of B - A excludes 0, or at the last seed. */
+async function run_ab(other: string, seeds: readonly number[], setup: Setup, jobs: number, min: number) {
+  const side = Math.max(1, jobs >> 1);
+  const a = new Pool<BarJob, BarResult>(pathToFileURL(resolve(other, "scripts/ai-ml/bar.ts")), side);
+  const b = new Pool<BarJob, BarResult>(new URL(import.meta.url), side);
+  a.start();
+  b.start();
+  const rows_a: Rows = {};
+  const rows_b: Rows = {};
+  const diffs: number[] = [];
+  const looks: (Interval & { seeds: number })[] = [];
+  let skipped = 0;
+  let at = 0;
+  while (at < seeds.length) {
+    const from = at;
+    at = Math.min(seeds.length, Math.max(at + side, min));
+    const batch = seeds.slice(from, at);
+    const [ra, rb] = await Promise.all([run_rows(a, batch, setup), run_rows(b, batch, setup)]);
+    Object.assign(rows_a, ra);
+    Object.assign(rows_b, rb);
+    for (const seed of batch) {
+      const d = seed_pace(rb, setup, seed) - seed_pace(ra, setup, seed);
+      if (Number.isFinite(d)) diffs.push(d);
+      else skipped++;
+    }
+    const look = { ...paired(diffs), seeds: at };
+    looks.push(look);
+    console.log(`A/B after ${at} seeds: B - A ${look.mean.toFixed(3)} s +- ${look.half.toFixed(3)} (99%, ${look.n} pairs${skipped ? `, ${skipped} with a stopped run left out` : ""})`);
+    if (look.n >= min && Math.abs(look.mean) > look.half) break;
+  }
+  a.stop();
+  b.stop();
+  const last = looks[looks.length - 1];
+  const verdict = last.n >= min && Math.abs(last.mean) > last.half ? (last.mean < 0 ? "B faster" : "B slower") : "no difference found";
+  console.log(`A/B ${verdict}: B - A ${last.mean.toFixed(3)} s +- ${last.half.toFixed(3)} on ${last.n} paired seeds of ${seeds.length}`);
+  return { a: rows_a, b: rows_b, seeds: seeds.slice(0, last.seeds), looks, verdict };
+}
+
+if (!Bun.isMainThread) {
+  self.onmessage = (event: MessageEvent<BarJob>) => {
+    const job = event.data;
+    if (job.type === "routes") postMessage({ type: "routes", id: job.id, routes: routes(job.seed) } satisfies BarResult);
+    else if (job.type === "solo") postMessage({ type: "solo", id: job.id, run: solo(job) } satisfies BarResult);
+    else postMessage({ type: "race", id: job.id, race: race(job) } satisfies BarResult);
+  };
+} else {
+  const argv = process.argv.slice(2);
+  const option = (name: string) => {
+    const i = argv.indexOf(`--${name}`);
+    return i >= 0 ? argv[i + 1] : undefined;
+  };
+  const positional = argv.filter((a, i) => !a.startsWith("--") && !VALUED.includes(argv[i - 1]));
+  const [out, cars_arg, eps_arg = "1e-7,1e-6,1e-5", seeds_arg = "0-49", jobs_arg = "", difficulty = Difficulty.NORMAL] = positional;
+  const setup: Setup = {
+    cars: cars_arg.split(","),
+    epses: (eps_arg || "1e-7,1e-6,1e-5").split(",").map(Number),
+    difficulty: difficulty as Difficulty,
+    solo: argv.includes("--solo"),
+    flying: Number(option("flying") ?? FLYING),
+  };
+  const seeds = seed_list(seeds_arg || "0-49");
+  const jobs = jobs_arg ? Number(jobs_arg) : default_jobs();
+  const other = option("ab");
+  const oracles = setup.solo ? oracle_laps() : new Map<string, number>();
+  const shape = (rows: Rows) => (setup.solo ? solos_of(rows, oracles) : races_of(rows));
+  const print = (rows: Rows, of: readonly number[]) => (setup.solo ? print_solo(solos_of(rows, oracles), setup, of) : print_bar(races_of(rows), setup, of));
+  if (other) {
+    const ab = await run_ab(other, seeds, setup, jobs, Number(option("min") ?? MIN_PAIRS));
+    writeFileSync(out, JSON.stringify({ a: shape(ab.a), b: shape(ab.b), seeds: ab.seeds, looks: ab.looks, verdict: ab.verdict }));
+    console.log("A:");
+    print(ab.a, ab.seeds);
+    console.log("B:");
+    print(ab.b, ab.seeds);
+  } else {
+    const pool = new Pool<BarJob, BarResult>(new URL(import.meta.url), jobs);
+    pool.start();
+    const rows = await run_rows(pool, seeds, setup);
+    pool.stop();
+    writeFileSync(out, JSON.stringify(shape(rows)));
+    print(rows, seeds);
   }
 }
