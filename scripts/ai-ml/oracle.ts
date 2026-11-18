@@ -9,6 +9,7 @@ import { mulberry32, sub } from "../../src/rng";
 import { AI_HASH, claim, Pool, read_json, runs_dir, write_json } from "./cache";
 import { corner_run, corner_window, corners, gap_table, type CornerRun } from "./corners";
 import { unit_init, knot_count, type LapResult } from "./drive";
+import { PACE_HASH } from "./pace";
 import { rank, step } from "./rank";
 import type { MlJob, MlResult } from "./worker";
 
@@ -46,6 +47,8 @@ export interface OracleResult {
   name: string;
   config: OracleConfig;
   hash: string;
+  /** PACE_HASH of the code the lap was found on; absent on runs from before it. */
+  pace?: string;
   auto: number;
   ai: { t: number; clean: boolean };
   oracle: { t: number; clean: boolean; why: string };
@@ -122,6 +125,7 @@ export async function run_oracle(path: string, jobs: number) {
     name: config.name,
     config,
     hash: AI_HASH,
+    pace: PACE_HASH,
     auto: state.auto,
     ai: { t: ai.t, clean: ai.clean },
     oracle: { t: oracle.t, clean: oracle.clean, why: oracle.why },

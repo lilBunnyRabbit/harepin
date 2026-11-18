@@ -1,5 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { availableParallelism, freemem } from "node:os";
+import { relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { AI_TUNING } from "../../src/ai/tuning";
 
 const sources = (dir: URL, keep: (name: string) => boolean = () => true) =>
@@ -9,6 +11,32 @@ const sources = (dir: URL, keep: (name: string) => boolean = () => true) =>
     .map((name) => name + readFileSync(new URL(name, dir), "utf8"))
     .join("");
 const here = (name: string) => new URL(name, import.meta.url);
+
+const IMPORT = /(?:from|import)\s*\(?\s*"(\.{1,2}\/[^"]+)"/g;
+const REPO = new URL("../../", import.meta.url);
+
+/**
+ * Every .ts file `entries` import, transitively, each as its repo path and text: a key on it moves with any edit that can
+ * change what they compute, and stays put for files outside it. Paths are relative to `repo`, so two checkouts of one
+ * commit key alike.
+ */
+export function closure(entries: readonly URL[], repo: URL = REPO): string {
+  const seen = new Set<string>();
+  const stack = [...entries];
+  for (let url = stack.pop(); url; url = stack.pop()) {
+    if (seen.has(url.href)) continue;
+    seen.add(url.href);
+    for (const [, spec] of readFileSync(url, "utf8").matchAll(IMPORT)) {
+      const file = [spec, `${spec}.ts`, `${spec}/index.ts`].map((s) => new URL(s, url)).find((u) => u.pathname.endsWith(".ts") && existsSync(u));
+      if (file) stack.push(file);
+    }
+  }
+  return [...seen]
+    .map((href) => ({ name: relative(fileURLToPath(repo), fileURLToPath(href)).replaceAll("\\", "/"), href }))
+    .sort((a, b) => (a.name < b.name ? -1 : 1))
+    .map(({ name, href }) => name + readFileSync(new URL(href), "utf8"))
+    .join("");
+}
 
 /**
  * Keys every cached run on what decides its numbers: AI_TUNING, src/ai, the car physics in src/car, and the oracle
@@ -68,7 +96,7 @@ export function seed_list(text: string): number[] {
 /** MB one pool worker holds at its peak, a built island world in it, and MB left free for the rest of the machine. */
 const JOB_MB = 400;
 const KEEP_FREE_MB = 4096;
-/** The PC froze at 10 jobs. */
+/** The PC froze at 10 jobs: the cap holds on a bigger box too. */
 const MAX_JOBS = 6;
 
 export function default_jobs(): number {

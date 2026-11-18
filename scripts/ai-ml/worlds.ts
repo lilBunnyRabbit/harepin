@@ -3,20 +3,27 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSyn
 import { threadId } from "node:worker_threads";
 import { World } from "../../src/world/world";
 import { generate } from "../../src/worldgen/index";
-import type { WorldData } from "../../src/worldgen/types";
-import { ROOT } from "./cache";
+import { WORLD_VERSION, type WorldData } from "../../src/worldgen/types";
+import { closure, ROOT } from "./cache";
 
-/** Built island worlds one thread keeps: a seed's routes, cars and candidates land on the same worker one after another. */
+/** Built island worlds one thread keeps, so a seed's next route on the same worker skips the rebuild. */
 const KEPT = 2;
 
-const sources = (dir: URL): string =>
-  readdirSync(dir, { recursive: true, encoding: "utf8" })
-    .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
-    .sort()
-    .map((name) => name + readFileSync(new URL(name.replaceAll("\\", "/"), dir), "utf8"))
-    .join("");
+const WORLDGEN = new URL("../../src/worldgen/", import.meta.url);
 
-export const WORLDGEN_HASH = Bun.hash(sources(new URL("../../src/worldgen/", import.meta.url)) + readFileSync(new URL("../../src/rng.ts", import.meta.url), "utf8")).toString(36);
+/**
+ * Keys the world cache: the island's version and every file generation or the World built from it reads (the worldgen
+ * tree plus what it imports, sim-math among them, and world.ts's import closure). An edit to any starts a fresh dir.
+ */
+export const WORLDGEN_HASH = Bun.hash(
+  `${WORLD_VERSION}/` +
+    closure([
+      ...readdirSync(WORLDGEN, { recursive: true, encoding: "utf8" })
+        .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
+        .map((name) => new URL(name.replaceAll("\\", "/"), WORLDGEN)),
+      new URL("../../src/world/world.ts", import.meta.url),
+    ]),
+).toString(36);
 const DIR = `${ROOT}/worlds/${WORLDGEN_HASH}`;
 
 /** Generating a seed takes 600 ms; reading its structured clone back takes 15 ms, bit for bit. */

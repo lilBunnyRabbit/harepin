@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { Car, drop_height } from "../../src/car/car";
 import type { CarSpec } from "../../src/car/cars";
 import { Driver, OFF_ROAD } from "../../src/ai/driver";
@@ -7,8 +7,9 @@ import { plan_scale } from "../../src/ai/capability";
 import type { World } from "../../src/world/world";
 import type { Route } from "../../src/worldgen/types";
 import { DT } from "../autolap";
-import { read_json, ROOT } from "./cache";
+import { closure, read_json } from "./cache";
 import type { OracleResult } from "./oracle";
+import { WORLDGEN_HASH } from "./worlds";
 
 const LAP_LIMIT = 400;
 /** Road points before the line where a lap ends, as `ai-race.ts solo` and the oracle's lap end it. */
@@ -45,28 +46,30 @@ export function solo_run(world: World, route: Route, spec: CarSpec, flying: numb
   return { route: route.id, standing: marks[0] ?? NaN, flying: marks.slice(1).map((m, k) => m - marks[k]), offroad, done: marks.length > flying };
 }
 
-/** Every clean oracle lap under `.ai-ml/<hash>/oracle`, the fastest per `seed/route/car`: any AI hash, as the oracle is the ceiling, not the AI. */
-export function oracle_laps(): Map<string, number> {
+/**
+ * Keys oracle laps on what decides their time: the world and car physics (WORLDGEN_HASH holds world.ts's closure) and the
+ * oracle's drive. src/ai is left out on purpose: the oracle searches every limit around the race line, so an AI change
+ * does not make its ceiling stale.
+ */
+export const PACE_HASH = Bun.hash(WORLDGEN_HASH + closure([new URL("../../src/car/car.ts", import.meta.url)]) + readFileSync(new URL("./drive.ts", import.meta.url), "utf8")).toString(36);
+
+/** 62 oracle runs (coupe, formula, hatch, muscle, rally) on the code PACE_HASH keys today; `--oracles <dir>` reads another. */
+export const ORACLE_DIR = "C:/Users/Andra/AppData/Local/Temp/claude/e1d87b4eb5de59d0/ccf992df-ff9c-447b-a79d-5b6da3c0a3e5/scratchpad/oracle-run/.ai-ml/1idhhngiks5x1/oracle";
+
+/** The fastest clean oracle lap per `seed/route/car` in `dir`, only from runs on this PACE_HASH: a lap on other code is no ceiling. */
+export function oracle_laps(dir = ORACLE_DIR): Map<string, number> {
   const best = new Map<string, number>();
-  let hashes: string[] = [];
+  let names: string[] = [];
   try {
-    hashes = readdirSync(ROOT);
+    names = readdirSync(dir).filter((f) => f.endsWith(".result.json"));
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
   }
-  for (const hash of hashes) {
-    let names: string[] = [];
-    try {
-      names = readdirSync(`${ROOT}/${hash}/oracle`).filter((f) => f.endsWith(".result.json"));
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== "ENOENT" && (e as NodeJS.ErrnoException).code !== "ENOTDIR") throw e;
-    }
-    for (const name of names) {
-      const r = read_json<OracleResult>(`${ROOT}/${hash}/oracle/${name}`);
-      if (!r?.oracle?.clean || r.config?.assists === false || !Number.isFinite(r.oracle.t)) continue;
-      const key = `${r.config.seed}/${r.config.route}/${r.config.car}`;
-      best.set(key, Math.min(best.get(key) ?? Infinity, r.oracle.t));
-    }
+  for (const name of names) {
+    const r = read_json<OracleResult>(`${dir}/${name}`);
+    if (r?.pace !== PACE_HASH || !r.oracle.clean || r.config.assists === false || !Number.isFinite(r.oracle.t)) continue;
+    const key = `${r.config.seed}/${r.config.route}/${r.config.car}`;
+    best.set(key, Math.min(best.get(key) ?? Infinity, r.oracle.t));
   }
   return best;
 }
@@ -100,3 +103,5 @@ export function paired(diffs: readonly number[]): Interval {
   const sd = Math.sqrt(diffs.reduce((s, d) => s + (d - mean) ** 2, 0) / (n - 1));
   return { n, mean, half: (t99(n - 1) * sd) / Math.sqrt(n) };
 }
+
+export const mean = (xs: readonly number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : NaN);

@@ -36,7 +36,7 @@ let cached: { key: string; track: Track } | null = null;
 function track(seed: number, route_id: string, car: string, assists: boolean): Track {
   const key = `${seed}/${route_id}/${car}/${assists}`;
   if (cached?.key === key) return cached.track;
-  const world = new World(seed);
+  const world = new World(seed, island_data(seed));
   const route = circuits(world).find((r) => r.id === route_id);
   if (!route) throw new Error(`seed ${seed} has no circuit ${route_id}`);
   world.place(route.closure);
