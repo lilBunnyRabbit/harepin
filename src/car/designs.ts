@@ -5,6 +5,7 @@ import { BUS_DESIGN } from "./bus-design";
 import { COUPE_DESIGN } from "./coupe-design";
 import { FORMULA_DESIGN } from "./formula-design";
 import { FUJIN_DESIGN } from "./fujin-design";
+import { HAGEL_DESIGN } from "./hagel-design";
 import { HATCH_DESIGN } from "./hatch-design";
 import { KAZE_DESIGN } from "./kaze-design";
 import { MUSCLE_DESIGN } from "./muscle-design";
@@ -236,6 +237,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
   hatch: HATCH_DESIGN,
   muscle: MUSCLE_DESIGN,
   rally: RALLY_DESIGN,
+  hagel: HAGEL_DESIGN,
   kaze: KAZE_DESIGN,
   sturm: STURM_DESIGN,
   raijin: RAIJIN_DESIGN,

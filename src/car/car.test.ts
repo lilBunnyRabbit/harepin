@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { Quaternion, Vector3 } from "three";
 import { DEFAULT_BUILD, DEFAULT_PARTS, apply_build, parse_build } from "./build";
 import { Car, SteerMode, drop_height, grip_lock, ride_height, unassisted_lock, type Controls, type Ground } from "./car";
-import { CARS, car_sized, is_car, type CarId, type CarSpec } from "./cars";
+import { BODIES, CARS, car_sized, is_car, type CarId, type CarSpec } from "./cars";
 import { PRESETS } from "./presets";
 import { carve, catch_drift, wheel_trace } from "../../scripts/drift";
 import { donut } from "../../scripts/donut";
@@ -160,6 +160,7 @@ const OLD_SMOOTH_LANE_SETTLE: Record<CarId, number> = {
   coupe: 2.37,
   muscle: 2.49,
   rally: 2.46,
+  hagel: 2.46,
   kaze: 2.37,
   sturm: 2.37,
   raijin: 3.92,
@@ -320,8 +321,8 @@ describe("parking", () => {
   });
 });
 
-test("the car-sized list is exactly the ten cars, so a body change can't silently drop one from the car tests", () => {
-  expect(Object.values(CARS).filter(car_sized).map((spec) => spec.id).sort()).toEqual(["coupe", "formula", "fujin", "hatch", "kaze", "muscle", "raijin", "rally", "sturm", "tsumuji"]);
+test("the car-sized list is exactly the eleven cars, so a body change can't silently drop one from the car tests", () => {
+  expect(Object.values(CARS).filter(car_sized).map((spec) => spec.id).sort()).toEqual(["coupe", "formula", "fujin", "hagel", "hatch", "kaze", "muscle", "raijin", "rally", "sturm", "tsumuji"]);
 });
 
 test("dropped at drop_height for a mode start or a reset, every car settles without bouncing", () => {
@@ -516,10 +517,10 @@ describe("rally off-road", () => {
     return most;
   };
 
-  test("on grass it keeps nearly its tarmac pace and outruns every other car by a wide margin", () => {
+  test("on grass it keeps nearly its tarmac pace and outruns every car on another frame by a wide margin", () => {
     const rally = flat_out(CARS.rally, grass);
     expect(rally).toBeGreaterThan(flat_out(CARS.rally, flat) * 0.9);
-    for (const spec of Object.values(CARS)) if (spec !== CARS.rally) expect(rally).toBeGreaterThan(flat_out(spec, grass) * 1.15);
+    for (const spec of Object.values(CARS)) if (BODIES[spec.id as CarId].frame !== "rally") expect(rally).toBeGreaterThan(flat_out(spec, grass) * 1.15);
   }, 30_000);
 
   test("on grass it keeps nearly its tarmac cornering grip, well above the coupe's", () => {
@@ -579,11 +580,11 @@ describe("dune sand", () => {
   const ids = (pass: (spec: CarSpec) => boolean) => Object.values(CARS).filter(pass).map((spec) => spec.id);
 
   test("up a 15 degree windward face of loose sand only the all-wheel-drive cars hold 90 km/h", () => {
-    expect(ids((spec) => climb_kmh(spec, grade_of(15), SAND) >= 90)).toEqual(["rally", "raijin", "sajin"]);
+    expect(ids((spec) => climb_kmh(spec, grade_of(15), SAND) >= 90)).toEqual(["rally", "hagel", "raijin", "sajin"]);
   }, 30_000);
 
-  test("only the rally and the buggy climb a 32 degree slip face of loose sand", () => {
-    expect(ids((spec) => climb_kmh(spec, grade_of(32), SAND) >= 20)).toEqual(["rally", "sajin"]);
+  test("only the Rally frame and the buggy climb a 32 degree slip face of loose sand", () => {
+    expect(ids((spec) => climb_kmh(spec, grade_of(32), SAND) >= 20)).toEqual(["rally", "hagel", "sajin"]);
   }, 30_000);
 
   test("every car climbs a 12 degree packed line at 40 km/h or more, and a 15 degree one at 20", () => {

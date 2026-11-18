@@ -1,7 +1,7 @@
 import { seed_of } from "../rng";
 
 export type Drive = "rwd" | "fwd" | "awd";
-export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula" | "fujin" | "sturm" | "raijin" | "bus" | "tsumuji" | "sajin";
+export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "hagel" | "kaze" | "formula" | "fujin" | "sturm" | "raijin" | "bus" | "tsumuji" | "sajin";
 export type Triple = [number, number, number];
 
 /** Engine voice; the limiter cuts in just under `redline`. */
@@ -767,6 +767,8 @@ const SAJIN_FRAME: FrameSpec = {
 
 export const FRAMES: Record<FrameId, FrameSpec> = { hatch: HATCH_FRAME, coupe: COUPE_FRAME, muscle: MUSCLE_FRAME, rally: RALLY_FRAME, sturm: STURM_FRAME, raijin: RAIJIN_FRAME, formula: FORMULA_FRAME, fujin: FUJIN_FRAME, tsumuji: TSUMUJI_FRAME, bus: BUS_FRAME, sajin: SAJIN_FRAME };
 
+const RALLY_SOUND: EngineSound = { cylinders: 4, pulses: [1, 0.9, 1.02, 0.88], jitter: 0.14, pulse_ms: 0.9, formants: [150, 470, 1700], shift: 0.3, muffler: [800, 3800], drive: 3, rasp: 0.9, intake: 0.65, crackle: 0.75, turbo: 1 };
+
 export const BODIES: Record<CarId, BodySpec> = {
   hatch: {
     name: "Hatch",
@@ -790,7 +792,13 @@ export const BODIES: Record<CarId, BodySpec> = {
     name: "Rally",
     frame: "rally",
     size: { length: 4.4, width: 1.86, height: 1.38 },
-    sound: { cylinders: 4, pulses: [1, 0.9, 1.02, 0.88], jitter: 0.14, pulse_ms: 0.9, formants: [150, 470, 1700], shift: 0.3, muffler: [800, 3800], drive: 3, rasp: 0.9, intake: 0.65, crackle: 0.75, turbo: 1 },
+    sound: RALLY_SOUND,
+  },
+  hagel: {
+    name: "Hagel",
+    frame: "rally",
+    size: { length: 4.4, width: 1.86, height: 1.4 },
+    sound: RALLY_SOUND,
   },
   kaze: {
     name: "Kaze",

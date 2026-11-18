@@ -62,6 +62,7 @@ Most rounds' notes were about spoilers. They must look attached and intentional.
 | Coupe | 90s Japanese liftback | low wedge nose, glass fastback; black blade on the kit wing |
 | Muscle | late-60s American | long flat hood, upright quad-lamp grille, short notchback |
 | Rally | Ford Fiesta (2011 WRC / gymkhana) | short supermini hatch, steep tailgate, rising window line; black arches; WRC kit with roof wing |
+| Hagel | 80s Group B / Group A hatch, on the Rally frame | ruler-straight box: upright nose, level belt, long flat roof, squared tail with one lamp band; body-colour box arches |
 | Kaze | Nissan 350Z | long hood, short tail; black wing blade |
 | Sturm | Porsche 964 / RWB | round lamps on raised fenders, sloping fastback; slim, not "fatter" |
 | Raijin | Mitsubishi Evo X | sedan stance, shark nose, GT wing; clean tail with exhausts |
@@ -82,6 +83,7 @@ On top of the kit, each car wears the cues of its own tuning scene, each brought
 | Coupe | 90s highway | bazooka pipes, front-mount intercooler |
 | Muscle | pro street | chrome side pipes, rear louvres, blower through the hood, wheelie bars |
 | Rally | gravel stage | red mudflaps, roof scoop, lamp pod, sump guard |
+| Hagel | night stage | red mudflaps, four-lamp pod on the bonnet edge, sump guard; clean roof |
 | Kaze | pro drift | camber, tow straps, bash bar in place of the rear bumper |
 | Tsumuji | clean roadster | camber, roll hoop; never a bonnet bulge or bare panel |
 | Sturm | RWB | windscreen banner, oil cooler |
