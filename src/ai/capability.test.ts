@@ -16,7 +16,7 @@ const preset = (code: string) => {
 
 describe("car capability", () => {
   test("the stock coupe plans on exactly the tuned numbers", () => {
-    for (const v of Object.values(plan_scale(COUPE))) expect(v).toBe(1);
+    for (const [k, v] of Object.entries(plan_scale(COUPE))) if (k !== "car") expect(v).toBe(1);
   });
 
   test("measured once per spec: the same build twice is the same object", () => {
@@ -28,7 +28,7 @@ describe("car capability", () => {
     expect(formula.slow).toBeGreaterThan(1);
     expect(formula.brake).toBeGreaterThan(1);
     const bus = plan_scale(CARS.bus);
-    for (const v of Object.values(bus)) expect(v).toBeLessThan(1);
+    for (const [k, v] of Object.entries(bus)) if (k !== "car") expect(v).toBeLessThan(1);
   });
 
   test("better tyres on the same car measure more grip", () => {
