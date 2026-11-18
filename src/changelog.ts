@@ -51,6 +51,16 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.67.0",
+    date: "2026-11-18",
+    title: "Slipstream",
+    changes: [
+      { kind: NEW, text: "Slipstream: tuck in behind a car to cut drag and pull alongside on the straights; it works for the AI too" },
+      { kind: NEW, text: "A faint tow line on the rev dial shows the slipstream building, solid when it's full" },
+      { kind: NEW, text: "Hagel, a boxy rally hatch, joins the Rally" },
+    ],
+  },
+  {
     version: "0.66.0",
     date: "2026-11-18",
     title: "Sharper racing",
