@@ -1,6 +1,7 @@
 import { Car, type Controls } from "../car/car";
 import type { CarSpec } from "../car/cars";
 import { collide_cars } from "../car/contact";
+import { slipstream } from "../car/slipstream";
 import { mulberry32, sub } from "../rng";
 import type { World } from "../world/world";
 import type { Route } from "../worldgen/types";
@@ -287,6 +288,7 @@ export class Field {
     if (++this.steps % AWARE_STEPS === 0) {
       for (const { driver } of racers) if (driver.progress >= this.launch_end) driver.launch = NaN;
       this.awareness.update(dt * AWARE_STEPS);
+      slipstream(this.cars);
       this.recover(dt * AWARE_STEPS);
       this.count_passes();
       this.far();

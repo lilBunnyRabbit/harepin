@@ -44,6 +44,9 @@ const FOLLOW = 10;
 const FOLLOW_BRAKE = 4;
 /** Metres of FOLLOW a fully aggressive driver closes up: on the bumper, it has the run to pull out. */
 const FOLLOW_BOLD = 5;
+/** Shares of the plan where it is that a car ahead makes: under PACE_OFF it is slow for its own reasons, from PACE_ON up it is on the pace. */
+const PACE_OFF = 0.7;
+const PACE_ON = 0.85;
 /** Metres past its follow gap inside which a driver pulls out to pass: from farther back it only loses time off the line. */
 const PASS_REACH = 12;
 /** Seconds a pass may wait behind for its side to open before it is given up and the lane picked again. */
@@ -61,14 +64,22 @@ const BACK_OFF = 1;
 /** Pace share or m/s of speed a driver must have over the car ahead before it pulls out to pass. */
 const PASS_PACE = 0.005;
 const PASS_SPEED = 1.5;
+/**
+ * Seconds a driver takes to pull out of a lane: with a way by on a calm road it may close on the car ahead as fast as
+ * leaves it PASS_FOLLOW behind after that long, and it pulls out when RUN_LEAD times that is all it has left. Held to
+ * a follower's gap, a car in the tow shed the speed the tow gave it and pulled out with none.
+ */
+const PULL_OUT = 2;
+/** Road points ahead a straight is read over. */
+const STRAIGHT_LOOK = 300;
+const RUN_LEAD = 1.5;
 /** Metres a passed car must be behind before the pass is done. */
 const PASS_DONE = 5;
 /** A pass starts only where the next PASS_CALM road points hold their pace (CALM_SHARE of now) and bend gently (1/m): two abreast into a bend is where they touch. */
 const PASS_CALM = 60;
 const CALM_SHARE = 0.85;
 /** Sharpest bend (1/m) a pass starts into for a timid driver, plus this much at full aggression: two abreast fit a wide corner. */
-const CALM_BEND = 0.02;
-const BOLD_BEND = 0.02;
+const CALM_BEND = 0.004;
 /** Aggression over which a driver starts a pass into a bend, and metres past the car ahead its pass lane must be clear. */
 const DIVE = 0.85;
 /** Aggression over which a driver goes around the outside of a car ahead covering the inside, rather than sitting out its braking zone. */
@@ -101,6 +112,8 @@ const DIVE_SLOWER = 0.02;
 const OVERLAP = 5;
 /** Road points ahead the player's turn-in is read over. */
 const TURN_IN = 20;
+/** Seconds before the apex by which a dive must have that overlap: later the car ahead is turning in across its nose, and it backs out. */
+const DIVE_COMMIT = 2;
 
 /**
  * Runs at 20 Hz over the whole field: from each car's place on the road it picks a lane for every driver (follow the
@@ -128,6 +141,11 @@ export class Awareness {
   private readonly dive_until: Int32Array;
   private readonly dive_zone: Int32Array;
   private readonly dive_roll: Uint8Array;
+  /** Scratch of `decide`: the cars ahead in the driver's lane, and how far. */
+  private readonly queued: Uint8Array;
+  private readonly gaps: Float64Array;
+  /** Set by `straight`: the inside (-1 or 1, along the right normal) of the bend the calm road ahead ends in. */
+  private corner_side = 1;
   private dt = 0;
 
   constructor(
@@ -153,6 +171,8 @@ export class Awareness {
     this.dive_until = new Int32Array(cars.length).fill(-1);
     this.dive_zone = new Int32Array(cars.length).fill(-1);
     this.dive_roll = new Uint8Array(cars.length);
+    this.queued = new Uint8Array(cars.length);
+    this.gaps = new Float64Array(cars.length);
   }
 
   /** Signed metres off the centre along the road's right normal (tz, -tx). */
@@ -225,6 +245,7 @@ export class Awareness {
     driver.ahead_speed = Infinity;
     const keep = this.keep(driver);
     for (let j = 0; j < this.cars.length; j++) {
+      this.queued[j] = 0;
       if (j === i) continue;
       const gap = this.gap(i, j);
       const dl = this.lateral[j] - me;
@@ -236,7 +257,10 @@ export class Awareness {
       const across = gap > 0 ? Math.min(Math.abs(dl), Math.abs(this.lateral[j] - driver.lateral_at(this.cars[i], this.drivers[j].index))) : Math.abs(dl);
       if (gap > 0 && gap < LOOK + LOOK_PER * v && across < width) {
         // Every car ahead in its lane caps it, not the nearest alone: behind two cars a row apart, it ran into the slower one past the first.
-        this.hold(driver, j, this.follow(j, gap, j === this.passing[i] ? PASS_FOLLOW : keep));
+        this.queued[j] = 1;
+        this.gaps[j] = gap;
+        // Pulling out, it closes as fast as the move leaves room for; a dive closes under braking, where the lane ahead is the other car's too.
+        this.hold(driver, j, j !== this.passing[i] ? this.follow(i, j, gap, keep) : this.dive_until[i] >= 0 ? this.follow(i, j, gap, PASS_FOLLOW) : this.run_cap(i, j, gap));
         if (gap < blocker_gap) {
           blocker = j;
           blocker_gap = gap;
@@ -260,8 +284,27 @@ export class Awareness {
     if (target >= 0 && (driver.wary > 0 || kicker) && this.gap(i, target) > 0) this.end_pass(i);
     else if (target >= 0) {
       const gap = this.gap(i, target);
-      const diving = this.dive_until[i] >= 0 && this.ahead_of(driver.index, this.dive_until[i], n);
-      if (!diving) this.dive_until[i] = -1;
+      // Not by before the braking zone: on the bend's inside the pass goes on as a dive, on its outside with the nose
+      // still behind it is off, since round the outside the road is longer and the bend closes on it.
+      const apex = this.dive_until[i] < 0 && gap > -PASS_DONE ? this.braking_zone(driver) : -1;
+      if (apex >= 0 && this.pass_side[i] === (Math.sign(line.offset[apex]) || 1)) this.dive_until[i] = apex;
+      else if (this.dive_until[i] < 0 && (apex >= 0 || this.bends(driver, PASS_KEEP)) && gap > 0 && !this.trouble[target]) {
+        this.end_pass(i);
+        driver.hold = NaN;
+        return;
+      }
+      // A dive holds the inside past the apex until it is by: let back onto the line there, it met the car it had
+      // out-braked turning in. Past the apex with the nose still behind, it did not make it.
+      const diving = this.dive_until[i] >= 0;
+      const braking = diving && this.ahead_of(driver.index, this.dive_until[i], n);
+      const committed = braking && (((this.dive_until[i] - driver.index + n) % n) * line.step[driver.index]) < v * DIVE_COMMIT;
+      if (diving && gap > (committed ? OVERLAP : braking ? Infinity : 0)) {
+        // Backed out, it does not dive into this zone again.
+        this.dive_roll[i] = 0;
+        this.end_pass(i);
+        driver.hold = NaN;
+        return;
+      }
       // No room ahead on this side: still behind, it waits off the other's bumper for the line to swing back, its lane
       // held, since chasing the other side across the road at every swing never gets it alongside; alongside, it is off.
       const wait = !diving && gap > 0 && !this.lane_clear(i, target, this.pass_side[i], PASS_KEEP);
@@ -278,8 +321,8 @@ export class Awareness {
         // Waiting, it follows on its own line: held out on the passed car's flank, the road's edge bends its path tighter than the line.
         driver.hold = wait ? NaN : hold;
         driver.push = 1 + PUSH * aggression;
-        driver.late = diving;
-        if (wait) this.hold(driver, target, this.follow(target, gap, PASS_FOLLOW));
+        driver.late = braking;
+        if (wait) this.hold(driver, target, this.follow(i, target, gap, PASS_FOLLOW));
         this.waited[i] = wait ? this.waited[i] + this.dt : 0;
         if (this.waited[i] > PASS_WAIT) this.end_pass(i);
         if (this.trouble[target] && gap > -ALONGSIDE) this.hold(driver, target, Math.max(0, this.along[target]) + TROUBLE_CLOSE);
@@ -301,20 +344,30 @@ export class Awareness {
     if (blocker >= 0) {
       const other = this.lateral[blocker];
       // The half of the road the car ahead is not in, the next bend's inside when it sits in the middle.
-      const away = Math.abs(other) > IN_LANE / 2 ? -Math.sign(other) : this.inside(driver);
+      // The inside of the bend the straight ends in first: a pass not done by then goes on from there as a dive.
+      const straight = this.straight(driver);
+      const away = this.corner_side;
       const reach = blocker_gap + PASS_WINDOW;
       const pick = this.side_open(i, blocker, away, lane, room, reach) ? away : this.side_open(i, blocker, -away, lane, room, reach) ? -away : 0;
-      const faster = this.faster(i, blocker);
-      const wide = CALM_BEND + BOLD_BEND * aggression;
-      let bend = false;
-      for (let k = 0; k < PASS_CALM && !bend; k += 4) bend = line.speed[(driver.index + k) % n] < CALM_SHARE * line.speed[driver.index] || Math.abs(line.bend[(driver.index + k) % n]) > wide;
+      const bend = straight < v * PULL_OUT;
       // A bold driver dives into a braking zone; the rest pass only where the road stays calm.
       // A car in trouble is passed only on a side that leaves TROUBLE_FLANK, however calm the road.
       const clear_of = !this.trouble[blocker] || Math.abs(Math.max(-room, Math.min(room, other + pick * TROUBLE_FLANK)) - other) >= TROUBLE_FLANK;
-      const calm = this.trouble[blocker] || !bend || aggression > DIVE;
       if (this.dive(i, blocker, blocker_gap, kicker, lane, room)) return;
-      const close = blocker_gap < this.keep(driver) + PASS_REACH || this.trouble[blocker] === 1;
-      if (faster && close && pick !== 0 && driver.wary <= 0 && !kicker && clear_of && calm) {
+      const way = pick !== 0 && driver.wary <= 0 && !kicker && clear_of && (!bend || this.trouble[blocker] === 1);
+      const their = Math.max(0, this.along[blocker]);
+      const closing = v - their;
+      // With a way by, the car ahead is no wall: the tow's speed is kept for the pull-out.
+      if (way && !this.trouble[blocker]) {
+        driver.cap = Infinity;
+        driver.ahead_speed = Infinity;
+        for (let j = 0; j < this.cars.length; j++) if (this.queued[j]) this.hold(driver, j, j === blocker ? this.run_cap(i, j, blocker_gap) : this.follow(i, j, this.gaps[j], keep));
+      }
+      // It pulls out with the speed to get by: closing with only the pull-out's room left, or on a car well under the pace.
+      const by = closing > PASS_SPEED && ((blocker_gap + PASS_DONE) / closing) * v < straight;
+      const run = closing > PASS_SPEED && blocker_gap - PASS_FOLLOW < closing * PULL_OUT * RUN_LEAD && (by || pick === away);
+      const slow = their < PACE_ON * line.speed[this.drivers[blocker].index] * driver.personality.pace && blocker_gap < keep + PASS_REACH;
+      if (way && (run || slow || this.trouble[blocker] === 1)) {
         this.passing[i] = blocker;
         this.dive_until[i] = -1;
         this.pass_side[i] = pick;
@@ -371,6 +424,37 @@ export class Awareness {
         driver.hold = this.inside(driver) * DEFEND_LATERAL - base;
       }
     }
+  }
+
+  /**
+   * Metres of calm road ahead of the driver, up to STRAIGHT_LOOK road points; sets `corner_side` to the inside of the
+   * bend it ends in (the side the line runs on where it is slowest over the BEND_LOOK points from there).
+   */
+  private straight(driver: Driver): number {
+    const { line } = driver;
+    const n = line.road.length;
+    let k = 0;
+    let run = 0;
+    for (; k < STRAIGHT_LOOK; k += LANE_STRIDE) {
+      const at = (driver.index + k) % n;
+      if (line.speed[at] < CALM_SHARE * line.speed[driver.index] || Math.abs(line.bend[at]) > CALM_BEND) break;
+      run += line.step[at] * LANE_STRIDE;
+    }
+    let slowest = (driver.index + k) % n;
+    for (let b = 1; b < BEND_LOOK; b++) if (line.speed[(driver.index + k + b) % n] < line.speed[slowest]) slowest = (driver.index + k + b) % n;
+    this.corner_side = Math.sign(line.offset[slowest]) || 1;
+    return run;
+  }
+
+  /** Whether the next `span` road points bend past CALM_BEND or drop under CALM_SHARE of the pace here: no road to go two abreast on. */
+  private bends(driver: Driver, span: number): boolean {
+    const { line } = driver;
+    const n = line.road.length;
+    for (let k = 0; k < span; k += 4) {
+      const at = (driver.index + k) % n;
+      if (line.speed[at] < CALM_SHARE * line.speed[driver.index] || Math.abs(line.bend[at]) > CALM_BEND) return true;
+    }
+    return false;
   }
 
   private end_pass(i: number) {
@@ -471,7 +555,7 @@ export class Awareness {
     const give = gap > 0 || this.trouble[near] || near < this.driven ? 1 : 1 - driver.personality.aggression;
     driver.nudge = away * give * Math.min(NUDGE_MAX, near_in + NUDGE_MARGIN);
     if (gap <= 0) return;
-    const yield_to = this.kicker_ahead(driver) ? this.follow(near, gap, FOLLOW) : this.speed[near] - YIELD;
+    const yield_to = this.kicker_ahead(driver) ? this.follow(i, near, gap, FOLLOW) : this.speed[near] - YIELD;
     this.hold(driver, near, Math.max(0, yield_to));
   }
 
@@ -529,11 +613,23 @@ export class Awareness {
     return false;
   }
 
+  /** Speed (m/s) driver i may close on car j at, `gap` metres ahead, while it pulls out past it: never under a follower's. */
+  private run_cap(i: number, j: number, gap: number): number {
+    return Math.max(this.follow(i, j, gap, PASS_FOLLOW), Math.max(0, this.along[j]) + Math.max(0, gap - PASS_FOLLOW) / PULL_OUT);
+  }
+
   /** Speed (m/s) that closes down to `keep` metres behind car j, `gap` metres ahead, and brakes off any metre inside it. */
-  private follow(j: number, gap: number, keep: number): number {
+  private follow(i: number, j: number, gap: number, keep: number): number {
     // The speed the car ahead is about to hold, not the one it has: it brakes for the bend before the follower sees it slow. A
     // car in trouble holds only what it makes along the road.
-    const vj = this.trouble[j] ? Math.max(0, this.along[j]) : Math.min(this.speed[j], this.drivers[j].target);
+    const at = this.trouble[j] ? Math.max(0, this.along[j]) : Math.min(this.speed[j], this.drivers[j].target);
+    // Farther into a braking zone the car ahead is slower for where it is, not for its pace: held to that speed from 50 m
+    // back, a faster car braked on the slower one's curve in every zone and never reached its bumper. A car on the pace
+    // is read at the speed that share of the plan is here; one well under it (stopped, hit, off the gas) as it is.
+    const { speed } = this.drivers[i].line;
+    const there = speed[this.drivers[j].index];
+    const share = Math.max(0, Math.min(1, (at / there - PACE_OFF) / (PACE_ON - PACE_OFF)));
+    const vj = at * (1 + share * Math.max(0, speed[this.drivers[i].index] / there - 1));
     const close = gap - keep;
     return close > 0 ? Math.sqrt(vj * vj + 2 * FOLLOW_BRAKE * close) : Math.max(0, vj + close * BACK_OFF);
   }
