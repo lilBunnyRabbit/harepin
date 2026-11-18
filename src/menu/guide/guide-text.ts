@@ -25,6 +25,8 @@ export interface KeyLine {
   note: string;
 }
 
+const NITRO_NOTE = "when fitted; off in races against the AI, on in lobbies and free roam";
+
 export function keymap(bindings: Bindings, device: Device): KeyLine[] {
   const first = (action: Bindable) => bindings[action].keys.slice(0, 1).map(key_label);
   const pad = (action: Bindable) => [pad_text(bindings, action)].filter(Boolean);
@@ -35,7 +37,7 @@ export function keymap(bindings: Bindings, device: Device): KeyLine[] {
       line(["RT", "LT"], "Gas, brake"),
       line(["L stick"], "Steer"),
       line(pad("handbrake"), "Handbrake"),
-      line(pad("nitro"), "Nitro", "when fitted"),
+      line(pad("nitro"), "Nitro", NITRO_NOTE),
       line([...rewind, ...pad("reset")], "Rewind, reset", rewind.length ? `hold ${rewind[0]} to rewind` : ""),
       line(["Start"], "Menu"),
     ];
@@ -44,7 +46,7 @@ export function keymap(bindings: Bindings, device: Device): KeyLine[] {
     return [
       line(["Gas", "Brake"], "Pedals", "bottom right"),
       line(["Steer"], "Steer", "drag or arrows, bottom left"),
-      line(["Nitro"], "Nitro", "when fitted"),
+      line(["Nitro"], "Nitro", NITRO_NOTE),
       line(["Rewind"], "Rewind", "hold"),
       line(["Menu"], "Menu", "top left"),
     ];
@@ -52,7 +54,7 @@ export function keymap(bindings: Bindings, device: Device): KeyLine[] {
   return [
     line(DRIVE_KEYS.flatMap(first), "Drive", second.every(Boolean) ? `or ${second.map((code) => key_label(code)).join(" ")}` : ""),
     line(bindings.handbrake.keys.map(key_label), "Handbrake"),
-    line(first("nitro"), "Nitro", "when fitted"),
+    line(first("nitro"), "Nitro", NITRO_NOTE),
     line(first("rewind"), "Rewind", "hold"),
     line([...first("reset"), ...first("camera")], "Reset, camera"),
     line(["Esc"], "Menu"),
