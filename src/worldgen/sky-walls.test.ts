@@ -3,6 +3,7 @@ import { expect, test } from "bun:test";
 import { sweep } from "../sweep";
 import { generate_world, KINDS } from "./kinds/kinds";
 import { parse_map_code } from "./kinds/map-code";
+import { walled } from "./kinds/sky";
 import { generate_sky, rail_open } from "./sky";
 import { DECK_STRIDE, RouteKind, WorldKind } from "./types";
 
@@ -10,8 +11,8 @@ const DEG = Math.PI / 180;
 const OPTIONS = KINDS.sky.options;
 const with_level = (name: string, level: number) => OPTIONS.map((o) => (o.name === name ? level : o.normal));
 const WALLS = with_level("Bowls & walls", 1);
-const walled = (seed: number, name?: string, level = 0) => generate_world(seed, WorldKind.SKY, name ? WALLS.map((l, i) => (OPTIONS[i].name === name ? level : l)) : WALLS);
-const worlds = sweep(10).map((seed) => walled(seed));
+const walled_world = (seed: number, name?: string, level = 0) => generate_world(seed, WorldKind.SKY, name ? WALLS.map((l, i) => (OPTIONS[i].name === name ? level : l)) : WALLS);
+const worlds = sweep(10).map((seed) => walled_world(seed));
 
 function line_of(world: (typeof worlds)[number]): Float64Array {
   const line = world.deck?.line;
@@ -25,7 +26,7 @@ function banks(world: (typeof worlds)[number]): number[] {
 }
 
 test("Bowls & walls draws its own track, not the plain sky track of the same seed", () => {
-  for (const seed of [0, 1]) expect(walled(seed).road[5]).not.toEqual(generate_sky(seed).road[5]);
+  for (const seed of [0, 1]) expect(walled_world(seed).road[5]).not.toEqual(generate_sky(seed).road[5]);
   for (const world of worlds) expect(world.kind).toBe(WorldKind.SKY);
 });
 
@@ -79,8 +80,8 @@ function pipes(world: (typeof worlds)[number]): number {
 
 test("Boost pads and Gaps at none build a walled track without them", () => {
   for (const seed of [0, 2, 3]) {
-    expect(walled(seed, "Boost pads").deck?.pieces.filter((p) => p.kind === "pad")).toEqual([]);
-    expect(walled(seed, "Gaps").deck?.pieces.filter((p) => p.kind === "gap")).toEqual([]);
+    expect(walled_world(seed, "Boost pads").deck?.pieces.filter((p) => p.kind === "pad")).toEqual([]);
+    expect(walled_world(seed, "Gaps").deck?.pieces.filter((p) => p.kind === "gap")).toEqual([]);
   }
 });
 
@@ -89,4 +90,10 @@ test("Bowls & walls races a closed circuit, never in the bus", () => {
     expect(world.routes.some((r) => r.kind === RouteKind.CIRCUIT && r.closed)).toBe(true);
     for (const route of world.routes) expect(route.excludes).toEqual(["bus"]);
   }
+});
+
+test("walled reads Bowls & walls off a sky map's levels: the chase view's lean and the bowl dressing key on it", () => {
+  expect(walled(WALLS)).toBe(true);
+  expect(walled(OPTIONS.map((o) => o.normal))).toBe(false);
+  expect(walled([])).toBe(false);
 });
