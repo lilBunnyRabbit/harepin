@@ -143,6 +143,12 @@ export function plan_scale(spec: CarSpec): PlanScale {
 
 export const UNIT_SCALE: PlanScale = plan_scale(COUPE);
 
+/** The car's grip and braking under the plan's `ai` trim: what a plan of `scale` may raise a corner to. */
+export function trimmed(scale: PlanScale): Capability {
+  const ref = UNIT_SCALE.car;
+  return { ...scale.car, slow: ref.slow * scale.slow, fast: ref.fast * scale.fast, brake: ref.brake * scale.brake };
+}
+
 /** Every build a field draws on, one per `spec_hash` (bodies on a frame share one), named by every build it covers: what `capability-table.ts` holds. */
 export function tabled_specs(): { name: string; spec: CarSpec }[] {
   const stock = Object.values(CARS).map((spec) => ({ name: spec.id, spec }));

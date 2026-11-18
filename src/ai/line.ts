@@ -2,7 +2,7 @@ import { GRAVITY } from "../car/rigid-body";
 import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
 import { hazards, type LineGround } from "./hazards";
 import { AI_TUNING } from "./tuning";
-import { UNIT_SCALE, type Capability, type PlanScale } from "./capability";
+import { trimmed, UNIT_SCALE, type Capability, type PlanScale } from "./capability";
 import { corner_plans, grip_at_speed, hold_speed } from "./corners";
 import { CORNER_MODEL } from "./corner-model";
 import { hypot } from "../sim-math";
@@ -313,7 +313,7 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
 export function plan_for(line: RaceLine, scale: PlanScale): RaceLine {
   const { bend, lift, kick, step } = line;
   const n = bend.length;
-  const car = scale.car;
+  const car = trimmed(scale);
   const speed = new Float64Array(n);
   const hold = new Float64Array(n);
   for (let i = 0; i < n; i++) {
