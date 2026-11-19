@@ -102,7 +102,8 @@ const DIAL_HOT = HOT_RATIO * 100;
 
 export class Hud {
   private el = {
-    speed: $("speed"),
+    // The digits sit in a fixed-size clipped span inside #speed, a flex or grid item Chrome never lays out alone.
+    speed: $("speed").firstElementChild as HTMLElement,
     gear: $("gear"),
     rpm: $("rpm-fill"),
     shift: $("shift"),
@@ -222,7 +223,7 @@ export class Hud {
     set_text(el.gear, car.gear === -1 ? "R" : car.gear === 0 ? "N" : String(car.gear));
     set_data(el.gear, "mode", car.auto ? "A" : "M");
     const rev = tach(car.rpm, car.spec);
-    set_style(el.rpm, "width", percent(rev.fill));
+    set_style(el.rpm, "--rev", percent(rev.fill));
     const dial = Math.round(rev.fill * 200);
     if (dial !== this.dial_at) {
       this.dial_at = dial;

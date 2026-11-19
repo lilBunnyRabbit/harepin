@@ -313,6 +313,26 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     width: 9ch;
   }
 
+  /* The card is monospace, so any slot's text is as wide as its length: a gap or a count that changes often re-lays
+     out alone like a time. */
+  :root #mode-status-more > [data-chars] {
+    --chars: attr(data-chars type(<number>), 0);
+  }
+
+  :root #mode-status-more > [data-chars] > span {
+    display: inline-block;
+    width: calc(var(--chars) * 1ch);
+    height: 1lh;
+    vertical-align: top;
+    contain: size layout style;
+  }
+
+  /* The words a placeless card shows instead give up their tail, so they stay text. */
+  :root #mode-status:not(:has(#mode-status-place:not([hidden]))) #mode-status-more > :last-child:not([data-time]) > span {
+    display: inline;
+    contain: none;
+  }
+
   :root #mode-status-more {
     display: contents;
   }
@@ -407,6 +427,10 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     min-width: 3ch;
     font-size: var(--text-2xl);
     line-height: 1;
+    text-align: right;
+  }
+
+  #speed > span {
     text-align: right;
   }
 

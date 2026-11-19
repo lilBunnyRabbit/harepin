@@ -74,6 +74,20 @@
     width: 9ch;
   }
 
+  /* The card is monospace, so any slot's text is as wide as its length: a gap or a count that changes often re-lays
+     out alone like a time. */
+  :root #mode-status-more > [data-chars] {
+    --chars: attr(data-chars type(<number>), 0);
+  }
+
+  :root #mode-status-more > [data-chars] > span {
+    display: inline-block;
+    width: calc(var(--chars) * 1ch);
+    height: 1lh;
+    vertical-align: top;
+    contain: size layout style;
+  }
+
   :root #mode-status-name {
     grid-area: 2 / 1;
     max-width: 24ch;

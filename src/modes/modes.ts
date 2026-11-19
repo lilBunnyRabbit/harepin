@@ -80,6 +80,12 @@ function mark_time(el: HTMLElement, text: string) {
   if (chars) el.dataset.time = chars;
   else delete el.dataset.time;
 }
+
+/** A slot's length in characters: in a monospace card that is its text's width, so the text gets a box of that size. */
+function mark_chars(el: HTMLElement, text: string) {
+  const chars = String(text.length);
+  if (el.dataset.chars !== chars) el.dataset.chars = chars;
+}
 const NO_CAPTIONS: StatusCaptions = {};
 const LENT_CAR = `Practice: that car is a career reward, so the ${PRESETS[0].name} runs it and no times or stars keep`;
 const STREAMED = "This mode is not on this world yet";
@@ -163,6 +169,8 @@ export class Modes implements CarHooks {
   private notice_until = 0;
   private readonly el = {
     hint: $("mode-hint"),
+    // The arrow turns, not the hint: any style change on an anchored element lays out the whole document.
+    hint_arrow: $("mode-hint").firstElementChild as HTMLElement,
     wrong: $("mode-wrong"),
     status: $("mode-status"),
     status_name: $("mode-status-name"),
@@ -686,7 +694,7 @@ export class Modes implements CarHooks {
 
   private show_hint(turn: number, wrong: boolean) {
     this.el.hint.hidden = false;
-    this.el.hint.style.setProperty("--turn", `${(-turn * DEG).toFixed(1)}deg`);
+    this.el.hint_arrow.style.setProperty("--turn", `${(-turn * DEG).toFixed(1)}deg`);
     if (this.el.wrong.hidden === wrong) this.el.wrong.hidden = !wrong;
   }
 
@@ -734,6 +742,7 @@ export class Modes implements CarHooks {
       if (slot.dataset.caption !== caption) slot.dataset.caption = caption;
       set_cell(slot, value);
       mark_time(slot, value);
+      mark_chars(slot, value);
     }
   }
 

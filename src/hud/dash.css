@@ -61,6 +61,20 @@
   line-height: 0.9;
 }
 
+/* The digits change every frame. A fixed-size box that clips them re-lays out alone; #speed is a flex or grid item,
+   which Chrome never lays out alone. An inline block that clips keeps its text's baseline, which the phone's speed and
+   gear share. */
+#speed > span {
+  display: inline-block;
+  position: relative;
+  width: 3ch;
+  height: 1lh;
+  overflow: clip;
+  overflow-clip-margin: 0.5em;
+  vertical-align: baseline;
+  text-align: left;
+}
+
 #gear {
   grid-area: 1 / 2;
   font-size: var(--type-h2);
@@ -104,9 +118,11 @@
   overflow: hidden;
 }
 
+/* The fill is clipped to the revs, not sized to them: a width change would lay out the whole document each frame, as the
+   bar is a flex item, which Chrome never lays out alone. */
 #rpm-fill {
   height: 100%;
-  border-radius: inherit;
+  clip-path: inset(0 calc(100% - var(--rev, 0%)) 0 0 round var(--radius-full));
   background: var(--primary);
 }
 
@@ -267,6 +283,10 @@
   justify-self: center;
   font-size: 40px;
   line-height: 1;
+}
+
+:root[data-speedo="dial"] #speed > span {
+  text-align: center;
 }
 
 :root[data-speedo="dial"] #gear {

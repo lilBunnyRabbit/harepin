@@ -10,19 +10,21 @@
   overflow: visible;
 }
 
+/* Clipped to the tow, not sized to it: a moving width would lay out the whole document each frame, as the bar is a
+   flex item on the desktop card. */
 .tow-line {
   position: absolute;
   left: 0;
   bottom: calc(100% + var(--gap-xs));
-  width: calc(var(--tow) * 100%);
+  width: 100%;
   height: var(--tow-thick);
-  border-radius: var(--radius-full);
+  clip-path: inset(0 calc(100% - var(--tow) * 100%) 0 0 round var(--radius-full));
   background: var(--tow-ink);
   opacity: 0;
   transition:
     opacity 0.15s ease,
     height 0.15s ease,
-    width 0.2s;
+    clip-path 0.2s;
 }
 
 .tow-arc {
