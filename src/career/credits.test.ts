@@ -19,8 +19,8 @@ test("race credits scale by the season's class: C 1.0, B 1.2, A 1.5", () => {
 
 test("a rerun pays half only once the event was podiumed; a retry before that pays full", () => {
   const opener = SEASON_1.events[0];
-  expect(event_pay(SEASON_1, opener, at(SEASON_1, 1), at(SEASON_1, 5)).share).toBe(1);
-  expect(event_pay(SEASON_1, opener, at(SEASON_1, 1), at(SEASON_1, 3)).share).toBe(0.5);
+  expect(event_pay(SEASON_1, opener, at(SEASON_1, 1), false).share).toBe(1);
+  expect(event_pay(SEASON_1, opener, at(SEASON_1, 1), true).share).toBe(0.5);
 });
 
 test("replay rounds pay a quarter more each, up to double", () => {

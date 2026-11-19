@@ -87,12 +87,18 @@ export class Series {
     const season = this.season_;
     const { round } = this.progress_;
     const before = this.progress_.results[event.id];
-    const pay = event_pay(season, event, result, before, round);
+    const podiums = this.progress_.podiums ?? [];
+    const pay = event_pay(season, event, result, podiums.includes(event.id) || podiumed(season, event, before), round);
     this.wallet.earn(pay.credits);
-    const bonus = podiumed(season, event, result) && this.wallet.claim_daily(day, DAILY_PODIUM) ? DAILY_PODIUM : 0;
+    const podium = podiumed(season, event, result);
+    const bonus = podium && this.wallet.claim_daily(day, DAILY_PODIUM) ? DAILY_PODIUM : 0;
     const was_done = season_done(season, this.progress_);
     const kept = better(season, event, result, before);
-    if (kept) this.set({ ...this.progress_, results: { ...this.progress_.results, [event.id]: result } });
+    const fresh = podium && !podiums.includes(event.id);
+    if (kept || fresh) {
+      const results = kept ? { ...this.progress_.results, [event.id]: result } : this.progress_.results;
+      this.set({ ...this.progress_, results, ...(fresh ? { podiums: [...podiums, event.id] } : {}) });
+    }
     const done = season_done(season, this.progress_);
     // A done season keeps its rounds open: a better rerun can still lift the final table, and the trophy with it.
     const trophy = done && (kept || !was_done) ? this.place_best() : null;
@@ -114,8 +120,9 @@ export class Series {
 
   /** A finished season runs again on new seeds against a stronger field (C5); one under way starts over where it is. The best place keeps. */
   reset() {
-    const { round, best } = this.progress_;
-    this.set(empty_progress(this.base, season_done(this.season_, this.progress_) ? round + 1 : round, best));
+    const { round, best, podiums } = this.progress_;
+    if (season_done(this.season_, this.progress_)) return this.set(empty_progress(this.base, round + 1, best));
+    this.set({ ...empty_progress(this.base, round, best), ...(podiums ? { podiums } : {}) });
   }
 
   private put(progress: SeriesProgress) {

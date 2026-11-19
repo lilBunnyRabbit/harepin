@@ -19,15 +19,14 @@ export const round_factor = (round: number) => Math.min(ROUND_MAX, 1 + ROUND_STE
 export const podiumed = (season: Season, event: SeriesEvent, result: EventResult | undefined): boolean =>
   result !== undefined && place_of(result, player_of(season)) <= KIND_PODIUM[event.kind];
 
-/** `before`: the stored result this finish reruns, if any. `round`: the season's replay round. */
-export function event_pay(season: Season, event: SeriesEvent, result: EventResult, before?: EventResult, round = 0): EventPay {
+/** `rerun`: the event was podiumed before this round. `round`: the season's replay round. */
+export function event_pay(season: Season, event: SeriesEvent, result: EventResult, rerun = false, round = 0): EventPay {
   const points = result_points(season, event, result, player_of(season));
   const base = points * CREDITS_PER_POINT * (event.final ? FINAL_FACTOR : 1);
   const class_factor = CLASS_FACTOR[season.cap];
   const rounds = round_factor(round);
-  const share = podiumed(season, event, before) ? RERUN_SHARE : 1;
+  const share = rerun ? RERUN_SHARE : 1;
   return { base, class_factor, round_factor: rounds, share, credits: Math.round(base * class_factor * rounds * share) };
 }
 
-export const event_credits = (season: Season, event: SeriesEvent, result: EventResult, before?: EventResult, round = 0): number =>
-  event_pay(season, event, result, before, round).credits;
+export const event_credits = (season: Season, event: SeriesEvent, result: EventResult, rerun = false, round = 0): number => event_pay(season, event, result, rerun, round).credits;

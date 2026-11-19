@@ -316,6 +316,25 @@ test("every finish pays credits, the final double, a podiumed rerun half; comple
   expect(series.progress.results).toEqual({});
 });
 
+test("a podiumed event keeps paying half after Start over; a replay round pays full again; stored podiums are checked", async () => {
+  const store = memory();
+  const series = new Series(season, store, new Wallet(null));
+  const [opener] = season.events;
+  expect(series.record(opener, at(2), DAY).pay.share).toBe(1);
+  series.reset();
+  expect(series.progress.results).toEqual({});
+  expect(series.record(opener, at(1), DAY).pay.share).toBe(RERUN_SHARE);
+  const reload = new Series(season, store, new Wallet(null));
+  await reload.load();
+  expect(reload.progress.podiums).toEqual([opener.id]);
+  for (const event of season.events) series.record(event, at(1), DAY);
+  series.reset();
+  expect(series.progress.round).toBe(1);
+  expect(series.record(opener, at(1), DAY).pay.share).toBe(1);
+  expect(parse_progress(season, { season: season.id, results: {}, podiums: [opener.id, "nope", 3, opener.id] }).podiums).toEqual([opener.id]);
+  expect(parse_progress(season, { season: season.id, results: {}, podiums: "x" }).podiums).toBeUndefined();
+});
+
 test("stored rounds are checked: a bad one reads as the first run", () => {
   expect(parse_progress(season, { season: season.id, round: 2, results: {} }).round).toBe(2);
   for (const round of [-1, 1.5, "2", null]) expect(parse_progress(season, { season: season.id, round, results: {} }).round).toBe(0);
