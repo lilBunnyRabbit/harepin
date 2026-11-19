@@ -15,6 +15,20 @@ describe("AI field cars", () => {
     expect(builds.some((b) => b.paint === DEFAULT_BUILD.paint || b.number === DEFAULT_BUILD.number)).toBe(false);
   });
 
+  test("a maxed class B player meets rivals tuned from its rating down to the lower half of B, not the class bottom", () => {
+    const player = parse_build("sajin.19.0.5.2.4.0.7.1");
+    if (!player) throw new Error("bad player code");
+    const own = rating(player);
+    expect(own).toEqual({ pi: 599, class: "b" });
+    const pis = field_builds(player, own, 7).map((b) => rating(b));
+    expect(pis.every((r) => r.class === "b")).toBe(true);
+    const values = pis.map((r) => r.pi);
+    expect(Math.max(...values)).toBeGreaterThanOrEqual(580);
+    expect(Math.min(...values)).toBeGreaterThanOrEqual(525);
+    expect(Math.min(...values)).toBeLessThanOrEqual(550);
+    expect(values[0]).toBeGreaterThan(values[values.length - 1]);
+  });
+
   test("AI race cars never wear neon, even when their preset has it", () => {
     const glowing = PRESETS.map((p) => parse_build(p.code)).find((b) => b && b.neon > 0);
     if (!glowing) throw new Error("no preset with neon");

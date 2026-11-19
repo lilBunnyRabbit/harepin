@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { Car } from "../../src/car/car";
-import { car_spec, type CarSpec } from "../../src/car/cars";
+import type { CarSpec } from "../../src/car/cars";
 import { at_difficulty, Difficulty } from "../../src/ai/difficulty";
 import { Field, grid_spot, personalities } from "../../src/ai/field";
 import { ROAD_HALF } from "../../src/worldgen/types";
@@ -11,7 +11,7 @@ import { DT } from "../autolap";
 import { default_jobs, Pool, seed_list } from "./cache";
 import { mean, ORACLE_DIR, oracle_laps, solo_run, type SoloRun } from "./pace";
 import { run_ab } from "./ab";
-import { run_rows, type BarJob, type BarResult, type RaceJob, type RouteInfo, type Rows, type Setup, type SoloJob, type SoloLaps } from "./bar-rows";
+import { bar_spec, run_rows, type BarJob, type BarResult, type RaceJob, type RouteInfo, type Rows, type Setup, type SoloJob, type SoloLaps } from "./bar-rows";
 import type { WorldKind } from "../../src/worldgen/types";
 import { place_of, world_at } from "./worlds";
 
@@ -93,7 +93,7 @@ function rolling(driver: unknown): boolean {
 }
 
 function perturbed(car: string, eps: number): CarSpec {
-  const base = car_spec(car);
+  const base = bar_spec(car);
   const ai = base.ai ?? { slow: 1, fast: 1, brake: 1 };
   const off = 1 + eps;
   return { ...base, ai: { ...ai, slow: ai.slow * off, fast: ai.fast * off, brake: ai.brake * off } };

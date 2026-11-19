@@ -148,6 +148,12 @@ export function class_of(rating: number): CarClass {
   return found;
 }
 
+export function class_range(name: CarClass): [number, number] {
+  const at = CLASS_FLOORS.findIndex(([floor]) => floor === name);
+  const next = CLASS_FLOORS[at + 1];
+  return [CLASS_FLOORS[at][1], next ? next[1] - 1 : PI_MAX];
+}
+
 export interface Rating {
   pi: number;
   class: CarClass;

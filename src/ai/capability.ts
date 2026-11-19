@@ -1,5 +1,6 @@
 import { Car, drop_height, type Controls, type Ground } from "../car/car";
-import { build_spec, parse_build } from "../car/build";
+import { build_code, build_spec, parse_build } from "../car/build";
+import { upgrade_steps } from "../car/pi-build";
 import { CARS, COUPE, spec_hash, type CarAi, type CarSpec } from "../car/cars";
 import { PRESETS } from "../car/presets";
 import { MEASURED } from "./capability-table";
@@ -159,12 +160,15 @@ export function trim_of(scale: PlanScale): CarAi {
   return { slow: Math.min(1, (ref.slow * scale.slow) / car.slow), fast: Math.min(1, (ref.fast * scale.fast) / car.fast), brake: Math.min(1, (ref.brake * scale.brake) / car.brake) };
 }
 
-/** Every build a field draws on, one per `spec_hash` (bodies on a frame share one), named by every build it covers: what `capability-table.ts` holds. */
+/** Every build a field draws on (stock cars, presets and their upgrade steps), one per `spec_hash` (bodies on a frame share one), named by every build it covers: what `capability-table.ts` holds. */
 export function tabled_specs(): { name: string; spec: CarSpec }[] {
   const stock = Object.values(CARS).map((spec) => ({ name: spec.id, spec }));
   const presets = PRESETS.flatMap((preset) => {
     const build = parse_build(preset.code);
-    return build ? [{ name: preset.code, spec: build_spec(build) }] : [];
+    if (!build) return [];
+    const steps = CARS[build.car].ai_field === false ? [] : upgrade_steps(build);
+    const codes = [build, ...steps].map(build_code);
+    return [build, ...steps].flatMap((b, i) => (codes.indexOf(codes[i]) === i ? [{ name: codes[i], spec: build_spec(b) }] : []));
   });
   const rows = new Map<string, { name: string; spec: CarSpec }>();
   for (const row of [...stock, ...presets]) {

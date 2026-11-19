@@ -1,4 +1,5 @@
-import { car_spec } from "../../src/car/cars";
+import { build_spec, parse_build } from "../../src/car/build";
+import { car_spec, type CarSpec } from "../../src/car/cars";
 import type { Difficulty } from "../../src/ai/difficulty";
 import type { WorldKind } from "../../src/worldgen/types";
 import type { BarRace } from "./bar";
@@ -37,6 +38,11 @@ export interface SoloJob {
 
 export type BarJob = RaceJob | RoutesJob | SoloJob;
 
+export function bar_spec(car: string): CarSpec {
+  const build = parse_build(car);
+  return build ? build_spec(build) : car_spec(car);
+}
+
 export type SoloLaps = Omit<SoloRun, "oracle">;
 
 export interface RouteInfo {
@@ -68,7 +74,7 @@ export async function run_rows(pool: Pool<BarJob, BarResult>, seeds: readonly nu
     for (const eps of setup.epses)
       for (const seed of seeds)
         routes_of(seed).forEach((route, k) => {
-          if (route.excludes.includes(car_spec(car).id)) return;
+          if (route.excludes.includes(bar_spec(car).id)) return;
           const id = `${car}/${eps}/${seed}/${k}`;
           jobs.push(setup.solo ? { type: "solo", id, seed, world: setup.world, route: k, car, eps, flying: setup.flying, length: route.length } : { type: "race", id, seed, world: setup.world, route: k, car, eps, difficulty: setup.difficulty, length: route.length });
         });

@@ -2,11 +2,14 @@ import { MAX_PAINT, parse_build, type Build } from "../car/build";
 import { CARS } from "../car/cars";
 import { within } from "../car/car-pick";
 import { PRESETS } from "../car/presets";
-import { rating, type Rating } from "../car/pi";
+import { class_range, rating, type CarClass, type Rating } from "../car/pi";
+import { build_at_pi } from "../car/pi-build";
 
 /** Coprime with the paint count, so it visits every paint once while grid neighbours land far apart in hue. */
 const PAINT_STRIDE = 5;
 const FIRST_NUMBER = 2;
+/** The slowest rival's rating, as a share of the class over its floor: a maxed player meets tuned rivals, not the class's bottom. */
+const FIELD_LOW = 0.35;
 
 export const RivalPick = { CLASS: "class", ANY: "any", PICKED: "picked" } as const;
 export type RivalPick = (typeof RivalPick)[keyof typeof RivalPick];
@@ -31,7 +34,7 @@ export function field_presets(excludes: readonly string[] = []): Rival[] {
   });
 }
 
-function class_pool(eligible: readonly Rival[], own: Rating): Build[] {
+function class_pool(eligible: readonly Rival[], own: Rating): { cap: CarClass; bases: Build[] } {
   // A class with no rival at or under it (the bus, alone in D) races the lowest class that has one.
   const cap = eligible.some((p) => within(p.rated.class, own.class)) ? own.class : eligible.reduce((low, p) => (within(p.rated.class, low) ? p.rated.class : low), eligible[0].rated.class);
   const presets = eligible
@@ -40,7 +43,16 @@ function class_pool(eligible: readonly Rival[], own: Rating): Build[] {
     .sort((a, b) => a.gap - b.gap);
   // Under the class only when it has no preset of its own: a party bus in a class C field is a mismatch, not a rival.
   const same = presets.filter((p) => p.same);
-  return (same.length ? same : presets).map((p) => p.build);
+  return { cap, bases: (same.length ? same : presets).map((p) => p.build) };
+}
+
+function class_field(eligible: readonly Rival[], own: Rating, count: number): Build[] {
+  const { cap, bases } = class_pool(eligible, own);
+  const [floor, ceiling] = class_range(cap);
+  const top = Math.min(ceiling, Math.max(floor, own.pi));
+  const low = Math.min(top, floor + FIELD_LOW * (ceiling + 1 - floor));
+  const step = count > 1 ? (top - low) / (count - 1) : 0;
+  return Array.from({ length: count }, (_, i) => build_at_pi(bases[i % bases.length], top - step * i, floor, ceiling));
 }
 
 // Slowest to fastest, taken at even steps: a small field still spans the classes.
@@ -56,7 +68,7 @@ function pool_of(eligible: readonly Rival[], own: Rating, count: number, rivals:
     const picked = eligible.filter((p) => rivals.presets.includes(p.name));
     if (picked.length) return picked.map((p) => p.build);
   }
-  return class_pool(eligible, own);
+  return class_field(eligible, own, count);
 }
 
 /**
