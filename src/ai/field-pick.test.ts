@@ -29,6 +29,14 @@ describe("AI field cars", () => {
     expect(values[0]).toBeGreaterThan(values[values.length - 1]);
   });
 
+  test("a class with no preset of its own races the presets under it that tune up into it", () => {
+    const player = parse_build("sturm.3.0.0.1.5.0.7.2.2.3");
+    if (!player) throw new Error("bad player code");
+    const own = rating(player);
+    expect(own.class).toBe("s1");
+    expect(field_builds(player, own, 6).map((b) => rating(b).class)).toEqual(Array(6).fill("s1"));
+  });
+
   test("AI race cars never wear neon, even when their preset has it", () => {
     const glowing = PRESETS.map((p) => parse_build(p.code)).find((b) => b && b.neon > 0);
     if (!glowing) throw new Error("no preset with neon");

@@ -2,8 +2,8 @@ import { MAX_PAINT, parse_build, type Build } from "../car/build";
 import { CARS } from "../car/cars";
 import { within } from "../car/car-pick";
 import { PRESETS } from "../car/presets";
-import { class_range, rating, type CarClass, type Rating } from "../car/pi";
-import { build_at_pi } from "../car/pi-build";
+import { class_of, class_range, pi, rating, type CarClass, type Rating } from "../car/pi";
+import { build_at_pi, upgrade_steps } from "../car/pi-build";
 
 /** Coprime with the paint count, so it visits every paint once while grid neighbours land far apart in hue. */
 const PAINT_STRIDE = 5;
@@ -47,8 +47,11 @@ function class_pool(eligible: readonly Rival[], own: Rating): { cap: CarClass; b
 }
 
 function class_field(eligible: readonly Rival[], own: Rating, count: number): Build[] {
-  const { cap, bases } = class_pool(eligible, own);
+  const { cap, bases: under } = class_pool(eligible, own);
   const [floor, ceiling] = class_range(cap);
+  // A class with no preset of its own (S1) races the presets under it that tune up into it, not the ones left short.
+  const tuned = under.filter((base) => upgrade_steps(base).some((step) => class_of(pi(step)) === cap));
+  const bases = tuned.length ? tuned : under;
   const top = Math.min(ceiling, Math.max(floor, own.pi));
   const low = Math.min(top, floor + FIELD_LOW * (ceiling + 1 - floor));
   const step = count > 1 ? (top - low) / (count - 1) : 0;
