@@ -106,6 +106,8 @@ export class Settings {
   private readonly nav: SettingsNav;
   private readonly picker = new CarPicker();
   private round: string | null = null;
+  /** The season the podium page shows: the one just finished, since several can stand done at once. */
+  private finished: string | null = null;
 
   constructor(
     private readonly parent: HTMLElement,
@@ -138,7 +140,7 @@ export class Settings {
       svelte_page(this.menu, { id: CAR_PAGE, label: "Car", parent: MenuTab.GARAGE, layout: "frame" }, CarPickPage, { picker: this.picker, onround: (id: string) => this.open_round(id) }),
       svelte_page(this.menu, { id: TITLE, label: "Harepin" }, TitlePage),
       svelte_page(this.menu, { id: WELCOME, label: "Welcome" }, WelcomePage, { seen: () => this.mark_guide_seen() }),
-      svelte_page(this.menu, { id: FINAL_PAGE, label: "Season podium", parent: MenuTab.EVENTS, layout: "frame" }, FinalCard),
+      svelte_page(this.menu, { id: FINAL_PAGE, label: "Season podium", parent: MenuTab.EVENTS, layout: "frame" }, FinalCard, { finished: () => this.finished }),
       svelte_page(this.menu, { id: MAPS_PAGE, label: "Maps", parent: MenuTab.PLAY, layout: "frame" }, MapsPage, { picker: this.picker }),
       svelte_page(this.menu, { id: MAKE_PAGE, label: "Make a map", parent: MenuTab.PLAY, layout: "frame" }, WorldPage),
       svelte_page(this.menu, { id: CAREER_PAGE, label: "Career", parent: MenuTab.EVENTS, layout: "frame" }, CareerPage, { picker: this.picker, tune: new URLSearchParams(location.search).has(TUNE_PARAM) }),
@@ -208,6 +210,11 @@ export class Settings {
   }
 
   /** The Series page on a round's start sheet: a road result's Next. */
+  open_final(season: string) {
+    this.finished = season;
+    this.open(FINAL_PAGE);
+  }
+
   open_round(id: string) {
     this.round = id;
     this.open(SERIES_PAGE);

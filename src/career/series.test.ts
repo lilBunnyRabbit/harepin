@@ -257,7 +257,7 @@ test("only cars on the player's own frames race, under the season's class cap", 
   expect(rating(stock).class).toBe(season.cap);
   expect(car_fault(season, stock, fresh)).toBeNull();
   expect(car_fault(season, { ...stock, car: "coupe" }, fresh) ?? "").not.toContain("own cars only");
-  expect(car_fault(season, { ...stock, car: "sajin" }, fresh)).toContain("Finish the Sajin Cup to own it".toLowerCase());
+  expect(car_fault(season, { ...stock, car: "sajin" }, fresh)).toContain("Sajin: Finish the Sajin Cup to own it");
   const tuned: Build = { ...stock, parts: { ...stock.parts, engine: 3, tyres: 3, aero: 3, weight: 3 } };
   expect(within(rating(tuned).class, season.cap)).toBe(false);
   expect(car_fault(season, tuned, fresh)).toContain("Class C or below");

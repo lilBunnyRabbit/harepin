@@ -170,7 +170,7 @@ export function season_round(season: Season, round: number): Season {
 export function car_fault(season: Season, build: Build, locked: CarLocks): string | null {
   if (season.loaner) return null;
   const lock = locked[build.car];
-  if (lock) return `${season.name} series: your own cars only. ${CARS[build.car].name}: ${lock.toLowerCase()}`;
+  if (lock) return `${season.name} series: your own cars only. ${CARS[build.car].name}: ${lock}`;
   return within(rating(build).class, season.cap) ? null : `${season.name} series: ${limit_text(season.cap)}`;
 }
 

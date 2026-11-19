@@ -695,7 +695,8 @@ function start_series(id: string, car: string | null = null) {
     go() {
       const up = after();
       if (up) settings.open_round(up.id);
-      else settings.open(won() ? FINAL_PAGE : SERIES_PAGE);
+      else if (won()) settings.open_final(one.base.id);
+      else settings.open(SERIES_PAGE);
     },
   };
   const host = series_host(base, one, to, next);
