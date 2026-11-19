@@ -177,6 +177,19 @@ describe("AI driver", () => {
     expect(driver.lateral_at(car, 160)).toBeCloseTo(0, 6);
   });
 
+  test("back on the physics after coasting, it aims at the line it coasted on, not at the aside it held before", () => {
+    const line = race_line(ring(800), [], COUPE.radius);
+    const driver = new Driver(line);
+    driver.place(100);
+    driver.aside = -6;
+    const car = new Car(COUPE);
+    for (let s = 0; s < 360; s++) driver.coast(car, DT);
+    driver.resume(car, FLAT);
+    const at = driver.index;
+    expect(driver.aside).toBe(0);
+    expect(driver.lateral_at(car, at + 10)).toBeCloseTo(line.offset[at + 10], 6);
+  });
+
   test("easing back onto the line through a bend, it plans on the line's bend, not on the kink where the easing starts", () => {
     const { driver, line } = on_ring(3, 40, 0, 3, 250);
     expect(driver.target).toBeGreaterThan(0.9 * line.speed[driver.index]);
