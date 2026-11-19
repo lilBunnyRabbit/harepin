@@ -147,7 +147,7 @@ export class Settings {
       svelte_page(this.menu, { id: MODES_PAGE, label: "Free modes", parent: MenuTab.EVENTS, layout: "frame" }, ModesPage),
       svelte_page(this.menu, { id: CUSTOM_PAGE, label: "Custom race", parent: MenuTab.EVENTS, layout: "frame" }, CustomRacePage, { picker: this.picker }),
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.EVENTS, layout: "frame" }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
-      svelte_page(this.menu, { id: SERIES_PAGE, label: "Harepin Series", parent: MenuTab.EVENTS, layout: "frame" }, SeriesPage, { picker: this.picker, asked: () => this.take_round() }),
+      svelte_page(this.menu, { id: SERIES_PAGE, label: "Harepin Series", parent: MenuTab.EVENTS, layout: "frame" }, SeriesPage, { picker: this.picker, asked: () => this.take_round(), open: (id: string) => this.open_door(id) }),
       svelte_page(this.menu, { id: NEW_ROOM_PAGE, label: "New room", parent: MenuTab.ONLINE, layout: "frame" }, RoomPage),
       svelte_page(this.menu, { id: ROOMS_PAGE, label: "Other rooms", parent: MenuTab.ONLINE, layout: "frame" }, RoomsPage),
       svelte_page(this.menu, { id: MEET_PAGE, label: "Race meet", parent: MenuTab.ONLINE, layout: "frame" }, MeetPage, { picker: this.picker }),

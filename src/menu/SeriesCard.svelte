@@ -88,6 +88,7 @@
 
   header {
     display: flex;
+    flex-wrap: wrap;
     align-items: start;
     justify-content: space-between;
     gap: var(--gap-sm);
