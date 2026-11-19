@@ -25,6 +25,8 @@ export interface PlanScale extends Capability {
   model: number;
   /** m/s: the car's `ai.jump`, the most the plan takes a kicker at, under the line's own pace; Infinity when absent. */
   jump: number;
+  /** The car's `ai.pull_bend`: the share of a bend's grip its plan's pull out of the bend gives up; 0 when absent. */
+  pull_bend: number;
 }
 
 const NO_TRIM: CarAi = { slow: 1, fast: 1, brake: 1 };
@@ -142,7 +144,7 @@ export function plan_scale(spec: CarSpec): PlanScale {
   const car = capability(spec);
   const ref = capability(COUPE);
   const ai = spec.ai ?? NO_TRIM;
-  return { slow: (car.slow / ref.slow) * ai.slow, fast: (car.fast / ref.fast) * ai.fast, brake: (car.brake / ref.brake) * ai.brake, drive: car.drive / ref.drive, power: car.power / ref.power, car, model: ai.model ?? 1, jump: ai.jump ?? Infinity };
+  return { slow: (car.slow / ref.slow) * ai.slow, fast: (car.fast / ref.fast) * ai.fast, brake: (car.brake / ref.brake) * ai.brake, drive: car.drive / ref.drive, power: car.power / ref.power, car, model: ai.model ?? 1, jump: ai.jump ?? Infinity, pull_bend: ai.pull_bend ?? 0 };
 }
 
 export const UNIT_SCALE: PlanScale = plan_scale(COUPE);

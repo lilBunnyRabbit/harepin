@@ -16,9 +16,10 @@ const preset = (code: string) => {
 
 describe("car capability", () => {
   test("the stock coupe plans on exactly the tuned numbers", () => {
-    const { car: _car, jump, ...scale } = plan_scale(COUPE);
+    const { car: _car, jump, pull_bend, ...scale } = plan_scale(COUPE);
     for (const v of Object.values(scale)) expect(v).toBe(1);
     expect(jump).toBe(Infinity);
+    expect(pull_bend).toBe(0);
   });
 
   test("measured once per spec: the same build twice is the same object", () => {
