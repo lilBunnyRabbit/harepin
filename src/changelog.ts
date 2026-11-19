@@ -51,6 +51,16 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.77.0",
+    date: "2026-11-20",
+    title: "Earn your parts",
+    changes: [
+      { kind: NEW, text: "Performance parts cost credits: buy each once per car and keep it; your current cars keep what they have fitted" },
+      { kind: IMPROVED, text: "A build that uses parts you don't own drops them and offers Buy missing parts" },
+      { kind: IMPROVED, text: "Cup loaners tune for free" },
+    ],
+  },
+  {
     version: "0.76.0",
     date: "2026-11-20",
     title: "Credits to spend",
