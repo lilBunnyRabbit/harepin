@@ -73,6 +73,10 @@ export interface BarRace {
   ugly: number;
   /** Track limits cuts by the AI cars, counted only: no penalty yet. */
   cuts: number;
+  /** Metres an AI car sat off the path it drives (the line, or `aside` off it): summed, sampled and the most, physics only. */
+  off_sum?: number;
+  off_n?: number;
+  off_max?: number;
   counts: Record<Kind, number>;
 }
 
@@ -121,6 +125,9 @@ function race(job: RaceJob): BarRace {
   const events: Incident[] = [];
   let piled = false;
   let steps = 0;
+  let off_sum = 0;
+  let off_n = 0;
+  let off_max = 0;
   const done = () => rs.every((r) => r.stats.laps.length >= 2);
   while (field.t < limit && !done()) {
     player.step(DT, field.rival_controls(DT), world);
@@ -163,6 +170,13 @@ function race(job: RaceJob): BarRace {
       const lap = Math.floor(at / n_points);
       if (reset) cuts[k].reset();
       else cuts[k].update(track_side(r.car, world), measure.at(lap, Math.floor(at) - lap * n_points, r.car.pos.x, r.car.pos.z), r.car.pos.x, r.car.pos.z, Math.hypot(r.car.vel.x, r.car.vel.z), dt);
+      if (!reset && !field.is_coasting(k) && r.stats.laps.length < 2 && field.t > GRID_TIME) {
+        const here = field.line.road[r.driver.index];
+        const side = Math.abs((r.car.pos.x - here.x) * here.tz - (r.car.pos.z - here.z) * here.tx - r.driver.lateral_at(r.car, r.driver.index));
+        off_sum += side;
+        off_n++;
+        off_max = Math.max(off_max, side);
+      }
       s.spins = r.stats.spins;
       s.reverses = r.stats.reverses;
       s.resets = r.stats.resets;
@@ -214,6 +228,9 @@ function race(job: RaceJob): BarRace {
     rolled,
     ugly,
     cuts: cuts.reduce((sum, c) => sum + c.cuts, 0),
+    off_sum,
+    off_n,
+    off_max,
     counts,
   };
 }
@@ -248,7 +265,7 @@ function print_bar(rows: Record<string, BarRace[]>, setup: Setup, seeds: readonl
     let ugly_50 = 0, per_race = 0, laps = 0, hits = 0, rolled_share = 0;
     for (const eps of epses) {
       const counts: Record<string, number> = {};
-      let races = 0, mistakes = 0, rolled = 0, ugly = 0, lap = 0, n = 0, contacts = 0, cut = 0;
+      let races = 0, mistakes = 0, rolled = 0, ugly = 0, lap = 0, n = 0, contacts = 0, cut = 0, off_sum = 0, off_n = 0, off_max = 0;
       const bad: string[] = [];
       for (const seed of seeds) for (const r of rows[`${car}/${eps}/${seed}`]) {
         races++;
@@ -257,11 +274,14 @@ function print_bar(rows: Record<string, BarRace[]>, setup: Setup, seeds: readonl
         ugly += r.ugly;
         contacts += r.contacts;
         cut += r.cuts ?? 0;
+        off_sum += r.off_sum ?? 0;
+        off_n += r.off_n ?? 0;
+        off_max = Math.max(off_max, r.off_max ?? 0);
         for (const [k, v] of Object.entries(r.counts)) counts[k] = (counts[k] ?? 0) + v;
         if (Number.isFinite(r.lap)) { lap += r.lap * r.finished; n += r.finished; }
         if (r.ugly) bad.push(`s${seed}${r.route === "circuit" ? "" : "r"}:${UGLY.filter((k) => r.counts[k]).map((k) => `${k}${r.counts[k]}`).join("+")}`);
       }
-      console.log(`${car} ${eps}: races ${races} lap ${(lap / n).toFixed(3)} contacts ${contacts} cuts ${cut} (${(cut / races).toFixed(2)}/race) | (a) mistakes ${mistakes} (${(mistakes / races).toFixed(2)}/race, rolled ${rolled}; spin ${counts.spin} wide ${counts.wide} reverse ${counts.reverse}) | (b) ugly ${ugly} (${((ugly * 50) / races).toFixed(2)}/50; reset ${counts.reset} long_off ${counts.long_off} pile ${counts.pile} stuck ${counts.stuck} player ${counts.player}) | ${bad.join(" ")}`);
+      console.log(`${car} ${eps}: races ${races} lap ${(lap / n).toFixed(3)} contacts ${contacts} cuts ${cut} (${(cut / races).toFixed(2)}/race) off line ${(off_sum / Math.max(1, off_n)).toFixed(3)} max ${off_max.toFixed(2)} m | (a) mistakes ${mistakes} (${(mistakes / races).toFixed(2)}/race, rolled ${rolled}; spin ${counts.spin} wide ${counts.wide} reverse ${counts.reverse}) | (b) ugly ${ugly} (${((ugly * 50) / races).toFixed(2)}/50; reset ${counts.reset} long_off ${counts.long_off} pile ${counts.pile} stuck ${counts.stuck} player ${counts.player}) | ${bad.join(" ")}`);
       ugly_50 += (ugly * 50) / races;
       per_race += mistakes / races;
       rolled_share += mistakes ? rolled / mistakes : 0;

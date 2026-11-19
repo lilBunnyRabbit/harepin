@@ -42,6 +42,13 @@ export interface AiTuning {
   aim_per: number;
   /** Wheel per rad the aim sits off where it would on the path, over the wheel the bend itself takes: at 3 a car sat up to 3 m wide of the line through a 200 m bend at 38 m/s and ran off. */
   steer_gain: number;
+  /**
+   * Wheel per metre the car sits off its path, on top of `steer_gain`'s pull, which is per metre over the aim's distance:
+   * as the aim grows with speed that pull fades, and whatever wheel the bend's hold is off by sat a car 0.6 m inside its
+   * line on average at 38-44 m/s and 2-4 m at worst, onto the gate posts. Over 0.05 a car back on the physics behind a
+   * stopped one ran into it (field.test coasting).
+   */
+  steer_side: number;
   /** Share of the wheel a bend takes that the driver holds: a little over, it sits a hand inside its line, where the road is. At 1 the coupe's fields held 4 to 5 spins and resets in 50 seeds, at 1.04 2 to 3. */
   steer_lead: number;
   /** Wheel per rad/s the aim error swings at: without it a fast car fishtails, each catch overshooting the last. */
@@ -91,6 +98,7 @@ export const AI_TUNING: AiTuning = {
   aim_base: 7,
   aim_per: 3,
   steer_gain: 6.5,
+  steer_side: 0.05,
   steer_lead: 1.04,
   steer_damp: 1.25,
   brake_max: 0.95,
