@@ -51,6 +51,17 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.76.0",
+    date: "2026-11-20",
+    title: "Credits to spend",
+    changes: [
+      { kind: NEW, text: "Shop: buy extra bodies, neon styles and decals with the credits you earn" },
+      { kind: IMPROVED, text: "Races pay more in higher classes, a daily first-podium bonus, and cup clears pay out; reruns of a podiumed race pay half" },
+      { kind: NEW, text: "Runs pay credits for each new season star" },
+      { kind: FIXED, text: "A car borrowed at a race meet goes back after the meet and is never saved as yours" },
+    ],
+  },
+  {
     version: "0.75.0",
     date: "2026-11-19",
     title: "Frame cups",
