@@ -1,4 +1,4 @@
-import type { Decal, Neon } from "../car/build";
+import type { Decal, Neon, Slot } from "../car/build";
 import type { FrameId } from "../car/cars";
 import type { CarClass } from "../car/pi";
 
@@ -39,6 +39,20 @@ export const FRAME_TIER: Record<FrameId, FrameTier> = {
 
 /** A frame's extra body; its first body comes with the frame. */
 export const BODY_PRICE: Record<FrameTier, number | null> = { starter: 15_000, cup: 25_000, top_cup: 35_000, formula: 50_000, not_sold: null };
+
+/** A part's price by its index in `SLOTS[slot].parts`, the same on every car; 0 is free (stock, Soft and Sport, every bias). */
+export const PART_PRICES: { readonly [S in Slot]: readonly number[] } = {
+  engine: [0, 2_000, 4_000, 7_000, 9_000, 14_000],
+  tyres: [0, 1_500, 3_500, 2_000, 1_500, 2_000, 6_000],
+  aero: [0, 1_000, 2_000, 3_500, 5_000, 8_000],
+  suspension: [0, 0, 2_500, 2_500, 1_500],
+  brakes: [0, 1_500, 3_500],
+  weight: [0, 2_000, 4_000, 9_000],
+  bias: [0, 0, 0],
+  nitro: [0, 3_000, 6_000],
+};
+
+export const part_price = (slot: Slot, index: number): number => PART_PRICES[slot][index] ?? 0;
 
 export const DECAL_PRICE: Readonly<Partial<Record<Decal, number>>> = { flames: 2_000, slash: 2_000, checker: 2_000, rabbit: 2_000 };
 /** A neon style; it opens every tone. */

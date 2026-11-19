@@ -42,6 +42,7 @@
         finish: item.kind === "paint" ? paint_finish(build.paint) : null,
         decal: DECALS[build.decal],
         price: garage.price(index),
+        bought: garage.bought(index),
       };
     }),
   );
@@ -125,6 +126,8 @@
                 <PriceTag price={option.price} />
               {:else if option.over}
                 <Chip inner>Over class</Chip>
+              {:else if option.bought}
+                <Chip inner>Owned</Chip>
               {:else if item.kind === "part"}
                 <Chip inner>Fits</Chip>
               {/if}

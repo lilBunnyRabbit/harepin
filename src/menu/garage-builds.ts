@@ -1,4 +1,5 @@
 import { DEFAULT_BUILD, build_code, parse_build, type Build } from "../car/build";
+import { load_builds } from "../car/builds";
 import { is_car } from "../car/cars";
 
 export const BUILD_KEY = "harepin:build";
@@ -15,6 +16,8 @@ export function load_build(query: string | null): Build {
   const base = parse_build(saved) ?? DEFAULT_BUILD;
   return query !== null && is_car(query) ? { ...base, car: query } : base;
 }
+
+export const saved_builds = (): Build[] => [load_build(null), ...load_builds().flatMap((saved) => parse_build(saved.code) ?? [])];
 
 export function save_build(build: Build) {
   try {

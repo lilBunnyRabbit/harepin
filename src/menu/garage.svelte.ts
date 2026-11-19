@@ -5,13 +5,13 @@ import { CARS, type CarId } from "../car/cars";
 import { PRESETS } from "../car/presets";
 import type { CarLocks } from "../car/car-pick";
 import { body_price, frame_locks, frame_of, owned_frames } from "../career/frames";
-import { COSMETIC_PRICE } from "../career/prices";
-import type { Wallet } from "../career/wallet";
+import { COSMETIC_PRICE, part_price } from "../career/prices";
+import type { PartPick, ShopItem, Wallet } from "../career/wallet";
 import { NO_UNLOCKS, type Reward, type Unlocks } from "../career/rewards";
 import { typing, type Nav } from "../hud/input";
 import { modal_open } from "../hud/modals";
 import { save_build } from "./garage-builds";
-import { garage_items, strip_unowned, type Item } from "./garage-items";
+import { garage_items, own_parts, pick_label, strip_unowned, type Item } from "./garage-items";
 
 const KEY_NAV: Record<string, Nav> = {
   ArrowUp: "up",
@@ -35,6 +35,13 @@ export interface GarageStage {
   aim(view: SlotView): void;
   sync(): void;
   reframe(): void;
+}
+
+/** A build loaded onto the player's own car without the parts it wanted that they don't own yet. */
+export interface MissingParts {
+  readonly build: Build;
+  readonly parts: readonly PartPick[];
+  readonly price: number;
 }
 
 export class Garage {
@@ -63,6 +70,7 @@ export class Garage {
   /** What the Builds card's "A friend's code" field holds; a build offered from chat lands here. */
   friend_code = $state("");
   input = $state<GarageInput>("keys");
+  missing = $state.raw<MissingParts | null>(null);
   private opened = $state(false);
   // `rewards` reads career stars outside the runes, so each open bumps this to relist reward paints and decals.
   private relist = $state(0);
@@ -111,9 +119,29 @@ export class Garage {
   /** What an option of the open slot costs, or null when it is free or bought. */
   price(option: number): number | null {
     void this.relist;
+    const slot = this.item.slot;
+    if (slot) return this.part_owned({ slot, index: option }) ? null : part_price(slot, option);
     const id = this.item.cosmetic?.(option);
     if (!id || !this.wallet || this.wallet.has(id)) return null;
     return COSMETIC_PRICE[id] ?? null;
+  }
+
+  bought(option: number): boolean {
+    void this.relist;
+    const slot = this.item.slot;
+    return slot !== undefined && this.wallet !== null && part_price(slot, option) > 0 && this.part_owned({ slot, index: option });
+  }
+
+  // A car lent at a meet tunes free: it goes back after the race.
+  private part_owned(pick: PartPick): boolean {
+    return !this.wallet || this.own_code !== null || this.wallet.owns_part(this.current.car, pick);
+  }
+
+  private shop_item(option: number): ShopItem | null {
+    const slot = this.item.slot;
+    if (slot) return { kind: "parts", car: this.current.car, parts: [{ slot, index: option }] };
+    const id = this.item.cosmetic?.(option);
+    return id ? { kind: "cosmetic", id } : null;
   }
 
   /** The fitted car's body, when its frame is owned and the body is for sale but not bought yet. */
@@ -129,12 +157,25 @@ export class Garage {
   }
 
   buy(option: number): boolean {
-    const id = this.item.cosmetic?.(option);
+    const item = this.shop_item(option);
     const price = this.price(option);
-    if (!id || price === null || !this.wallet?.buy({ kind: "cosmetic", id }, price)) return false;
+    if (!item || price === null || !this.wallet?.buy(item, price)) return false;
     this.relist++;
     this.fit(option);
     return true;
+  }
+
+  buy_missing(): boolean {
+    const missing = this.missing;
+    if (!missing || !this.wallet?.buy({ kind: "parts", car: missing.build.car, parts: missing.parts }, missing.price)) return false;
+    this.relist++;
+    this.apply(missing.build);
+    return true;
+  }
+
+  /** The car loaded at boot (the saved build, a `?car=` link) wears only bought parts once the wallet has read. */
+  check_owned() {
+    if (this.own_code === null) this.apply(this.current);
   }
 
   buy_body(): boolean {
@@ -206,6 +247,7 @@ export class Garage {
     this.on_builds = false;
     this.renaming = null;
     this.friend_code = "";
+    this.missing = null;
     this.cursor = this.item.at(this.current);
     this.stage?.aim(WHOLE_CAR);
     this.stage?.sync();
@@ -348,9 +390,13 @@ export class Garage {
   };
 
   private apply(next: Build, save = true) {
-    // A build code (a saved build, chat, a paste) can wear a decal or neon the player hasn't bought: their own car drops it.
-    const { build: own, dropped } = save && this.own_code === null && this.wallet?.ready ? strip_unowned(next, (id) => this.wallet?.has(id) === true) : { build: next, dropped: [] };
-    if (dropped.length) this.on_notice?.(`${dropped.join(", ")} not owned: removed`);
+    // A build code (a saved build, chat, a paste) can wear a decal, neon or parts the player hasn't bought: their own car drops them.
+    const wallet = save && this.own_code === null && this.wallet?.ready ? this.wallet : null;
+    const { build: dressed, dropped } = wallet ? strip_unowned(next, (id) => wallet.has(id)) : { build: next, dropped: [] };
+    const { build: own, missing } = wallet ? own_parts(dressed, (pick) => wallet.owns_part(dressed.car, pick)) : { build: dressed, missing: [] };
+    this.missing = missing.length ? { build: next, parts: missing, price: missing.reduce((sum, pick) => sum + part_price(pick.slot, pick.index), 0) } : null;
+    const notes = [...(dropped.length ? [`${dropped.join(", ")} not owned: removed`] : []), ...(missing.length ? [`${missing.map(pick_label).join(", ")} not owned: fitted the best you own`] : [])];
+    if (notes.length) this.on_notice?.(notes.join(" · "));
     const checked = parse_build(build_code(own));
     if (!checked || build_code(checked) === build_code(this.current)) return;
     this.current = checked;
