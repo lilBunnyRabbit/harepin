@@ -1,3 +1,4 @@
+import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { World } from "../world/world";
 import { DEFAULT_BUILD, DEFAULT_PARTS, parse_build, type Build } from "../car/build";
@@ -118,9 +119,10 @@ test("a season opens once the one before has been completed, and a replay of it 
   expect(seasons_open(SEASONS, [true, true, true, true])).toEqual([true, true, true, true]);
   expect(seasons_open(SEASONS, [false, true, false, false])).toEqual([true, false, true, false]);
   // A cup stands outside the chain: open from the start, and finishing it opens no season.
-  expect(seasons_open(SERIES_LIST, [false, false, false, false, false])).toEqual([true, true, false, false, false]);
-  expect(seasons_open(SERIES_LIST, [true, false, false, false, false])).toEqual([true, true, false, false, false]);
-  expect(seasons_open(SERIES_LIST, [false, true, false, false, false])).toEqual([true, true, true, false, false]);
+  const cups = CUPS.map(() => true);
+  expect(seasons_open(SERIES_LIST, SERIES_LIST.map(() => false))).toEqual([...cups, true, false, false, false]);
+  expect(seasons_open(SERIES_LIST, [...cups, false, false, false, false])).toEqual([...cups, true, false, false, false]);
+  expect(seasons_open(SERIES_LIST, [...CUPS.map(() => false), true, false, false, false])).toEqual([...cups, true, true, false, false]);
 });
 
 test("events open three at a time, a podium opens the next, the final last", () => {
