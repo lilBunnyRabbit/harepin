@@ -56,7 +56,7 @@ const CREST_HOLD = 0.8;
  * 1.2 the coupe at 46 m/s cut 2.4 m inside its line onto a gate post (Raceway seed 1); at a flat 10.5 m/s² in every fast
  * bend a coupe left the road over an island crest (seed 1).
  */
-const AERO_MAX = 1.1;
+const AERO_MAX = 1.05;
 const SMOOTH_LIFT = 1e-3;
 
 /**
