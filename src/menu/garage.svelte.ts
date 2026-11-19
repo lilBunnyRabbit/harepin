@@ -11,7 +11,7 @@ import { NO_UNLOCKS, type Reward, type Unlocks } from "../career/rewards";
 import { typing, type Nav } from "../hud/input";
 import { modal_open } from "../hud/modals";
 import { save_build } from "./garage-builds";
-import { garage_items, type Item } from "./garage-items";
+import { garage_items, strip_unowned, type Item } from "./garage-items";
 
 const KEY_NAV: Record<string, Nav> = {
   ArrowUp: "up",
@@ -51,6 +51,7 @@ export class Garage {
   given: () => readonly CarId[] = () => [];
   /** What the shop pays from; null sells nothing. */
   wallet: Wallet | null = null;
+  on_notice: ((text: string) => void) | null = null;
 
   current = $state.raw<Build>(DEFAULT_BUILD);
   /** The card shows the saved builds instead of a slot's options. */
@@ -347,7 +348,10 @@ export class Garage {
   };
 
   private apply(next: Build, save = true) {
-    const checked = parse_build(build_code(next));
+    // A build code (a saved build, chat, a paste) can wear a decal or neon the player hasn't bought: their own car drops it.
+    const { build: own, dropped } = save && this.own_code === null && this.wallet?.ready ? strip_unowned(next, (id) => this.wallet?.has(id) === true) : { build: next, dropped: [] };
+    if (dropped.length) this.on_notice?.(`${dropped.join(", ")} not owned: removed`);
+    const checked = parse_build(build_code(own));
     if (!checked || build_code(checked) === build_code(this.current)) return;
     this.current = checked;
     // Paint and decal options list the fitted value even when it is a reward not earned, so they change with the build.

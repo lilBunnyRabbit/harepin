@@ -150,6 +150,17 @@ const GLOW_ITEM: Item = {
   blurb: () => "",
 };
 
+/** A build for the player's own car less the sold decal and neon they haven't bought, with the names of what came off. */
+export function strip_unowned(build: Build, has: (id: Cosmetic) => boolean): { build: Build; dropped: string[] } {
+  const decal = DECALS[build.decal];
+  const neon = NEONS[build.neon];
+  const off_decal = DECAL_PRICE[decal] !== undefined && !has(decal_id(decal));
+  const off_neon = NEON_PRICE[neon] !== undefined && !has(neon_id(neon));
+  const dropped = [...(off_decal ? [DECAL_NAMES[decal]] : []), ...(off_neon ? [`${NEON_NAMES[neon]} neon`] : [])];
+  if (!dropped.length) return { build, dropped };
+  return { build: { ...build, ...(off_decal ? { decal: 0 } : {}), ...(off_neon ? { neon: 0, neon_tone: 0 } : {}) }, dropped };
+}
+
 /** Every slot of the garage, parts first: the reward paints and decals earned, and the number, decal colour and neon colour only while a decal or a neon shows them. */
 export function garage_items(build: Build, unlocks: Unlocks): Item[] {
   const decal = DECALS[build.decal];

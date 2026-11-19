@@ -104,6 +104,25 @@ test("the car picker's sold body buys from any car: its lock carries Buy, or how
   expect(garage.car_price("kaze")).toBeNull();
 });
 
+test("a build code wearing a sold decal or neon not bought loads onto the player's own car without it, with a note", async () => {
+  const { wallet, garage } = shop(0);
+  await wallet.load();
+  const notes: string[] = [];
+  garage.on_notice = (text) => notes.push(text);
+  const dressed = build_code({ ...DEFAULT_BUILD, decal: DECALS.indexOf("flames"), neon: NEONS.indexOf("ring"), neon_tone: 2 });
+  garage.use_code(dressed);
+  expect(DECALS[garage.current.decal]).toBe("none");
+  expect(NEONS[garage.current.neon]).toBe("none");
+  expect(notes).toEqual(["Flames, Ring neon not owned: removed"]);
+  garage.meet_pick(build_code({ ...DEFAULT_BUILD, car: "formula", decal: DECALS.indexOf("flames") }));
+  expect(DECALS[garage.current.decal]).toBe("flames");
+  garage.take_back();
+  const free = build_code({ ...DEFAULT_BUILD, decal: DECALS.indexOf("twin") });
+  garage.use_code(free);
+  expect(garage.code).toBe(free);
+  expect(notes.length).toBe(1);
+});
+
 test("a price tag reads in grouped credits", () => {
   expect(render(PriceTag, { props: { price: 15000 } }).body).toContain("15,000 cr");
 });
