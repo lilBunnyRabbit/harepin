@@ -384,7 +384,8 @@ export class Driver {
     // Wide of its path, the arc back to the aim is far tighter than the plan's bend: on full lock and full throttle
     // over it, cars ran off the far side of the road (seeds 9, 40). The aim's arc (pure pursuit) caps the speed there;
     // on its path the plan already holds the bend, and the cap only cost pace.
-    const off = Math.abs(me - this.lateral_at(car, this.index)) > AIM_OFF;
+    const side = me - this.lateral_at(car, this.index);
+    const off = Math.abs(side) > AIM_OFF;
     const arc = off ? (2 * Math.abs(sin(err))) / Math.max(1, hypot(ax - car.pos.x, az - car.pos.z)) : 0;
     const target = Math.max(floor, Math.min(want_speed, Math.sqrt((AI_TUNING.pass_max * line.scale.slow) / Math.max(1e-9, arc))));
     this.target = target;
@@ -407,7 +408,7 @@ export class Driver {
     this.last_err = err;
     this.last_at = at;
     this.last_swing = swing;
-    c.steer = airborne ? 0 : Math.max(-1, Math.min(1, hold_bend - stray * AI_TUNING.steer_gain - swing * AI_TUNING.steer_damp));
+    c.steer = airborne ? 0 : Math.max(-1, Math.min(1, hold_bend - stray * AI_TUNING.steer_gain + side * AI_TUNING.steer_side - swing * AI_TUNING.steer_damp));
     c.throttle = speed < target ? 1 : 0;
     // Behind a car the brake is not eased for the turn: running into it costs more than a wide line.
     const capped = this.cap < free;
