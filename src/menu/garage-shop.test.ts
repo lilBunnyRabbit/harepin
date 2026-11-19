@@ -5,6 +5,8 @@ import { DECALS, DEFAULT_BUILD, NEONS, build_code } from "../car/build";
 import { Wallet } from "../career/wallet";
 import { BUILD_KEY } from "./garage-builds";
 import { Garage } from "./garage.svelte";
+import CarLock from "./CarLock.svelte";
+import type { Menu } from "./page";
 import PriceTag from "./ui/PriceTag.svelte";
 
 function shop(credits: number) {
@@ -87,6 +89,19 @@ test("a lent meet car is never saved as the player's own, even with a part fitte
   } finally {
     globalThis.localStorage = real;
   }
+});
+
+test("the car picker's sold body buys from any car: its lock carries Buy, or how much is missing", () => {
+  const { wallet, garage } = shop(20_000);
+  expect(garage.car_price("kaze")).toBe(15_000);
+  expect(garage.car_price("hagel")).toBeNull();
+  const menu = { host: { series: [] } } as unknown as Menu;
+  const lock = (credits: number) => render(CarLock, { props: { menu, car: "kaze", why: "Buy it for 15,000 cr", onround: () => {}, price: 15_000, credits, onbuy: () => {} } }).body;
+  expect(lock(20_000)).toContain("Buy · 15,000 cr");
+  expect(lock(5_000)).toContain("Need 10,000 cr more");
+  expect(garage.buy_car("kaze")).toBe(true);
+  expect(wallet.owns("kaze")).toBe(true);
+  expect(garage.car_price("kaze")).toBeNull();
 });
 
 test("a price tag reads in grouped credits", () => {

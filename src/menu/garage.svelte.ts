@@ -117,8 +117,12 @@ export class Garage {
 
   /** The fitted car's body, when its frame is owned and the body is for sale but not bought yet. */
   get body_price(): number | null {
+    return this.car_price(this.current.car);
+  }
+
+  /** A body for sale on a frame the player owns, not bought yet; null otherwise. */
+  car_price(car: CarId): number | null {
     void this.relist;
-    const { car } = this.current;
     const given = this.given();
     return owned_frames(given).has(frame_of(car)) && !given.includes(car) ? body_price(car) : null;
   }
@@ -133,8 +137,12 @@ export class Garage {
   }
 
   buy_body(): boolean {
-    const price = this.body_price;
-    if (price === null || !this.wallet?.buy({ kind: "car", car: this.current.car }, price)) return false;
+    return this.buy_car(this.current.car);
+  }
+
+  buy_car(car: CarId): boolean {
+    const price = this.car_price(car);
+    if (price === null || !this.wallet?.buy({ kind: "car", car }, price)) return false;
     this.relist++;
     return true;
   }
