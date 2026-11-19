@@ -80,9 +80,9 @@
 {#if target}
   <StartSheet {menu} {picker} {target} eyebrow="Events" title="Harepin Series" {shown} onclose={() => (target = null)} />
 {:else}
-  <MenuFrame {menu} id={SERIES_PAGE} eyebrow="Events" title="Harepin Series" veil={0.3} {primary}>
+  <MenuFrame {menu} id={SERIES_PAGE} eyebrow="Events" title="Harepin Series" veil={0.3} bleed {primary}>
     {#if season && progress && wallet}
-      <SeriesFlow {season} {progress} {states} {table} {done} {wallet} {seasons} {at} {lock} onseason={(i: number) => (picked = i)} onstart={start} onfront={(i: number) => (front = i)} onreset={reset} />
+      <SeriesFlow {shown} {season} {progress} {states} {table} {done} {wallet} {seasons} {at} {lock} onseason={(i: number) => (picked = i)} onstart={start} onfront={(i: number) => (front = i)} onreset={reset} />
     {/if}
   </MenuFrame>
 {/if}

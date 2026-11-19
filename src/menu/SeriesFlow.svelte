@@ -4,7 +4,7 @@
   import SeriesHead from "./SeriesHead.svelte";
   import SeriesSeasons from "./SeriesSeasons.svelte";
   import SeriesStandings from "./SeriesStandings.svelte";
-  import { event_score, next_event, place_text, reward_line, round_line, step_focus, terms_line, type SeriesView } from "./series-view";
+  import { event_score, place_text, reward_line, round_line, start_card, step_focus, terms_line, type SeriesView } from "./series-view";
   import { swipe } from "./series-swipe";
   import Icon from "./ui/Icon.svelte";
 
@@ -12,7 +12,7 @@
     snapTargetInline: Element | null;
   }
 
-  let { season, progress, states, table, done, wallet, onstart, onfront, onreset, seasons, at, onseason, lock }: SeriesView = $props();
+  let { season, progress, states, table, done, wallet, onstart, onfront, onreset, seasons, at, onseason, lock, shown = true }: SeriesView = $props();
 
   const round = $derived(round_line(progress));
 
@@ -34,8 +34,10 @@
     onstart(event.id);
   }
 
+  // Pages build hidden ahead of time, where a scroll does nothing: the flow turns each time the page comes on.
   $effect(() => {
-    const start = Math.max(next_event(season, progress, states), 0);
+    if (!shown) return;
+    const start = start_card(season, progress, states);
     focus = start;
     requestAnimationFrame(() => show(start, "instant"));
   });
@@ -114,12 +116,9 @@
 <style>
   .fl {
     display: grid;
-    overflow: clip;
-    overflow-clip-margin: var(--gap-xs);
     grid-template-rows: auto minmax(0, 1fr) auto;
     gap: var(--gap-md);
     height: 100%;
-    min-height: 20rem;
   }
 
   .fl-stage {
@@ -136,8 +135,9 @@
     display: flex;
     align-items: center;
     height: 100%;
-    margin: 0;
-    padding: 0 calc(50% - var(--step) / 2);
+    /* The strip runs to the screen's edges, so only the screen cuts the cards turned aside. */
+    margin: 0 calc(50% - 50vw);
+    padding: 0 calc(50vw - var(--step) / 2);
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;

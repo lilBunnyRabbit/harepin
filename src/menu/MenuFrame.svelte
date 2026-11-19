@@ -21,12 +21,13 @@
     primary?: Snippet;
     veil?: number;
     floor?: boolean;
+    bleed?: boolean;
     /** Where Back leads when the page takes it itself (`MenuPage.back`), in place of the page above. */
     back_to?: string;
     children?: Snippet;
   }
 
-  let { menu, id, eyebrow, title, chips, season = true, links, note, primary, veil, floor, back_to, children }: Props = $props();
+  let { menu, id, eyebrow, title, chips, season = true, links, note, primary, veil, floor, bleed, back_to, children }: Props = $props();
 
   const live = $derived(menu_state(menu));
   const station = $derived(STATIONS.find((one) => one.id === id)?.id);
@@ -41,6 +42,6 @@
   <FrameChips {menu} {season} />
 {/snippet}
 
-<PageFrame {eyebrow} {title} stations={bar} chips={chips ?? frame_chips} back={{ to: back_to ?? up, go: () => menu.back() }} {links} {note} {primary} {veil} {floor}>
+<PageFrame {eyebrow} {title} stations={bar} chips={chips ?? frame_chips} back={{ to: back_to ?? up, go: () => menu.back() }} {links} {note} {primary} {veil} {floor} {bleed}>
   {@render children?.()}
 </PageFrame>

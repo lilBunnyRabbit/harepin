@@ -5,7 +5,7 @@ import { render } from "svelte/server";
 import { DEFAULT_BUILD, DEFAULT_PARTS, type Build } from "../car/build";
 import { car_fault, empty_progress, event_states, player_of, standings, type SeriesProgress } from "../career/series";
 import { SEASON_1, SEASON_4, SEASONS } from "../career/series-seasons";
-import { car_note, season_lock } from "./series-view";
+import { car_note, season_lock, start_card } from "./series-view";
 import { BASE_CAR, fresh_wallet } from "../career/wallet";
 import SeriesEvents from "./SeriesEvents.svelte";
 import SeriesFlow from "./SeriesFlow.svelte";
@@ -89,4 +89,16 @@ test("a car the series won't take says why, and says nothing when the start woul
   const note = car_note(season, tuned, [BASE_CAR]);
   expect(note?.why).toBe("Your Hatch is class B.");
   expect(note?.rule).toBe("This series takes C or below.");
+});
+
+test("the flow opens on the next race to run, or the last one run once none is left", () => {
+  const first = (n: number): SeriesProgress => ({ season: season.id, round: 0, results: Object.fromEntries(season.events.slice(0, n).map((e) => [e.id, { order: [player_of(season), 0, 1, 2, 3, 4, 5], bonus: [] }])) });
+  const at = (progress: SeriesProgress) => start_card(season, progress, event_states(season, progress));
+  expect(at(empty_progress(season))).toBe(0);
+  expect(at(first(3))).toBe(3);
+  expect(at(first(season.events.length))).toBe(season.events.length - 1);
+  const slow = { ...first(1), results: { [season.events[0].id]: { order: [0, 1, 2, 3, player_of(season)], bonus: [] } } };
+  const opened = event_states(season, slow).filter((s) => s === "open").length;
+  const all_run = { ...slow, results: Object.fromEntries(season.events.slice(0, opened).map((e) => [e.id, slow.results[season.events[0].id]])) };
+  expect(at(all_run)).toBe(opened - 1);
 });

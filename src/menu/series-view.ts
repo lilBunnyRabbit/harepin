@@ -28,6 +28,8 @@ export interface SeriesView {
   onseason: (at: number) => void;
   /** Why the season shown is shut, or null once it is open. */
   lock: string | null;
+  /** The page is on screen: each time it comes on, the flow turns to `start_card`. */
+  shown?: boolean;
 }
 
 export interface EventScore {
@@ -44,9 +46,17 @@ export function event_score(season: Season, progress: SeriesProgress, event: Ser
   return { place: place_of(result, player), points: result_points(season, event, result, player) };
 }
 
+const fresh_event = (season: Season, progress: SeriesProgress, states: readonly EventState[]) => season.events.findIndex((event, i) => states[i] === "open" && !progress.results[event.id]);
+
 export function next_event(season: Season, progress: SeriesProgress, states: readonly EventState[]): number {
-  const fresh = season.events.findIndex((event, i) => states[i] === "open" && !progress.results[event.id]);
+  const fresh = fresh_event(season, progress, states);
   return fresh >= 0 ? fresh : states.indexOf("open");
+}
+
+/** The card the flow opens on: the first open race not run yet, else the last one run, else the first. */
+export function start_card(season: Season, progress: SeriesProgress, states: readonly EventState[]): number {
+  const fresh = fresh_event(season, progress, states);
+  return fresh >= 0 ? fresh : Math.max(season.events.findLastIndex((event) => progress.results[event.id]), 0);
 }
 
 export const lock_line = (event: SeriesEvent) => (event.final ? "Podium every event to open" : "Any podium opens it");
