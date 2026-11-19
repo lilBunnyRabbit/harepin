@@ -23,6 +23,7 @@ import { Driver } from "./car/driver";
 import { Directory, load_lock } from "./net/directory";
 import { LOBBY_ROOM, clean_room } from "./net/room-name";
 import { own_country } from "./net/country";
+import { BUILD_PARAM } from "./net/build-link";
 import { Chat } from "./net/chat";
 import { Skids, Smoke } from "./render/effects";
 import { Sparks } from "./render/sparks";
@@ -152,7 +153,7 @@ const random_name = kept_random_name();
 
 show_version($("loading"));
 const travelling = travel_here(params, saved_pick);
-const brief = travelling && new Brief($("loading"), travelling, load_build(params.get("car")));
+const brief = travelling && new Brief($("loading"), travelling, load_build(params.get(BUILD_PARAM)));
 brief?.step("Building the map", 0.3);
 const audio = new Audio();
 // Each client beeps its lobby start off its own clock, on the frame its countdown digit changes.
@@ -263,7 +264,7 @@ const directory = new Directory(
 );
 const chat = new Chat(net);
 chat.start();
-const build = load_build(params.get("car"));
+const build = load_build(params.get(BUILD_PARAM));
 const career = new Career(local_store());
 const series = series_list(new SeriesDb(), new Wallet(new WalletDb()));
 const runs = new Runs(local_store());
