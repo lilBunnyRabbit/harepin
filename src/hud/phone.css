@@ -294,14 +294,22 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     color: var(--foreground);
   }
 
-  /* Hack's `ch` is its one glyph width: "M:SS.sss" is 8 of them. */
+  /* A block, not a flex box: its time's span then sits in a line, where Chrome can lay it out alone. */
+  :root #mode-status > #mode-status-clock:not([data-blank]) {
+    display: block;
+    align-content: center;
+  }
+
   :root #mode-status-clock[data-time] {
-    box-sizing: content-box;
-    width: 8ch;
     height: auto;
   }
 
-  :root #mode-status-clock[data-time="9"] {
+  /* Hack's `ch` is its one glyph width: "M:SS.sss" is 8 of them. */
+  :root #mode-status [data-time] > span {
+    width: 8ch;
+  }
+
+  :root #mode-status [data-time="9"] > span {
     width: 9ch;
   }
 
@@ -409,10 +417,12 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     color: var(--primary);
   }
 
+  /* Out of flow and of fixed size, the bar re-lays out alone when its fill moves each frame. */
   .rpm {
     position: absolute;
     inset: auto var(--space-3) var(--gap-xs);
     height: 3px;
+    contain: size layout style;
   }
 
   #recenter {

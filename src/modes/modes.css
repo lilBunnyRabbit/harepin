@@ -25,7 +25,7 @@
   white-space: nowrap;
 }
 
-#mode-status > :empty {
+#mode-status > [data-blank] {
   display: none;
 }
 
@@ -33,24 +33,23 @@
   font-weight: inherit;
 }
 
-/* The clock's text changes every frame. A box of fixed size with its layout contained re-lays out alone, so the status
-   line around it and the hint and toast anchored to that line stay put. Sized for Inter, where `ch` is the proportional
-   zero: " · M:SS.sss" in tabular figures is 7.66ch and each further digit 0.93ch. `pre` keeps the separator's leading
-   space, which a line inside the box would otherwise drop. */
-#mode-status-clock[data-time] {
+/* A time's text changes every frame. Its span, a box of fixed size with its layout contained, re-lays out alone, so the
+   status line around it and the hint and toast anchored to that line stay put; the cell itself can't, as Chrome never
+   lays out a flex or grid item alone. Sized for Inter, where `ch` is the proportional zero: "M:SS.sss" in tabular
+   figures is 6.84ch and each further digit up to 1ch. */
+#mode-status [data-time] > span {
   display: inline-block;
-  width: 7.7ch;
+  width: 6.9ch;
   height: 1lh;
   vertical-align: top;
-  white-space: pre;
   contain: size layout style;
 }
 
-#mode-status-clock[data-time="9"] {
-  width: 8.65ch;
+#mode-status [data-time="9"] > span {
+  width: 7.9ch;
 }
 
-#mode-status > :not(:empty) ~ :where(#mode-status-clock:not(:empty))::before {
+#mode-status > :not([data-blank]) ~ :where(#mode-status-clock:not([data-blank]))::before {
   content: " · ";
 }
 
@@ -61,7 +60,7 @@
   color: var(--dim);
 }
 
-#mode-status-more > :empty {
+#mode-status-more > [data-blank] {
   visibility: hidden;
 }
 

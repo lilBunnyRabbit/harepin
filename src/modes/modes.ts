@@ -41,8 +41,10 @@ import { atan2 } from "../sim-math";
 export type { Driven } from "./mode";
 
 // A blank status cell is marked by attribute, not styled by `:empty`: Chrome restyles an `:empty`-styled cell and its `~` siblings on every text write, so each clock tick.
+// The text goes in the cell's inner span: Chrome never lays out a flex or grid item alone, so a time's fixed-size box is that span.
 function set_cell(el: HTMLElement, text: string) {
-  set_text(el, text);
+  const inner = el.firstElementChild;
+  set_text(inner instanceof HTMLElement ? inner : el, text);
   const blank = text === "";
   if ("blank" in el.dataset === blank) return;
   if (blank) el.dataset.blank = "";
@@ -71,6 +73,13 @@ const TOO_BIG = "Too big for this mode";
 const NOT_THIS_CAR = "This car can't race here";
 /** A clock segment that is a time alone (`format`): its width is set by its digit count, so it gets a box of that size. */
 const TIME = /^\d{1,2}:\d\d\.\d{3}$/;
+
+function mark_time(el: HTMLElement, text: string) {
+  const chars = TIME.test(text) ? String(text.length) : undefined;
+  if (el.dataset.time === chars) return;
+  if (chars) el.dataset.time = chars;
+  else delete el.dataset.time;
+}
 const NO_CAPTIONS: StatusCaptions = {};
 const LENT_CAR = `Practice: that car is a career reward, so the ${PRESETS[0].name} runs it and no times or stars keep`;
 const STREAMED = "This mode is not on this world yet";
@@ -150,7 +159,6 @@ export class Modes implements CarHooks {
   /** The notice on the status line now, until a run's status replaces it. */
   private noticed = "";
   private readonly notice_status = mode_status("");
-  private clock_chars = 0;
   private clockless = false;
   private notice_until = 0;
   private readonly el = {
@@ -715,12 +723,7 @@ export class Modes implements CarHooks {
       if (clockless) el.status.dataset.clockless = "";
       else delete el.status.dataset.clockless;
     }
-    const chars = TIME.test(status.clock) ? status.clock.length : 0;
-    if (chars !== this.clock_chars) {
-      this.clock_chars = chars;
-      if (chars) el.status_clock.dataset.time = String(chars);
-      else delete el.status_clock.dataset.time;
-    }
+    mark_time(el.status_clock, status.clock);
     for (const field of STATUS_FIELDS) {
       const slot = el.status_slots[field];
       const caption = captions[field];
@@ -730,6 +733,7 @@ export class Modes implements CarHooks {
       if (hidden) continue;
       if (slot.dataset.caption !== caption) slot.dataset.caption = caption;
       set_cell(slot, value);
+      mark_time(slot, value);
     }
   }
 

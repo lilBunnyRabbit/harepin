@@ -66,12 +66,11 @@
   }
 
   /* Hack's `ch` is its one glyph width: "M:SS.sss" is 8 of them. */
-  :root #mode-status-clock[data-time] {
-    box-sizing: content-box;
+  :root #mode-status [data-time] > span {
     width: 8ch;
   }
 
-  :root #mode-status-clock[data-time="9"] {
+  :root #mode-status [data-time="9"] > span {
     width: 9ch;
   }
 
