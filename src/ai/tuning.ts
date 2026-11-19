@@ -98,7 +98,7 @@ export const AI_TUNING: AiTuning = {
   aim_base: 7,
   aim_per: 3,
   steer_gain: 6.5,
-  steer_side: 0.03,
+  steer_side: 0.05,
   steer_lead: 1.04,
   steer_damp: 1.25,
   brake_max: 0.95,
