@@ -5,6 +5,7 @@
   import type { CarPicker } from "./car-pick.svelte";
   import { bare_enter } from "./drive-picks";
   import type { StartTarget } from "./events-view";
+  import { MenuTab } from "./page";
   import MenuFrame from "./MenuFrame.svelte";
   import SeriesFlow from "./SeriesFlow.svelte";
   import { season_lock, type SeasonTab } from "./series-view";
@@ -16,9 +17,11 @@
     picker: CarPicker;
     /** The round a road result's Next asked for, handed over once: the page opens on its start sheet. */
     asked: () => string | null;
+    /** Opens a page whose Back returns here: the start sheet's way to the Garage. */
+    open: (id: string) => void;
   }
 
-  let { menu, live, shown, picker, asked }: Props = $props();
+  let { menu, live, shown, picker, asked, open: open_page }: Props = $props();
 
   const list = $derived(menu.host.series);
   const ready = $derived(live.live(() => list.length > 0 && list.every((one) => one.ready)));
@@ -78,7 +81,7 @@
 {/snippet}
 
 {#if target}
-  <StartSheet {menu} {picker} {target} eyebrow="Events" title="Harepin Series" {shown} onclose={() => (target = null)} />
+  <StartSheet {menu} {picker} {target} eyebrow="Events" title="Harepin Series" {shown} onclose={() => (target = null)} ongarage={() => open_page(MenuTab.GARAGE)} />
 {:else}
   <MenuFrame {menu} id={SERIES_PAGE} eyebrow="Events" title="Harepin Series" veil={0.3} bleed {primary}>
     {#if season && progress && wallet}

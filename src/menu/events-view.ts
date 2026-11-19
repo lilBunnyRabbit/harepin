@@ -1,5 +1,5 @@
-import type { CarLimit } from "../car/car-pick";
-import { CLASS_LABELS } from "../car/pi";
+import { within, type CarLimit } from "../car/car-pick";
+import { CLASS_FLOORS, CLASS_LABELS, PI_MAX, type CarClass, type Rating } from "../car/pi";
 import { MAX_EVENT_STARS, TIERS, event_of, type CareerEvent, type Stars } from "../career/career";
 import type { TierView } from "../career/career-model";
 import { event_map } from "../career/career-store";
@@ -181,4 +181,27 @@ export function complete_line(views: readonly TierView[]): string | null {
   if (!views.every((view) => view.have === view.max && view.rewards.every((reward) => reward.got))) return null;
   const trophies = views.reduce((sum, view) => sum + view.rewards.length, 0);
   return `${views[views.length - 1].tier.name} rank and all ${trophies} trophies won`;
+}
+
+export interface CarFit {
+  text: string;
+  /** The car can't start as it is. */
+  off: boolean;
+  /** The Garage can change the answer: the car is over the cap, or under it with a class to spare. */
+  tune: boolean;
+}
+
+/** The PI under a cap a car can be tuned up to and still fit; at least this much room left, the sheet points to the Garage. */
+const TUNE_ROOM = 25;
+
+const class_top = (cap: CarClass) => (CLASS_FLOORS[CLASS_FLOORS.findIndex(([name]) => name === cap) + 1]?.[1] ?? PI_MAX + 1) - 1;
+
+/** The start sheet's line on the car fitted against the event's limit; `blocked` is the picker's reason it is out. */
+export function car_fit(rated: Rating, limit: CarLimit | null, blocked: string | null): CarFit {
+  const cap = limit?.cap ?? null;
+  if (cap && !within(rated.class, cap)) return { text: `Over the ${CLASS_LABELS[cap]} cap: detune it in the Garage`, off: true, tune: true };
+  if (blocked) return { text: `${blocked}: pick another next`, off: true, tune: false };
+  const top = cap ? class_top(cap) : 0;
+  if (cap && top - rated.pi >= TUNE_ROOM) return { text: `Room up to ${CLASS_LABELS[cap]} ${top}: tune it in the Garage`, off: false, tune: true };
+  return { text: "Your car fits", off: false, tune: false };
 }
