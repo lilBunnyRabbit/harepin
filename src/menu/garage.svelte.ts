@@ -152,6 +152,7 @@ export class Garage {
   }
 
   use_code(code: string, save = true) {
+    if (save) this.own_code = null;
     const build = parse_build(code);
     if (build) this.apply(build, save);
   }
@@ -344,7 +345,7 @@ export class Garage {
     // Paint and decal options list the fitted value even when it is a reward not earned, so they change with the build.
     this.item = this.items.find((item) => item.id === this.item.id) ?? this.item;
     this.cursor = this.item.at(checked);
-    if (save) save_build(checked);
+    if (save && this.own_code === null) save_build(checked);
     this.on_change?.(checked);
   }
 

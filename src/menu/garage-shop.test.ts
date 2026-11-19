@@ -3,6 +3,7 @@ import { expect, test } from "bun:test";
 import { render } from "svelte/server";
 import { DECALS, DEFAULT_BUILD, NEONS, build_code } from "../car/build";
 import { Wallet } from "../career/wallet";
+import { BUILD_KEY } from "./garage-builds";
 import { Garage } from "./garage.svelte";
 import PriceTag from "./ui/PriceTag.svelte";
 
@@ -66,6 +67,26 @@ test("a locked car picked at a race meet is lent, then handed back for the playe
   garage.meet_pick(build_code({ ...DEFAULT_BUILD, car: "coupe" }));
   garage.take_back();
   expect(garage.current.car).toBe("coupe");
+});
+
+test("a lent meet car is never saved as the player's own, even with a part fitted on it", () => {
+  const writes: string[] = [];
+  const real = globalThis.localStorage;
+  globalThis.localStorage = { ...real, setItem: (key: string, value: string) => void (key === BUILD_KEY && writes.push(value)) } as Storage;
+  try {
+    const { garage } = shop(0);
+    const own = garage.code;
+    garage.meet_pick(build_code({ ...DEFAULT_BUILD, car: "formula" }));
+    pick(garage, "engine");
+    garage.fit(3);
+    expect(garage.current.parts.engine).toBe(3);
+    expect(writes).toEqual([]);
+    garage.take_back();
+    expect(garage.code).toBe(own);
+    expect(writes).toEqual([]);
+  } finally {
+    globalThis.localStorage = real;
+  }
 });
 
 test("a price tag reads in grouped credits", () => {
