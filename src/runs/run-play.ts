@@ -1,4 +1,6 @@
 import type { CareerEvent } from "../career/career";
+import { RUN_STAR_CREDITS } from "../career/prices";
+import { credits_text } from "../career/wallet";
 import { CUP_RECORD, WEEK_STARS, week_stars } from "../modes/championship";
 import { line, points_text } from "../modes/result";
 import { local_store, type Thresholds, type Track } from "../modes/track";
@@ -36,7 +38,8 @@ export function daily_want(date: string): string {
   return daily_key(date, map_code({ kind, seed, levels: [] }), "", world_key(seed, kind));
 }
 
-export function run_play(pick: RunPick, world: World, runs: Runs, start_run: (id: string) => void): RunPlay {
+/** `earn`: where the credits for new season stars go. */
+export function run_play(pick: RunPick, world: World, runs: Runs, earn: (credits: number) => void, start_run: (id: string) => void): RunPlay {
   const here = probe(world);
   const plan = pick.stages && pick.date ? resolve_stages(pick, here) : null;
   // The Runs row names what the map really plays from here on, a stand-in circuit race included.
@@ -69,9 +72,12 @@ export function run_play(pick: RunPick, world: World, runs: Runs, start_run: (id
       const { gain, capped } = runs.record(pick, stars, started);
       const best = track.runs[resolved.level];
       if (pick.source === RunSource.DAILY && pick.date === runs.today && best) runs.post_daily({ k: daily_key(pick.date, event.map, resolved.level, world.key), ms: best.ms, ...(best.score === undefined ? {} : { score: best.score }) });
+      const credits = gain * RUN_STAR_CREDITS;
+      earn(credits);
+      const paid = credits ? [line("credits", `+${credits_text(credits)}`)] : [];
       const total = `${runs.stars} ★`;
       const season = line("season", gain ? `+${gain} ★ · ${total}` : capped ? `Today's ${FREE_CAP} ★ are in · ${total}` : total);
-      return stages ? [line("week", `${stars} / ${WEEK_STARS} ★ · ${points === top ? "best " : ""}${points_text(points)}`), season] : [season];
+      return stages ? [line("week", `${stars} / ${WEEK_STARS} ★ · ${points === top ? "best " : ""}${points_text(points)}`), season, ...paid] : [season, ...paid];
     },
     next: pick.source === RunSource.RANDOM ? { label: "New run", go: () => start_run(random(new_seed()).id) } : null,
   };

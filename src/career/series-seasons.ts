@@ -1,5 +1,6 @@
 import { WorldKind } from "../worldgen/types";
 import { rating } from "../car/pi";
+import { CUP_CLEAR } from "./prices";
 import { event_of, Gate, season_done, SeriesKind, stock_build, type Season, type SeriesEvent, type SeriesProgress } from "./series";
 
 export const SEASON_1: Season = {
@@ -8,7 +9,7 @@ export const SEASON_1: Season = {
   world: WorldKind.ISLAND,
   cap: "c",
   gate: Gate.PODIUM,
-  reward: { credits: 5000 },
+  reward: { credits: 8_000 },
   replays: [6, 7, 16, 33, 34, 36, 38, 46, 52, 58, 59],
   field: [
     { name: "Kai Moreno", aggression: 4, mistakes: 2 },
@@ -36,7 +37,7 @@ export const SEASON_2: Season = {
   world: WorldKind.ALPINE,
   cap: "b",
   gate: Gate.PODIUM,
-  reward: { credits: 7500 },
+  reward: { credits: 12_000 },
   replays: [11, 15, 21, 28, 30, 32, 33, 37],
   field: [
     { name: "Elsa Brandt", aggression: 4, mistakes: 2 },
@@ -64,7 +65,7 @@ export const SEASON_3: Season = {
   world: WorldKind.DESERT,
   cap: "b",
   gate: Gate.PODIUM,
-  reward: { credits: 10_000 },
+  reward: { credits: 15_000 },
   replays: [3, 8, 13, 18, 23, 24, 29, 30, 39],
   field: [
     { name: "Omar Haddad", aggression: 5, mistakes: 2 },
@@ -92,7 +93,7 @@ export const SEASON_4: Season = {
   world: WorldKind.MAINLAND,
   cap: "a",
   gate: Gate.PODIUM,
-  reward: { credits: 15_000 },
+  reward: { credits: 20_000 },
   replays: [31, 34, 36, 37, 72, 85, 93, 99],
   field: [
     { name: "Vera Lund", aggression: 5, mistakes: 1 },
@@ -124,7 +125,7 @@ export const RALLY_TRIAL: Season = {
   loaner: "rally",
   always_open: true,
   beginner: true,
-  reward: { car: "rally", credits: 0 },
+  reward: { car: "rally", credits: CUP_CLEAR },
   replays: [15, 28, 32, 33, 37, 6],
   field: [
     { name: "Juno Pike", aggression: 2, mistakes: 4 },
@@ -150,7 +151,7 @@ export const MUSCLE_CUP: Season = {
   loaner: "muscle",
   always_open: true,
   beginner: true,
-  reward: { car: "muscle", credits: 0 },
+  reward: { car: "muscle", credits: CUP_CLEAR },
   replays: [33, 34, 36, 38, 46, 52],
   field: [
     { name: "Dex Harlan", aggression: 3, mistakes: 4 },
@@ -175,7 +176,7 @@ export const SAJIN_CUP: Season = {
   gate: Gate.FINISH,
   loaner: "sajin",
   always_open: true,
-  reward: { car: "sajin", credits: 0 },
+  reward: { car: "sajin", credits: CUP_CLEAR },
   replays: [18, 23, 24, 29, 30, 39],
   field: [
     { name: "Zara Kell", aggression: 3, mistakes: 3 },
@@ -200,7 +201,7 @@ export const RAIJIN_CUP: Season = {
   gate: Gate.FINISH,
   loaner: "raijin",
   always_open: true,
-  reward: { car: "raijin", credits: 0 },
+  reward: { car: "raijin", credits: CUP_CLEAR },
   replays: [6, 11, 15, 21, 28, 32],
   field: [
     { name: "Signe Falk", aggression: 3, mistakes: 3 },
@@ -225,7 +226,7 @@ export const STURM_CUP: Season = {
   gate: Gate.FINISH,
   loaner: "sturm",
   always_open: true,
-  reward: { car: "sturm", credits: 0 },
+  reward: { car: "sturm", credits: CUP_CLEAR },
   replays: [33, 36, 38, 46, 52, 7],
   field: [
     { name: "Vik Aalto", aggression: 4, mistakes: 2 },
@@ -250,7 +251,7 @@ export const FORMULA_CUP: Season = {
   gate: Gate.FINISH,
   loaner: "formula",
   always_open: true,
-  reward: { car: "formula", credits: 0 },
+  reward: { car: "formula", credits: CUP_CLEAR },
   replays: [14, 15, 16, 20, 22, 25],
   field: [
     { name: "Livia Marchetti", aggression: 4, mistakes: 2 },

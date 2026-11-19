@@ -1,7 +1,9 @@
 import type { Build } from "../car/build";
 import type { CarLimit } from "../car/car-pick";
 import type { CarId } from "../car/cars";
-import { event_credits } from "./credits";
+import { utc_date } from "../runs/runs";
+import { event_pay, podiumed, type EventPay } from "./credits";
+import { DAILY_PODIUM, REPLAY_REWARD_SHARE } from "./prices";
 import { frame_locks } from "./frames";
 import { better, car_fault, empty_progress, event_of, parse_progress, season_done, season_round, standings, trophy_of, type EventResult, type Season, type SeriesEvent, type SeriesProgress } from "./series";
 import type { SeriesSaves } from "./series-db";
@@ -10,12 +12,22 @@ import type { Wallet } from "./wallet";
 
 export interface Payout {
   kept: boolean;
+  /** The race's credits, `pay.credits`. */
   credits: number;
+  pay: EventPay;
+  /** The first podium of the UTC day. */
+  bonus: number;
   season_credits: number;
   /** The reward car, when this finish completed the season and the player did not own it yet. */
   car: CarId | null;
   /** The trophy this finish completed the season with, when it beats any kept before. */
   trophy: string | null;
+}
+
+/** A season pays its reward in full on its own seeds and a share on each replay round run to its end; a cup pays its first clear once, then its races only. */
+export function reward_credits(season: Season, round: number): number {
+  if (round === 0) return season.reward.credits;
+  return season.loaner ? 0 : Math.round(season.reward.credits * REPLAY_REWARD_SHARE);
 }
 
 /** One season's progress, replaced with a new object on each change so a `$derived` over it wakes. */
@@ -70,22 +82,26 @@ export class Series {
     return { cap: this.season_.cap, car_sized_only: false, locked: frame_locks(this.wallet.state.cars) };
   }
 
-  record(event: SeriesEvent, result: EventResult): Payout {
+  /** `day`: the UTC date the daily podium bonus counts against. */
+  record(event: SeriesEvent, result: EventResult, day = utc_date(new Date())): Payout {
     const season = this.season_;
-    const credits = event_credits(season, event, result);
-    this.wallet.earn(credits);
+    const { round } = this.progress_;
+    const before = this.progress_.results[event.id];
+    const pay = event_pay(season, event, result, before, round);
+    this.wallet.earn(pay.credits);
+    const bonus = podiumed(season, event, result) && this.wallet.claim_daily(day, DAILY_PODIUM) ? DAILY_PODIUM : 0;
     const was_done = season_done(season, this.progress_);
-    const kept = better(season, event, result, this.progress_.results[event.id]);
+    const kept = better(season, event, result, before);
     if (kept) this.set({ ...this.progress_, results: { ...this.progress_.results, [event.id]: result } });
     const done = season_done(season, this.progress_);
     // A done season keeps its rounds open: a better rerun can still lift the final table, and the trophy with it.
     const trophy = done && (kept || !was_done) ? this.place_best() : null;
-    if (was_done || !done) return { kept, credits, season_credits: 0, car: null, trophy };
-    // The reward's credits pay once, on the season's own seeds: a replay pays its races' credits only, so it is no farm.
-    const season_credits = this.progress_.round === 0 ? season.reward.credits : 0;
+    const paid = { kept, credits: pay.credits, pay, bonus, trophy };
+    if (was_done || !done) return { ...paid, season_credits: 0, car: null };
+    const season_credits = reward_credits(season, round);
     this.wallet.earn(season_credits);
     const { car } = season.reward;
-    return { kept, credits, season_credits, car: car && this.wallet.grant(car) ? car : null, trophy };
+    return { ...paid, season_credits, car: car && this.wallet.grant(car) ? car : null };
   }
 
   private place_best(): string | null {

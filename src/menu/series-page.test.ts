@@ -55,7 +55,7 @@ test("the coverflow shows the player's credits, the class cap, the replay round 
   const base = { season, states: event_states(season, first), table: standings(season, first), done: false, onstart: () => {}, onreset: () => {}, ...switcher };
   const first_run = render(SeriesFlow, { props: { ...base, progress: first, wallet: fresh_wallet() } }).body;
   expect(first_run).toContain("sc-reward");
-  expect(first_run).toContain("5,000 cr");
+  expect(first_run).toContain("8,000 cr");
   expect(first_run).not.toContain("Sajin");
   const progress = { ...empty_progress(season, 1) };
   const props = { season, progress, states: event_states(season, progress), table: standings(season, progress), done: false, onstart: () => {}, onreset: () => {}, ...switcher };
@@ -93,7 +93,7 @@ test("the Rally Trial leads the switcher as a beginner's cup: its loaner named, 
   expect(out).toContain("3 rounds · finish every round to keep the Rally · Loaner: stock Rally for everyone");
   expect(out.match(/Finish the round before to open/g)?.length).toBe(2);
   expect(out).toContain('<span class="sc-reward');
-  expect(out).not.toContain(" cr</span>");
+  expect(out).toContain("Rally + 3,000 cr</span>");
   const won = render(SeriesFlow, { props: { ...props, progress: { ...progress, best: 1 } } }).body;
   expect(won).toContain("Winner's cup");
 });

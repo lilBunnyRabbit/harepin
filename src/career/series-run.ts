@@ -1,5 +1,6 @@
 import { RivalPick, type RivalCars } from "../ai/field-pick";
 import { CARS } from "../car/cars";
+import { CLASS_LABELS } from "../car/pi";
 import type { FieldEvent, FieldHost } from "../modes/mode";
 import { line, type NextCard } from "../modes/result";
 import { plain_map } from "../worldgen/kinds/kinds";
@@ -45,6 +46,19 @@ export function series_ticket(season: Season, event: SeriesEvent, place: Place):
 
 export const on_series_map = (season: Season, event: SeriesEvent, built: MapSpec) => map_code(series_map(season, event)) === map_code(built);
 
+const times = (factor: number) => `×${Number(factor.toFixed(2))}`;
+
+/** How the race's credits came to what they are, past the plain points: only the factors that moved them, then the daily bonus. */
+export function pay_lines(season: Season, paid: Pick<Payout, "pay" | "bonus">): [string, string][] {
+  const { pay } = paid;
+  const lines: [string, string][] = [];
+  if (pay.class_factor !== 1) lines.push([`class ${CLASS_LABELS[season.cap]}`, times(pay.class_factor)]);
+  if (pay.round_factor !== 1) lines.push(["replay round", times(pay.round_factor)]);
+  if (pay.share !== 1) lines.push(["rerun", `${Math.round(pay.share * 100)}%, podium already earned here`]);
+  if (paid.bonus) lines.push(["first podium today", `+${credits_text(paid.bonus)}`]);
+  return lines;
+}
+
 function result_lines(series: Series, event: SeriesEvent, result: EventResult, paid: Payout): HTMLElement[] {
   const { season } = series;
   const place = place_of(result, player_of(season));
@@ -55,6 +69,7 @@ function result_lines(series: Series, event: SeriesEvent, result: EventResult, p
   lines.push(line("series", `${ordinal(me + 1)} · ${table[me].points} pts`));
   if (!paid.kept) lines.push(line("kept", "your better run here still counts"));
   lines.push(line("credits", `+${credits_text(paid.credits)}`));
+  for (const [label, value] of pay_lines(season, paid)) lines.push(line(label, value));
   const prize = [...(paid.season_credits ? [`+${credits_text(paid.season_credits)}`] : []), ...(paid.car ? [`${CARS[paid.car].name} is yours`] : [])];
   if (prize.length) lines.push(line(season.gate === Gate.FINISH ? "series done" : "season won", prize.join(" · ")));
   if (paid.trophy) lines.push(line("trophy", paid.trophy));

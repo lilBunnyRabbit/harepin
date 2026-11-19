@@ -7,6 +7,7 @@ import { same_machine, within } from "../car/car-pick";
 import { RivalPick, field_builds } from "../ai/field-pick";
 import { rating } from "../car/pi";
 import { CREDITS_PER_POINT, FINAL_FACTOR } from "./credits";
+import { DAILY_PODIUM, REPLAY_REWARD_SHARE, RERUN_SHARE, ROUND_STEP } from "./prices";
 import { Bonus, Gate, OPEN_AT_START, PODIUM, SeriesKind, better, car_fault, empty_progress, loaner_code, stock_build, trophy_of, event_field, event_line, event_result, event_states, grid_slot, next_open, parse_progress, player_of, result_points, season_done, season_round, standings, type EventResult, type Season, type SeriesProgress } from "./series";
 import type { SeriesSaves } from "./series-db";
 import { series_ticket } from "./series-run";
@@ -21,6 +22,7 @@ import { frame_locks } from "./frames";
 import { car_shelves } from "../car/car-pick";
 
 const season = SEASON_1;
+const DAY = "2026-11-20";
 const YOU = player_of(season);
 const field = season.field.map((_, i) => i);
 const at = (place: number): EventResult => {
@@ -272,25 +274,25 @@ test("the series car picker greys what car_fault refuses", () => {
   for (const car of cars) expect(car.blocked === null).toBe(series.car_fault(car.build) === null);
 });
 
-test("every finish pays credits, the final double; completing the season pays its reward once and replays on new seeds", async () => {
+test("every finish pays credits, the final double, a podiumed rerun half; completing the season pays its reward once and replays on new seeds", async () => {
   const store = memory();
   const wallet = new Wallet(null);
   const series = new Series(season, store, wallet);
   const [opener, ...rest] = season.events;
-  expect(series.record(opener, at(1)).credits).toBe(10 * CREDITS_PER_POINT);
-  expect(series.record(opener, at(7)).credits).toBe(2 * CREDITS_PER_POINT);
-  expect(wallet.credits).toBe(12 * CREDITS_PER_POINT);
-  for (const event of rest.slice(0, -1)) series.record(event, at(1));
+  expect(series.record(opener, at(1), DAY)).toMatchObject({ credits: 10 * CREDITS_PER_POINT, bonus: DAILY_PODIUM });
+  expect(series.record(opener, at(7), DAY)).toMatchObject({ credits: 2 * CREDITS_PER_POINT * RERUN_SHARE, bonus: 0 });
+  expect(wallet.credits).toBe(11 * CREDITS_PER_POINT + DAILY_PODIUM);
+  for (const event of rest.slice(0, -1)) series.record(event, at(1), DAY);
   const final = season.events.at(-1)!;
-  const lost = series.record(final, at(PODIUM + 1));
+  const lost = series.record(final, at(PODIUM + 1), DAY);
   expect(lost.season_credits).toBe(0);
   expect(lost.credits).toBe(5 * CREDITS_PER_POINT * FINAL_FACTOR);
   const before = wallet.credits;
-  const won = series.record(final, at(1));
-  expect(won).toEqual({ kept: true, credits: 10 * CREDITS_PER_POINT * FINAL_FACTOR, season_credits: season.reward.credits, car: null, trophy: "Winner's cup" });
+  const won = series.record(final, at(1), DAY);
+  expect(won).toMatchObject({ kept: true, credits: 10 * CREDITS_PER_POINT * FINAL_FACTOR, bonus: 0, season_credits: season.reward.credits, car: null, trophy: "Winner's cup" });
   expect(wallet.credits).toBe(before + won.credits + season.reward.credits);
   expect(wallet.state.cars).toEqual([BASE_CAR]);
-  expect(series.record(final, at(1)).season_credits).toBe(0);
+  expect(series.record(final, at(1), DAY)).toMatchObject({ credits: 10 * CREDITS_PER_POINT * FINAL_FACTOR * RERUN_SHARE, season_credits: 0 });
   series.reset();
   expect(series.progress.round).toBe(1);
   expect(series.season.events[0].seed).toBe(season_round(season, 1).events[0].seed);
@@ -298,8 +300,15 @@ test("every finish pays credits, the final double; completing the season pays it
   await reload.load();
   expect(reload.progress.round).toBe(1);
   expect(reload.event(opener.id)?.seed).toBe(season.replays[0]);
-  for (const event of season.events.slice(0, -1)) series.record(event, at(1));
-  expect(series.record(final, at(1))).toEqual({ kept: true, credits: 10 * CREDITS_PER_POINT * FINAL_FACTOR, season_credits: 0, car: null, trophy: null });
+  for (const event of season.events.slice(0, -1)) expect(series.record(event, at(1), DAY).pay.round_factor).toBe(1 + ROUND_STEP);
+  expect(series.record(final, at(1), "2026-11-21")).toMatchObject({
+    kept: true,
+    credits: 10 * CREDITS_PER_POINT * FINAL_FACTOR * (1 + ROUND_STEP),
+    bonus: DAILY_PODIUM,
+    season_credits: season.reward.credits * REPLAY_REWARD_SHARE,
+    car: null,
+    trophy: null,
+  });
   series.reset();
   series.record(opener, at(2));
   series.reset();

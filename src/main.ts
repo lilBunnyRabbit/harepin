@@ -724,7 +724,7 @@ function start_run(id: string, car: string | null = null) {
 }
 
 function play_run(to: RunPick) {
-  const play = run_play(to, world, runs, (next) => start_run(next));
+  const play = run_play(to, world, runs, (credits) => wallet.earn(credits), (next) => start_run(next));
   modes.play_event(play.event, play);
 }
 const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), {
