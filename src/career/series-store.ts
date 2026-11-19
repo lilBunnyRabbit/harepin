@@ -2,6 +2,7 @@ import type { Build } from "../car/build";
 import type { CarLimit } from "../car/car-pick";
 import type { CarId } from "../car/cars";
 import { event_credits } from "./credits";
+import { frame_locks } from "./frames";
 import { better, car_fault, empty_progress, event_of, parse_progress, season_done, season_round, standings, trophy_of, type EventResult, type Season, type SeriesEvent, type SeriesProgress } from "./series";
 import type { SeriesSaves } from "./series-db";
 import { chain_before, completed, SERIES_LIST, seasons_open } from "./series-seasons";
@@ -61,12 +62,12 @@ export class Series {
   }
 
   car_fault(build: Build): string | null {
-    return car_fault(this.season_, build, this.wallet.state.cars);
+    return car_fault(this.season_, build, frame_locks(this.wallet.state.cars));
   }
 
   /** The picker's side of `car_fault`. */
   car_limit(): CarLimit {
-    return { cap: this.season_.cap, car_sized_only: false, only: this.wallet.state.cars };
+    return { cap: this.season_.cap, car_sized_only: false, locked: frame_locks(this.wallet.state.cars) };
   }
 
   record(event: SeriesEvent, result: EventResult): Payout {
@@ -83,7 +84,8 @@ export class Series {
     // The reward's credits pay once, on the season's own seeds: a replay pays its races' credits only, so it is no farm.
     const season_credits = this.progress_.round === 0 ? season.reward.credits : 0;
     this.wallet.earn(season_credits);
-    return { kept, credits, season_credits, car: this.wallet.grant(season.reward.car) ? season.reward.car : null, trophy };
+    const { car } = season.reward;
+    return { kept, credits, season_credits, car: car && this.wallet.grant(car) ? car : null, trophy };
   }
 
   private place_best(): string | null {

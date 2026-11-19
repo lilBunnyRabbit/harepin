@@ -266,7 +266,9 @@ const chat = new Chat(net);
 chat.start();
 const build = load_build(params.get(BUILD_PARAM));
 const career = new Career(local_store());
-const series = series_list(new SeriesDb(), new Wallet(new WalletDb()));
+const wallet = new Wallet(new WalletDb());
+void wallet.load();
+const series = series_list(new SeriesDb(), wallet);
 const runs = new Runs(local_store());
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
@@ -288,6 +290,7 @@ if (!quality.mobile) mirror_frame.start();
 
 const garage = new Garage(build);
 garage.rewards = () => unlocks(career.stars);
+garage.given = () => [...wallet.state.cars, ...unlocks(career.stars).cars];
 const input = new Input($("touch"), render.renderer.domElement);
 const rumble = new Rumble();
 const rumble_sense: RumbleSense = { scrub: 0, speed: 0, loose: 0, kerb: 0, airborne: false, vy: 0, impact: 0, x: 0, y: 0, z: 0 };
@@ -543,7 +546,7 @@ modes.try_reward = (reward) => {
   settings.open(MenuTab.GARAGE);
   garage.try_reward(reward);
 };
-const shelves_for = (limit: CarLimit, own = garage.code) => car_shelves(parse_build(own) ?? garage.build, load_builds(), open_presets(unlocks(career.stars).cars), limit, garage.code);
+const shelves_for = (limit: CarLimit, own = garage.code) => car_shelves(parse_build(own) ?? garage.build, load_builds(), open_presets(unlocks(career.stars).cars), { ...limit, locked: limit.locked ?? garage.locks }, garage.code);
 const pick_in = (title: string, limit: CarLimit, shelves: readonly CarShelf[], signal: AbortSignal) => settings.pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", shelves, signal);
 // The car taken on the start sheet or picked on a flag's card runs its event when it fits the route; the picker opens only when it does not.
 let taken: string | null = null;
@@ -692,7 +695,8 @@ function start_series(id: string, car: string | null = null) {
     go() {
       const up = after();
       if (up) settings.open_round(up.id);
-      else settings.open(won() ? FINAL_PAGE : SERIES_PAGE);
+      else if (won()) settings.open_final(one.base.id);
+      else settings.open(SERIES_PAGE);
     },
   };
   const host = series_host(base, one, to, next);

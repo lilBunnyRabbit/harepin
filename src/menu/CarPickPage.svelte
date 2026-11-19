@@ -2,7 +2,9 @@
   import type { CarChoice } from "../car/car-pick";
   import { CARS } from "../car/cars";
   import { CLASS_FLOORS, type CarClass } from "../car/pi";
+  import { frame_of, lock_line } from "../career/frames";
   import { CAR_PAGE, type CarPicker } from "./car-pick.svelte";
+  import CarLock from "./CarLock.svelte";
   import { aim_or_go, bare_enter } from "./drive-picks";
   import { car_facts } from "./car-facts";
   import CarFactsLine from "./CarFactsLine.svelte";
@@ -18,9 +20,10 @@
 
   interface Props extends PageProps {
     picker: CarPicker;
+    onround: (id: string) => void;
   }
 
-  let { menu, picker, shown }: Props = $props();
+  let { menu, picker, shown, onround }: Props = $props();
 
   const rank = (name: CarClass) => CLASS_FLOORS.findIndex(([floor]) => floor === name);
 
@@ -139,7 +142,9 @@
             <b class="pick-title">{pick.title}</b>
             {#if pick.sub}<span class="pick-sub">{pick.sub}</span>{/if}
             <span class="pick-facts"><ClassBadge rating={pick.rating} /><CarFactsLine {facts} words /></span>
-            {#if pick.blocked}<span class="pick-why"><Icon name="icon-lock" />{pick.blocked}</span>{/if}
+            {#if pick.blocked && pick.blocked === lock_line(frame_of(pick.build.car))}
+              <CarLock {menu} car={pick.build.car} why={pick.blocked} {onround} />
+            {:else if pick.blocked}<span class="pick-why"><Icon name="icon-lock" />{pick.blocked}</span>{/if}
           </div>
           <div class="pick-meters">
             {#each facts.meters as m (m.key)}

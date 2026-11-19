@@ -1,5 +1,5 @@
 import { DEFAULT_BUILD, DEFAULT_PARTS, build_code, type Build } from "../car/build";
-import { limit_text, within } from "../car/car-pick";
+import { limit_text, within, type CarLocks } from "../car/car-pick";
 import { CARS, type CarId } from "../car/cars";
 import { rating, type CarClass } from "../car/pi";
 import type { FieldOutcome } from "../modes/mode";
@@ -52,7 +52,8 @@ export interface SeriesEvent {
 
 /** What a season's final pays on top of its race each time the season is completed; the car only the first time. */
 export interface SeasonReward {
-  readonly car: CarId;
+  /** A cup's frame; a season pays credits only, since frames come from the cups. */
+  readonly car?: CarId;
   readonly credits: number;
 }
 
@@ -165,10 +166,11 @@ export function season_round(season: Season, round: number): Season {
   };
 }
 
-/** Why the player's car may not race the season, or null: only their own cars (base car start), within the class cap. A cup lends its car, so none is wrong. */
-export function car_fault(season: Season, build: Build, owned: readonly CarId[]): string | null {
+/** Why the player's car may not race the season, or null: only cars on frames they own, within the class cap. A cup lends its car, so none is wrong. */
+export function car_fault(season: Season, build: Build, locked: CarLocks): string | null {
   if (season.loaner) return null;
-  if (!owned.includes(build.car)) return `${season.name} series: your own cars only (${owned.map((id) => CARS[id].name).join(", ")})`;
+  const lock = locked[build.car];
+  if (lock) return `${season.name} series: your own cars only. ${CARS[build.car].name}: ${lock}`;
   return within(rating(build).class, season.cap) ? null : `${season.name} series: ${limit_text(season.cap)}`;
 }
 

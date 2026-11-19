@@ -12,11 +12,19 @@
   import type { PageProps } from "../menu/ui/svelte-page.svelte";
   import { FINAL_PAGE } from "./final";
 
-  let { menu, live, shown }: PageProps = $props();
+  interface Props extends PageProps {
+    /** The season just finished, by id; null on a review shot, which shows the last one done. */
+    finished: () => string | null;
+  }
+
+  let { menu, live, shown, finished }: Props = $props();
 
   const list = $derived(menu.host.series);
   const at = $derived(
     live.live(() => {
+      const id = finished();
+      const just = list.findIndex((one) => one.base.id === id);
+      if (just >= 0) return just;
       const done = list.findLastIndex((one) => one.ready && season_done(one.season, one.progress));
       return done >= 0 ? done : series_front(list);
     }),
@@ -69,10 +77,12 @@
       <div class="final-side" data-stage-panel data-side="right">
         <Card label="Rewards">
           <b class="final-h3">Rewards</b>
-          <div class="final-reward">
-            <span class="final-pic"><CarStill car={season.reward.car} /></span>
-            <div class="final-text"><b>{CARS[season.reward.car].name}</b><span>{season.loaner ? "Yours to keep" : "Season car"}</span></div>
-          </div>
+          {#if season.reward.car}
+            <div class="final-reward">
+              <span class="final-pic"><CarStill car={season.reward.car} /></span>
+              <div class="final-text"><b>{CARS[season.reward.car].name}</b><span>Yours to keep</span></div>
+            </div>
+          {/if}
           {#if trophy}
             <div class="final-reward">
               <span class="final-pic final-icon" aria-hidden="true">★</span>
