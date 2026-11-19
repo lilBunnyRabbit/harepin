@@ -232,6 +232,8 @@ export class Driver {
     while (gear < spec.gears.length && ((omega * spec.gears[gear - 1] * spec.final * 60) / (2 * Math.PI)) > spec.downshift + (spec.upshift - spec.downshift) / 2) gear++;
     car.gear = gear;
     this.along = 0;
+    // Coasting stood the car on the line: an `aside` left from before it coasted aimed it 6 m off at 52 m/s and it slid wide (island seed 0).
+    this.aside = 0;
     this.recovered();
   }
 
