@@ -140,6 +140,8 @@ export interface CarAi {
   model?: number;
   /** m/s the plan takes a kicker at, under the line's own kicker pace: a tall car flown at that pace hits the top bar of a hoop or wall past the lip. Absent is the line's pace. */
   jump?: number;
+  /** Weight (0-1+) on the squared share of grip a bend takes that the plan's pull out of it gives up: a car whose full throttle unloads its nose pushes wide at the plan's exit pace. Absent is none. */
+  pull_bend?: number;
 }
 
 // Over the frame alone: a lab result or a measured build keeps its key when only the AI fields move, and every body
@@ -485,7 +487,7 @@ function shifted(list: Triple[], dz: number): Triple[] {
 // mid-corner swings the heavy tail out. Torque stays soft below 3000 rpm and the boost lands hard above it.
 const STURM_FRAME: FrameSpec = {
   ...COUPE_FRAME,
-  ai: { slow: 1, fast: 0.92, brake: 1 },
+  ai: { slow: 1, fast: 1, brake: 1, pull_bend: 1 },
   mass: 1450,
   inertia: [2300, 2900, 560],
   wheel: {

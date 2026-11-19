@@ -116,7 +116,7 @@ function brake_pass(speed: Float64Array, step: Float64Array, bend: Float64Array,
 
 /**
  * Forward, in place, so no exit plans more than `drive_at` gives, less `bend_share` times the square of the share of
- * the grip the bend takes. The plan takes none: the corner model's fitted `pull_bend` there cost 0.2-0.5% a lap, the
+ * the grip the bend takes. The plan takes the car's `ai.pull_bend`, none by default: the corner model's fitted `pull_bend` there cost 0.2-0.5% a lap, the
  * driver lifting to a plan under what it pulls (the full friction circle cost a second). Brake points read it.
  */
 function pull_pass(speed: Float64Array, step: Float64Array, bend: Float64Array, scale: PlanScale, car: Capability, bend_share: number) {
@@ -328,8 +328,8 @@ export function plan_for(line: RaceLine, scale: PlanScale): RaceLine {
   const late = speed.slice();
   const late_brake = brake.map((b) => Math.max(b, AI_TUNING.late_brake * scale.brake));
   brake_pass(speed, step, bend, lift, brake, scale);
-  pull_pass(speed, step, bend, scale, car, 0);
+  pull_pass(speed, step, bend, scale, car, scale.pull_bend);
   brake_pass(late, step, bend, lift, late_brake, scale);
-  pull_pass(late, step, bend, scale, car, 0);
+  pull_pass(late, step, bend, scale, car, scale.pull_bend);
   return { ...line, speed, late, scale };
 }

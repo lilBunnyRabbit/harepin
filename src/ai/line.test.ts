@@ -123,6 +123,21 @@ describe("race line", () => {
     }
   });
 
+  test("a car's pull_bend only slows the pull out of a bend: none plans as before, more never plans faster", () => {
+    const base = plan_for(line, UNIT_SCALE);
+    const none = plan_for(line, { ...UNIT_SCALE, pull_bend: 0 });
+    const half = plan_for(line, { ...UNIT_SCALE, pull_bend: 0.5 });
+    const full = plan_for(line, { ...UNIT_SCALE, pull_bend: 1 });
+    expect(Array.from(none.speed)).toEqual(Array.from(base.speed));
+    let slower = 0;
+    for (let i = 0; i < road.length; i++) {
+      expect(half.speed[i]).toBeLessThanOrEqual(base.speed[i] + 1e-9);
+      expect(full.speed[i]).toBeLessThanOrEqual(half.speed[i] + 1e-9);
+      if (full.speed[i] < base.speed[i] - 0.1) slower++;
+    }
+    expect(slower).toBeGreaterThan(0);
+  });
+
   test("a solid on the road holds the line a car's width off it", () => {
     const post = { x: 30 + side * 3.5, z: 100 };
     const ground: LineGround = { ...flat, touches: (car, gap) => (Math.hypot(car.pos.x - post.x, car.pos.z - post.z) < car.spec.radius + 0.3 + gap ? 1 : 0) };
