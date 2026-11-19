@@ -40,6 +40,15 @@ import { atan2 } from "../sim-math";
 
 export type { Driven } from "./mode";
 
+// A blank status cell is marked by attribute, not styled by `:empty`: Chrome restyles an `:empty`-styled cell and its `~` siblings on every text write, so each clock tick.
+function set_cell(el: HTMLElement, text: string) {
+  set_text(el, text);
+  const blank = text === "";
+  if ("blank" in el.dataset === blank) return;
+  if (blank) el.dataset.blank = "";
+  else delete el.dataset.blank;
+}
+
 /** A championship stage grades on its own marks, never the championship's points, and has no ghost of its own yet. */
 function graded({ event, cup }: Active): CareerEvent | null {
   if (!event || !cup) return event;
@@ -697,8 +706,8 @@ export class Modes implements CarHooks {
   private write_status(status: ModeStatus, captions: StatusCaptions) {
     const { el } = this;
     if (el.status.hidden) el.status.hidden = false;
-    set_text(el.status_name, status.name);
-    set_text(el.status_clock, status.clock);
+    set_cell(el.status_name, status.name);
+    set_cell(el.status_clock, status.clock);
     // An attribute, not `:has(#mode-status-clock:empty)`: under `:has()` every clock tick restyled the whole document.
     const clockless = status.clock === "";
     if (clockless !== this.clockless) {
@@ -720,7 +729,7 @@ export class Modes implements CarHooks {
       if (slot.hidden !== hidden) slot.hidden = hidden;
       if (hidden) continue;
       if (slot.dataset.caption !== caption) slot.dataset.caption = caption;
-      set_text(slot, value);
+      set_cell(slot, value);
     }
   }
 

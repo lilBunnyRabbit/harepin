@@ -218,14 +218,14 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
 
   /* On a narrow phone the card drops whole cells, last first (time, place, lap, gap, gates is their order): a cell
      with no room left wraps to a second line the card clips, and the ones that stay share the width. */
-  :root #mode-status > :not(:empty, #mode-status-more),
+  :root #mode-status > :not([data-blank], #mode-status-more),
   :root #mode-status-more > :not([hidden]),
   :root #mode-status[data-cup]::before {
     flex: 1 0 auto;
     height: 100%;
   }
 
-  :root #mode-status > :not(:empty, #mode-status-more),
+  :root #mode-status > :not([data-blank], #mode-status-more),
   :root #mode-status[data-cup]::before {
     display: flex;
     align-items: center;
@@ -247,13 +247,13 @@ body:has(#mode-result:not([hidden])) #hud-menu-btn {
     text-overflow: ellipsis;
   }
 
-  :root #mode-status > :not(:empty) ~ :not(:empty),
+  :root #mode-status > :not([data-blank]) ~ :not([data-blank]),
   :root #mode-status-more > :not([hidden]),
-  :root #mode-status[data-cup] > :not(:empty) {
+  :root #mode-status[data-cup] > :not([data-blank]) {
     border-left: 1px solid var(--line);
   }
 
-  :root #mode-status > :not(:empty) ~ :not(:empty)::before,
+  :root #mode-status > :not([data-blank]) ~ :not([data-blank])::before,
   :root #mode-status-more > ::before {
     content: none;
   }

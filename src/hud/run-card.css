@@ -46,7 +46,7 @@
     grid-template-columns: repeat(5, auto);
   }
 
-  :root #mode-status > :not(:empty)::before,
+  :root #mode-status > :not([data-blank])::before,
   :root #mode-status-more > ::before {
     content: none;
   }
@@ -116,7 +116,7 @@
   }
 
   /* A blank cell (no gap yet) folds away, so the card hugs the cells it shows. */
-  :root #mode-status-more > :empty {
+  :root #mode-status-more > [data-blank] {
     display: none;
   }
 
