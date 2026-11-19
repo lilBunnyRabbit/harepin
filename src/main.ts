@@ -559,7 +559,9 @@ let taken: string | null = null;
 modes.pick_car = (title, limit, own, signal) => {
   const shelves = shelves_for(limit, own);
   const pre = taken ?? markers.card.pick;
-  return pre !== null && fits(shelves, pre) ? Promise.resolve(pre) : pick_in(title, limit, shelves, signal);
+  const picked = pre !== null && fits(shelves, pre) ? Promise.resolve(pre) : pick_in(title, limit, shelves, signal);
+  // A picked saved build or preset is the player's car: it races only on what they've bought.
+  return picked.then((code) => (code === null ? null : garage.owned_code(code)));
 };
 modes.fit_car = (code, save) => garage.use_code(code, save);
 modes.car_code = () => garage.code;

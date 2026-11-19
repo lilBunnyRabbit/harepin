@@ -392,14 +392,25 @@ export class Garage {
     this.act(nav);
   };
 
-  private apply(next: Build, save = true) {
-    // A build code (a saved build, chat, a paste) can wear a decal, neon or parts the player hasn't bought: their own car drops them.
-    const wallet = save && this.own_code === null && this.wallet?.ready ? this.wallet : null;
-    const { build: dressed, dropped } = wallet ? strip_unowned(next, (id) => wallet.has(id)) : { build: next, dropped: [] };
-    const { build: own, missing } = wallet ? own_parts(dressed, (pick) => wallet.owns_part(dressed.car, pick)) : { build: dressed, missing: [] };
-    this.missing = missing.length && !this.locks[own.car] ? { build: next, parts: missing, price: missing.reduce((sum, pick) => sum + part_price(pick.slot, pick.index), 0) } : null;
+  owned_code(code: string): string {
+    const build = parse_build(code);
+    return build && this.own_code === null ? build_code(this.owned(build).build) : code;
+  }
+
+  // A build code (a saved build, chat, a paste, a pick) can wear a decal, neon or parts the player hasn't bought: their own car drops them.
+  private owned(next: Build): { build: Build; missing: PartPick[] } {
+    const wallet = this.wallet?.ready ? this.wallet : null;
+    if (!wallet) return { build: next, missing: [] };
+    const { build: dressed, dropped } = strip_unowned(next, (id) => wallet.has(id));
+    const { build, missing } = own_parts(dressed, (pick) => wallet.owns_part(dressed.car, pick));
     const notes = [...(dropped.length ? [`${dropped.join(", ")} not owned: removed`] : []), ...(missing.length ? [`${missing.map(pick_label).join(", ")} not owned: fitted the best you own`] : [])];
     if (notes.length) this.on_notice?.(notes.join(" · "));
+    return { build, missing };
+  }
+
+  private apply(next: Build, save = true) {
+    const { build: own, missing } = save && this.own_code === null ? this.owned(next) : { build: next, missing: [] };
+    this.missing = missing.length && !this.locks[own.car] ? { build: next, parts: missing, price: missing.reduce((sum, pick) => sum + part_price(pick.slot, pick.index), 0) } : null;
     const checked = parse_build(build_code(own));
     if (!checked || build_code(checked) === build_code(this.current)) return;
     this.current = checked;

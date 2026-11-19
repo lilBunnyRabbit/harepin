@@ -164,6 +164,20 @@ test("an unowned tyre or suspension falls back to stock, never another kind; a l
   expect(missing).toEqual([{ slot: "engine", index: 4 }, { slot: "tyres", index: 3 }, { slot: "suspension", index: 3 }]);
 });
 
+test("a build picked for a capped event races only on bought parts and cosmetics, without touching the fitted car", async () => {
+  const { wallet, garage } = shop(0);
+  await wallet.load();
+  const notes: string[] = [];
+  garage.on_notice = (text) => notes.push(text);
+  const fitted = garage.code;
+  const preset = build_code({ ...DEFAULT_BUILD, decal: DECALS.indexOf("flames"), parts: { ...DEFAULT_BUILD.parts, engine: 3, nitro: 2 } });
+  expect(garage.owned_code(preset)).toBe(build_code(DEFAULT_BUILD));
+  expect(notes).toEqual(["Flames not owned: removed · Supercharger engine, Big tank nitro not owned: fitted the best you own"]);
+  expect(garage.code).toBe(fitted);
+  expect(garage.missing).toBeNull();
+  expect(garage.owned_code(fitted)).toBe(fitted);
+});
+
 test("Enter on a part not bought buys it, like the Buy action it labels", () => {
   const { wallet, garage } = shop(2_000);
   garage.open();
