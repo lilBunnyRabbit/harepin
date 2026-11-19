@@ -201,7 +201,8 @@ export class CarStage {
     this.job = null;
     // Linked before the first draw, which would block on a shader the stand has not drawn yet.
     const linked = this.renderer?.compileAsync(view.root, this.camera, this.scene) ?? Promise.resolve();
-    void linked.then(() => this.put(build, view));
+    // A stop while the shaders link drops the car: put after a stop would restart the warm-up behind the closed menu.
+    void linked.then(() => (this.running ? this.put(build, view) : dispose_car_view(view)));
   }
 
   private put(build: Build, view: CarView) {
