@@ -289,12 +289,14 @@
   text-align: center;
 }
 
+/* Centred on the line between the arc's ends, y 153 of the dial's 8-192 viewBox, so it sits in the dial's opening. */
 :root[data-speedo="dial"] #gear {
   position: absolute;
   grid-area: auto;
+  top: calc(145 / 184 * 100%);
   left: 0;
   right: 0;
-  bottom: 0;
+  translate: 0 -50%;
   text-align: center;
   line-height: 1;
 }
