@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { parse_build } from "../../car/build";
   import { flag } from "../../net/country";
   import type { CarPicker } from "../car-pick.svelte";
@@ -57,6 +58,11 @@
     if (!shown) changing = false;
   });
 
+  // A car lent for the meet goes back once the player leaves it; a lobby race closing the menu is not leaving.
+  $effect(() => {
+    if (!shown && !untrack(() => host.race_busy())) untrack(() => host.garage.take_back());
+  });
+
   // Read from the menu, not `live`: a handler can run between a setting change and the next pull.
   function picked() {
     return { laps: route?.closed === false ? 1 : menu.state().laps, route: route?.id ?? "circuit" };
@@ -92,7 +98,7 @@
     menu.refresh();
   }
 
-  const change_car = () => void change_own_car(menu, picker, "Race meet", NO_LOCKS);
+  const change_car = () => void change_own_car(menu, picker, "Race meet", NO_LOCKS, (code) => host.garage.meet_pick(code));
 
   function key(event: KeyboardEvent) {
     if (!shown || !routes.length) return;

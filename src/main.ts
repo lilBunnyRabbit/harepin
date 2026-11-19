@@ -291,6 +291,8 @@ if (!quality.mobile) mirror_frame.start();
 const garage = new Garage(build);
 garage.rewards = () => unlocks(career.stars);
 garage.given = () => [...wallet.state.cars, ...unlocks(career.stars).cars];
+garage.wallet = wallet;
+garage.on_notice = (text) => hud.toast(text);
 const input = new Input($("touch"), render.renderer.domElement);
 const rumble = new Rumble();
 const rumble_sense: RumbleSense = { scrub: 0, speed: 0, loose: 0, kerb: 0, airborne: false, vy: 0, impact: 0, x: 0, y: 0, z: 0 };
@@ -382,6 +384,7 @@ lobby.on_sit_out = () => {
 };
 lobby.car = () => driver.car.spec.id;
 race.on_start = () => ghost.start();
+lobby.on_end = () => garage.take_back();
 
 const run_busy = () => lobby.busy || modes.active || lab_id !== null;
 const updater = new Updater({ busy: run_busy, menu_open: () => settings.is_open, show_notes: () => settings.open_changes() });
@@ -724,7 +727,7 @@ function start_run(id: string, car: string | null = null) {
 }
 
 function play_run(to: RunPick) {
-  const play = run_play(to, world, runs, (next) => start_run(next));
+  const play = run_play(to, world, runs, (credits) => wallet.earn(credits), (next) => start_run(next));
   modes.play_event(play.event, play);
 }
 const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), {

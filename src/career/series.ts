@@ -134,6 +134,8 @@ export interface SeriesProgress {
   readonly results: Readonly<Record<string, EventResult>>;
   /** The best place in the final table of any run completed, 1 for a win: a podium keeps a trophy. Absent before one. */
   readonly best?: number;
+  /** Events podiumed this round: kept through Start over, so a restart's reruns still pay the rerun share. */
+  readonly podiums?: readonly string[];
 }
 
 export const player_of = (season: Season) => season.field.length;
@@ -197,8 +199,9 @@ export function parse_progress(season: Season, raw: unknown): SeriesProgress {
     const result = parse_result(season, (results as Record<string, unknown>)[event.id]);
     if (result) out[event.id] = result;
   }
-  const { best } = raw as { best?: unknown };
-  return { ...empty_progress(season, round, is_index(best, player_of(season) + 2) ? best : undefined), results: out };
+  const { best, podiums } = raw as { best?: unknown; podiums?: unknown };
+  const ids = Array.isArray(podiums) ? [...new Set(podiums.filter((id) => season.events.some((event) => event.id === id)))] : [];
+  return { ...empty_progress(season, round, is_index(best, player_of(season) + 2) ? best : undefined), results: out, ...(ids.length ? { podiums: ids } : {}) };
 }
 
 export const place_of = (result: EventResult, driver: number) => result.order.indexOf(driver) + 1;

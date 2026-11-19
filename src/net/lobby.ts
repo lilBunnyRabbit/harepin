@@ -65,6 +65,8 @@ export class Lobby {
   state: LobbyState = { kind: "idle" };
   finishers: Finisher[] = [];
   on_start: (() => void) | null = null;
+  /** The race this player was in is over for them: results shown out, left, or sat out. */
+  on_end: (() => void) | null = null;
   on_unanswered: (() => void) | null = null;
   /** A call or ready this player made that didn't happen, as a line to show. */
   on_notice: ((notice: string) => void) | null = null;
@@ -178,8 +180,10 @@ export class Lobby {
   }
 
   leave() {
+    const was = this.state.kind;
     this.state = { kind: "idle" };
     this.finishers = [];
+    if (was !== "idle") this.on_end?.();
   }
 
   lap(now: number) {
