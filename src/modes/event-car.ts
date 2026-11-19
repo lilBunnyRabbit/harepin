@@ -12,6 +12,8 @@ export interface CarHooks {
   pick_car: ((title: string, limit: CarLimit, own: string, signal: AbortSignal) => Promise<string | null>) | null;
   /** Puts `code` on the car; unsaved, a reload brings back the player's own car. */
   fit_car: ((code: string, save: boolean) => void) | null;
+  /** Puts a loaner on, unsaved and tuned free, until the player's own car comes back through `fit_car`. */
+  lend_car: ((code: string) => void) | null;
   car_code: (() => string) | null;
   /** Writes `code` as the saved car without fitting it. */
   save_car: ((code: string) => void) | null;
@@ -121,10 +123,23 @@ export class EventCar {
   }
 
   wear(code: string) {
+    this.borrow(code, () => this.hooks.fit_car?.(code, false));
+  }
+
+  lend(code: string) {
+    this.borrow(code, () => (this.hooks.lend_car ? this.hooks.lend_car(code) : this.hooks.fit_car?.(code, false)));
+  }
+
+  private borrow(code: string, fit: () => void) {
     const { fit_car, car_code } = this.hooks;
     if (!fit_car || !car_code || code === car_code()) return;
     this.kept ??= car_code();
-    this.fit(code, false);
+    this.fitting_ = true;
+    try {
+      fit();
+    } finally {
+      this.fitting_ = false;
+    }
   }
 
   give_back() {

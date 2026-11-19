@@ -215,6 +215,13 @@ export class Garage {
       this.own_code = null;
       return this.apply(build);
     }
+    this.lend(code);
+  }
+
+  /** A car lent over the player's own (a meet's, a cup's loaner): unsaved, tuned free, until their own comes back. */
+  lend(code: string) {
+    const build = parse_build(code);
+    if (!build) return;
     this.own_code ??= this.code;
     this.apply(build, false);
   }

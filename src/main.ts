@@ -564,6 +564,7 @@ modes.pick_car = (title, limit, own, signal) => {
   return picked.then((code) => (code === null ? null : garage.owned_code(code)));
 };
 modes.fit_car = (code, save) => garage.use_code(code, save);
+modes.lend_car = (code) => garage.lend(code);
 modes.car_code = () => garage.code;
 modes.save_car = (code) => {
   const build = parse_build(code);

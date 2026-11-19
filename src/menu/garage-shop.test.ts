@@ -178,6 +178,22 @@ test("a build picked for a capped event races only on bought parts and cosmetics
   expect(garage.owned_code(fitted)).toBe(fitted);
 });
 
+test("a cup's loaner tunes free and unsaved; the player's own car coming back ends the loan", async () => {
+  const { wallet, garage } = shop(0);
+  await wallet.load();
+  const own = garage.code;
+  garage.lend(build_code({ ...DEFAULT_BUILD, car: "rally" }));
+  pick(garage, "engine");
+  expect(garage.price(5)).toBeNull();
+  garage.fit(5);
+  expect(garage.current.parts.engine).toBe(5);
+  expect(wallet.credits).toBe(0);
+  garage.use_code(own);
+  expect(garage.code).toBe(own);
+  pick(garage, "engine");
+  expect(garage.price(5)).toBe(14_000);
+});
+
 test("Enter on a part not bought buys it, like the Buy action it labels", () => {
   const { wallet, garage } = shop(2_000);
   garage.open();

@@ -215,6 +215,7 @@ export class Modes implements CarHooks {
   closed: string | null = null;
   pick_car: CarHooks["pick_car"] = null;
   fit_car: CarHooks["fit_car"] = null;
+  lend_car: CarHooks["lend_car"] = null;
   car_code: CarHooks["car_code"] = null;
   save_car: CarHooks["save_car"] = null;
   private readonly car = new EventCar(this);
@@ -373,7 +374,7 @@ export class Modes implements CarHooks {
     if (!mode || !level || refusal) return this.notice(refusal ?? NO_EVENT);
     this.clear();
     const loaner = field.event?.loaner;
-    if (loaner) this.car.wear(loaner);
+    if (loaner) this.car.lend(loaner);
     else this.car.give_back();
     if (this.too_big(mode)) return this.refuse(TOO_BIG);
     if (this.left_out(id)) return this.refuse(NOT_THIS_CAR);
@@ -641,7 +642,7 @@ export class Modes implements CarHooks {
     active.run = null;
     this.car.wear_preset(active.event);
     const loaner = active.series?.event?.loaner;
-    if (loaner) this.car.wear(loaner);
+    if (loaner) this.car.lend(loaner);
     this.launch(active);
   }
 
