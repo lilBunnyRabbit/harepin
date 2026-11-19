@@ -163,15 +163,13 @@ export class WorldView {
     this.root.matrixAutoUpdate = false;
     this.streamed = world.tiles.streamed;
     this.tree_batch = new TreeBatch(trees === "charred" ? charred_kit() : tree_kit(world.snowy), world.trees);
-    this.root.add(...this.tree_batch.meshes);
     this.tree_lists = by_chunk(world.trees, world.tiles.ext);
     this.tree_order = new Map(world.trees.map((tree, i) => [tree, i]));
     this.town_kit = new TownChunks(world);
-    this.root.add(...this.town_kit.primer());
     this.jumps = new JumpsView(world, (x, z) => world.height(x, z), world.tiles.ext);
-    this.root.add(this.jumps.root);
     this.landmarks = new LandmarksView(world.props);
-    this.root.add(this.landmarks.root);
+    // One call: `add()` with no arguments logs an error, which a lone spread of an empty primer (no towns) would be.
+    this.root.add(...this.tree_batch.meshes, ...this.town_kit.primer(), this.jumps.root, this.landmarks.root);
   }
 
   add(chunk: ChunkBuffers, trees: readonly Tree[] | null = null) {
