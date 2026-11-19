@@ -3,6 +3,8 @@ import { DECALS, DEFAULT_BUILD, MAX_NUMBER, WHOLE_CAR, build_code, parse_build, 
 import { free_build_name, load_builds, store_builds, with_build, without_build, type SavedBuild } from "../car/builds";
 import { CARS, type CarId } from "../car/cars";
 import { PRESETS } from "../car/presets";
+import type { CarLocks } from "../car/car-pick";
+import { frame_locks } from "../career/frames";
 import { NO_UNLOCKS, type Reward, type Unlocks } from "../career/rewards";
 import { typing, type Nav } from "../hud/input";
 import { modal_open } from "../hud/modals";
@@ -43,6 +45,8 @@ export class Garage {
   on_pick_car: (() => void) | null = null;
   /** Career rewards earned: the garage lists only these of the reward paints and decals. */
   rewards: () => Unlocks = () => NO_UNLOCKS;
+  /** The cars the player was given, by a cup or a career tier: each owns its frame. */
+  given: () => readonly CarId[] = () => [];
 
   current = $state.raw<Build>(DEFAULT_BUILD);
   /** The card shows the saved builds instead of a slot's options. */
@@ -85,6 +89,11 @@ export class Garage {
   get held_cars(): readonly CarId[] {
     void this.relist;
     return this.rewards().cars;
+  }
+
+  get locks(): CarLocks {
+    void this.relist;
+    return frame_locks(this.given());
   }
 
   get shown(): Build {

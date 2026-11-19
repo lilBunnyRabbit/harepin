@@ -40,7 +40,7 @@
   const go = $derived(go_line(view, target_name(target)));
 
   const build = $derived(live.live(() => host.garage.build));
-  const shelves = $derived(view.limit ? car_shelves(build, load_builds(), open_presets(host.garage.held_cars), view.limit) : []);
+  const shelves = $derived(view.limit ? car_shelves(build, load_builds(), open_presets(host.garage.held_cars), { ...view.limit, locked: view.limit.locked ?? host.garage.locks }) : []);
   const mine = $derived(shelves.flatMap((shelf) => shelf.choices).find((choice) => choice.fitted) ?? null);
   const rated = $derived(rating(build));
   const fit = $derived(car_fit(rated, view.limit, mine?.blocked ?? null));

@@ -1,4 +1,6 @@
 import { car_fault, Gate, ordinal, place_of, player_of, result_points, type EventState, type Season, type SeriesEvent, type SeriesProgress, type Standing } from "../career/series";
+import { FRAME_CUPS, frame_locks, frame_of } from "../career/frames";
+import type { Series } from "../career/series-store";
 import { credits_text, type WalletState } from "../career/wallet";
 import type { Build } from "../car/build";
 import { within } from "../car/car-pick";
@@ -92,14 +94,14 @@ export const loaner_line = (car: CarId) => `Loaner: stock ${CARS[car].name}`;
 
 export const cap_line = (season: Season) => (season.loaner ? `${loaner_line(season.loaner)} for everyone` : `Class ${CLASS_LABELS[season.cap]} · your own cars`);
 
-export const goal_line = (season: Season) => (season.gate === Gate.FINISH ? `finish every round to keep the ${CARS[season.reward.car].name}` : "points by finishing place");
+export const goal_line = (season: Season) => (season.gate === Gate.FINISH && season.reward.car ? `finish every round to keep the ${CARS[season.reward.car].name}` : "points by finishing place");
 
 export const round_line = (progress: SeriesProgress) => (progress.round ? `Run ${progress.round + 1}` : null);
 
 /** The final's prize: the car while the player does not own it, the credits on the season's first run only; null when nothing is left. */
 export function reward_line(season: Season, wallet: WalletState, progress: SeriesProgress): string | null {
   const { car, credits } = season.reward;
-  const parts = [...(wallet.cars.includes(car) ? [] : [CARS[car].name]), ...(progress.round === 0 && credits > 0 ? [credits_text(credits)] : [])];
+  const parts = [...(car && !wallet.cars.includes(car) ? [CARS[car].name] : []), ...(progress.round === 0 && credits > 0 ? [credits_text(credits)] : [])];
   return parts.length ? parts.join(" + ") : null;
 }
 
@@ -125,10 +127,20 @@ export interface CarNote {
 }
 
 export function car_note(season: Season, build: Build, owned: readonly CarId[]): CarNote | null {
-  const fault = car_fault(season, build, owned);
+  const locked = frame_locks(owned);
+  const fault = car_fault(season, build, locked);
   if (!fault) return null;
   const name = CARS[build.car].name;
-  if (!owned.includes(build.car)) return { why: `The ${name} isn't yours yet.`, rule: "This series races your own cars only." };
+  if (locked[build.car]) return { why: `The ${name} isn't yours yet.`, rule: `This series races your own cars only. ${locked[build.car]}.` };
   const rated = rating(build).class;
   return within(rated, season.cap) ? { why: fault, rule: "" } : { why: `Your ${name} is class ${CLASS_LABELS[rated]}.`, rule: `This series takes ${CLASS_LABELS[season.cap]} or below.` };
+}
+
+/** The round a locked car's cup goes on with: its first one not run yet, else its first. Null for a car no cup keeps. */
+export function cup_round(list: readonly Series[], car: CarId): { cup: Season; round: string } | null {
+  const cup = FRAME_CUPS[frame_of(car)];
+  const one = cup && list.find((each) => each.base.id === cup.id);
+  if (!cup || !one) return null;
+  const { events } = one.season;
+  return { cup, round: (events.find((event) => !one.progress.results[event.id]) ?? events[0]).id };
 }

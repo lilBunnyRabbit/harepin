@@ -69,10 +69,12 @@
       <div class="final-side" data-stage-panel data-side="right">
         <Card label="Rewards">
           <b class="final-h3">Rewards</b>
-          <div class="final-reward">
-            <span class="final-pic"><CarStill car={season.reward.car} /></span>
-            <div class="final-text"><b>{CARS[season.reward.car].name}</b><span>{season.loaner ? "Yours to keep" : "Season car"}</span></div>
-          </div>
+          {#if season.reward.car}
+            <div class="final-reward">
+              <span class="final-pic"><CarStill car={season.reward.car} /></span>
+              <div class="final-text"><b>{CARS[season.reward.car].name}</b><span>Yours to keep</span></div>
+            </div>
+          {/if}
           {#if trophy}
             <div class="final-reward">
               <span class="final-pic final-icon" aria-hidden="true">★</span>

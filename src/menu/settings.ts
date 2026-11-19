@@ -131,11 +131,11 @@ export class Settings {
       () => this.current,
     );
     this.page_list = [
-      ...STATIONS.map(({ id, label }) => (id === MenuTab.PLAY ? svelte_page(this.menu, { id, label }, HomePage, { picker: this.picker }) : id === MenuTab.GARAGE ? svelte_page(this.menu, { id, label }, GaragePage, { garage: host.garage, picker: this.picker }) : id === MenuTab.EVENTS ? svelte_page(this.menu, { id, label }, EventsPage, { picker: this.picker, open: (to: string) => this.open_door(to) }) : id === MenuTab.SETTINGS ? svelte_page(this.menu, { id, label }, SettingsPage, { nav: this.nav }) : id === MenuTab.ONLINE ? svelte_page(this.menu, { id, label }, OnlinePage) : svelte_page(this.menu, { id, label }, EmptyPage, { id }))),
+      ...STATIONS.map(({ id, label }) => (id === MenuTab.PLAY ? svelte_page(this.menu, { id, label }, HomePage, { picker: this.picker }) : id === MenuTab.GARAGE ? svelte_page(this.menu, { id, label }, GaragePage, { garage: host.garage, picker: this.picker, onround: (id: string) => this.open_round(id) }) : id === MenuTab.EVENTS ? svelte_page(this.menu, { id, label }, EventsPage, { picker: this.picker, open: (to: string) => this.open_door(to) }) : id === MenuTab.SETTINGS ? svelte_page(this.menu, { id, label }, SettingsPage, { nav: this.nav }) : id === MenuTab.ONLINE ? svelte_page(this.menu, { id, label }, OnlinePage) : svelte_page(this.menu, { id, label }, EmptyPage, { id }))),
       svelte_page(this.menu, { id: GUIDE_PAGE, label: "Guide", parent: MenuTab.SETTINGS, layout: "frame" }, GuidePage, { open: (id: string) => this.open_door(id) }),
       svelte_page(this.menu, { id: CHANGES, label: "What's new", parent: MenuTab.SETTINGS, layout: "frame" }, ChangesPage),
       svelte_page(this.menu, { id: MenuTab.SUPPORT, label: "Support", parent: MenuTab.SETTINGS, layout: "frame" }, SupportPage),
-      svelte_page(this.menu, { id: CAR_PAGE, label: "Car", parent: MenuTab.GARAGE, layout: "frame" }, CarPickPage, { picker: this.picker }),
+      svelte_page(this.menu, { id: CAR_PAGE, label: "Car", parent: MenuTab.GARAGE, layout: "frame" }, CarPickPage, { picker: this.picker, onround: (id: string) => this.open_round(id) }),
       svelte_page(this.menu, { id: TITLE, label: "Harepin" }, TitlePage),
       svelte_page(this.menu, { id: WELCOME, label: "Welcome" }, WelcomePage, { seen: () => this.mark_guide_seen() }),
       svelte_page(this.menu, { id: FINAL_PAGE, label: "Season podium", parent: MenuTab.EVENTS, layout: "frame" }, FinalCard),

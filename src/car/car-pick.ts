@@ -4,13 +4,18 @@ import { CARS, car_sized, type CarId } from "./cars";
 import { CLASS_FLOORS, CLASS_LABELS, rating, type CarClass, type Rating } from "./pi";
 import type { Preset } from "./presets";
 
+/** Cars the player may not take as their own, each with why. */
+export type CarLocks = Readonly<Partial<Record<CarId, string>>>;
+
+export const NO_LOCKS: CarLocks = {};
+
 export interface CarLimit {
   cap: CarClass | null;
   car_sized_only: boolean;
   /** Car ids the route leaves out. */
   excludes?: readonly string[];
-  /** The only car ids it lets in: a series takes the player's own cars. */
-  only?: readonly CarId[];
+  /** Cars refused as not the player's, with why: `NO_LOCKS` where any car races (a custom race, a P2P room); absent, the picker takes the garage's. */
+  locked?: CarLocks;
 }
 
 export interface CarChoice {
@@ -48,7 +53,8 @@ function blocked(build: Build, rated: Rating, limit: CarLimit): string | null {
   if (limit.cap && !within(rated.class, limit.cap)) return `Over ${CLASS_LABELS[limit.cap]}`;
   if (limit.car_sized_only && !car_sized(build_spec(build))) return "Too big for this mode";
   if (limit.excludes?.includes(build.car)) return `${CARS[build.car].name} can't race here`;
-  if (limit.only && !limit.only.includes(build.car)) return `Own a ${CARS[build.car].name} first`;
+  const lock = limit.locked?.[build.car];
+  if (lock) return lock;
   return null;
 }
 

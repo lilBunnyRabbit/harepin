@@ -5,6 +5,7 @@
   import CarStill from "../CarStill.svelte";
   import { bare_enter, link_key } from "../drive-picks";
   import MenuFrame from "../MenuFrame.svelte";
+  import { NO_LOCKS } from "../../car/car-pick";
   import { change_own_car } from "../own-car";
   import { LAPS, type Laps } from "../prefs";
   import Card from "../ui/Card.svelte";
@@ -91,7 +92,7 @@
     menu.refresh();
   }
 
-  const change_car = () => void change_own_car(menu, picker, "Race meet");
+  const change_car = () => void change_own_car(menu, picker, "Race meet", NO_LOCKS);
 
   function key(event: KeyboardEvent) {
     if (!shown || !routes.length) return;

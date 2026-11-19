@@ -1,4 +1,4 @@
-import { within, type CarLimit } from "../car/car-pick";
+import { NO_LOCKS, within, type CarLimit } from "../car/car-pick";
 import { CLASS_FLOORS, CLASS_LABELS, PI_MAX, type CarClass, type Rating } from "../car/pi";
 import { MAX_EVENT_STARS, TIERS, event_of, type CareerEvent, type Stars } from "../career/career";
 import type { TierView } from "../career/career-model";
@@ -134,7 +134,7 @@ export function start_view(target: StartTarget, here: MapSpec): StartView {
         { head: "Grid", text: `P${grid_of(setup) + 1}` },
       ],
       facts: "Any car you own · nothing is recorded",
-      limit: { cap: null, car_sized_only: false },
+      limit: { cap: null, car_sized_only: false, locked: NO_LOCKS },
       limit_text: "Any car",
       lent: null,
     };

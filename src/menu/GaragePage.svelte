@@ -3,6 +3,7 @@
   import { CARS } from "../car/cars";
   import { rating } from "../car/pi";
   import type { CarPicker } from "./car-pick.svelte";
+  import CarLock from "./CarLock.svelte";
   import type { Garage } from "./garage.svelte";
   import GarageBuilds from "./GarageBuilds.svelte";
   import { slot_icon, type Item, type ItemGroup } from "./garage-items";
@@ -23,9 +24,10 @@
   interface Props extends PageProps {
     garage: Garage;
     picker: CarPicker;
+    onround: (id: string) => void;
   }
 
-  let { menu, garage, picker, shown }: Props = $props();
+  let { menu, garage, picker, shown, onround }: Props = $props();
 
   const GROUPS: readonly ItemGroup[] = ["parts", "look"];
 
@@ -33,6 +35,7 @@
 
   const item = $derived(garage.item);
   const car = $derived(CARS[garage.current.car].name);
+  const lock = $derived(garage.locks[garage.current.car] ?? null);
   const fitted = $derived(item.at(garage.current));
   const tried = $derived(garage.cursor !== fitted);
   const now = $derived(rating(garage.current));
@@ -110,6 +113,7 @@
             {/if}
           </span>
         </header>
+        {#if lock}<CarLock {menu} car={garage.current.car} why={lock} {onround} />{/if}
         <!-- Keyed: the builds open at their top, not where the parts list was scrolled to. -->
         {#key garage.on_builds}
           <ScrollArea class="garage-scroll">
