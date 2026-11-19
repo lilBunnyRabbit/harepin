@@ -98,8 +98,9 @@ export class Settings {
   private section: string = MenuTab.PLAY;
   /** The page each child page was opened from on this visit: Back returns there, not to the page's station. */
   private readonly openers = new Map<string, string>();
-  /** The page a door was opened from (a Guide topic's "Open Driving settings"): Back on the door's page leads there again. */
-  private door_from: string | null = null;
+  /** A door's page and the page it was opened from (a Guide topic's "Open Driving settings"): Back on the door's page
+   * leads there again, also after a child of it (the Garage's car picker) backs out to it. */
+  private door: { at: string; from: string } | null = null;
   private readonly menu: Menu;
   private readonly page_list: MenuPage[];
   private readonly nav: SettingsNav;
@@ -234,7 +235,7 @@ export class Settings {
     const from = this.section;
     this.open(id);
     if (this.section === from) return;
-    this.door_from = from;
+    this.door = { at: this.section, from };
     this.refresh();
   }
 
@@ -275,6 +276,7 @@ export class Settings {
     this.hide_pages();
     this.showroom.hide();
     this.openers.clear();
+    this.door = null;
   }
 
   private hide_pages() {
@@ -296,7 +298,7 @@ export class Settings {
 
   /** One level up: a page returns to the page it was opened from (else its station), a station closes the menu. */
   back() {
-    const door = this.door_from;
+    const door = this.door?.at === this.section ? this.door.from : null;
     // A settings section takes Back itself, to the list: one reached through a door goes back through it instead.
     if (door && this.section === MenuTab.SETTINGS && this.nav.sub !== LIST && !this.nav.parent()) return this.show(door, null);
     if (this.page_of(this.section)?.back?.()) return;
@@ -308,12 +310,17 @@ export class Settings {
   }
 
   private up_id(section: string): string | undefined {
-    return (section === this.section ? this.door_from : null) ?? this.openers.get(section) ?? this.page_of(section)?.parent;
+    return (section === this.door?.at ? this.door.from : null) ?? this.openers.get(section) ?? this.page_of(section)?.parent;
   }
 
   private up_of(section: string): string {
     const up = this.up_id(section);
     return (up && this.page_of(up)?.label) ?? ROAD;
+  }
+
+  private reached_from(section: string, at: string): boolean {
+    for (let page: string | undefined = section; page; page = this.openers.get(page)) if (page === at) return true;
+    return false;
   }
 
   // A page reached again from deeper down keeps its first opener, so Back never walks in a loop.
@@ -432,8 +439,8 @@ export class Settings {
   /** `opener` is the page this one is reached from, null when going back, stepping stations or opening the menu. */
   private show(section: string, opener: string | null = this.section) {
     tap_moved();
-    this.door_from = null;
     this.note_opener(section, opener);
+    if (this.door && !this.reached_from(section, this.door.at)) this.door = null;
     this.build_page(section);
     this.section = section;
     const view = this.view_of(section);
