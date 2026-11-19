@@ -291,6 +291,7 @@ if (!quality.mobile) mirror_frame.start();
 const garage = new Garage(build);
 garage.rewards = () => unlocks(career.stars);
 garage.given = () => [...wallet.state.cars, ...unlocks(career.stars).cars];
+garage.wallet = wallet;
 const input = new Input($("touch"), render.renderer.domElement);
 const rumble = new Rumble();
 const rumble_sense: RumbleSense = { scrub: 0, speed: 0, loose: 0, kerb: 0, airborne: false, vy: 0, impact: 0, x: 0, y: 0, z: 0 };

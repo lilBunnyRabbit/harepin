@@ -1,5 +1,6 @@
 import { DECALS, DECAL_NAMES, MAX_NUMBER, MAX_PAINT, NEONS, NEON_NAMES, NEON_TONES, NEON_TONE_NAMES, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Neon, type Slot, type SlotView } from "../car/build";
 import { TIERS } from "../career/career";
+import { DECAL_PRICE, NEON_PRICE, decal_id, neon_id, type Cosmetic } from "../career/prices";
 import { REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
 import { NEUTRAL_INKS, car_paints, decal_inks } from "../theme/palette";
 
@@ -24,6 +25,8 @@ export interface Item {
   with(build: Build, option: number): Build;
   name(option: number): string;
   blurb(option: number): string;
+  /** The option's shop id, when it is sold rather than free. */
+  cosmetic?(option: number): Cosmetic | null;
 }
 
 const part_item = (slot: Slot): Item => ({
@@ -55,7 +58,7 @@ function decal_item(build: Build, unlocks: Unlocks): Item {
     id: "decal",
     label: "Decal",
     kind: "decal",
-  group: "look",
+    group: "look",
     view: SIDE_VIEW,
     count: values.length,
     values,
@@ -63,6 +66,7 @@ function decal_item(build: Build, unlocks: Unlocks): Item {
     with: (b, i) => ({ ...b, decal: values[i] }),
     name: (i) => DECAL_NAMES[DECALS[values[i]]],
     blurb: () => "",
+    cosmetic: (i) => (DECAL_PRICE[DECALS[values[i]]] ? decal_id(DECALS[values[i]]) : null),
   };
 }
 
@@ -88,7 +92,7 @@ function paint_item(build: Build, unlocks: Unlocks): Item {
     id: "paint",
     label: "Paint",
     kind: "paint",
-  group: "look",
+    group: "look",
     view: WHOLE_CAR,
     count: values.length,
     values,
@@ -130,6 +134,7 @@ const NEON_ITEM: Item = {
   with: (b, i) => ({ ...b, neon: i }),
   name: (i) => NEON_NAMES[NEONS[i]],
   blurb: (i) => NEON_BLURBS[NEONS[i]],
+  cosmetic: (i) => (NEON_PRICE[NEONS[i]] ? neon_id(NEONS[i]) : null),
 };
 
 const GLOW_ITEM: Item = {

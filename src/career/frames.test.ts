@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { DEFAULT_BUILD, DEFAULT_PARTS } from "../car/build";
 import { car_shelves } from "../car/car-pick";
 import { PRESETS } from "../car/presets";
-import { FRAME_CUPS, STARTER_FRAMES, frame_locks, frame_of, lock_line, owned_frames } from "./frames";
+import { FRAME_CUPS, STARTER_FRAMES, body_price, first_body, frame_locks, frame_of, lock_line, owned_frames } from "./frames";
 import { CUPS } from "./series-seasons";
 import { BASE_CAR, parse_wallet } from "./wallet";
 
@@ -23,21 +23,31 @@ test("six cups, each keeping its own frame, the loaner it lends; Fujin stays the
   expect(lock_line("bus")).toBeNull();
 });
 
-test("a fresh player locks every body on a cup or Legend frame, and none on a starter", () => {
+test("a fresh player locks every body on a cup or Legend frame; on a starter only the extra body, for sale", () => {
   const locks = frame_locks([BASE_CAR]);
-  for (const car of ["hatch", "coupe", "kaze", "tsumuji", "bus"] as const) expect(locks[car]).toBeUndefined();
+  for (const car of ["hatch", "coupe", "tsumuji", "bus"] as const) expect(locks[car]).toBeUndefined();
+  expect(locks.kaze).toBe("Buy it for 15,000 cr");
   expect(locks.muscle).toBe("Finish the Muscle Cup to own it");
   expect(locks.orkan).toBe(locks.muscle);
   expect(locks.hagel).toBe("Finish the Rally Trial to own it");
   expect(locks.fujin).toBe("Win the Legend final to own it");
 });
 
-test("owning one body owns its frame: every body on it opens", () => {
+test("a cup gives its frame's first body; the frame's other bodies are bought, then open", () => {
+  for (const cup of CUPS) expect(first_body(frame_of(cup.loaner!))).toBe(cup.loaner!);
   expect(owned_frames(["rally"]).has("rally")).toBe(true);
   const locks = frame_locks(["rally"]);
   expect(locks.rally).toBeUndefined();
-  expect(locks.hagel).toBeUndefined();
+  expect(locks.hagel).toBe("Buy it for 25,000 cr");
   expect(locks.sturm).toBeDefined();
+  expect(frame_locks(["rally", "hagel"]).hagel).toBeUndefined();
+});
+
+test("extra bodies price by their frame's tier; a first body or a Legend frame is not sold", () => {
+  expect(body_price("kaze")).toBe(15_000);
+  expect(body_price("hagel")).toBe(25_000);
+  expect(body_price("orkan")).toBe(25_000);
+  for (const car of ["hatch", "rally", "muscle", "fujin", "bus", "formula"] as const) expect(body_price(car)).toBeNull();
 });
 
 test("a stored wallet keeps what it owns; junk drops out and the base car stays", () => {

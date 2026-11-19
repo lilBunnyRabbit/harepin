@@ -4,7 +4,9 @@ import { free_build_name, load_builds, store_builds, with_build, without_build, 
 import { CARS, type CarId } from "../car/cars";
 import { PRESETS } from "../car/presets";
 import type { CarLocks } from "../car/car-pick";
-import { frame_locks } from "../career/frames";
+import { body_price, frame_locks, frame_of, owned_frames } from "../career/frames";
+import { COSMETIC_PRICE } from "../career/prices";
+import type { Wallet } from "../career/wallet";
 import { NO_UNLOCKS, type Reward, type Unlocks } from "../career/rewards";
 import { typing, type Nav } from "../hud/input";
 import { modal_open } from "../hud/modals";
@@ -47,6 +49,8 @@ export class Garage {
   rewards: () => Unlocks = () => NO_UNLOCKS;
   /** The cars the player was given, by a cup or a career tier: each owns its frame. */
   given: () => readonly CarId[] = () => [];
+  /** What the shop pays from; null sells nothing. */
+  wallet: Wallet | null = null;
 
   current = $state.raw<Build>(DEFAULT_BUILD);
   /** The card shows the saved builds instead of a slot's options. */
@@ -62,6 +66,8 @@ export class Garage {
   // `rewards` reads career stars outside the runes, so each open bumps this to relist reward paints and decals.
   private relist = $state(0);
   private view: GarageView | null = null;
+  /** The player's own car while a meet has lent them another. */
+  private own_code: string | null = null;
   private stage: GarageStage | null = null;
 
   constructor(build: Build) {
@@ -96,6 +102,43 @@ export class Garage {
     return frame_locks(this.given());
   }
 
+  get credits(): number {
+    void this.relist;
+    return this.wallet?.credits ?? 0;
+  }
+
+  /** What an option of the open slot costs, or null when it is free or bought. */
+  price(option: number): number | null {
+    void this.relist;
+    const id = this.item.cosmetic?.(option);
+    if (!id || !this.wallet || this.wallet.has(id)) return null;
+    return COSMETIC_PRICE[id] ?? null;
+  }
+
+  /** The fitted car's body, when its frame is owned and the body is for sale but not bought yet. */
+  get body_price(): number | null {
+    void this.relist;
+    const { car } = this.current;
+    const given = this.given();
+    return owned_frames(given).has(frame_of(car)) && !given.includes(car) ? body_price(car) : null;
+  }
+
+  buy(option: number): boolean {
+    const id = this.item.cosmetic?.(option);
+    const price = this.price(option);
+    if (!id || price === null || !this.wallet?.buy({ kind: "cosmetic", id }, price)) return false;
+    this.relist++;
+    this.fit(option);
+    return true;
+  }
+
+  buy_body(): boolean {
+    const price = this.body_price;
+    if (price === null || !this.wallet?.buy({ kind: "car", car: this.current.car }, price)) return false;
+    this.relist++;
+    return true;
+  }
+
   get shown(): Build {
     return this.cursor === this.item.at(this.current) ? this.current : this.item.with(this.current, this.cursor);
   }
@@ -111,6 +154,25 @@ export class Garage {
   use_code(code: string, save = true) {
     const build = parse_build(code);
     if (build) this.apply(build, save);
+  }
+
+  /** A race meet races any frame: a car the player doesn't own is lent, unsaved, until `take_back` returns their own. */
+  meet_pick(code: string) {
+    const build = parse_build(code);
+    if (!build) return;
+    if (!this.locks[build.car]) {
+      this.own_code = null;
+      return this.apply(build);
+    }
+    this.own_code ??= this.code;
+    this.apply(build, false);
+  }
+
+  take_back() {
+    if (this.own_code === null) return;
+    const code = this.own_code;
+    this.own_code = null;
+    this.use_code(code, false);
   }
 
   open() {
@@ -191,8 +253,10 @@ export class Garage {
     this.cursor = option;
   }
 
+  /** A sold option not bought yet only shows: `buy` fits it. */
   fit(option: number) {
     this.cursor = option;
+    if (this.price(option) !== null) return;
     this.apply(this.item.with(this.current, option));
   }
 
