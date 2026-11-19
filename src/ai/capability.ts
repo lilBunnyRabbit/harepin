@@ -4,6 +4,7 @@ import { upgrade_steps } from "../car/pi-build";
 import { CARS, COUPE, is_car, spec_hash, type CarAi, type CarSpec } from "../car/cars";
 import { PRESETS } from "../car/presets";
 import { MEASURED } from "./capability-table";
+import { grip_at_speed } from "./corners";
 import { hypot } from "../sim-math";
 
 /** What a car does on flat tarmac with every aid on, as the AI drives it: measured on the real physics, once per build. */
@@ -142,15 +143,18 @@ export function warm(specs: readonly CarSpec[]) {
 }
 
 /**
- * m/s²: the braking a build's plan takes, its measured stop held to its slow grip times the stock car's ratio of the two
- * (or the coupe's, when that is higher). The stop is on a straight with ABS: race brakes on rally tyres stop at 1.7
- * times the grip, and a plan braking at that into a bend slid the car past where the driver lets go of the brake, and
- * it ran 7 m/s over the plan into the next bend and off (tuned rally and raijin, island seed 6). A stock car keeps its own.
+ * m/s²: the braking a build's plan takes, its measured stop held to its grip at BRAKE_FROM times the stock car's ratio
+ * of the two (or the coupe's, when that is higher). The stop is on a straight with ABS: race brakes on rally tyres stop
+ * at 1.7 times the grip, and a plan braking at that into a bend slid the car past where the driver lets go of the brake,
+ * and it ran 7 m/s over the plan into the next bend and off (tuned rally and raijin, island seed 6). The grip is read at
+ * the stop's own speed, so downforce counts: on the slow skidpad's grip the race-kit formula lost a third of its braking.
+ * A stock car keeps its own. A skidpad stop held through a turn rated the tuned rally like the stock one, so it cannot stand in.
  */
 function planned_brake(spec: CarSpec, car: Capability, ref: Capability): number {
   const stock = capability(is_car(spec.id) ? CARS[spec.id] : spec);
-  const ratio = Math.max(stock.brake / stock.slow, ref.brake / ref.slow);
-  return car.brake / car.slow > ratio ? car.slow * ratio : car.brake;
+  const grip = (c: Capability) => grip_at_speed(BRAKE_FROM, c);
+  const ratio = Math.max(stock.brake / grip(stock), ref.brake / grip(ref));
+  return car.brake / grip(car) > ratio ? grip(car) * ratio : car.brake;
 }
 
 export function plan_scale(spec: CarSpec): PlanScale {

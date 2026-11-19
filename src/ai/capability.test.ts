@@ -7,6 +7,7 @@ import { MEASURED } from "./capability-table";
 
 /** It measures every stock car and preset: seconds idle, several times that beside a heavy run. */
 const TABLE_TIMEOUT = 60_000;
+const TABLE_SAMPLE = 8;
 
 const preset = (code: string) => {
   const build = parse_build(code);
@@ -40,8 +41,13 @@ describe("car capability", () => {
     expect(slicks.slow).toBeGreaterThan(stock.slow);
   });
 
-  test("the table holds every stock car and preset as it measures today: rerun scripts/ai-capability.ts when it fails", () => {
-    for (const { name, spec } of tabled_specs()) expect([name, MEASURED[spec_hash(spec)]]).toEqual([name, measure(spec)]);
+  test("the table holds every build it should, and a sample measures as it does today: rerun scripts/ai-capability.ts when it fails", () => {
+    const rows = tabled_specs();
+    for (const { name, spec } of rows) expect([name, spec_hash(spec) in MEASURED]).toEqual([name, true]);
+    // Every stock car, then every TABLE_SAMPLE-th upgrade step: a physics change moves them all, and measuring 130 rows took 10 s.
+    const stock = new Set(Object.values(CARS).map(spec_hash));
+    const sample = rows.filter(({ spec }, i) => stock.has(spec_hash(spec)) || i % TABLE_SAMPLE === 0);
+    for (const { name, spec } of sample) expect([name, MEASURED[spec_hash(spec)]]).toEqual([name, measure(spec)]);
   }, TABLE_TIMEOUT);
 
   test("no frame inherits another frame's ai block through a spread", () => {
@@ -60,13 +66,14 @@ describe("car capability", () => {
     expect(performance.now() - at).toBeLessThan(cold / 10);
   });
 
-  test("a stock car plans on its own stop; race brakes on rally tyres plan only what the tyres hold in a bend", () => {
+  test("a stock car plans on its own stop; race brakes on rally tyres plan only what the tyres hold, the race-kit formula keeps most of its own", () => {
     for (const spec of Object.values(CARS)) expect(plan_scale(spec).brake).toBe(((capability(spec).brake / capability(COUPE).brake) * (spec.ai ?? { brake: 1 }).brake));
-    const tuned = preset("rally.4.2.0.4.2.0.7.3.2.2");
-    const car = capability(tuned);
-    const coupe = capability(COUPE);
-    expect(car.brake / car.slow).toBeGreaterThan(coupe.brake / coupe.slow);
-    expect(plan_scale(tuned).brake).toBeCloseTo(((car.slow * coupe.brake) / coupe.slow / coupe.brake) * (tuned.ai?.brake ?? 1), 12);
+    const held = (code: string) => {
+      const spec = preset(code);
+      return plan_scale(spec).brake / ((capability(spec).brake / capability(COUPE).brake) * (spec.ai?.brake ?? 1));
+    };
+    expect(held("rally.4.2.0.4.2.0.7.3.2.2")).toBeLessThan(0.85);
+    expect(held("formula.6.4.4.2.2.0.1.2.2.2.1.2")).toBeGreaterThan(0.85);
   });
 
   test("a car's ai block scales its measured grip and braking, never its drive", () => {
