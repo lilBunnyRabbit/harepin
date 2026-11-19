@@ -51,6 +51,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.73.1",
+    date: "2026-11-19",
+    title: "Garage from anywhere",
+    changes: [
+      { kind: IMPROVED, text: "The Events screen's series sheet opens the Garage too, and Back still finds the series after changing car" },
+      { kind: FIXED, text: "Closing the Garage while a car loads no longer leaves work running in the race" },
+    ],
+  },
+  {
     version: "0.73.0",
     date: "2026-11-19",
     title: "Share builds in chat",
