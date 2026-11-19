@@ -38,8 +38,9 @@ export class Marks {
 
   constructor(private readonly ground: DrawnGround) {}
 
+  // Without forceSinglePass three draws transparent DoubleSide twice and flags needsUpdate each time: a program lookup per draw.
   paint(tone: Tone, opacity = 0.9): THREE.MeshBasicMaterial {
-    const material = new THREE.MeshBasicMaterial({ color: color(tone), transparent: true, opacity, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
+    const material = new THREE.MeshBasicMaterial({ color: color(tone), transparent: true, opacity, side: THREE.DoubleSide, forceSinglePass: true, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
     this.materials.push(material);
     return material;
   }

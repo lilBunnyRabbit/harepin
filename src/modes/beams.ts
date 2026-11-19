@@ -24,7 +24,7 @@ export class Beams {
     for (const p of points) {
       const group = new THREE.Group();
       group.position.set(p.x, ground.height(p.x, p.z) + LIFT, p.z);
-      const material = marks.track(new THREE.MeshBasicMaterial({ color: color(brand.accent), transparent: true, opacity: DIM, depthWrite: false, side: THREE.DoubleSide }));
+      const material = marks.track(new THREE.MeshBasicMaterial({ color: color(brand.accent), transparent: true, opacity: DIM, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }));
       group.add(new THREE.Mesh(beam, material));
       marks.root.add(group);
       this.groups.push(group);
