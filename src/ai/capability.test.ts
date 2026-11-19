@@ -67,7 +67,7 @@ describe("car capability", () => {
   });
 
   test("a stock car plans on its own stop; race brakes on rally tyres plan only what the tyres hold, the race-kit formula keeps most of its own", () => {
-    for (const spec of Object.values(CARS)) expect(plan_scale(spec).brake).toBe(((capability(spec).brake / capability(COUPE).brake) * (spec.ai ?? { brake: 1 }).brake));
+    for (const spec of Object.values(CARS)) expect(plan_scale(spec).brake).toBe((Math.min(spec.ai?.stop ?? Infinity, capability(spec).brake) / capability(COUPE).brake) * (spec.ai?.brake ?? 1));
     const held = (code: string) => {
       const spec = preset(code);
       return plan_scale(spec).brake / ((capability(spec).brake / capability(COUPE).brake) * (spec.ai?.brake ?? 1));

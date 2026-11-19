@@ -148,13 +148,14 @@ export function warm(specs: readonly CarSpec[]) {
  * at 1.7 times the grip, and a plan braking at that into a bend slid the car past where the driver lets go of the brake,
  * and it ran 7 m/s over the plan into the next bend and off (tuned rally and raijin, island seed 6). The grip is read at
  * the stop's own speed, so downforce counts: on the slow skidpad's grip the race-kit formula lost a third of its braking.
- * A stock car keeps its own. A skidpad stop held through a turn rated the tuned rally like the stock one, so it cannot stand in.
+ * A stock car keeps its own, under its `ai.stop`. A skidpad stop held through a turn rated the tuned rally like the stock
+ * one, so it cannot stand in.
  */
 function planned_brake(spec: CarSpec, car: Capability, ref: Capability): number {
   const stock = capability(is_car(spec.id) ? CARS[spec.id] : spec);
   const grip = (c: Capability) => grip_at_speed(BRAKE_FROM, c);
   const ratio = Math.max(stock.brake / grip(stock), ref.brake / grip(ref));
-  return car.brake / grip(car) > ratio ? grip(car) * ratio : car.brake;
+  return Math.min(spec.ai?.stop ?? Infinity, car.brake / grip(car) > ratio ? grip(car) * ratio : car.brake);
 }
 
 export function plan_scale(spec: CarSpec): PlanScale {

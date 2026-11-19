@@ -142,6 +142,8 @@ export interface CarAi {
   jump?: number;
   /** Weight (0-1+) on the squared share of grip a bend takes that the plan's pull out of it gives up: a car whose full throttle unloads its nose pushes wide at the plan's exit pace. Absent is none. */
   pull_bend?: number;
+  /** m/s²: the most measured stop the plan brakes on, whatever brakes a build fits: past it the drift muscle on Sport brakes slid out of its braking into bends (island seeds 4, 6). Absent is no cap. */
+  stop?: number;
 }
 
 // Over the frame alone: a lab result or a measured build keeps its key when only the AI fields move, and every body
@@ -284,7 +286,7 @@ const HATCH_FRAME: FrameSpec = {
 
 const MUSCLE_FRAME: FrameSpec = {
   ...COUPE_FRAME,
-  ai: { slow: 0.9661, fast: 1, brake: 0.9897 },
+  ai: { slow: 0.9661, fast: 1, brake: 0.9897, stop: 11.3 },
   mass: 1650,
   // Pitch is low for the mass on purpose: at ~3300 the car lands rocking when dropped on a 20% slope and rolls away,
   // because the parking hold is divided by the tyre solve's stiffness. Revisit when the P2 parking task fixes that.
