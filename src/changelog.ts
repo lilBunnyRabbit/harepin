@@ -51,6 +51,17 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.72.0",
+    date: "2026-11-19",
+    title: "Series, sorted",
+    changes: [
+      { kind: IMPROVED, text: "Series cards run to the edge of the screen, and a series opens on your next race" },
+      { kind: NEW, text: "The race start sheet shows your car against the class cap, with a Garage link" },
+      { kind: FIXED, text: "Season arrows stay in one spot" },
+      { kind: FIXED, text: "The dial speedometer shows the gear inside the dial" },
+    ],
+  },
+  {
     version: "0.71.5",
     date: "2026-11-19",
     title: "Steady car",
