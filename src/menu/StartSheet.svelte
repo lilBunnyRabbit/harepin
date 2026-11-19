@@ -103,7 +103,7 @@
       <div class="sheet-car">
         {#if view.lent}
           <span class="sheet-lent ev-h3">Loaner: {view.lent}</span>
-          <span class="ev-small sheet-fit">The event lends it, your own car waits</span>
+          <span class="ev-small sheet-fit">The event lends it</span>
         {:else}
           <span class="sheet-still"><CarStill car={build.car} {build} /></span>
           <span class="sheet-who">
@@ -197,13 +197,21 @@
     min-width: 0;
   }
 
+  .sheet-car:has(.sheet-lent) {
+    flex-wrap: wrap;
+    row-gap: var(--gap-xs);
+  }
+
   .sheet-lent {
-    flex: 1;
+    flex: 1 0 auto;
     padding-left: var(--gap-xs);
+    white-space: nowrap;
   }
 
   .sheet-lent + .sheet-fit {
     flex: none;
+    margin-left: auto;
+    padding-left: var(--gap-xs);
     text-align: right;
   }
 
