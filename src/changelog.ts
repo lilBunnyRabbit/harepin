@@ -51,6 +51,16 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.75.0",
+    date: "2026-11-19",
+    title: "Frame cups",
+    changes: [
+      { kind: NEW, text: "Five more one-make cups: Muscle, Sajin, Raijin, Sturm and Formula, each in a lent stock car; finish one and its frame is yours" },
+      { kind: NEW, text: "You start with the Hatch, Coupe, Tsumuji and Bus; other frames unlock from their cups" },
+      { kind: IMPROVED, text: "Series seasons pay credits instead of cars" },
+    ],
+  },
+  {
     version: "0.74.0",
     date: "2026-11-19",
     title: "Rally Trial",
