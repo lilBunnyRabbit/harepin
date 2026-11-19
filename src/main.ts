@@ -384,6 +384,7 @@ lobby.on_sit_out = () => {
 };
 lobby.car = () => driver.car.spec.id;
 race.on_start = () => ghost.start();
+lobby.on_end = () => garage.take_back();
 
 const run_busy = () => lobby.busy || modes.active || lab_id !== null;
 const updater = new Updater({ busy: run_busy, menu_open: () => settings.is_open, show_notes: () => settings.open_changes() });
