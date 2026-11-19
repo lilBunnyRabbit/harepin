@@ -1,7 +1,7 @@
 import { Car, drop_height, type Controls, type Ground } from "../car/car";
 import { build_code, build_spec, parse_build } from "../car/build";
 import { upgrade_steps } from "../car/pi-build";
-import { CARS, COUPE, spec_hash, type CarAi, type CarSpec } from "../car/cars";
+import { CARS, COUPE, is_car, spec_hash, type CarAi, type CarSpec } from "../car/cars";
 import { PRESETS } from "../car/presets";
 import { MEASURED } from "./capability-table";
 import { hypot } from "../sim-math";
@@ -141,11 +141,23 @@ export function warm(specs: readonly CarSpec[]) {
   for (const spec of specs) capability(spec);
 }
 
+/**
+ * m/s²: the braking a build's plan takes, its measured stop held to its slow grip times the stock car's ratio of the two
+ * (or the coupe's, when that is higher). The stop is on a straight with ABS: race brakes on rally tyres stop at 1.7
+ * times the grip, and a plan braking at that into a bend slid the car past where the driver lets go of the brake, and
+ * it ran 7 m/s over the plan into the next bend and off (tuned rally and raijin, island seed 6). A stock car keeps its own.
+ */
+function planned_brake(spec: CarSpec, car: Capability, ref: Capability): number {
+  const stock = capability(is_car(spec.id) ? CARS[spec.id] : spec);
+  const ratio = Math.max(stock.brake / stock.slow, ref.brake / ref.slow);
+  return car.brake / car.slow > ratio ? car.slow * ratio : car.brake;
+}
+
 export function plan_scale(spec: CarSpec): PlanScale {
   const car = capability(spec);
   const ref = capability(COUPE);
   const ai = spec.ai ?? NO_TRIM;
-  return { slow: (car.slow / ref.slow) * ai.slow, fast: (car.fast / ref.fast) * ai.fast, brake: (car.brake / ref.brake) * ai.brake, drive: car.drive / ref.drive, power: car.power / ref.power, car, model: ai.model ?? 1, jump: ai.jump ?? Infinity, pull_bend: ai.pull_bend ?? 0 };
+  return { slow: (car.slow / ref.slow) * ai.slow, fast: (car.fast / ref.fast) * ai.fast, brake: (planned_brake(spec, car, ref) / ref.brake) * ai.brake, drive: car.drive / ref.drive, power: car.power / ref.power, car, model: ai.model ?? 1, jump: ai.jump ?? Infinity, pull_bend: ai.pull_bend ?? 0 };
 }
 
 export const UNIT_SCALE: PlanScale = plan_scale(COUPE);

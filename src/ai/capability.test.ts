@@ -60,6 +60,15 @@ describe("car capability", () => {
     expect(performance.now() - at).toBeLessThan(cold / 10);
   });
 
+  test("a stock car plans on its own stop; race brakes on rally tyres plan only what the tyres hold in a bend", () => {
+    for (const spec of Object.values(CARS)) expect(plan_scale(spec).brake).toBe(((capability(spec).brake / capability(COUPE).brake) * (spec.ai ?? { brake: 1 }).brake));
+    const tuned = preset("rally.4.2.0.4.2.0.7.3.2.2");
+    const car = capability(tuned);
+    const coupe = capability(COUPE);
+    expect(car.brake / car.slow).toBeGreaterThan(coupe.brake / coupe.slow);
+    expect(plan_scale(tuned).brake).toBeCloseTo(((car.slow * coupe.brake) / coupe.slow / coupe.brake) * (tuned.ai?.brake ?? 1), 12);
+  });
+
   test("a car's ai block scales its measured grip and braking, never its drive", () => {
     const trimmed = plan_scale({ ...CARS.hatch, ai: { slow: 0.5, fast: 2, brake: 0.8 } });
     const stock = plan_scale({ ...CARS.hatch, ai: undefined });
