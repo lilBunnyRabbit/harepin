@@ -51,6 +51,14 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.71.3",
+    date: "2026-11-19",
+    title: "Smoother HUD",
+    changes: [
+      { kind: IMPROVED, text: "Smoother races on phones: the speed, clock and gap readouts update without reflowing the screen" },
+    ],
+  },
+  {
     version: "0.71.2",
     date: "2026-11-19",
     title: "Lighter on phones",
