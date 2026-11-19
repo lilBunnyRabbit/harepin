@@ -129,7 +129,7 @@ export class Garage {
   bought(option: number): boolean {
     void this.relist;
     const slot = this.item.slot;
-    return slot !== undefined && this.wallet !== null && part_price(slot, option) > 0 && this.part_owned({ slot, index: option });
+    return slot !== undefined && this.wallet !== null && this.own_code === null && part_price(slot, option) > 0 && this.part_owned({ slot, index: option });
   }
 
   // A car lent at a meet tunes free: it goes back after the race.
@@ -169,7 +169,7 @@ export class Garage {
     const missing = this.missing;
     if (!missing || !this.wallet?.buy({ kind: "parts", car: missing.build.car, parts: missing.parts }, missing.price)) return false;
     this.relist++;
-    this.apply(missing.build);
+    this.apply({ ...this.current, parts: missing.build.parts });
     return true;
   }
 
@@ -362,7 +362,10 @@ export class Garage {
       const step = nav === "up" ? -1 : 1;
       const count = this.item.count;
       this.preview(this.item.kind === "number" ? (this.cursor + step + count) % count : Math.max(0, Math.min(count - 1, this.cursor + step)));
-    } else if (nav === "accept") this.fit(this.cursor);
+    } else if (nav === "accept") {
+      if (this.price(this.cursor) === null) this.fit(this.cursor);
+      else this.buy(this.cursor);
+    }
   }
 
   // My builds is a short list of fields and buttons, so the pad walks it in reading order on real focus.
@@ -394,7 +397,7 @@ export class Garage {
     const wallet = save && this.own_code === null && this.wallet?.ready ? this.wallet : null;
     const { build: dressed, dropped } = wallet ? strip_unowned(next, (id) => wallet.has(id)) : { build: next, dropped: [] };
     const { build: own, missing } = wallet ? own_parts(dressed, (pick) => wallet.owns_part(dressed.car, pick)) : { build: dressed, missing: [] };
-    this.missing = missing.length ? { build: next, parts: missing, price: missing.reduce((sum, pick) => sum + part_price(pick.slot, pick.index), 0) } : null;
+    this.missing = missing.length && !this.locks[own.car] ? { build: next, parts: missing, price: missing.reduce((sum, pick) => sum + part_price(pick.slot, pick.index), 0) } : null;
     const notes = [...(dropped.length ? [`${dropped.join(", ")} not owned: removed`] : []), ...(missing.length ? [`${missing.map(pick_label).join(", ")} not owned: fitted the best you own`] : [])];
     if (notes.length) this.on_notice?.(notes.join(" · "));
     const checked = parse_build(build_code(own));

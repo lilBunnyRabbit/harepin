@@ -146,6 +146,13 @@ test("a wallet saved before parts cost grants the parts on the given builds once
   expect(wallet.owns_part("coupe", { slot: "aero", index: 2 })).toBe(true);
   expect(wallet.owns_part(BASE_CAR, { slot: "aero", index: 2 })).toBe(true);
   expect((store.data.value as WalletState).parts.coupe).toEqual({ engine: 32, tyres: 64, aero: 4 });
+  let open = (_: unknown) => {};
+  const paid_early = new Wallet({ load: () => new Promise((resolve) => (open = resolve)), save: async () => {} }, () => [tuned]);
+  const loading = paid_early.load();
+  paid_early.earn(300);
+  open({ credits: 0, cars: [] });
+  await loading;
+  expect(paid_early.owns_part("coupe", { slot: "engine", index: 5 })).toBe(true);
   const later = new Wallet(store, () => [{ ...tuned, parts: { ...tuned.parts, nitro: 2 } }]);
   await later.load();
   expect(later.owns_part("coupe", { slot: "nitro", index: 2 })).toBe(false);

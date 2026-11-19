@@ -150,6 +150,20 @@ test("a part not bought on this car shows its price, can't be fitted unbought, f
   expect(garage.price(4)).toBe(9_000);
 });
 
+test("Enter on a part not bought buys it, like the Buy action it labels", () => {
+  const { wallet, garage } = shop(2_000);
+  garage.open();
+  try {
+    pick(garage, "engine");
+    garage.preview(1);
+    garage.navigate(["accept"]);
+    expect(garage.current.parts.engine).toBe(1);
+    expect(wallet.credits).toBe(0);
+  } finally {
+    garage.close();
+  }
+});
+
 test("a build code with parts not bought loads the best owned below each, and Buy missing pays once for all of them", async () => {
   const { wallet, garage } = shop(0);
   await wallet.load();
@@ -159,9 +173,9 @@ test("a build code with parts not bought loads the best owned below each, and Bu
   pick(garage, "engine");
   garage.buy(4);
   const tuned = { ...DEFAULT_BUILD, parts: { ...DEFAULT_BUILD.parts, engine: 5, tyres: 6, aero: 5 } };
-  garage.use_code(build_code(tuned));
+  garage.use_code(build_code({ ...tuned, decal: DECALS.indexOf("flames") }));
   expect(garage.current.parts).toEqual({ ...DEFAULT_BUILD.parts, engine: 4, tyres: 0, aero: 2 });
-  expect(notes).toEqual(["Twin turbo engine, Slicks tyres, GT kit not owned: fitted the best you own"]);
+  expect(notes).toEqual(["Flames not owned: removed · Twin turbo engine, Slicks tyres, GT kit not owned: fitted the best you own"]);
   expect(garage.missing?.price).toBe(14_000 + 6_000 + 8_000);
   expect(garage.buy_missing()).toBe(false);
   expect(render(PartsMissing, { props: { parts: garage.missing!.parts, price: 28_000, credits: 0, onbuy: () => {} } }).body).toContain("Need 28,000 cr more");
@@ -169,6 +183,7 @@ test("a build code with parts not bought loads the best owned below each, and Bu
   expect(render(PartsMissing, { props: { parts: garage.missing!.parts, price: 28_000, credits: 30_000, onbuy: () => {} } }).body).toContain("Buy missing parts · 28,000 cr");
   expect(garage.buy_missing()).toBe(true);
   expect(garage.code).toBe(build_code(tuned));
+  expect(notes.length).toBe(1);
   expect(wallet.credits).toBe(2_000);
   expect(garage.missing).toBeNull();
   expect(garage.buy_missing()).toBe(false);
@@ -183,6 +198,7 @@ test("a lent meet car and a loaner fitted unsaved keep their parts; the boot che
   expect(garage.code).toBe(formula);
   pick(garage, "engine");
   expect(garage.price(3)).toBeNull();
+  expect(garage.bought(3)).toBe(false);
   garage.take_back();
   const loaner = build_code({ ...DEFAULT_BUILD, car: "rally", parts: { ...DEFAULT_BUILD.parts, tyres: 3 } });
   garage.use_code(loaner, false);

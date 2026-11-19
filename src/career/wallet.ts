@@ -108,11 +108,9 @@ export class Wallet {
     try {
       const raw = await this.saves?.load();
       // Credits earned while the load was out are newer than anything it read.
-      if (!this.changed) {
-        const read = parse_wallet(raw);
-        if (before_parts(raw)) this.set({ ...read, parts: grant_fitted(read.parts, this.fitted(read.cars)) });
-        else this.state_ = read;
-      }
+      const read = this.changed ? this.state_ : parse_wallet(raw);
+      if (before_parts(raw)) this.set({ ...read, parts: grant_fitted(read.parts, this.fitted(read.cars)) });
+      else if (!this.changed) this.state_ = read;
     } catch (error) {
       console.warn("wallet: saved wallet unreadable, starting on the base car", error);
     }
