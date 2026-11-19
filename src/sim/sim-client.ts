@@ -9,6 +9,8 @@ import { packet_epoch, read_packet, type Pose, type SimRequest } from "./sim-pac
 
 /** `?mainsim`: the sim steps on the main thread, as the lab and review shots always do, instead of in its worker. */
 export const SIM_MAIN_PARAM = "mainsim";
+/** `?simworker`: opt in to the sim worker while main-thread stepping is the default (player car jumped back in worker races, 0.71.4). */
+export const SIM_WORKER_PARAM = "simworker";
 const WORKER_WAIT_MS = 10_000;
 
 /** A running worker that leaves `frames` frames unanswered over at least `ms` has failed: both, so neither a long main-thread stall nor a slow phone's frames alone trip it. */

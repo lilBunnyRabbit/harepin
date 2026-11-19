@@ -112,7 +112,7 @@ import { show_pause, type PauseAct } from "./hud/pause-view.svelte";
 import { map_name, short_name } from "./worlds/map-name";
 import { StuckPrompt } from "./hud/stuck-prompt";
 import { pushing } from "./hud/stuck";
-import { LocalSim, open_sim_worker, SIM_MAIN_PARAM, start_sim, WorkerSim } from "./sim/sim-client";
+import { LocalSim, open_sim_worker, SIM_MAIN_PARAM, SIM_WORKER_PARAM, start_sim, WorkerSim } from "./sim/sim-client";
 import { DT, FrameKind, type FrameRequest } from "./sim/sim-host";
 import { WorldJournal } from "./world/world-journal";
 import { AI_CARS, AI_CARS_PARAM, AI_RACE_PARAM, FieldView } from "./ai/field-view";
@@ -170,7 +170,7 @@ for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
 const snowy = snow_of(map) !== null;
 const look = world_look(WORLDS[kind], snowy);
 // The lab records every physics step and a review shot sets the pose itself, so both keep the sim on main.
-const sim_worker = !params.has(SIM_MAIN_PARAM) && lab_id === null && !review_wanted(params) ? open_sim_worker() : null;
+const sim_worker = params.has(SIM_WORKER_PARAM) && !params.has(SIM_MAIN_PARAM) && lab_id === null && !review_wanted(params) ? open_sim_worker() : null;
 const journal = sim_worker ? new WorldJournal() : null;
 const opening = WorldStream.open(pick, map, mesh_tones(snowy, WORLDS[kind].upland, WORLDS[kind].deck), journal);
 const mode_ids = MODES.map((mode) => mode.id);
