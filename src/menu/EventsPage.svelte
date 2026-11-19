@@ -13,7 +13,7 @@
   import { CAREER_PAGE, MODES_PAGE, RUNS_PAGE, type StartTarget } from "./events-view";
   import MenuFrame from "./MenuFrame.svelte";
   import { MenuTab } from "./page";
-  import { event_art, next_event, season_lock, season_title } from "./series-view";
+  import { event_art, next_event, season_kicker, season_lock, season_title } from "./series-view";
   import StartSheet from "./StartSheet.svelte";
   import Card from "./ui/Card.svelte";
   import Chip from "./ui/Chip.svelte";
@@ -129,7 +129,7 @@
       <Card picture={series_shot} wide focused class="events-series" label="Harepin Series">
         {#if season && progress}
           <div class="ev-head">
-            <span class="ev-eyebrow">Harepin Series · Season {at + 1} · {season.name}</span>
+            <span class="ev-eyebrow">Harepin Series · {season_kicker(list.map((one) => one.base), list[at].base)} · {season.name}</span>
             <h2 class="ev-h1">{next ? `Round ${round} of ${season.events.length} · ${next.name}` : (lock ?? season_title(season))}</h2>
             {#if next}<PlaceLine place={place_of(series_map(season, next), here)} />{/if}
           </div>

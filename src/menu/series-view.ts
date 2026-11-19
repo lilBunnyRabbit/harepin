@@ -15,11 +15,16 @@ export interface SeasonTab {
 
 export const season_title = (season: Season) => (season.loaner ? season.name : `${season.name} series`);
 
+export function season_kicker(seasons: readonly Season[], season: Season): string {
+  if (season.loaner) return `One-make cup${season.beginner ? " · start here" : ""}`;
+  const chain = seasons.filter((each) => !each.always_open);
+  return `Season ${chain.indexOf(season) + 1} of ${chain.length}`;
+}
+
 export function season_tabs(seasons: readonly Season[], open: readonly boolean[], done: readonly boolean[]): SeasonTab[] {
-  const chain = seasons.filter((season) => !season.always_open);
   return seasons.map((season, i) => ({
     name: season_title(season),
-    kicker: season.loaner ? `One-make cup${season.beginner ? " · start here" : ""}` : `Season ${chain.indexOf(season) + 1} of ${chain.length}`,
+    kicker: season_kicker(seasons, season),
     beginner: season.beginner === true,
     open: open[i],
     done: done[i],

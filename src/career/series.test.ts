@@ -397,6 +397,18 @@ test("finishing the cup last still keeps the frame; a podium keeps a trophy that
   expect(reload.progress.best).toBe(2);
 });
 
+test("rerunning rounds of a finished cup can still climb the table into a trophy", () => {
+  const cup = RALLY_TRIAL;
+  const series = new Series(cup, null, new Wallet(null));
+  const last = cup.field.length + 1;
+  for (const event of cup.events) series.record(event, cup_at(cup, last));
+  expect(series.progress.best).toBe(last);
+  const trophies = cup.events.map((event) => series.record(event, cup_at(cup, 1)).trophy);
+  expect(trophies.filter((t) => t === "Winner's cup").length).toBe(1);
+  expect(series.progress.best).toBe(1);
+  expect(series.record(cup.events[0], cup_at(cup, 1)).trophy).toBeNull();
+});
+
 test("a stored best place is checked: out of the table it reads as none", () => {
   for (const best of [0, -1, 1.5, "1", RALLY_TRIAL.field.length + 2]) expect(parse_progress(RALLY_TRIAL, { season: RALLY_TRIAL.id, round: 0, results: {}, best }).best).toBeUndefined();
   expect(parse_progress(RALLY_TRIAL, { season: RALLY_TRIAL.id, round: 0, results: {}, best: 3 }).best).toBe(3);
