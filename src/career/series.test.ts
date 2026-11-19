@@ -2,18 +2,19 @@ import { expect, test } from "bun:test";
 import { World } from "../world/world";
 import { DEFAULT_BUILD, DEFAULT_PARTS, parse_build, type Build } from "../car/build";
 import { PRESETS } from "../car/presets";
-import { within } from "../car/car-pick";
+import { same_machine, within } from "../car/car-pick";
+import { RivalPick, field_builds } from "../ai/field-pick";
 import { rating } from "../car/pi";
 import { CREDITS_PER_POINT, FINAL_FACTOR } from "./credits";
-import { Bonus, OPEN_AT_START, PODIUM, SeriesKind, better, car_fault, empty_progress, event_field, event_line, event_result, event_states, grid_slot, next_open, parse_progress, player_of, result_points, season_done, season_round, standings, type EventResult, type Season, type SeriesProgress } from "./series";
+import { Bonus, OPEN_AT_START, PODIUM, SeriesKind, better, car_fault, empty_progress, loaner_code, stock_build, trophy_of, event_field, event_line, event_result, event_states, grid_slot, next_open, parse_progress, player_of, result_points, season_done, season_round, standings, type EventResult, type Season, type SeriesProgress } from "./series";
 import type { SeriesSaves } from "./series-db";
 import { series_ticket } from "./series-run";
-import { SEASON_1, SEASON_4, SEASONS, completed, seasons_open, series_event } from "./series-seasons";
+import { RALLY_TRIAL, SEASON_1, SEASON_4, SEASONS, SERIES_LIST, completed, seasons_open, series_event } from "./series-seasons";
 import { build_world, KINDS, plain_map } from "../worldgen/kinds/kinds";
 import { field_races } from "../modes/field-route";
 import type { WorldKind } from "../worldgen/types";
 import { MAX_LAPS } from "../modes/race-laps";
-import { Series, series_front, series_list, series_open } from "./series-store";
+import { Series, series_blocker, series_front, series_list, series_open } from "./series-store";
 import { BASE_CAR, Wallet } from "./wallet";
 import { car_shelves } from "../car/car-pick";
 
@@ -23,6 +24,11 @@ const field = season.field.map((_, i) => i);
 const at = (place: number): EventResult => {
   const order = [...field];
   order.splice(place - 1, 0, YOU);
+  return { order, bonus: [] };
+};
+const cup_at = (cup: Season, place: number): EventResult => {
+  const order = cup.field.map((_, i) => i);
+  order.splice(place - 1, 0, player_of(cup));
   return { order, bonus: [] };
 };
 
@@ -49,7 +55,7 @@ const PAR_MAX_MS = 450_000;
 /** A quick lap as a share of par: series-race's AI fields lap the town loop in about 0.73 of it. */
 const FAST_LAP = 0.6;
 
-for (const each of SEASONS) {
+for (const each of SERIES_LIST) {
   test(`${each.name}: every event's route, and every replay seed's, is closed on its world, a lap within ${PAR_MAX_MS / 1000} s`, () => {
     const routes = new Set(each.events.map((e) => e.route));
     const check = (seed: number, id: string) => {
@@ -104,12 +110,16 @@ test("each later season races a field at least as sharp, under a cap no lower, i
 test("a season opens once the one before has been completed, and a replay of it under way keeps it open", () => {
   const done = (s: Season): SeriesProgress => ({ season: s.id, round: 0, results: { [s.events.at(-1)!.id]: { order: [player_of(s), 0], bonus: [] } } });
   const fresh = SEASONS.map((s) => completed(s, empty_progress(s)));
-  expect(seasons_open(fresh)).toEqual([true, false, false, false]);
+  expect(seasons_open(SEASONS, fresh)).toEqual([true, false, false, false]);
   expect(completed(SEASON_1, done(SEASON_1))).toBe(true);
   expect(completed(SEASON_1, empty_progress(SEASON_1, 1))).toBe(true);
-  expect(seasons_open([true, false, false, false])).toEqual([true, true, false, false]);
-  expect(seasons_open([true, true, true, true])).toEqual([true, true, true, true]);
-  expect(seasons_open([false, true, false, false])).toEqual([true, false, true, false]);
+  expect(seasons_open(SEASONS, [true, false, false, false])).toEqual([true, true, false, false]);
+  expect(seasons_open(SEASONS, [true, true, true, true])).toEqual([true, true, true, true]);
+  expect(seasons_open(SEASONS, [false, true, false, false])).toEqual([true, false, true, false]);
+  // A cup stands outside the chain: open from the start, and finishing it opens no season.
+  expect(seasons_open(SERIES_LIST, [false, false, false, false, false])).toEqual([true, true, false, false, false]);
+  expect(seasons_open(SERIES_LIST, [true, false, false, false, false])).toEqual([true, true, false, false, false]);
+  expect(seasons_open(SERIES_LIST, [false, true, false, false, false])).toEqual([true, true, true, false, false]);
 });
 
 test("events open three at a time, a podium opens the next, the final last", () => {
@@ -272,7 +282,7 @@ test("every finish pays credits, the final double; completing the season pays it
   expect(lost.credits).toBe(5 * CREDITS_PER_POINT * FINAL_FACTOR);
   const before = wallet.credits;
   const won = series.record(final, at(1));
-  expect(won).toEqual({ kept: true, credits: 10 * CREDITS_PER_POINT * FINAL_FACTOR, season_credits: season.reward.credits, car: season.reward.car });
+  expect(won).toEqual({ kept: true, credits: 10 * CREDITS_PER_POINT * FINAL_FACTOR, season_credits: season.reward.credits, car: season.reward.car, trophy: "Winner's cup" });
   expect(wallet.credits).toBe(before + won.credits + season.reward.credits);
   expect(wallet.owns(season.reward.car)).toBe(true);
   expect(series.record(final, at(1)).season_credits).toBe(0);
@@ -284,7 +294,7 @@ test("every finish pays credits, the final double; completing the season pays it
   expect(reload.progress.round).toBe(1);
   expect(reload.event(opener.id)?.seed).toBe(season.replays[0]);
   for (const event of season.events.slice(0, -1)) series.record(event, at(1));
-  expect(series.record(final, at(1))).toEqual({ kept: true, credits: 10 * CREDITS_PER_POINT * FINAL_FACTOR, season_credits: 0, car: null });
+  expect(series.record(final, at(1))).toEqual({ kept: true, credits: 10 * CREDITS_PER_POINT * FINAL_FACTOR, season_credits: 0, car: null, trophy: null });
   series.reset();
   series.record(opener, at(2));
   series.reset();
@@ -305,14 +315,22 @@ test("the seasons share one wallet read; the page opens on the first open season
   const list = series_list(store, wallet);
   await Promise.all(list.map((one) => one.load()));
   expect(reads).toBe(1);
-  expect(series_open(list)).toEqual([true, false, false, false]);
+  // The Rally Trial leads, open beside the first season; a new player starts on it.
+  expect(list.map((one) => one.base)).toEqual([...SERIES_LIST]);
+  expect(series_open(list)).toEqual([true, true, false, false, false]);
   expect(series_front(list)).toBe(0);
-  for (const event of SEASON_1.events) list[0].record(event, at(1));
-  expect(series_open(list)).toEqual([true, true, false, false]);
+  for (const event of RALLY_TRIAL.events) list[0].record(event, cup_at(RALLY_TRIAL, 6));
+  expect(series_open(list)).toEqual([true, true, false, false, false]);
   expect(series_front(list)).toBe(1);
-  list[0].reset();
-  expect(series_open(list)).toEqual([true, true, false, false]);
-  expect(series_front(list)).toBe(0);
+  for (const event of SEASON_1.events) list[1].record(event, at(1));
+  expect(series_open(list)).toEqual([true, true, true, false, false]);
+  expect(series_front(list)).toBe(2);
+  list[1].reset();
+  expect(series_open(list)).toEqual([true, true, true, false, false]);
+  expect(series_front(list)).toBe(1);
+  expect(series_blocker(list, 0)).toBeNull();
+  expect(series_blocker(list, 1)).toBeNull();
+  expect(series_blocker(list, 2)).toBe(SEASON_1);
 });
 
 test("Next after a result is the first open event after it, then one before it, none once all are run", () => {
@@ -326,4 +344,72 @@ test("Next after a result is the first open event after it, then one before it, 
 
 test("the Next card names the round and its kind", () => {
   expect(series_ticket(season, season.events[3], { here: true })).toEqual({ eyebrow: "Next · Round 4 of 6", title: "Rival duel", mode: "Head to head", place: { here: true }, kind: season.world });
+});
+
+test("the Rally Trial: three rounds in order, any finish opens the next, and running all three keeps the Rally", () => {
+  const cup = RALLY_TRIAL;
+  expect(cup.events.length).toBe(3);
+  expect(cup.events.at(-1)!.final).toBe(true);
+  expect(new Set(cup.events.map((e) => e.kind)).size).toBe(3);
+  for (const e of cup.events) expect(e.id.startsWith(`${cup.id}-`)).toBe(true);
+  const last = cup.field.length + 1;
+  const fresh = empty_progress(cup);
+  expect(event_states(cup, fresh)).toEqual(["open", "locked", "locked"]);
+  const one: SeriesProgress = { ...fresh, results: { [cup.events[0].id]: cup_at(cup, last) } };
+  expect(event_states(cup, one)).toEqual(["open", "open", "locked"]);
+  expect(season_done(cup, one)).toBe(false);
+  const all: SeriesProgress = { ...fresh, results: Object.fromEntries(cup.events.map((e) => [e.id, cup_at(cup, last)])) };
+  expect(season_done(cup, all)).toBe(true);
+});
+
+test("a cup lends its car: any car in the garage may start it, and the field races the same stock one", () => {
+  const tuned: Build = { ...DEFAULT_BUILD, car: "formula", parts: { ...DEFAULT_PARTS, engine: 3 } };
+  expect(car_fault(RALLY_TRIAL, tuned, [BASE_CAR])).toBeNull();
+  const lent = parse_build(loaner_code(RALLY_TRIAL))!;
+  expect(lent).toEqual(stock_build("rally"));
+  expect(loaner_code(SEASON_1)).toBeNull();
+  const builds = field_builds(lent, rating(lent), 5, [], { pick: RivalPick.ONE_MAKE });
+  expect(builds.length).toBe(5);
+  for (const build of builds) expect(same_machine(build, lent)).toBe(true);
+  expect(new Set(builds.map((b) => b.paint)).size).toBe(5);
+});
+
+test("finishing the cup last still keeps the frame; a podium keeps a trophy that outlives a rerun and a reload", async () => {
+  const cup = RALLY_TRIAL;
+  const store = memory();
+  const wallet = new Wallet(null);
+  const series = new Series(cup, store, wallet);
+  const last = cup.field.length + 1;
+  for (const event of cup.events.slice(0, -1)) series.record(event, cup_at(cup, last));
+  expect(wallet.owns("rally")).toBe(false);
+  const done = series.record(cup.events.at(-1)!, cup_at(cup, last));
+  expect(done.car).toBe("rally");
+  expect(done.trophy).toBeNull();
+  expect(wallet.owns("rally")).toBe(true);
+  series.reset();
+  for (const event of series.season.events) series.record(event, cup_at(cup, 2));
+  expect(series.progress.best).toBe(2);
+  expect(trophy_of(series.progress)).toBe("2nd place trophy");
+  series.reset();
+  expect(series.progress.best).toBe(2);
+  const reload = new Series(cup, store, new Wallet(null));
+  await reload.load();
+  expect(reload.progress.best).toBe(2);
+});
+
+test("rerunning rounds of a finished cup can still climb the table into a trophy", () => {
+  const cup = RALLY_TRIAL;
+  const series = new Series(cup, null, new Wallet(null));
+  const last = cup.field.length + 1;
+  for (const event of cup.events) series.record(event, cup_at(cup, last));
+  expect(series.progress.best).toBe(last);
+  const trophies = cup.events.map((event) => series.record(event, cup_at(cup, 1)).trophy);
+  expect(trophies.filter((t) => t === "Winner's cup").length).toBe(1);
+  expect(series.progress.best).toBe(1);
+  expect(series.record(cup.events[0], cup_at(cup, 1)).trophy).toBeNull();
+});
+
+test("a stored best place is checked: out of the table it reads as none", () => {
+  for (const best of [0, -1, 1.5, "1", RALLY_TRIAL.field.length + 2]) expect(parse_progress(RALLY_TRIAL, { season: RALLY_TRIAL.id, round: 0, results: {}, best }).best).toBeUndefined();
+  expect(parse_progress(RALLY_TRIAL, { season: RALLY_TRIAL.id, round: 0, results: {}, best: 3 }).best).toBe(3);
 });

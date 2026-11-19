@@ -5,7 +5,7 @@
   import { place_of } from "../career/place";
   import { SERIES_PAGE, event_states, standings } from "../career/series";
   import { series_map } from "../career/series-run";
-  import { series_front, series_open } from "../career/series-store";
+  import { series_blocker, series_front, series_open } from "../career/series-store";
   import { WEEK_STARS } from "../modes/championship";
   import { daily, iso_week, season_days_left, weekly } from "../runs/runs";
   import type { CarPicker } from "./car-pick.svelte";
@@ -13,7 +13,7 @@
   import { CAREER_PAGE, MODES_PAGE, RUNS_PAGE, type StartTarget } from "./events-view";
   import MenuFrame from "./MenuFrame.svelte";
   import { MenuTab } from "./page";
-  import { event_art, next_event, season_lock } from "./series-view";
+  import { event_art, next_event, season_kicker, season_lock, season_title } from "./series-view";
   import StartSheet from "./StartSheet.svelte";
   import Card from "./ui/Card.svelte";
   import Chip from "./ui/Chip.svelte";
@@ -45,7 +45,8 @@
   const series = $derived(ready ? list[at] : null);
   const season = $derived(live.live(() => series?.season ?? null));
   const progress = $derived(live.live(() => series?.progress ?? null));
-  const lock = $derived(ready && at > 0 && !live.live(() => series_open(list))[at] ? season_lock(list[at - 1].base) : null);
+  const blocker = $derived(ready && !live.live(() => series_open(list))[at] ? series_blocker(list, at) : null);
+  const lock = $derived(blocker && season_lock(blocker));
   const states = $derived(season && progress ? event_states(season, progress) : []);
   const next = $derived(season && progress && !lock ? (season.events[next_event(season, progress, states)] ?? null) : null);
   const round = $derived(season && next ? season.events.indexOf(next) + 1 : 0);
@@ -128,8 +129,8 @@
       <Card picture={series_shot} wide focused class="events-series" label="Harepin Series">
         {#if season && progress}
           <div class="ev-head">
-            <span class="ev-eyebrow">Harepin Series · Season {at + 1} · {season.name}</span>
-            <h2 class="ev-h1">{next ? `Round ${round} of ${season.events.length} · ${next.name}` : (lock ?? `${season.name} series`)}</h2>
+            <span class="ev-eyebrow">Harepin Series · {season_kicker(list.map((one) => one.base), list[at].base)} · {season.name}</span>
+            <h2 class="ev-h1">{next ? `Round ${round} of ${season.events.length} · ${next.name}` : (lock ?? season_title(season))}</h2>
             {#if next}<PlaceLine place={place_of(series_map(season, next), here)} />{/if}
           </div>
           <ol class="events-rounds" aria-label="Rounds">

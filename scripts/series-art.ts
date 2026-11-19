@@ -27,11 +27,12 @@ interface Event {
 interface Season {
   id: string;
   world: string;
+  field: unknown[];
   events: Event[];
 }
 // The seasons are TypeScript with extensionless imports, which Node's type stripping can't follow: Bun reads them. The
 // expression has no space, quote pair or `>` because Windows hands the shim to cmd.
-const LIST = "JSON.stringify((await(import('./src/career/series-seasons'))).SEASONS)";
+const LIST = "JSON.stringify((await(import('./src/career/series-seasons'))).SERIES_LIST)";
 const SEASONS: Season[] = JSON.parse(execFileSync("bun", ["--print", LIST], { encoding: "utf8", shell: true }));
 const events = SEASONS.flatMap((season) =>
   season.events.filter((e) => (named.length ? named.includes(e.id) || named.includes(season.id) : !existsSync(new URL(`${e.id}.webp`, OUT)))).map((event) => ({ season, event })),
@@ -55,7 +56,10 @@ try {
     await open_seasons(page, SEASONS.slice(0, SEASONS.indexOf(season)).map((s) => s.id), season);
     const query = new URLSearchParams({ series: event.id, seed: String(event.seed), world: season.world, aidrive: "", quality: "high" });
     await page.goto(`${base}/?${query}`);
-    await page.waitForSelector("#race-lights:not([hidden])", { timeout: 180_000 }).catch(async (error: unknown) => {
+    // A travel holds on its briefing until Start.
+    const nudge = setInterval(() => void page.keyboard.press("Enter").catch(() => {}), 3000);
+    const lights = page.waitForSelector("#race-lights:not([hidden])", { timeout: 180_000 }).finally(() => clearInterval(nudge));
+    await lights.catch(async (error: unknown) => {
       await page.screenshot({ path: `series-art-${event.id}.png` });
       throw error;
     });
@@ -74,7 +78,9 @@ try {
  * its events are open with cars on the grid ahead; the game creates the database first.
  */
 async function open_seasons(page: Page, ids: readonly string[], season: Season) {
-  const won = { season: season.id, round: 0, results: Object.fromEntries(season.events.map((e) => [e.id, { order: [0, 1, 6, 2, 3, 4, 5], bonus: [] }])) };
+  const you = season.field.length;
+  const order = [0, 1, you, ...season.field.map((_, i) => i).slice(2)];
+  const won = { season: season.id, round: 0, results: Object.fromEntries(season.events.map((e) => [e.id, { order, bonus: [] }])) };
   await page.goto(`${base}/?series`);
   await page.waitForSelector("[data-series]", { timeout: 120_000 });
   await page.evaluate(

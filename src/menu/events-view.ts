@@ -16,7 +16,8 @@ import { RunSource, run_of, type RunPick } from "../runs/runs";
 import { plain_map, type MapSpec } from "../worldgen/kinds/kinds";
 import type { SettingsHost } from "./page";
 import { car_text, pick_text, stage_text } from "./runs/run-text";
-import { cap_line, event_art } from "./series-view";
+import { cap_line, event_art, season_title } from "./series-view";
+import { CARS } from "../car/cars";
 import { preview } from "./widgets";
 
 export const CAREER_PAGE = "tiers";
@@ -110,14 +111,14 @@ export function start_view(target: StartTarget, here: MapSpec): StartView {
     const { season } = series;
     return {
       img: event_art(event),
-      eyebrow: `${season.name} series · Round ${season.events.indexOf(event) + 1} of ${season.events.length} · ${KIND_NAMES[event.kind]}`,
+      eyebrow: `${season_title(season)} · Round ${season.events.indexOf(event) + 1} of ${season.events.length} · ${KIND_NAMES[event.kind]}`,
       title: event.name,
       place: place_of(series_map(season, event), here),
       marks: KIND_POINTS[event.kind].slice(0, PODIUM).map((points, i) => ({ head: ordinal(i + 1), text: `${points} pts` })),
       facts: `${KIND_RULES[event.kind]} · ${cap_line(season)}`,
-      limit: series.car_limit(),
+      limit: season.loaner ? null : series.car_limit(),
       limit_text: cap_line(season),
-      lent: null,
+      lent: season.loaner ? `stock ${CARS[season.loaner].name}` : null,
     };
   }
   if (target.kind === "custom") {

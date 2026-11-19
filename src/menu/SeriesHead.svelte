@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { ordinal, type Season, type SeriesProgress, type Standing } from "../career/series";
+  import { ordinal, trophy_of, type Season, type SeriesProgress, type Standing } from "../career/series";
   import { credits_text } from "../career/wallet";
-  import { duel_text, rival_gap } from "./series-view";
+  import { duel_text, rival_gap, season_title } from "./series-view";
 
   interface Props {
     season: Season;
@@ -20,11 +20,12 @@
   const rank = $derived(table.findIndex((row) => row.you) + 1);
   const me = $derived(table.find((row) => row.you));
   const duel = $derived(rival_gap(season, table));
+  const trophy = $derived(trophy_of(progress));
 </script>
 
 <header class="sh">
   <div class="sh-title">
-    {#if title}{@render title()}{:else}<h2>{season.name} series</h2>{/if}
+    {#if title}{@render title()}{:else}<h2>{season_title(season)}</h2>{/if}
     {#if children}<p class="sh-terms">{@render children()}</p>{/if}
   </div>
   <dl class="sh-stats" aria-label="Your season">
@@ -40,6 +41,12 @@
       <div class="sh-rival">
         <dt>Rival {duel.rival.name}</dt>
         <dd>{duel_text(duel.gap)}</dd>
+      </div>
+    {/if}
+    {#if trophy}
+      <div class="sh-trophy">
+        <dt>Trophy</dt>
+        <dd>{trophy}</dd>
       </div>
     {/if}
     <div>
@@ -123,6 +130,10 @@
 
   .sh-rival dt {
     color: var(--warning);
+  }
+
+  .sh-trophy dt {
+    color: var(--primary);
   }
 
   @media (max-height: 500px) {

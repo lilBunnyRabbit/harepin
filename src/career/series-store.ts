@@ -2,9 +2,9 @@ import type { Build } from "../car/build";
 import type { CarLimit } from "../car/car-pick";
 import type { CarId } from "../car/cars";
 import { event_credits } from "./credits";
-import { better, car_fault, empty_progress, event_of, parse_progress, season_done, season_round, type EventResult, type Season, type SeriesEvent, type SeriesProgress } from "./series";
+import { better, car_fault, empty_progress, event_of, parse_progress, season_done, season_round, standings, trophy_of, type EventResult, type Season, type SeriesEvent, type SeriesProgress } from "./series";
 import type { SeriesSaves } from "./series-db";
-import { completed, SEASONS, seasons_open } from "./series-seasons";
+import { chain_before, completed, SERIES_LIST, seasons_open } from "./series-seasons";
 import type { Wallet } from "./wallet";
 
 export interface Payout {
@@ -13,6 +13,8 @@ export interface Payout {
   season_credits: number;
   /** The reward car, when this finish completed the season and the player did not own it yet. */
   car: CarId | null;
+  /** The trophy this finish completed the season with, when it beats any kept before. */
+  trophy: string | null;
 }
 
 /** One season's progress, replaced with a new object on each change so a `$derived` over it wakes. */
@@ -74,18 +76,28 @@ export class Series {
     const was_done = season_done(season, this.progress_);
     const kept = better(season, event, result, this.progress_.results[event.id]);
     if (kept) this.set({ ...this.progress_, results: { ...this.progress_.results, [event.id]: result } });
-    const completed = !was_done && season_done(season, this.progress_);
-    if (!completed) return { kept, credits, season_credits: 0, car: null };
+    const done = season_done(season, this.progress_);
+    // A done season keeps its rounds open: a better rerun can still lift the final table, and the trophy with it.
+    const trophy = done && (kept || !was_done) ? this.place_best() : null;
+    if (was_done || !done) return { kept, credits, season_credits: 0, car: null, trophy };
     // The reward's credits pay once, on the season's own seeds: a replay pays its races' credits only, so it is no farm.
     const season_credits = this.progress_.round === 0 ? season.reward.credits : 0;
     this.wallet.earn(season_credits);
-    return { kept, credits, season_credits, car: this.wallet.grant(season.reward.car) ? season.reward.car : null };
+    return { kept, credits, season_credits, car: this.wallet.grant(season.reward.car) ? season.reward.car : null, trophy };
   }
 
-  /** A finished season runs again on new seeds against a stronger field (C5); one under way starts over where it is. */
+  private place_best(): string | null {
+    const place = standings(this.season_, this.progress_).findIndex((row) => row.you) + 1;
+    const { best } = this.progress_;
+    if (best && best <= place) return null;
+    this.set({ ...this.progress_, best: place });
+    return trophy_of(this.progress_);
+  }
+
+  /** A finished season runs again on new seeds against a stronger field (C5); one under way starts over where it is. The best place keeps. */
   reset() {
-    const { round } = this.progress_;
-    this.set(empty_progress(this.base, season_done(this.season_, this.progress_) ? round + 1 : round));
+    const { round, best } = this.progress_;
+    this.set(empty_progress(this.base, season_done(this.season_, this.progress_) ? round + 1 : round, best));
   }
 
   private put(progress: SeriesProgress) {
@@ -100,10 +112,16 @@ export class Series {
   }
 }
 
-/** Every season's progress, in `SEASONS` order, on one store and one wallet. */
-export const series_list = (saves: SeriesSaves | null, wallet: Wallet): Series[] => SEASONS.map((season) => new Series(season, saves, wallet));
+/** Every season's progress, in `SERIES_LIST` order, on one store and one wallet. */
+export const series_list = (saves: SeriesSaves | null, wallet: Wallet): Series[] => SERIES_LIST.map((season) => new Series(season, saves, wallet));
 
-export const series_open = (list: readonly Series[]): boolean[] => seasons_open(list.map((one) => completed(one.season, one.progress)));
+export const series_open = (list: readonly Series[]): boolean[] =>
+  seasons_open(
+    list.map((one) => one.base),
+    list.map((one) => completed(one.season, one.progress)),
+  );
+
+export const series_blocker = (list: readonly Series[], at: number): Season | null => chain_before(list.map((one) => one.base), at);
 
 /** The season to show first: the latest one open, unless it is done and an earlier open one is not. */
 export function series_front(list: readonly Series[]): number {

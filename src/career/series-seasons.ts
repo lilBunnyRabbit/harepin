@@ -1,11 +1,13 @@
 import { WorldKind } from "../worldgen/types";
-import { event_of, season_done, SeriesKind, type Season, type SeriesEvent, type SeriesProgress } from "./series";
+import { rating } from "../car/pi";
+import { event_of, Gate, season_done, SeriesKind, stock_build, type Season, type SeriesEvent, type SeriesProgress } from "./series";
 
 export const SEASON_1: Season = {
   id: "s1",
   name: "Island",
   world: WorldKind.ISLAND,
   cap: "c",
+  gate: Gate.PODIUM,
   reward: { car: "sajin", credits: 5000 },
   replays: [6, 7, 16, 33, 34, 36, 38, 46, 52, 58, 59],
   field: [
@@ -33,6 +35,7 @@ export const SEASON_2: Season = {
   name: "Alpine",
   world: WorldKind.ALPINE,
   cap: "b",
+  gate: Gate.PODIUM,
   reward: { car: "rally", credits: 7500 },
   replays: [11, 15, 21, 28, 30, 32, 33, 37],
   field: [
@@ -60,6 +63,7 @@ export const SEASON_3: Season = {
   name: "Dunes",
   world: WorldKind.DESERT,
   cap: "b",
+  gate: Gate.PODIUM,
   reward: { car: "sturm", credits: 10_000 },
   replays: [3, 8, 13, 18, 23, 24, 29, 30, 39],
   field: [
@@ -87,6 +91,7 @@ export const SEASON_4: Season = {
   name: "Mainland",
   world: WorldKind.MAINLAND,
   cap: "a",
+  gate: Gate.PODIUM,
   reward: { car: "formula", credits: 15_000 },
   replays: [31, 34, 36, 37, 72, 85, 93, 99],
   field: [
@@ -110,14 +115,55 @@ export const SEASON_4: Season = {
 
 export const SEASONS: readonly Season[] = [SEASON_1, SEASON_2, SEASON_3, SEASON_4];
 
+export const RALLY_TRIAL: Season = {
+  id: "rt",
+  name: "Rally Trial",
+  world: WorldKind.ALPINE,
+  cap: rating(stock_build("rally")).class,
+  gate: Gate.FINISH,
+  loaner: "rally",
+  always_open: true,
+  beginner: true,
+  reward: { car: "rally", credits: 0 },
+  replays: [15, 28, 32, 33, 37, 6],
+  field: [
+    { name: "Juno Pike", aggression: 2, mistakes: 4 },
+    { name: "Edda Holm", aggression: 2, mistakes: 3 },
+    { name: "Remy Calder", aggression: 3, mistakes: 4 },
+    { name: "Noor Saleh", aggression: 2, mistakes: 4 },
+    { name: "Bo Strand", aggression: 3, mistakes: 3 },
+  ],
+  rival: 0,
+  events: [
+    { id: "rt-opener", name: "Gravel opener", kind: SeriesKind.RACE, seed: 11, route: "circuit" },
+    { id: "rt-duel", name: "Pike duel", kind: SeriesKind.HEAD_TO_HEAD, seed: 21, route: "circuit" },
+    { id: "rt-final", name: "Four minutes on the pass", kind: SeriesKind.ENDURANCE, seed: 30, route: "circuit", limit_ms: 240_000, final: true },
+  ],
+};
+
+export const CUPS: readonly Season[] = [RALLY_TRIAL];
+
+/** The Series page's list: the cups lead, so a new player's first pick is a cup that hands over a car. */
+export const SERIES_LIST: readonly Season[] = [...CUPS, ...SEASONS];
+
 /** A season has been finished once: its final podiumed now, or a replay begun (a reset only counts up a finished season). */
 export const completed = (season: Season, progress: SeriesProgress) => progress.round > 0 || season_done(season, progress);
 
-/** Which seasons open, in `SEASONS` order: the first always, each next once the one before has been completed. */
-export const seasons_open = (done: readonly boolean[]): boolean[] => done.map((_, i) => i === 0 || done[i - 1]);
+export function chain_before(seasons: readonly Season[], at: number): Season | null {
+  if (seasons[at]?.always_open) return null;
+  return seasons.slice(0, at).findLast((season) => !season.always_open) ?? null;
+}
+
+/** Which seasons open, in list order: a cup always, a season once the one before it in the chain has been completed. */
+export function seasons_open(seasons: readonly Season[], done: readonly boolean[]): boolean[] {
+  return seasons.map((_, i) => {
+    const before = chain_before(seasons, i);
+    return before === null || done[seasons.indexOf(before)];
+  });
+}
 
 export function series_event(id: string | null): { season: Season; event: SeriesEvent } | null {
-  for (const season of SEASONS) {
+  for (const season of SERIES_LIST) {
     const event = event_of(season, id);
     if (event) return { season, event };
   }

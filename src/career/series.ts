@@ -1,4 +1,4 @@
-import type { Build } from "../car/build";
+import { DEFAULT_BUILD, DEFAULT_PARTS, build_code, type Build } from "../car/build";
 import { limit_text, within } from "../car/car-pick";
 import { CARS, type CarId } from "../car/cars";
 import { rating, type CarClass } from "../car/pi";
@@ -56,11 +56,23 @@ export interface SeasonReward {
   readonly credits: number;
 }
 
+/** What opens a season's next event and ends it: a podium in each (the seasons), or only a finish (a frame cup). */
+export const Gate = {
+  PODIUM: "podium",
+  FINISH: "finish",
+} as const;
+export type Gate = (typeof Gate)[keyof typeof Gate];
+
 export interface Season {
   readonly id: string;
   readonly name: string;
   readonly world: WorldKind;
   readonly cap: CarClass;
+  readonly gate: Gate;
+  /** A one-make cup: every car on the grid, the player's included, is a stock one of these, lent whether owned or not. */
+  readonly loaner?: CarId;
+  readonly always_open?: true;
+  readonly beginner?: true;
   readonly reward: SeasonReward;
   /** Seeds a replay draws its events' maps from (C5): each has every route the season's events race, closed. */
   readonly replays: readonly number[];
@@ -119,6 +131,8 @@ export interface SeriesProgress {
   /** Completed runs of the season before this one: 0 on the authored maps, each replay on new seeds and a stronger field. */
   readonly round: number;
   readonly results: Readonly<Record<string, EventResult>>;
+  /** The best place in the final table of any run completed, 1 for a win: a podium keeps a trophy. Absent before one. */
+  readonly best?: number;
 }
 
 export const player_of = (season: Season) => season.field.length;
@@ -131,7 +145,11 @@ export function event_field(season: Season, event: SeriesEvent, progress: Series
   return standings(season, progress).filter((row) => !row.you).map((row) => row.driver);
 }
 
-export const empty_progress = (season: Season, round = 0): SeriesProgress => ({ season: season.id, round, results: {} });
+export const empty_progress = (season: Season, round = 0, best?: number): SeriesProgress => ({ season: season.id, round, results: {}, ...(best ? { best } : {}) });
+
+export const stock_build = (car: CarId): Build => ({ ...DEFAULT_BUILD, car, parts: { ...DEFAULT_PARTS } });
+
+export const loaner_code = (season: Season): string | null => (season.loaner ? build_code(stock_build(season.loaner)) : null);
 
 const LEVEL_MIN = 1;
 const LEVEL_MAX = 5;
@@ -147,8 +165,9 @@ export function season_round(season: Season, round: number): Season {
   };
 }
 
-/** Why the player's car may not race the season, or null: only their own cars (base car start), within the class cap. */
+/** Why the player's car may not race the season, or null: only their own cars (base car start), within the class cap. A cup lends its car, so none is wrong. */
 export function car_fault(season: Season, build: Build, owned: readonly CarId[]): string | null {
+  if (season.loaner) return null;
   if (!owned.includes(build.car)) return `${season.name} series: your own cars only (${owned.map((id) => CARS[id].name).join(", ")})`;
   return within(rating(build).class, season.cap) ? null : `${season.name} series: ${limit_text(season.cap)}`;
 }
@@ -176,7 +195,8 @@ export function parse_progress(season: Season, raw: unknown): SeriesProgress {
     const result = parse_result(season, (results as Record<string, unknown>)[event.id]);
     if (result) out[event.id] = result;
   }
-  return { season: season.id, round, results: out };
+  const { best } = raw as { best?: unknown };
+  return { ...empty_progress(season, round, is_index(best, player_of(season) + 2) ? best : undefined), results: out };
 }
 
 export const place_of = (result: EventResult, driver: number) => result.order.indexOf(driver) + 1;
@@ -208,6 +228,7 @@ export const podium = (season: Season, event: SeriesEvent, result: EventResult |
 export type EventState = "locked" | "open" | "podium";
 
 export function event_states(season: Season, progress: SeriesProgress): EventState[] {
+  if (season.gate === Gate.FINISH) return finish_states(season, progress);
   const podiums = season.events.filter((e) => !e.final && podium(season, e, progress.results[e.id])).length;
   const rest = season.events.filter((e) => !e.final);
   return season.events.map((event) => {
@@ -217,7 +238,15 @@ export function event_states(season: Season, progress: SeriesProgress): EventSta
   });
 }
 
-export const is_open = (season: Season, progress: SeriesProgress, event: SeriesEvent) => event_states(season, progress)[season.events.indexOf(event)] !== "locked";
+function finish_states(season: Season, progress: SeriesProgress): EventState[] {
+  const unrun = season.events.findIndex((event) => !progress.results[event.id]);
+  return season.events.map((event, i) => {
+    if (podium(season, event, progress.results[event.id])) return "podium";
+    return unrun < 0 || i <= unrun ? "open" : "locked";
+  });
+}
+
+export const is_open =(season: Season, progress: SeriesProgress, event: SeriesEvent) => event_states(season, progress)[season.events.indexOf(event)] !== "locked";
 
 /** Where a result's Next goes: the first open event after `after`, else the first one before it; null with none left. */
 export function next_open(season: Season, progress: SeriesProgress, after: SeriesEvent): SeriesEvent | null {
@@ -227,8 +256,17 @@ export function next_open(season: Season, progress: SeriesProgress, after: Serie
   return order.find((event) => states[season.events.indexOf(event)] === "open") ?? null;
 }
 
-/** The season ends with a podium in its final (C4: losing it means another go, the standings kept). */
-export const season_done = (season: Season, progress: SeriesProgress) => season.events.every((e) => !e.final || podium(season, e, progress.results[e.id]));
+/** The season ends with a podium in its final (C4: losing it means another go, the standings kept); a cup once every round is run. */
+export function season_done(season: Season, progress: SeriesProgress): boolean {
+  if (season.gate === Gate.FINISH) return season.events.every((e) => progress.results[e.id] !== undefined);
+  return season.events.every((e) => !e.final || podium(season, e, progress.results[e.id]));
+}
+
+export function trophy_of(progress: SeriesProgress): string | null {
+  const { best } = progress;
+  if (!best || best > PODIUM) return null;
+  return best === 1 ? "Winner's cup" : `${ordinal(best)} place trophy`;
+}
 
 export interface Standing {
   driver: number;
