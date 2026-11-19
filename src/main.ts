@@ -617,6 +617,19 @@ garage.on_change = (next) => {
   apply_car_settings(settings.state);
 };
 
+// A build from chat fits at once only with no run or lobby race up; otherwise the garage's own Load fits it, under that run's rules.
+chat.use_build = (code) => {
+  if (code === garage.code) return hud.toast("That build is already on your car");
+  if (lobby.busy || modes.engaged) {
+    chat.close();
+    settings.open(MenuTab.GARAGE);
+    garage.offer(code);
+    return hud.toast("Run in progress: Load it from Builds");
+  }
+  garage.use_code(code);
+  hud.toast("Build fitted");
+};
+
 const on_this_map = (to: CareerEvent) => place_of(event_map(to), built).here;
 
 /** `car` is the one taken on the start sheet, null when the event brings its own or nothing was picked yet. */

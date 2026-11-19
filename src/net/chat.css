@@ -27,13 +27,13 @@
 }
 
 #chat-log b,
-#chat-history b {
+#chat-history .chat-meta b {
   color: var(--secondary);
   font-weight: 600;
 }
 
 #chat-log li[data-own="true"] b,
-#chat-history li[data-own="true"] b {
+#chat-history li[data-own="true"] .chat-meta b {
   color: var(--primary);
 }
 
@@ -129,7 +129,7 @@
   color: var(--dim);
 }
 
-#chat-history p {
+#chat-history > li > p {
   max-width: 88%;
   margin: 0;
   padding: var(--space-1) var(--space-3);
@@ -139,7 +139,7 @@
   background: var(--row);
 }
 
-#chat-history li[data-own="true"] p {
+#chat-history li[data-own="true"] > p {
   background: var(--panel-raised);
 }
 

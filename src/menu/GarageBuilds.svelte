@@ -28,7 +28,6 @@
   const CONFIRM_MS = 3000;
 
   let name = $state("");
-  let code = $state("");
   let code_error = $state("");
   let rename = $state("");
   let rename_error = $state("");
@@ -78,7 +77,7 @@
 
   function load_code(event: SubmitEvent) {
     event.preventDefault();
-    const build = parse_build(code.trim());
+    const build = parse_build(garage.friend_code.trim());
     if (!build) {
       code_error = "That isn't a build code";
       return;
@@ -154,7 +153,7 @@
   <SectionHead eyebrow="A friend's code" />
   <form class="garage-form" onsubmit={load_code}>
     <TextField
-      bind:value={code}
+      bind:value={garage.friend_code}
       name="build-code"
       mono
       placeholder="Paste a code"
