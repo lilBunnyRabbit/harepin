@@ -1,4 +1,4 @@
-import { car_fault, ordinal, place_of, player_of, result_points, type EventState, type Season, type SeriesEvent, type SeriesProgress, type Standing } from "../career/series";
+import { car_fault, Gate, ordinal, place_of, player_of, result_points, type EventState, type Season, type SeriesEvent, type SeriesProgress, type Standing } from "../career/series";
 import { credits_text, type WalletState } from "../career/wallet";
 import type { Build } from "../car/build";
 import { within } from "../car/car-pick";
@@ -7,8 +7,23 @@ import { CLASS_LABELS, rating } from "../car/pi";
 
 export interface SeasonTab {
   name: string;
+  kicker: string;
+  beginner: boolean;
   open: boolean;
   done: boolean;
+}
+
+export const season_title = (season: Season) => (season.loaner ? season.name : `${season.name} series`);
+
+export function season_tabs(seasons: readonly Season[], open: readonly boolean[], done: readonly boolean[]): SeasonTab[] {
+  const chain = seasons.filter((season) => !season.always_open);
+  return seasons.map((season, i) => ({
+    name: season_title(season),
+    kicker: season.loaner ? `One-make cup${season.beginner ? " · start here" : ""}` : `Season ${chain.indexOf(season) + 1} of ${chain.length}`,
+    beginner: season.beginner === true,
+    open: open[i],
+    done: done[i],
+  }));
 }
 
 export interface SeriesView {
@@ -59,20 +74,27 @@ export function start_card(season: Season, progress: SeriesProgress, states: rea
   return fresh >= 0 ? fresh : Math.max(season.events.findLastIndex((event) => progress.results[event.id]), 0);
 }
 
-export const lock_line = (event: SeriesEvent) => (event.final ? "Podium every event to open" : "Any podium opens it");
+export function lock_line(season: Season, event: SeriesEvent): string {
+  if (season.gate === Gate.FINISH) return "Finish the round before to open";
+  return event.final ? "Podium every event to open" : "Any podium opens it";
+}
 
 export const season_lock = (before: Season) => `Finish the ${before.name} series to open`;
 
 export const place_text = (score: EventScore) => ordinal(score.place);
 
-export const cap_line = (season: Season) => `Class ${CLASS_LABELS[season.cap]} · your own cars`;
+export const loaner_line = (car: CarId) => `Loaner: stock ${CARS[car].name}`;
+
+export const cap_line = (season: Season) => (season.loaner ? `${loaner_line(season.loaner)} for everyone` : `Class ${CLASS_LABELS[season.cap]} · your own cars`);
+
+export const goal_line = (season: Season) => (season.gate === Gate.FINISH ? `finish every round to keep the ${CARS[season.reward.car].name}` : "points by finishing place");
 
 export const round_line = (progress: SeriesProgress) => (progress.round ? `Run ${progress.round + 1}` : null);
 
 /** The final's prize: the car while the player does not own it, the credits on the season's first run only; null when nothing is left. */
 export function reward_line(season: Season, wallet: WalletState, progress: SeriesProgress): string | null {
   const { car, credits } = season.reward;
-  const parts = [...(wallet.cars.includes(car) ? [] : [CARS[car].name]), ...(progress.round === 0 ? [credits_text(credits)] : [])];
+  const parts = [...(wallet.cars.includes(car) ? [] : [CARS[car].name]), ...(progress.round === 0 && credits > 0 ? [credits_text(credits)] : [])];
   return parts.length ? parts.join(" + ") : null;
 }
 
@@ -85,7 +107,7 @@ export function rival_gap(season: Season, table: readonly Standing[]): { rival: 
 
 export const duel_text = (gap: number) => (gap > 0 ? `You lead by ${gap}` : gap < 0 ? `You trail by ${-gap}` : "Level");
 
-export const terms_line = (season: Season) => `${season.events.length} events · points by finishing place · ${cap_line(season)}`;
+export const terms_line = (season: Season) => `${season.events.length} ${season.gate === Gate.FINISH ? "rounds" : "events"} · ${goal_line(season)} · ${cap_line(season)}`;
 
 export const step_focus = (focus: number, dir: 1 | -1, count: number) => Math.min(Math.max(focus + dir, 0), count - 1);
 

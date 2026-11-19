@@ -1,6 +1,6 @@
 <script lang="ts">
   import { SERIES_PAGE, event_states, season_done, standings, type EventState, type Season, type SeriesProgress } from "../career/series";
-  import { series_front, series_open } from "../career/series-store";
+  import { series_blocker, series_front, series_open } from "../career/series-store";
   import type { WalletState } from "../career/wallet";
   import type { CarPicker } from "./car-pick.svelte";
   import { bare_enter } from "./drive-picks";
@@ -8,7 +8,7 @@
   import { MenuTab } from "./page";
   import MenuFrame from "./MenuFrame.svelte";
   import SeriesFlow from "./SeriesFlow.svelte";
-  import { season_lock, type SeasonTab } from "./series-view";
+  import { season_lock, season_tabs, type SeasonTab } from "./series-view";
   import StartSheet from "./StartSheet.svelte";
   import PrimaryAction from "./ui/PrimaryAction.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
@@ -32,8 +32,19 @@
   // A replay swaps the season for its next round, so it is re-read on refresh like the progress.
   const season = $derived<Season | null>(live.live(() => (ready ? series.season : null)));
   const open = $derived<boolean[]>(live.live(() => (ready ? series_open(list) : [])));
-  const seasons = $derived<SeasonTab[]>(live.live(() => (ready ? list.map((one, i) => ({ name: one.base.name, open: open[i], done: season_done(one.season, one.progress) })) : [])));
-  const lock = $derived(ready && !open[at] ? season_lock(list[at - 1].base) : null);
+  const seasons = $derived<SeasonTab[]>(
+    live.live(() =>
+      ready
+        ? season_tabs(
+            list.map((one) => one.base),
+            open,
+            list.map((one) => season_done(one.season, one.progress)),
+          )
+        : [],
+    ),
+  );
+  const blocker = $derived(ready && !open[at] ? series_blocker(list, at) : null);
+  const lock = $derived(blocker && season_lock(blocker));
   const table = $derived(season && progress ? standings(season, progress) : []);
   const states = $derived<EventState[]>(season && progress ? (lock ? season.events.map(() => "locked") : event_states(season, progress)) : []);
   const done = $derived(season && progress ? season_done(season, progress) : false);

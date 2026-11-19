@@ -4,7 +4,7 @@
   import SeriesHead from "./SeriesHead.svelte";
   import SeriesSeasons from "./SeriesSeasons.svelte";
   import SeriesStandings from "./SeriesStandings.svelte";
-  import { event_score, place_text, reward_line, round_line, start_card, step_focus, terms_line, type SeriesView } from "./series-view";
+  import { event_score, lock_line, place_text, reward_line, round_line, start_card, step_focus, terms_line, type SeriesView } from "./series-view";
   import { swipe } from "./series-swipe";
   import Icon from "./ui/Icon.svelte";
 
@@ -83,7 +83,7 @@
       {#each season.events as event, i (event.id)}
         <li data-i={i}>
           <div class="fl-card">
-            <SeriesCard {event} n={i + 1} state={states[i]} score={event_score(season, progress, event)} front={i === focus} reward={event.final ? reward_line(season, wallet, progress) : null} {lock} onpick={() => (i === focus ? start_front() : show(i))} />
+            <SeriesCard {event} n={i + 1} state={states[i]} score={event_score(season, progress, event)} front={i === focus} reward={event.final ? reward_line(season, wallet, progress) : null} lock={lock ?? lock_line(season, event)} onpick={() => (i === focus ? start_front() : show(i))} />
           </div>
         </li>
       {/each}

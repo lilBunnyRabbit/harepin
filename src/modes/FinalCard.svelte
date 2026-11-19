@@ -1,6 +1,7 @@
 <script lang="ts">
   import { CARS } from "../car/cars";
-  import { SERIES_PAGE, ordinal, place_of, player_of, season_done, standings } from "../career/series";
+  import { SERIES_PAGE, ordinal, place_of, player_of, season_done, standings, trophy_of } from "../career/series";
+  import { season_title } from "../menu/series-view";
   import { series_front, series_open } from "../career/series-store";
   import { credits_text } from "../career/wallet";
   import CarStill from "../menu/CarStill.svelte";
@@ -25,6 +26,7 @@
   const table = $derived(season && progress ? standings(season, progress) : []);
   const place = $derived(table.findIndex((row) => row.you) + 1);
   const wins = $derived(season && progress ? season.events.filter((event) => progress.results[event.id] && place_of(progress.results[event.id], player_of(season)) === 1).length : 0);
+  const trophy = $derived(progress ? trophy_of(progress) : null);
   const after = $derived(live.live(() => (series_open(list)[at + 1] ? (list[at + 1]?.base ?? null) : null)));
 
   const go = () => menu.show(SERIES_PAGE);
@@ -60,7 +62,7 @@
         </Card>
       </div>
       <div class="final-champ" data-stage-panel>
-        <span class="final-eyebrow">Harepin Series · Season {at + 1} · {season.name}</span>
+        <span class="final-eyebrow">Harepin Series · {season_title(season)}</span>
         <span class="final-display">{place === 1 ? "Champion" : `${ordinal(place)} place`}</span>
         <span class="final-sub">{wins} {wins === 1 ? "win" : "wins"} in {season.events.length} rounds</span>
       </div>
@@ -69,12 +71,20 @@
           <b class="final-h3">Rewards</b>
           <div class="final-reward">
             <span class="final-pic"><CarStill car={season.reward.car} /></span>
-            <div class="final-text"><b>{CARS[season.reward.car].name}</b><span>Season car</span></div>
+            <div class="final-text"><b>{CARS[season.reward.car].name}</b><span>{season.loaner ? "Yours to keep" : "Season car"}</span></div>
           </div>
-          <div class="final-reward">
-            <span class="final-pic final-icon" aria-hidden="true">★</span>
-            <div class="final-text"><b class="final-mono">+{credits_text(season.reward.credits)}</b><span>Credits</span></div>
-          </div>
+          {#if trophy}
+            <div class="final-reward">
+              <span class="final-pic final-icon" aria-hidden="true">★</span>
+              <div class="final-text"><b>{trophy}</b><span>Trophy</span></div>
+            </div>
+          {/if}
+          {#if season.reward.credits > 0}
+            <div class="final-reward">
+              <span class="final-pic final-icon" aria-hidden="true">★</span>
+              <div class="final-text"><b class="final-mono">+{credits_text(season.reward.credits)}</b><span>Credits</span></div>
+            </div>
+          {/if}
         </Card>
       </div>
     </div>

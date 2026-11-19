@@ -102,8 +102,8 @@
       {#if view.facts}<span class="ev-small">{view.facts}</span>{/if}
       <div class="sheet-car">
         {#if view.lent}
-          <span class="sheet-lent ev-h3">{view.lent} car</span>
-          <span class="ev-small sheet-fit">The event lends it</span>
+          <span class="sheet-lent ev-h3">Loaner: {view.lent}</span>
+          <span class="ev-small sheet-fit">The event lends it, your own car waits</span>
         {:else}
           <span class="sheet-still"><CarStill car={build.car} {build} /></span>
           <span class="sheet-who">

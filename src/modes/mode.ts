@@ -89,6 +89,8 @@ export interface FieldOutcome {
 
 export interface FieldEvent {
   readonly name: string;
+  /** Build code of the car the event lends over the player's own until they leave it; a tune on it ends the run. */
+  readonly loaner?: string;
   /** One per AI car, pole first. */
   readonly names: readonly string[];
   readonly knockout: boolean;

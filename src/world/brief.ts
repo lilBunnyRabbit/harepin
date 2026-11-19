@@ -1,6 +1,7 @@
 import { parse_build } from "../car/build";
 import { limit_text } from "../car/car-pick";
-import type { CarId } from "../car/cars";
+import { CARS, type CarId } from "../car/cars";
+import { loaner_line } from "../menu/series-view";
 import { PRESETS } from "../car/presets";
 import { event_place, marks_of, type Mark } from "../career/gate";
 import { FORMAT_NAMES, length_text } from "../menu/events-view";
@@ -38,7 +39,9 @@ export function brief_of(travel: Travel): BriefFacts {
   if ("series" in travel) {
     const { season, event } = travel.series;
     const eyebrow = `${season.name} Series · Round ${season.events.indexOf(event) + 1} of ${season.events.length}`;
-    return { eyebrow, name: event.name, goal: goal_of("race"), marks: [], specs: [{ label: "Car", value: limit_text(season.cap) }], lent: null, start: "Starts on the grid, engine running" };
+    const { loaner } = season;
+    const specs = [{ label: "Car", value: loaner ? loaner_line(loaner) : limit_text(season.cap) }];
+    return { eyebrow, name: event.name, goal: goal_of("race"), marks: [], specs, lent: loaner ? { car: loaner, name: `Stock ${CARS[loaner].name}` } : null, start: "Starts on the grid, engine running" };
   }
   if ("custom" in travel) {
     const setup = travel.custom;

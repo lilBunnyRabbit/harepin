@@ -4,15 +4,19 @@ import { expect, test } from "bun:test";
 import { render } from "svelte/server";
 import { DEFAULT_BUILD, DEFAULT_PARTS, type Build } from "../car/build";
 import { car_fault, empty_progress, event_states, player_of, standings, type SeriesProgress } from "../career/series";
-import { SEASON_1, SEASON_4, SEASONS } from "../career/series-seasons";
-import { car_note, season_lock, start_card } from "./series-view";
+import { RALLY_TRIAL, SEASON_1, SEASON_4, SEASONS, SERIES_LIST } from "../career/series-seasons";
+import { series_list } from "../career/series-store";
+import { series_map } from "../career/series-run";
+import { Wallet } from "../career/wallet";
+import { start_view } from "./events-view";
+import { car_note, season_lock, season_tabs, start_card } from "./series-view";
 import { BASE_CAR, fresh_wallet } from "../career/wallet";
 import SeriesEvents from "./SeriesEvents.svelte";
 import SeriesFlow from "./SeriesFlow.svelte";
 import SeriesTable from "./SeriesTable.svelte";
 
 const season = SEASON_1;
-const switcher = { seasons: SEASONS.map((s, i) => ({ name: s.name, open: i < 2, done: i === 0 })), at: 0, onseason: () => {}, lock: null };
+const switcher = { seasons: season_tabs(SEASONS, [true, true, false, false], [true, false, false, false]), at: 0, onseason: () => {}, lock: null };
 const won: SeriesProgress = { season: season.id, round: 0, results: { [season.events[0].id]: { order: [player_of(season), 0, 1, 2, 3, 4, 5], bonus: [] } } };
 
 test("a fresh series offers three races and locks the rest", () => {
@@ -78,8 +82,35 @@ test("the switcher names the season shown and steps either way; a shut season lo
   expect(out).not.toContain("Start over");
 });
 
+test("the Rally Trial leads the switcher as a beginner's cup: its loaner named, its rounds opened by a finish, the Rally its prize", () => {
+  const cup = RALLY_TRIAL;
+  const progress = empty_progress(cup);
+  const seasons = season_tabs(SERIES_LIST, [true, true, false, false, false], [false, false, false, false, false]);
+  expect(seasons.map((tab) => tab.kicker)).toEqual(["One-make cup · start here", "Season 1 of 4", "Season 2 of 4", "Season 3 of 4", "Season 4 of 4"]);
+  const props = { season: cup, progress, states: event_states(cup, progress), table: standings(cup, progress), done: false, wallet: fresh_wallet(), onstart: () => {}, onreset: () => {}, seasons, at: 0, onseason: () => {}, lock: null };
+  const out = render(SeriesFlow, { props }).body;
+  expect(out).toContain("Rally Trial");
+  expect(out).not.toContain("Rally Trial series");
+  expect(out).toContain("data-beginner");
+  expect(out).toContain("3 rounds · finish every round to keep the Rally · Loaner: stock Rally for everyone");
+  expect(out.match(/Finish the round before to open/g)?.length).toBe(2);
+  expect(out).toContain('<span class="sc-reward');
+  expect(out).not.toContain(" cr</span>");
+  const won = render(SeriesFlow, { props: { ...props, progress: { ...progress, best: 1 } } }).body;
+  expect(won).toContain("Winner's cup");
+});
+
+test("a cup's start sheet lends the stock car: no picker, no cap check", () => {
+  const list = series_list(null, new Wallet(null));
+  const cup = list[0];
+  const view = start_view({ kind: "series", series: cup, event: cup.base.events[0] }, series_map(cup.base, cup.base.events[0]));
+  expect(view.limit).toBeNull();
+  expect(view.lent).toBe("stock Rally");
+  expect(view.eyebrow.startsWith("Rally Trial · Round 1 of 3")).toBe(true);
+});
+
 test("every season's events have their card art", () => {
-  for (const season of SEASONS) for (const event of season.events) expect(existsSync(new URL(`../../public/series/${event.id}.webp`, import.meta.url))).toBe(true);
+  for (const season of SERIES_LIST) for (const event of season.events) expect(existsSync(new URL(`../../public/series/${event.id}.webp`, import.meta.url))).toBe(true);
 });
 
 test("a car the series won't take says why, and says nothing when the start would take it", () => {

@@ -14,17 +14,17 @@
   const tab = $derived(seasons[at]);
 </script>
 
-<div class="sw" role="group" aria-label="Seasons" data-state={tab.done ? "done" : tab.open ? "open" : "locked"}>
+<div class="sw" role="group" aria-label="Seasons" data-state={tab.done ? "done" : tab.open ? "open" : "locked"} data-beginner={tab.beginner && !tab.done ? "" : undefined}>
   <!-- The steps lead the line, so they keep their spot whatever the season is called. -->
   <div class="sw-top">
     <span class="sw-step">
       <IconButton icon="icon-back" label="Previous season" shape="round" size="sm" disabled={at <= 0} onclick={() => onseason(at - 1)} />
       <IconButton icon="icon-back" label="Next season" shape="round" size="sm" flip disabled={at >= seasons.length - 1} onclick={() => onseason(at + 1)} />
     </span>
-    <span class="sw-of">Season {at + 1} of {seasons.length}{tab.done ? " · finished" : ""}</span>
+    <span class="sw-of">{tab.kicker}{tab.done ? " · finished" : ""}</span>
   </div>
   <h2 aria-live="polite">
-    {#if !tab.open}<Icon name="icon-lock" />{/if}<span class="sw-name">{tab.name} series</span>
+    {#if !tab.open}<Icon name="icon-lock" />{/if}<span class="sw-name">{tab.name}</span>
   </h2>
 </div>
 
@@ -46,7 +46,8 @@
     text-overflow: ellipsis;
   }
 
-  [data-state="done"] .sw-of {
+  [data-state="done"] .sw-of,
+  [data-beginner] .sw-of {
     color: var(--primary);
   }
 
