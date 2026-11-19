@@ -1,5 +1,6 @@
 /// <reference types="bun" />
 import { afterAll, describe, expect, spyOn, test } from "bun:test";
+import { Vector3 } from "three";
 import { Car, type Controls } from "../car/car";
 import { COUPE, RALLY } from "../car/cars";
 import { personalities } from "../ai/field";
@@ -193,6 +194,9 @@ describe("sim worker", () => {
 /** Steps a host on its own world as the sim worker does, replying in the same task; from frame `fail_at` on it errors or goes silent. */
 class FailingWorker extends EventTarget {
   terminated = false;
+  /** While set, replies wait for `release`, as a busy worker's land after main's next frame has started. */
+  late = false;
+  private readonly held: Float64Array[] = [];
   private host: SimHost | null = null;
   private frames = 0;
 
@@ -217,7 +221,12 @@ class FailingWorker extends EventTarget {
     const frame = this.host.frame(request.frame);
     const out = new Float64Array(packet_size(this.host.car, this.host.field_cars));
     write_packet(out, request.epoch, frame, this.host.car, this.host.from, this.host.field_cars, this.host.field_from, this.host.field_progress);
-    this.dispatchEvent(new MessageEvent("message", { data: out }));
+    if (this.late) this.held.push(out);
+    else this.dispatchEvent(new MessageEvent("message", { data: out }));
+  }
+
+  release() {
+    for (const data of this.held.splice(0)) this.dispatchEvent(new MessageEvent("message", { data }));
   }
 
   terminate() {
@@ -268,6 +277,41 @@ describe("sim worker failure", () => {
     expect(pace).toBeGreaterThan(0.05);
     expect(Math.max(...after.slice(0, 10))).toBeLessThan(pace * 1.5);
     expect(after.slice(-10).every((m) => m > pace * 0.5)).toBe(true);
+  });
+
+  test("replies landing every other frame in pairs still draw the car moving a frame's way each frame, never standing or jumping back", () => {
+    const on_time = failing(Number.POSITIVE_INFINITY, "silent");
+    const late = failing(Number.POSITIVE_INFINITY, "silent");
+    on_time.worker.late = true;
+    late.worker.late = true;
+    const drawn = (of: WorkerSim, into: Vector3) => into.lerpVectors(of.from.pos, of.car.pos, of.blend);
+    const want = new Vector3();
+    const was = new Vector3();
+    const got = new Vector3();
+    const off: number[] = [];
+    const moved: number[] = [];
+    const steady: number[] = [];
+    let acc = 0;
+    for (let k = 0; k < 120; k++) {
+      acc += 6.5;
+      const request = { ...step(k), steps: Math.floor(acc), blend: acc % 1 };
+      acc %= 1;
+      on_time.worker.release();
+      if (k < 60 || k % 2 === 1) late.worker.release();
+      drawn(late.sim, was);
+      on_time.sim.frame(request);
+      late.sim.frame(request);
+      if (k < 64) continue;
+      const step_of = drawn(late.sim, got).distanceTo(was);
+      off.push(got.distanceTo(drawn(on_time.sim, want)) / step_of);
+      if (moved.length) steady.push(step_of / moved[moved.length - 1]);
+      moved.push(step_of);
+    }
+    expect(late.sim.on_main).toBe(false);
+    expect(Math.min(...moved)).toBeGreaterThan(0.05);
+    expect(Math.max(...off)).toBeLessThan(0.05);
+    expect(Math.min(...steady)).toBeGreaterThan(0.9);
+    expect(Math.max(...steady)).toBeLessThan(1.1);
   });
 
   test("an AI field running when the worker fails starts again from its grid on main, and main hears so", async () => {
