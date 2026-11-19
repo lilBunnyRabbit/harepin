@@ -1,7 +1,10 @@
 import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { render } from "svelte/server";
-import { DECALS, DEFAULT_BUILD, NEONS, build_code } from "../car/build";
+import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, NEONS, build_code } from "../car/build";
+import { part_price } from "../career/prices";
+import type { PartPick } from "../career/wallet";
+import { own_parts } from "./garage-items";
 import { Wallet } from "../career/wallet";
 import { BUILD_KEY } from "./garage-builds";
 import { Garage } from "./garage.svelte";
@@ -148,6 +151,17 @@ test("a part not bought on this car shows its price, can't be fitted unbought, f
   garage.use_code(build_code({ ...garage.current, car: "coupe" }), false);
   pick(garage, "engine");
   expect(garage.price(4)).toBe(9_000);
+});
+
+test("an unowned tyre or suspension falls back to stock, never another kind; a levelled slot to the nearest owned below", () => {
+  const owned = new Set(["tyres.2", "suspension.4", "engine.2", "aero.2"]);
+  const owns = (pick: PartPick) => part_price(pick.slot, pick.index) === 0 || owned.has(`${pick.slot}.${pick.index}`);
+  const rally = { ...DEFAULT_BUILD, parts: { ...DEFAULT_BUILD.parts, tyres: 3, suspension: 3, engine: 4 } };
+  const { build, missing } = own_parts(rally, owns);
+  expect(build.parts.tyres).toBe(DEFAULT_PARTS.tyres);
+  expect(build.parts.suspension).toBe(DEFAULT_PARTS.suspension);
+  expect(build.parts.engine).toBe(2);
+  expect(missing).toEqual([{ slot: "engine", index: 4 }, { slot: "tyres", index: 3 }, { slot: "suspension", index: 3 }]);
 });
 
 test("Enter on a part not bought buys it, like the Buy action it labels", () => {

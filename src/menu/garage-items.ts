@@ -1,4 +1,4 @@
-import { DECALS, DECAL_NAMES, MAX_NUMBER, MAX_PAINT, NEONS, NEON_NAMES, NEON_TONES, NEON_TONE_NAMES, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Neon, type Slot, type SlotView } from "../car/build";
+import { DECALS, DECAL_NAMES, DEFAULT_PARTS, MAX_NUMBER, MAX_PAINT, NEONS, NEON_NAMES, NEON_TONES, NEON_TONE_NAMES, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Neon, type Slot, type SlotView } from "../car/build";
 import { TIERS } from "../career/career";
 import { DECAL_PRICE, NEON_PRICE, decal_id, neon_id, type Cosmetic } from "../career/prices";
 import { REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
@@ -172,15 +172,22 @@ export function part_label(name: string, slot_label: string): string {
 
 export const pick_label = ({ slot, index }: PartPick) => part_label(part_of(slot, index).name, SLOTS[slot].label);
 
+/** Slots whose parts are kinds, not levels: Rally tyres are no step down from Slicks. */
+const KIND_SLOTS: ReadonlySet<Slot> = new Set(["tyres", "suspension"]);
+
 /**
- * A build for the player's own car on only the parts bought for it: each part not owned drops to the nearest owned one
- * below it in its slot's list (part 0 is free in every slot), and the parts it wanted come back as `missing`.
+ * A build for the player's own car on only the parts bought for it, and the parts it wanted as `missing`. A part not owned
+ * drops to the nearest owned one below it in a levelled slot (part 0 is free in every slot), to stock in a slot of kinds.
  */
 export function own_parts(build: Build, owns: (pick: PartPick) => boolean): { build: Build; missing: PartPick[] } {
   const missing = SLOT_NAMES.map((slot) => ({ slot, index: build.parts[slot] })).filter((pick) => !owns(pick));
   if (!missing.length) return { build, missing };
   const parts = { ...build.parts };
   for (const { slot, index } of missing) {
+    if (KIND_SLOTS.has(slot)) {
+      parts[slot] = DEFAULT_PARTS[slot];
+      continue;
+    }
     let at = index - 1;
     while (at > 0 && !owns({ slot, index: at })) at--;
     parts[slot] = Math.max(0, at);
