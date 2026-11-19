@@ -51,6 +51,8 @@ export class Garage {
   cursor = $state(0);
   builds = $state.raw<SavedBuild[]>(load_builds());
   renaming = $state<string | null>(null);
+  /** What the Builds card's "A friend's code" field holds; a build offered from chat lands here. */
+  friend_code = $state("");
   input = $state<GarageInput>("keys");
   private opened = $state(false);
   // `rewards` reads career stars outside the runes, so each open bumps this to relist reward paints and decals.
@@ -122,10 +124,19 @@ export class Garage {
     this.opened = false;
     this.on_builds = false;
     this.renaming = null;
+    this.friend_code = "";
     this.cursor = this.item.at(this.current);
     this.stage?.aim(WHOLE_CAR);
     this.stage?.sync();
     removeEventListener("keydown", this.key);
+  }
+
+  /** A build from chat while a run is up: shown in the friend's code field, fitted only when the player loads it. */
+  offer(code: string) {
+    if (!this.opened) return;
+    this.on_builds = true;
+    this.renaming = null;
+    this.friend_code = code;
   }
 
   /** A reward just earned, tried on the car: a paint or decal as its option, a car through the picker. */

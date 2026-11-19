@@ -1,5 +1,8 @@
+import { mount, unmount } from "svelte";
 import { $ } from "../hud/hud";
 import { typing } from "../hud/input";
+import BuildCard from "./BuildCard.svelte";
+import { chat_builds } from "./build-link";
 import { opens_chat } from "./chat-key";
 import type { Net } from "./net";
 import "../menu/ui/key-cap.css";
@@ -23,10 +26,13 @@ export class Chat {
   private unread = 0;
   private presence: number | null = null;
   private abort: AbortController | null = null;
+  private cards = new Map<Element, ReturnType<typeof mount>[]>();
   /** While true (garage or settings open) T, Enter and Escape belong to that panel. */
   blocked: () => boolean = () => false;
   /** While true (a result card up) Enter is that card's primary; T still opens the chat. */
   enter_taken: () => boolean = () => false;
+  /** A build card's Use button: the code is one `parse_build` accepted. */
+  use_build: (code: string) => void = () => {};
 
   constructor(private net: Net) {}
 
@@ -79,6 +85,7 @@ export class Chat {
     this.abort?.abort();
     this.abort = null;
     this.stop_presence();
+    for (const item of [...this.cards.keys()]) this.drop_cards(item);
   }
 
   get is_open() {
@@ -133,6 +140,11 @@ export class Chat {
     document.documentElement.toggleAttribute("data-unread", count > 0);
   }
 
+  private drop_cards(item: Element) {
+    for (const card of this.cards.get(item) ?? []) void unmount(card);
+    this.cards.delete(item);
+  }
+
   private add(name: string, text: string, own: boolean) {
     const list = this.history;
     const at_end = list.scrollHeight - list.scrollTop - list.clientHeight < FOLLOW_END_PX;
@@ -150,8 +162,15 @@ export class Chat {
     const body = document.createElement("p");
     body.textContent = text;
     item.append(meta, body);
+    const builds = chat_builds(text);
+    if (builds.length) this.cards.set(item, builds.map((build) => mount(BuildCard, { target: item, props: { build, onuse: (code: string) => this.use_build(code) } })));
     list.append(item);
-    while (list.childElementCount > HISTORY) list.firstElementChild?.remove();
+    while (list.childElementCount > HISTORY) {
+      const oldest = list.firstElementChild;
+      if (!oldest) break;
+      this.drop_cards(oldest);
+      oldest.remove();
+    }
     if (at_end || own) list.scrollTop = list.scrollHeight;
     this.sync_empty();
     if (this.is_open) return;
