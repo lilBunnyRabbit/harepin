@@ -30,9 +30,11 @@
 
   interface Props extends PageProps {
     picker: CarPicker;
+    /** Opens a page whose Back returns here: the start sheet's way to the Garage. */
+    open: (id: string) => void;
   }
 
-  let { menu, live, shown, picker }: Props = $props();
+  let { menu, live, shown, picker, open: open_page }: Props = $props();
 
   const host = $derived(menu.host);
   const here = $derived({ kind: host.kind, seed: host.seed, levels: host.levels });
@@ -119,7 +121,7 @@
 {/snippet}
 
 {#if target}
-  <StartSheet {menu} {picker} {target} title="Events" {shown} onclose={() => (target = null)} />
+  <StartSheet {menu} {picker} {target} title="Events" {shown} onclose={() => (target = null)} ongarage={() => open_page(MenuTab.GARAGE)} />
 {:else}
   <MenuFrame {menu} id={MenuTab.EVENTS} veil={0.5} {links} {primary}>
     <div class="events">
