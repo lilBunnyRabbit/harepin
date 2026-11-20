@@ -100,6 +100,7 @@ export class Replay {
     this.clock.open(tape.end_ms);
     this.free = false;
     this.roll = 0;
+    this.heard_speed = 0;
     this.view.end_ms = tape.end_ms;
     this.view.shown = true;
     this.on_open();
