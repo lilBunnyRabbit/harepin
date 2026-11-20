@@ -40,10 +40,11 @@ const VIEW_MIX = {
   hood: { intake: [1, 4500], exhaust: [0.55, 900] },
 } as const;
 
-/** Start-light beeps: a pure sine held `hold` s, kept well under the chime so they sit under the engine. */
+/** Beeps: a pure sine held `hold` s, kept well under the chime so they sit under the engine. A miss sits low, under the reds. */
 const BEEPS: Record<Beep, { hz: number; level: number; hold: number }> = {
   red: { hz: 740, level: 0.05, hold: 0.12 },
   go: { hz: 1480, level: 0.06, hold: 0.4 },
+  miss: { hz: 330, level: 0.08, hold: 0.3 },
 };
 const BEEP_EDGE = 0.008;
 

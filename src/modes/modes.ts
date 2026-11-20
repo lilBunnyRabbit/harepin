@@ -36,6 +36,7 @@ import type { FieldView } from "../ai/field-view";
 import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
 import type { Beep } from "./start-steps";
+import { CUE_TEXT, type Cue } from "./gate-cue";
 import { atan2 } from "../sim-math";
 
 export type { Driven } from "./mode";
@@ -173,6 +174,7 @@ export class Modes implements CarHooks {
     // The arrow turns, not the hint: any style change on an anchored element lays out the whole document.
     hint_arrow: $("mode-hint").firstElementChild as HTMLElement,
     wrong: $("mode-wrong"),
+    wrong_text: $("mode-wrong").lastElementChild as HTMLElement,
     status: $("mode-status"),
     status_name: $("mode-status-name"),
     status_clock: $("mode-status-clock"),
@@ -618,7 +620,7 @@ export class Modes implements CarHooks {
       chime: () => this.chime(),
       toast: (text) => this.toast?.(text, "", RULE_MS),
       beep: (beep) => this.beep(beep),
-      hint: (turn, wrong = false) => this.show_hint(turn, wrong),
+      hint: (turn, cue = null) => this.show_hint(turn, cue),
       hide_hint: () => this.hide_hint(),
       exit: () => this.exit(),
     };
@@ -710,10 +712,16 @@ export class Modes implements CarHooks {
     }
   }
 
-  private show_hint(turn: number, wrong: boolean) {
-    this.el.hint.hidden = false;
-    this.el.hint_arrow.style.setProperty("--turn", `${(-turn * DEG).toFixed(1)}deg`);
-    if (this.el.wrong.hidden === wrong) this.el.wrong.hidden = !wrong;
+  private show_hint(turn: number, cue: Cue | null) {
+    const { el } = this;
+    el.hint.hidden = false;
+    el.hint_arrow.style.setProperty("--turn", `${(-turn * DEG).toFixed(1)}deg`);
+    const shown = cue !== null;
+    if (el.wrong.hidden === shown) el.wrong.hidden = !shown;
+    if (cue && el.wrong.dataset.cue !== cue) {
+      el.wrong.dataset.cue = cue;
+      el.wrong_text.textContent = CUE_TEXT[cue];
+    }
   }
 
   private hide_hint() {

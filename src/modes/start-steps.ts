@@ -1,7 +1,8 @@
 /** Ms the lights stay green once the race is on. */
 export const GREEN_MS = 1000;
 
-export const Beep = { RED: "red", GO: "go" } as const;
+/** The start lights' beeps, and the one a missed gate sounds. */
+export const Beep = { RED: "red", GO: "go", MISS: "miss" } as const;
 export type Beep = (typeof Beep)[keyof typeof Beep];
 
 /**

@@ -17,6 +17,7 @@ import type { DrawnGround } from "./marks";
 import type { NextCard } from "./result";
 import type { RoutePoint } from "./route";
 import type { Beep } from "./start-steps";
+import type { Cue } from "./gate-cue";
 import { atan2, cos, hypot, sin } from "../sim-math";
 
 export const NO_SITE = "No flat ground near the start on this map";
@@ -164,8 +165,8 @@ export interface ModeCtx {
   toast(text: string): void;
   /** A start-light beep, on the frame its lamp changes. */
   beep(beep: Beep): void;
-  /** Points the gate arrow `turn` radians off the car's nose; `wrong` shows the wrong-way card with it. */
-  hint(turn: number, wrong?: boolean): void;
+  /** Points the gate arrow `turn` radians off the car's nose; `cue` shows its card under it. */
+  hint(turn: number, cue?: Cue | null): void;
   hide_hint(): void;
   exit(): void;
 }

@@ -12,7 +12,8 @@ import { KINDS } from "../worldgen/kinds/kinds";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
 import { SILVER_SHARE, grade, par_thresholds, type StarRun } from "./track";
 import { hypot } from "../sim-math";
-import { StartBeeps } from "./start-steps";
+import { Beep, StartBeeps } from "./start-steps";
+import { GateCue } from "./gate-cue";
 import { NO_RULES, Stewards } from "./race-rules";
 import { faces_back } from "./wrong-way";
 
@@ -30,6 +31,7 @@ class Race implements ModeRun {
   private result: Finish | null = null;
   private readonly hits: Hits | null;
   private readonly stewards: Stewards;
+  private readonly cue = new GateCue();
   private ghost: Ghost | null = null;
   private disposed = false;
   /** A lobby lap starts on the lobby's countdown, which beeps on its own. */
@@ -140,9 +142,12 @@ class Race implements ModeRun {
     this.route.gate = gate;
     if (!gate) return null;
     const { gates } = run.course;
-    const wrong = view.guide(run.tracker.index, car.heading, run.tracker.offset, !lobby_lap && this.lap < this.laps);
-    ctx.hint(turn_to(car, gate.x, gate.z), wrong);
-    if (run.status === RaceStatus.RUNNING && this.stewards.wrong_way(faces_back(run.course.line[run.tracker.index], car.heading), sim_dt * 1000) && this.route.respawn) ctx.spawn_on(this.route.respawn);
+    const missed = run.missed;
+    const wrong = view.guide(run.tracker.index, car.heading, run.tracker.offset, !lobby_lap && this.lap < this.laps, missed);
+    ctx.hint(turn_to(car, gate.x, gate.z), this.cue.update(missed, wrong));
+    if (this.cue.struck) ctx.beep(Beep.MISS);
+    // Going back for a missed gate faces the car back down the route: that is what the card asks, so it never resets the car.
+    if (run.status === RaceStatus.RUNNING && this.stewards.wrong_way(!missed && faces_back(run.course.line[run.tracker.index], car.heading), sim_dt * 1000) && this.route.respawn) ctx.spawn_on(this.route.respawn);
     const { status } = this;
     if (run.status === RaceStatus.READY) {
       status.clock = String(Math.ceil(run.countdown / 1000));

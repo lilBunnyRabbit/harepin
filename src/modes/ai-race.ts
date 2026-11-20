@@ -17,6 +17,8 @@ import { COUNTDOWN_MS, RaceRun, TIMED_CAPTIONS, RaceStatus, type RaceCourse, typ
 import { line, penalty_text, time_lines } from "./result";
 import { Stewards } from "./race-rules";
 import { faces_back } from "./wrong-way";
+import { Beep } from "./start-steps";
+import { GateCue } from "./gate-cue";
 
 /** Places that show two stars; nothing is recorded, as position grading is its own design (O9). */
 const PODIUM = 3;
@@ -60,6 +62,7 @@ export class AiRace implements ModeRun, FieldRace {
   private rows: Row[] = [];
   private readonly tally: FieldTally;
   private readonly stewards: Stewards;
+  private readonly cue = new GateCue();
   /** The player's grid slot: the event's, else last. */
   private readonly grid: number;
   /** The order a knockout or a timed race ended on; a race to the line keeps filling in as the cars cross it. */
@@ -201,9 +204,12 @@ export class AiRace implements ModeRun, FieldRace {
     const gate = run.gate;
     this.route.gate = gate;
     if (!gate) return null;
-    const wrong = view.guide(run.tracker.index, car.heading, run.tracker.offset, this.lap < this.laps);
-    ctx.hint(turn_to(car, gate.x, gate.z), wrong);
-    if (run.status === RaceStatus.RUNNING && this.stewards.wrong_way(faces_back(run.course.line[run.tracker.index], car.heading), sim_dt * 1000) && this.route.respawn) ctx.spawn_on(this.route.respawn);
+    const missed = run.missed;
+    const wrong = view.guide(run.tracker.index, car.heading, run.tracker.offset, this.lap < this.laps, missed);
+    ctx.hint(turn_to(car, gate.x, gate.z), this.cue.update(missed, wrong));
+    if (this.cue.struck) ctx.beep(Beep.MISS);
+    // Going back for a missed gate faces the car back down the route: that is what the card asks, so it never resets the car.
+    if (run.status === RaceStatus.RUNNING && this.stewards.wrong_way(!missed && faces_back(run.course.line[run.tracker.index], car.heading), sim_dt * 1000) && this.route.respawn) ctx.spawn_on(this.route.respawn);
     const { status } = this;
     if (run.status === RaceStatus.READY) {
       status.clock = String(Math.ceil(run.countdown / 1000));

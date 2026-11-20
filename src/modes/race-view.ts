@@ -34,11 +34,14 @@ export class RaceView {
   private readonly line: readonly RoutePoint[];
   private readonly half: number;
   private readonly closed: boolean;
+  private readonly at: readonly number[];
+  private next = 0;
 
   /** `traps`: line indices of a speed trap run's traps, banded across the road until passed. */
   constructor(course: Course, ground: DrawnGround, traps: readonly number[] = []) {
     const { line, gates, route } = course;
     this.closed = route.closed;
+    this.at = gates;
     this.marks = new Marks(ground);
     this.dim = this.marks.paint(brand.accent, DIM);
     this.lit = this.marks.paint(brand.accent);
@@ -72,6 +75,7 @@ export class RaceView {
 
   aim(next: number) {
     const { closed } = this;
+    this.next = next;
     const count = this.gates.length;
     this.gates.forEach((gate, i) => {
       if (i < count - 1) gate.material = i === next ? this.lit : this.dim;
@@ -98,8 +102,18 @@ export class RaceView {
     this.beams.relay(inside);
   }
 
-  /** Lights the route from line index `at`, where the car heading `heading` stands `offset` metres off the line, and on over the line when `more` laps follow; true while it faces the wrong way. */
-  guide(at: number, heading: number, offset: number, more = false): boolean {
+  /**
+   * Lights the route from line index `at`, where the car heading `heading` stands `offset` metres off the line, and on
+   * over the line when `more` laps follow; true while it faces the wrong way. `missed`: the next gate is behind the car,
+   * so the route lights from that gate and its beam calls, and facing back is no longer wrong.
+   */
+  guide(at: number, heading: number, offset: number, more = false, missed = false): boolean {
+    this.beams.call(missed);
+    if (missed) {
+      this.wrong.reset();
+      this.lead.show(this.at[this.next], false, more);
+      return false;
+    }
     const i = Math.max(0, Math.min(this.line.length - 1, at));
     const wrong = this.wrong.update(this.line[i], heading, offset, this.half);
     this.lead.show(i, wrong, more);
@@ -108,6 +122,7 @@ export class RaceView {
 
   unguide() {
     this.wrong.reset();
+    this.beams.call(false);
     this.lead.hide();
   }
 

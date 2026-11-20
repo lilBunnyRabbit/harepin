@@ -8,12 +8,16 @@ const LIFT = 0.15;
 const DIM = 0.22;
 const LIT = 0.55;
 const PULSE = 0.15;
+/** A missed gate's beam: full strength, pulsing twice as fast, so it reads over the shoulder. */
+const CALL = 0.8;
+const CALL_RATE = 8;
 
 export class Beams {
   readonly groups: THREE.Group[] = [];
   private readonly materials: THREE.MeshBasicMaterial[] = [];
   private time = 0;
   private target = -1;
+  private called = false;
 
   constructor(
     marks: Marks,
@@ -41,9 +45,15 @@ export class Beams {
     this.target = index;
   }
 
+  /** `on`: the aimed gate was missed, so its beam calls the car back. */
+  call(on: boolean) {
+    this.called = on;
+  }
+
   update(dt: number) {
     this.time += dt;
-    const { materials } = this;
-    for (let i = 0; i < materials.length; i++) materials[i].opacity = i === this.target ? LIT + sin(this.time * 4) * PULSE : DIM;
+    const { materials, called } = this;
+    const lit = called ? CALL + sin(this.time * CALL_RATE) * PULSE : LIT + sin(this.time * 4) * PULSE;
+    for (let i = 0; i < materials.length; i++) materials[i].opacity = i === this.target ? lit : DIM;
   }
 }

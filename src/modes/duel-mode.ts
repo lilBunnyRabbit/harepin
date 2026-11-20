@@ -7,6 +7,7 @@ import { DUEL_LEAD, DUEL_LEVELS, DuelRun, DuelStatus, build_route, duel_gates, t
 import type { Hits } from "./hits";
 import { CIRCUIT, mode_status, turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type ModeStatus, type RouteRun } from "./mode";
 import { RaceView } from "./race-view";
+import { Cue } from "./gate-cue";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
 import { grade, par_thresholds } from "./track";
 
@@ -91,7 +92,7 @@ class Duel implements ModeRun {
     const gate = run.gate;
     this.route.gate = gate;
     if (!gate) return null;
-    ctx.hint(turn_to(car, gate.x, gate.z), view.guide(run.tracker.index - DUEL_LEAD, car.heading, run.tracker.offset));
+    ctx.hint(turn_to(car, gate.x, gate.z), view.guide(run.tracker.index - DUEL_LEAD, car.heading, run.tracker.offset) ? Cue.WRONG : null);
     const { status } = this;
     status.gates = `${run.next + 1}/${run.gates.length}`;
     if (run.status === DuelStatus.READY) {
