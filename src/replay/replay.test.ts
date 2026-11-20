@@ -4,10 +4,14 @@ import { expect, test } from "bun:test";
 import { GHOST_EVERY_MS, STRIDE, is_lap } from "../car/ghost-cap";
 import { Playback, SPEEDS } from "./playback";
 import { DEFAULT_BUILD, build_code } from "../car/build";
-import { RunTape, on_tape } from "./run-tape";
+import { RunTape, SOUND_STRIDE, on_tape } from "./run-tape";
+import { taped_sound } from "./replay-sound";
+import type { SoundFrame } from "../audio/audio";
+import { COUPE } from "../car/cars";
 import { MAX_REPLAYS, MAX_REPLAY_NUMBERS, MAX_SAVED_NUMBERS, MAX_TEXT, capped, pack_replay, parse_replay, watched, type SavedReplay } from "./saved";
 
-const car = (x: number) => ({ pos: { x, y: 1, z: 0 }, quat: { x: 0, y: 0, z: 0, w: 1 } });
+const car = (x: number) => ({ pos: { x, y: 1, z: 0 }, quat: { x: 0, y: 0, z: 0, w: 1 }, rpm: 1000 + x * 10, throttle: x % 2, scrub: 0.5, nitro: { boosting: x >= 3 } });
+const frame = (): SoundFrame => ({ rpm: 0, throttle: 0, scrub: 0, speed: 0, offroad: false, sound: COUPE.sound, redline: COUPE.redline, boost: false, held: false });
 
 test("a tape takes a frame every 100 ms of stepped time, none while the sim holds, and the run's last pose", () => {
   const tape = new RunTape();
@@ -49,6 +53,29 @@ test("a placement mid-run is a cut on the tape: the pose jumps there, it never s
   expect(pos.x).toBe(500);
   lap_pose(tape.frames, 250, pos, quat);
   expect(pos.x).toBeCloseTo(501.5, 6);
+  expect(tape.sound.length).toBe(5 * SOUND_STRIDE);
+  const heard = frame();
+  taped_sound(tape, 150, heard);
+  expect(heard.rpm).toBe(6000);
+  taped_sound(tape, 250, heard);
+  expect(heard.rpm).toBeCloseTo(6015, 6);
+});
+
+test("the tape plays the player's engine back: rpm and throttle between frames, nitro from the nearer one", () => {
+  const tape = new RunTape();
+  tape.start("", "");
+  for (let i = 0; i <= 4; i++) tape.record(i ? 0.1 : 0, car(i), null);
+  expect(tape.sound.length).toBe((tape.frames.length / STRIDE) * SOUND_STRIDE);
+  const heard = frame();
+  expect(taped_sound(tape, 125, heard)).toBe(true);
+  expect([heard.rpm, heard.throttle, heard.scrub, heard.boost]).toEqual([1012.5, 0.75, 0.5, false]);
+  taped_sound(tape, 280, heard);
+  expect(heard.boost).toBe(true);
+  taped_sound(tape, 9999, heard);
+  expect(heard.rpm).toBe(1040);
+  expect(taped_sound({ frames: tape.frames, field: [], sound: [], end_ms: tape.end_ms }, 100, heard)).toBe(false);
+  tape.start("", "");
+  expect(tape.sound.length).toBe(0);
 });
 
 test("each AI car gets its own lap on the player's clock; one knocked out stops short and leaves the replay there", () => {
@@ -107,7 +134,7 @@ const META = { id: "a", at: 1000, name: "Harbour sprint", mode: "Race", map: "1A
 
 function saved(at: number, frames = 2): SavedReplay {
   const lap = Array.from({ length: frames }, (_, i) => [i * 100, i, 1, 0, 0, 0, 0, 1]).flat();
-  return pack_replay({ frames: lap, field: [], end_ms: (frames - 1) * 100 }, { ...META, id: String(at), at, cars: [] });
+  return pack_replay({ frames: lap, field: [], sound: [], end_ms: (frames - 1) * 100 }, { ...META, id: String(at), at, cars: [] });
 }
 
 test("a saved replay is a rounded copy of the tape that reads back whole; an AI car with no frames is left out", () => {
@@ -125,12 +152,17 @@ test("a saved replay is a rounded copy of the tape that reads back whole; an AI 
   expect(long.place.length).toBe(MAX_TEXT);
   expect(parse_replay(structuredClone(long))).toEqual(long);
   const again = watched(packed);
-  expect([again.end_ms, again.field.length, again.frames.length]).toEqual([100, 1, 2 * STRIDE]);
+  expect([again.end_ms, again.field.length, again.frames.length, again.sound.length]).toEqual([100, 1, 2 * STRIDE, 2 * SOUND_STRIDE]);
+  expect(packed.sound?.[SOUND_STRIDE]).toBe(1012.346);
 });
 
 test("a stored replay with any part out of shape is none", () => {
   const good = saved(1000);
   expect(parse_replay(good)).toEqual(good);
+  expect(watched(good).sound).toEqual([]);
+  const heard = { ...good, sound: Array.from({ length: 2 * SOUND_STRIDE }, (_, i) => i) };
+  expect(parse_replay(heard)).toEqual(heard);
+  for (const bad of [[1, 2], [...heard.sound.slice(1), NaN], "loud"]) expect(parse_replay({ ...good, sound: bad })).toBeNull();
   for (const bad of [null, 7, {}, { ...good, id: "" }, { ...good, at: NaN }, { ...good, name: "x".repeat(200) }, { ...good, lap: [1, 2, 3] }, { ...good, lap: good.lap.slice(0, STRIDE) }, { ...good, field: "no" }, { ...good, field: [{ car: "not a car", lap: good.lap }] }, { ...good, field: [{ car: META.car, lap: [NaN] }] }]) expect(parse_replay(bad)).toBeNull();
   const huge = { ...good, field: [{ car: META.car, lap: Array.from({ length: MAX_REPLAY_NUMBERS / STRIDE }, (_, i) => [i, 0, 0, 0, 0, 0, 0, 1]).flat() }] };
   expect(parse_replay(huge)).toBeNull();

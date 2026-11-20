@@ -15,7 +15,7 @@ import { mode_status, type ModeCtx } from "./mode";
 import type { RunPlay } from "../runs/run-play";
 import { held_car } from "./event-car";
 
-const PARKED = { pos: { x: 0, y: 0, z: 0 }, quat: { x: 0, y: 0, z: 0, w: 1 } } as never;
+const PARKED = { pos: { x: 0, y: 0, z: 0 }, quat: { x: 0, y: 0, z: 0, w: 1 }, rpm: 900, throttle: 0, scrub: 0, nitro: { boosting: false } } as never;
 
 class FakeElement {
   hidden = false;

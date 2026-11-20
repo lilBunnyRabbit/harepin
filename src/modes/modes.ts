@@ -31,7 +31,7 @@ import { RACE_MODE } from "./race-mode";
 import { level_route, race_levels } from "./races";
 import { line, next_label, next_ticket, run_text, stage_rows, stamp_text } from "./result";
 import { ResultNextView, type ResultCard } from "./result-next.svelte";
-import { RunTape } from "../replay/run-tape";
+import { RunTape, type Heard } from "../replay/run-tape";
 import type { FieldView } from "../ai/field-view";
 import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
@@ -690,7 +690,7 @@ export class Modes implements CarHooks {
     this.begin(leg.mode, leg.level, active.track, active.event, active.play, cup);
   }
 
-  update(sim_dt: number, car: Driven) {
+  update(sim_dt: number, car: Driven & Heard) {
     const active = this.current;
     const run = active?.run;
     if (!active || !run) return;

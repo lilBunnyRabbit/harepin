@@ -1,6 +1,6 @@
 import { parse_build } from "../car/build";
 import { STRIDE, is_lap } from "../car/ghost-cap";
-import type { Watched } from "./run-tape";
+import { SOUND_STRIDE, type Watched } from "./run-tape";
 
 export const REPLAYS_PAGE = "replays";
 export const MAX_REPLAYS = 6;
@@ -26,6 +26,8 @@ export interface SavedReplay {
   place: string;
   car: string;
   lap: number[];
+  /** The player's engine and tyres, `SOUND_STRIDE` per frame of `lap`; absent on a replay saved before sound was taped. */
+  sound?: number[];
   field: SavedCar[];
 }
 
@@ -47,15 +49,19 @@ const rounded = (lap: readonly number[]) => lap.map((v) => Math.round(v * 1000) 
 export function pack_replay(tape: Watched, { cars, ...meta }: ReplayMeta): SavedReplay {
   const field = tape.field.flatMap((lap, i) => (lap.length && cars[i] !== undefined ? [{ car: cars[i], lap: rounded(lap) }] : []));
   // Clipped to what `parse_replay` reads back: a name too long must not cost the replay.
-  return { ...meta, name: meta.name.slice(0, MAX_TEXT), mode: meta.mode.slice(0, MAX_TEXT), place: meta.place.slice(0, MAX_TEXT), lap: rounded(tape.frames), field };
+  return { ...meta, name: meta.name.slice(0, MAX_TEXT), mode: meta.mode.slice(0, MAX_TEXT), place: meta.place.slice(0, MAX_TEXT), lap: rounded(tape.frames), ...(tape.sound.length ? { sound: rounded(tape.sound) } : {}), field };
 }
 
 export function replay_numbers(replay: SavedReplay): number {
-  return replay.field.reduce((sum, car) => sum + car.lap.length, replay.lap.length);
+  return replay.field.reduce((sum, car) => sum + car.lap.length, replay.lap.length + (replay.sound?.length ?? 0));
 }
 
 export function watched(replay: SavedReplay): Watched {
-  return { frames: replay.lap, field: replay.field.map((car) => car.lap), end_ms: replay.lap[replay.lap.length - STRIDE] };
+  return { frames: replay.lap, field: replay.field.map((car) => car.lap), sound: replay.sound ?? [], end_ms: replay.lap[replay.lap.length - STRIDE] };
+}
+
+function is_sound(value: unknown, lap: readonly number[]): value is number[] {
+  return Array.isArray(value) && value.length === (lap.length / STRIDE) * SOUND_STRIDE && value.every((v) => typeof v === "number" && Number.isFinite(v));
 }
 
 const text = (value: unknown): value is string => typeof value === "string" && value.length <= MAX_TEXT;
@@ -68,16 +74,17 @@ function saved_car(value: unknown): SavedCar | null {
 
 export function parse_replay(value: unknown): SavedReplay | null {
   if (typeof value !== "object" || value === null) return null;
-  const { id, at, name, mode, map, place, car, lap, field } = value as Record<string, unknown>;
+  const { id, at, name, mode, map, place, car, lap, sound, field } = value as Record<string, unknown>;
   if (!text(id) || !id || !text(name) || !text(mode) || !text(map) || !text(place) || !text(car)) return null;
   if (typeof at !== "number" || !Number.isFinite(at) || !is_lap(lap) || !(lap[lap.length - STRIDE] > 0) || !Array.isArray(field)) return null;
+  if (sound !== undefined && !is_sound(sound, lap)) return null;
   const cars: SavedCar[] = [];
   for (const one of field) {
     const parsed = saved_car(one);
     if (!parsed) return null;
     cars.push(parsed);
   }
-  const replay: SavedReplay = { id, at, name, mode, map, place, car, lap, field: cars };
+  const replay: SavedReplay = { id, at, name, mode, map, place, car, lap, ...(sound === undefined ? {} : { sound }), field: cars };
   return replay_numbers(replay) <= MAX_REPLAY_NUMBERS ? replay : null;
 }
 

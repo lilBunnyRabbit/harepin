@@ -35,11 +35,14 @@ No per-frame allocation: `lap_pose` now writes its span into one object instead 
 ### Not in slice 1
 
 - Wheels spin but do not steer; brake lamps, nitro flame, smoke and skid marks do not replay. None of that is on the tape.
-- Engine sound idles (the sim holds).
 - A scrub on the streamed mainland lands before its chunks do: the car stands on stand-in ground for a moment.
 - The tape ends at the finish line, not a few seconds after.
 
 A reset or a fall put back mid-run is a cut, not a slide: the tape takes a second frame at the last one's time (two poses farther apart than 150 m/s allows), `lap_pose` has nothing to blend across it, and the chase camera snaps as on a seek. Same layout, still a valid lap.
+
+## Sound (built)
+
+`RunTape.sound` takes the player's rpm, throttle, raw scrub and nitro (`SOUND_STRIDE` = 4) with every frame, a cut's two frames included, so frame n's sound is at n x 4. `taped_sound` (`replay/replay-sound.ts`) reads it between the two frames `lap_pose` blends; `Replay.hear` fills the one `SoundFrame` main hands `Audio.update` while a replay is open: speed from the replayed pose, off-road from the world under it, scrub through the same `scrub_sound` as a live drive. A paused, ended or menu-held clock idles (`idle_sound`); a seek or cut sends the frame `held`, so the rpm jumps without a blip and the next frame eases on. Saved replays carry it as an optional `sound`; one saved without it idles under the wind. The AI field has no engine sound live either, and impacts are not taped.
 
 ## Slice 2 (built): the AI field
 

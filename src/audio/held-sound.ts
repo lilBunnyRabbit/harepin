@@ -21,3 +21,8 @@ export function return_rpm(idle: number, live: number, since: number): number {
   const k = Math.max(0, since / RETURN_TIME);
   return idle + (live - idle) * k * k * (3 - 2 * k);
 }
+
+/** How loud the tyres scrub: nothing at a standstill, muffled off the road. */
+export function scrub_sound(scrub: number, speed: number, offroad: boolean): number {
+  return scrub * Math.min(1, speed / 6) * (offroad ? 0.3 : 1);
+}

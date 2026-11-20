@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { Audio, type SoundFrame } from "./audio/audio";
-import { idle_sound } from "./audio/held-sound";
+import { idle_sound, scrub_sound } from "./audio/held-sound";
 import { EVENTS, EVENT_PARAM, TUNE_PARAM, event_of, type CareerEvent } from "./career/career";
 import { SERIES_PAGE, SERIES_PARAM, is_open, next_open, season_done } from "./career/series";
 import { series_event } from "./career/series-seasons";
@@ -1165,7 +1165,7 @@ function frame(time: number) {
   if (net.remotes.size) goals.done(GoalId.FRIEND);
 
   const speed = car.vel.length();
-  const scrub = car.scrub * Math.min(1, speed / 6) * (offroad ? 0.3 : 1);
+  const scrub = scrub_sound(car.scrub, speed, offroad);
   sound.rpm = car.rpm;
   sound.throttle = car.throttle;
   sound.scrub = scrub;
@@ -1175,7 +1175,7 @@ function frame(time: number) {
   sound.redline = car.spec.redline;
   sound.boost = car.nitro.boosting;
   sound.held = false;
-  audio.update(held ? idle_sound(sound, car.spec.idle) : sound);
+  audio.update(replay.is_open ? replay.hear(sound, car.spec.idle) : held ? idle_sound(sound, car.spec.idle) : sound);
   // Off behind any menu, a lobby keeps driving with one open; a held sim (rewind, countdown) has no drive to feel.
   if (simulated && !input.blocked()) {
     const effect = rumble.update(now, dt, sense_drive(rumble_sense, car, world, impact));

@@ -21,7 +21,8 @@ export function ghost_frame(out: number[], lap_ms: number, car: Pick<Car, "pos" 
 /** The two frames round `lap_ms` and the share of the way between them, kept in one object: a pose is asked every frame. */
 const span = { i: 0, j: 0, k: 0 };
 
-function lap_span(lap: readonly number[], lap_ms: number) {
+/** The frame indices round `lap_ms` and the share between them; the same object each call. */
+export function lap_span(lap: readonly number[], lap_ms: number): Readonly<typeof span> {
   let lo = 0;
   let hi = lap.length / STRIDE - 1;
   while (hi - lo > 1) {
@@ -32,6 +33,7 @@ function lap_span(lap: readonly number[], lap_ms: number) {
   span.i = lo * STRIDE;
   span.j = hi * STRIDE;
   span.k = lap[span.j] > lap[span.i] ? Math.max(0, Math.min(1, (lap_ms - lap[span.i]) / (lap[span.j] - lap[span.i]))) : 0;
+  return span;
 }
 
 const from_quat = new THREE.Quaternion();

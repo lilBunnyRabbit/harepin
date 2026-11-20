@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import type { SoundFrame } from "../audio/audio";
+import { idle_sound, scrub_sound } from "../audio/held-sound";
 import { FieldView, type FieldPoses } from "../ai/field-view";
 import { parse_build } from "../car/build";
 import type { Driver } from "../car/driver";
@@ -11,6 +13,7 @@ import type { World } from "../world/world";
 import { FreeCamera } from "./free-camera";
 import { Playback } from "./playback";
 import { ReplayView, Save } from "./replay-view.svelte";
+import { taped_sound } from "./replay-sound";
 import { TELEPORT_MPS, on_tape, type Watched } from "./run-tape";
 import { watched, type SavedReplay } from "./saved";
 
@@ -29,6 +32,10 @@ export class Replay {
   private readonly poses: FieldPoses = { pose: (i, pos, quat) => this.rival_pose(i, pos, quat) };
   private free = false;
   private roll = 0;
+  /** The clock ran this frame; it stands under a pause, a menu or at the end. */
+  private moving = false;
+  /** The car jumped this frame (a seek, a cut on the tape): the sound jumps with it, no blip. */
+  private cut = false;
   private readonly clock = new Playback();
   private readonly fly: FreeCamera;
   private readonly pose = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), vel: new THREE.Vector3() };
@@ -135,8 +142,10 @@ export class Replay {
     lap_pose(tape, clock.ms, pose.pos, pose.quat);
     pose.vel.subVectors(pose.pos, pose.vel).divideScalar(VEL_MS / 1000);
     before.sub(pose.pos).negate();
+    this.moving = clock.ms !== from_ms;
+    this.cut = clock.jumped || before.length() > (TELEPORT_MPS * Math.abs(clock.ms - from_ms)) / 1000;
     // A cut on the tape moves the car as a seek does.
-    if (clock.jumped || before.length() > (TELEPORT_MPS * Math.abs(clock.ms - from_ms)) / 1000) {
+    if (this.cut) {
       clock.jumped = false;
       if (!this.free) this.chase.snap(pose);
     } else {
@@ -149,6 +158,25 @@ export class Replay {
     view.speed = clock.speed;
     view.free = this.free;
     view.clock(clock.ms);
+  }
+
+  /** The replayed car's sound into `frame`, whose car fields are set: idles while the clock stands; a tape saved without sound idles under the wind. */
+  hear(frame: SoundFrame, idle: number): SoundFrame {
+    const { tape, pose } = this;
+    if (!tape || !this.moving) return idle_sound(frame, idle);
+    const speed = pose.vel.length();
+    const offroad = !this.world.on_road(pose.pos.x, pose.pos.z);
+    frame.speed = speed;
+    frame.offroad = offroad;
+    frame.held = this.cut;
+    if (taped_sound(tape, this.clock.ms, frame)) frame.scrub = scrub_sound(frame.scrub, speed, offroad);
+    else {
+      frame.rpm = idle;
+      frame.throttle = 0;
+      frame.scrub = 0;
+      frame.boost = false;
+    }
+    return frame;
   }
 
   aim(dt: number, look: Look, forward: number, strafe: number) {
