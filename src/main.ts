@@ -972,7 +972,7 @@ const COVERED_DRAW_MS = 30;
 let last_draw = 0;
 /** Seconds the world's own motion has run (turbines, beacons, the lit gate's pulse, camera shake): it stops while a menu holds the sim. */
 let world_time = 0;
-/** Time the draw side (chase cam, smoke, remote cars) has not yet advanced by, from frames the menu skipped. */
+/** Time the draw side (chase cam, smoke, remote cars) has not yet advanced by, from frames the menu skipped with peers. */
 let draw_dt = 0;
 /** The timer a held menu sleeps on until its next redraw, 0 while the loop runs on animation frames. */
 let sleep = 0;
@@ -1043,8 +1043,7 @@ function frame(time: number) {
   const menu_hold = (settings.is_open || pause.is_open || road_map.is_open || (lab_id !== null && modal_open())) && net.remotes.size === 0;
   const draw_ms = menu_hold ? MENU_DRAW_MS : settings.is_open ? COVERED_DRAW_MS : 0;
   const skips = draw_ms > 0 && !review && now - last_draw < draw_ms;
-  // A held sim behind the menu has nothing to step on a frame the redraw rate skips: `last` stays, so the next drawn
-  // frame's dt carries the skipped time and the chase cam, smoke and audio advance by all of it. Waking on every
+  // A held sim behind the menu has nothing to step on a frame the redraw rate skips, and its view holds too. Waking on every
   // display frame only to skip it costs Blink a full frame each time, so the loop sleeps until the redraw instead; a
   // gamepad is read only by polling, so with one connected the loop keeps every frame to catch its presses.
   if (skips && menu_hold) {
@@ -1137,13 +1136,14 @@ function frame(time: number) {
     requestAnimationFrame(frame);
     return;
   }
-  const view_dt = draw_dt;
+  // A held sim holds the view too: the chase cam settling or smoke rising at the menu's redraw rate reads as lag.
+  const view_dt = menu_hold ? 0 : draw_dt;
   draw_dt = 0;
   chase.top = modes.high_view;
   chase.boost = car.nitro.boosting;
   chase.rewinding = rewinding;
   driver.draw(!simulated, out.blend, now);
-  replay.draw(menu_hold ? 0 : view_dt, driver);
+  replay.draw(view_dt, driver);
   const focus = replay.is_open ? replay.focus : car.pos;
   field_view?.update(camera);
   const offroad = !world.on_road(focus.x, focus.z);
