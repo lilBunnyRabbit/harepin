@@ -152,7 +152,8 @@ function race(job: RaceJob): BarRace {
     lost = adrift ? lost + dt : 0;
     if (lost > PLAYER_LOST) {
       const n = route.points.length;
-      const p = route.points[((Math.round(field.progress[me]) % n) + n) % n];
+      // Put back where the field puts its own cars: on a kicker's run, the run-up before it, not in front of the frame.
+      const p = route.points[field.reset_point(((Math.round(field.progress[me]) % n) + n) % n)];
       player.park(p.x, p.z, Math.atan2(p.tx, p.tz), world);
       player.parked = false;
       lost = 0;
