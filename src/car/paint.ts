@@ -43,9 +43,9 @@ export function paint_finish(paint: number): Finish | null {
 // Shop finishes on the metal hull's material, by `FINISHES` index; standard keeps the matte hull and its one draw.
 const SHOP_FINISHES: Readonly<Record<FinishName, Finish | null>> = {
   standard: null,
-  satin: { metalness: 0.15, roughness: 0.6, reflect: 0.7, weave: null },
-  metallic: { metalness: 0.6, roughness: 0.35, reflect: 1.2, weave: null },
-  pearl: { metalness: 0.3, roughness: 0.2, reflect: 1.6, weave: null },
+  satin: { metalness: 0.05, roughness: 0.7, reflect: 0.5, weave: null },
+  metallic: { metalness: 0.75, roughness: 0.3, reflect: 1.3, weave: null },
+  pearl: { metalness: 0.2, roughness: 0.12, reflect: 1.1, weave: null },
 };
 
 /** A reward paint wears its own finish; a plain one the build's shop finish. */
