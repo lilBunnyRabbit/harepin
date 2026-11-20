@@ -9,6 +9,8 @@ const LOOK = 15;
 const LOOK_PER = 1.2;
 /** Road points apart under which a gap is measured from the car positions. */
 const NEAR_POINTS = 20;
+/** Most seconds ahead a car's drift off its line is carried to where a follower closing on it gets there. */
+const DRIFT_LEAD = 1.5;
 /** Lateral metres between centres under which a car ahead is in the way, and under which a car in trouble is. */
 const IN_LANE = 2.6;
 const HAZARD_LANE = 6;
@@ -115,6 +117,8 @@ export class Awareness {
   private readonly speed: Float64Array;
   /** m/s along the road, and whether the car is spinning, crossing the road or reversing: a hazard to plan around, not a car to follow. */
   private readonly along: Float64Array;
+  /** m/s each car moves across its line, the line's own swing taken out: a car coming back to it, or sliding off it. */
+  private readonly drift: Float64Array;
   private readonly trouble: Uint8Array;
   private readonly defend_until: Int32Array;
   /** defend_roll[i * n + j]: whether driver i defends against attacker j, rolled once on aggression; -1 not rolled yet. */
@@ -144,6 +148,7 @@ export class Awareness {
     this.rel = new Float64Array(cars.length);
     this.speed = new Float64Array(cars.length);
     this.along = new Float64Array(cars.length);
+    this.drift = new Float64Array(cars.length);
     this.trouble = new Uint8Array(cars.length);
     this.defend_until = new Int32Array(cars.length).fill(-1);
     this.defend_roll = new Int8Array(cars.length * cars.length).fill(-1);
@@ -174,6 +179,9 @@ export class Awareness {
       const p = drivers[i].line.road[drivers[i].index];
       this.speed[i] = v;
       this.along[i] = vel.x * p.tx + vel.z * p.tz;
+      const { line, index } = drivers[i];
+      const swing = (line.offset[(index + 1) % line.offset.length] - line.offset[index]) / (line.step[index] || 2);
+      this.drift[i] = vel.x * p.tz - vel.z * p.tx - swing * this.along[i];
       const slide = Math.abs(atan2(sin(atan2(vel.x, vel.z) - heading), cos(atan2(vel.x, vel.z) - heading)));
       const off = Math.abs(this.lateral[i]) > OFF_ROAD;
       this.trouble[i] = drivers[i].reversing > 0 || off || (v > TROUBLE_SPEED && (slide > TROUBLE_SLIDE || this.along[i] < TROUBLE_ALONG * v)) ? 1 : 0;
@@ -233,7 +241,15 @@ export class Awareness {
       const width = this.trouble[j] ? (this.passing[i] === j ? TROUBLE_FLANK : HAZARD_LANE) : IN_LANE;
       // Beside its lane now, a car ahead may still sit where the driver's path runs by the time it gets there: the line swings
       // across the road, and a car two metres to the side was closed on at 15 m/s as the line came over to it (seed 6).
-      const across = gap > 0 ? Math.min(Math.abs(dl), Math.abs(this.lateral[j] - driver.lateral_at(this.cars[i], this.drivers[j].index))) : Math.abs(dl);
+      // Off its line and drifting across, it is wherever that drift has it by the time the gap is closed: a car 4 m to the side
+      // coming back to its line was closed on at 9 m/s (seed 8, a tuned field).
+      let across = Math.abs(dl);
+      if (gap > 0) {
+        const path = driver.lateral_at(this.cars[i], this.drivers[j].index);
+        const closing = v - this.along[j];
+        const lead = closing > 0 ? Math.min(DRIFT_LEAD, gap / closing) : 0;
+        across = Math.min(across, Math.abs(this.lateral[j] - path), Math.abs(this.lateral[j] + this.drift[j] * lead - path));
+      }
       if (gap > 0 && gap < LOOK + LOOK_PER * v && across < width) {
         // Every car ahead in its lane caps it, not the nearest alone: behind two cars a row apart, it ran into the slower one past the first.
         this.hold(driver, j, this.follow(j, gap, j === this.passing[i] ? PASS_FOLLOW : keep));
