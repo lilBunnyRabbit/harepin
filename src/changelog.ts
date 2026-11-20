@@ -51,6 +51,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.80.1",
+    date: "2026-11-21",
+    title: "Missed gates",
+    changes: [
+      { kind: IMPROVED, text: "Missing a gate shows a Missed gate, go back card, lights the missed gate and points the road lights back to it, with a beep" },
+      { kind: FIXED, text: "Turning back for a missed gate no longer trips the wrong-way reset" },
+    ],
+  },
+  {
     version: "0.80.0",
     date: "2026-11-21",
     title: "Replays you can hear",
