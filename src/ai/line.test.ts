@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
-import { drive_at, plan_for, race_line } from "./line";
+import { drive_at, grip_at, plan_for, race_line } from "./line";
 import { hold_speed } from "./corners";
 import { UNIT_SCALE } from "./capability";
 import { AI_TUNING } from "./tuning";
@@ -138,6 +138,19 @@ describe("race line", () => {
       if (full.speed[i] < base.speed[i] - 0.1) slower++;
     }
     expect(slower).toBeGreaterThan(0);
+  });
+
+  test("a smooth fast bend plans on downforce grip, at most 10% over grip_at", () => {
+    const { model_pace, model_brake } = AI_TUNING;
+    AI_TUNING.model_pace = 0;
+    AI_TUNING.model_brake = 0;
+    const wide = race_line(stadium(400, 200), [], 1);
+    AI_TUNING.model_pace = model_pace;
+    AI_TUNING.model_brake = model_brake;
+    const mid = wide.road.findIndex((p) => p.z > 400 + 150);
+    const flat = Math.sqrt(grip_at(wide.bend[mid]) / Math.abs(wide.bend[mid]));
+    expect(wide.speed[mid]).toBeGreaterThan(flat * 1.01);
+    expect(wide.speed[mid]).toBeLessThanOrEqual(flat * Math.sqrt(1.1) + 1e-9);
   });
 
   test("a solid on the road holds the line a car's width off it", () => {
