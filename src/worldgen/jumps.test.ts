@@ -2,17 +2,19 @@
 import { describe, expect, test } from "bun:test";
 import { Vector3 } from "three";
 import { Car, drop_height, type Ground } from "../car/car";
-import { CARS, car_sized } from "../car/cars";
+import { CARS, car_sized, type CarSpec } from "../car/cars";
+import { apply_mods, build_mods, DEFAULT_PARTS, SLOTS } from "../car/build";
+import { World } from "../world/world";
 import { seed_of } from "../rng";
 import { generate } from "./index";
 import { DECK_UNDER } from "./deck";
 import { gap_ramp, GAP_FAST, GAP_SLOW, LANDING_GRADE, LANDING_HALF, size_gap } from "./sky";
 import { GAP_V_MAX, GAP_V_MIN, gap_jump, type GapJump } from "./gap";
-import { apex, face_end, flight, GATE_CLEAR, GATE_RUNOUT, ramp_local, ramp_surface, ROAD_KICKER, RUN_DRIFT } from "./jumps";
+import { apex, face_end, flight, GATE_CLEAR, GATE_RUNOUT, PIECE_DEPTH, ramp_local, ramp_surface, ramp_world, ROAD_KICKER, ROAD_LAUNCH, RUN_DRIFT } from "./jumps";
 import { FALL_V_MAX } from "./falls";
 import { ICE_CANYON } from "./recipe";
 import { WINTER_GRIP } from "./kinds/kind-def";
-import { SPAWN_INDEX, SurfaceId, type Ramp } from "./types";
+import { SPAWN_INDEX, SurfaceId, type Challenge, type Ramp } from "./types";
 import { sweep } from "../sweep";
 
 const DT = 1 / 360;
@@ -133,7 +135,7 @@ describe("ramps at 360 Hz", () => {
       });
   for (const [id, spec] of CAR_SIZED)
     test(`road kicker, ${id}: lands on its wheels inside the landing at racing pace`, () => {
-      const run = jump(ROAD, new Car(spec), 40);
+      const run = jump(ROAD, new Car(spec), ROAD_LAUNCH);
       expect(run.landed).toBeLessThan(ROAD.length + ROAD.landing);
       expect(run.upright).toBeGreaterThan(0.75);
     });
@@ -147,6 +149,42 @@ describe("ramps at 360 Hz", () => {
           expect(run.upright).toBeGreaterThan(0.75);
         }
     });
+});
+
+/** Highest roof (m over the challenge's base) while a body circle overlaps the opening's top bar, flat out along the ramp. */
+function roof_through(world: World, c: Challenge, spec: CarSpec, speed: number): { toe: number; roof: number } {
+  const r = world.ramps[c.ramp];
+  const at = ramp_local(r, c.x, c.z)[1];
+  const car = new Car(spec);
+  const [x, z] = ramp_world(r, 0, -60);
+  car.place(x, world.height(x, z) + drop_height(spec, 1), z, Math.atan2(r.fx, r.fz));
+  car.vel.set(r.fx * speed, 0, r.fz * speed);
+  let [last, toe, roof] = [-60, 0, -Infinity];
+  while (last < at + 6) {
+    const throttle = last < 0 ? Math.max(0, Math.min(1, (speed - car.forward_speed) * 0.5 + 0.3)) : 1;
+    car.step(DT, { steer: 0, throttle, brake: 0, handbrake: 0, analog: false }, world);
+    const v = ramp_local(r, car.pos.x, car.pos.z)[1];
+    if (last < 0 && v >= 0) toe = car.forward_speed;
+    if (spec.circles.some((o) => Math.abs(v + o - at) < PIECE_DEPTH + spec.radius)) roof = Math.max(roof, car.pos.y + spec.band[1] - c.y);
+    last = v;
+  }
+  return { toe, roof };
+}
+
+describe("road kicker opening at 360 Hz", () => {
+  const tall = ["Soft", "Lifted"].map((name) => SLOTS.suspension.parts.findIndex((p) => p.name === name));
+  // Island seed 44's wall stands over the steepest road kicker in 300 seeds, where a lifted muscle hit the top bar at 32 m/s.
+  test("island seed 44: every car on soft or lifted springs clears the wall's top bar up to the top take-off speed", () => {
+    const world = new World(44);
+    const c = world.challenges.find((c) => world.ramps[c.ramp].road && c.kind === "wall");
+    if (!c) throw new Error("island seed 44 has no wall over a road kicker");
+    for (const [, base] of CAR_SIZED)
+      for (const suspension of tall)
+        for (const speed of [24, 32, ROAD_LAUNCH + 4]) {
+          const run = roof_through(world, c, apply_mods(base, build_mods({ ...DEFAULT_PARTS, suspension })), speed);
+          if (run.toe <= ROAD_LAUNCH) expect(run.roof).toBeLessThan(c.gap_top);
+        }
+  }, 60_000);
 });
 
 describe("sky gap jump at 360 Hz", () => {

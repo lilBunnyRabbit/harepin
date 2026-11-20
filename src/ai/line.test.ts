@@ -162,7 +162,7 @@ describe("race line", () => {
       return v;
     };
     const low = toe(UNIT_SCALE.roof);
-    const tall = toe(UNIT_SCALE.roof + 0.3);
+    const tall = toe(gap.top - flight(gap.ramp, low, gap.d));
     expect(tall).toBeLessThan(low);
     expect(tall).toBeGreaterThanOrEqual(gap.ramp.speed);
     expect(flight(gap.ramp, low, gap.d) + UNIT_SCALE.roof).toBeLessThan(gap.top);

@@ -37,7 +37,8 @@ const KICKER: RampShape = { kind: "kicker", hw: 2.6, length: 8, rise: 2, landing
 const BIG: RampShape = { kind: "big", hw: 3.2, length: 14, rise: 4, landing: 80, speed: 27 };
 // A slow car on the circuit has to roll off the lip, not hang its belly on it as on the steep back of an off-road kicker.
 const ROAD_BACK = 0.3;
-// Tuned for racing pace: the landing runs out a 40 m/s launch.
+/** m/s, the fastest toe speed a road kicker is built for: its landing runs it out, and its opening clears it. */
+export const ROAD_LAUNCH = 40;
 export const ROAD_KICKER: RampShape = { kind: "kicker", hw: ROAD_HALF + 0.5, length: 8, rise: 2, landing: 90, speed: 24, back: ROAD_BACK };
 
 const FRAME = 0.35;
@@ -48,8 +49,11 @@ const PILLAR = 0.5;
 const GAP_HW = 2.6;
 const GAP_BELOW = 1.3;
 const GAP_ABOVE = 1.7;
-// Racers hit a road kicker well past its design speed and fly higher than the line it is tuned for.
-const ROAD_HEADROOM = 1;
+// A road kicker's top bar meets a roof anywhere along the car while it crosses: half the longest car-sized body (CAR_ENVELOPE).
+const BODY_HALF = 2.5;
+// Roof over `sprung_flight` at ROAD_LAUNCH, plus 0.1 m clear: worst of every car-sized body on soft or lifted springs,
+// light or heavy, flat out along the run on island seeds 0-49 (1.57 m, seed 4) and on run-up grades -0.1 to 0.2 (1.46 m).
+const LIFTED_ROOF = 1.7;
 const BAR_CLEAR = 1.6;
 const BAR_MIN = 0.8;
 const PILLAR_TOP = 6;
@@ -205,8 +209,18 @@ export function flight(r: Ramp, speed: number, d: number): number {
   return lip_height(r) + RIDE + ((LAUNCH_KEEP * out.speed * out.slope) / n) * t - (GRAVITY * t * t) / 2;
 }
 
-export function apex(r: Ramp): number {
-  const out = launch(r, r.speed);
+// Soft and lifted springs give back the lip's vertical speed the stock ones soak, so the car flies the line off the lip.
+function sprung_flight(r: Ramp, speed: number, d: number): number {
+  return flight(r, speed, d) + (1 - LAUNCH_KEEP) * launch(r, speed).slope * d;
+}
+
+/** World height a road kicker's opening `d` metres past the lip clears every roof under, up to a ROAD_LAUNCH toe. */
+function road_top(r: Ramp, d: number): number {
+  return sprung_flight(r, ROAD_LAUNCH, Math.min(d + PIECE_HD + BODY_HALF, apex(r, ROAD_LAUNCH))) + LIFTED_ROOF;
+}
+
+export function apex(r: Ramp, speed = r.speed): number {
+  const out = launch(r, speed);
   return (LAUNCH_KEEP * out.slope * out.speed * out.speed) / (1 + out.slope * out.slope) / GRAVITY;
 }
 
@@ -529,7 +543,7 @@ export class JumpPlanner {
     const kinds: ChallengeKind[] = ["wall", "hoop", "pillars", "bar"];
     let kind = kinds[Math.floor(this.next() * kinds.length)];
     if (kind !== "bar" && kind !== "pillars" && com - GAP_BELOW < 1.2) kind = "bar";
-    const c: Challenge = { id: this.out.challenges.length, ramp: r.id, kind, x, y, z, fx: r.fx, fz: r.fz, gap_hw: GAP_HW, gap_bottom: com - GAP_BELOW, gap_top: com + GAP_ABOVE + (r.road ? ROAD_HEADROOM : 0) };
+    const c: Challenge = { id: this.out.challenges.length, ramp: r.id, kind, x, y, z, fx: r.fx, fz: r.fz, gap_hw: GAP_HW, gap_bottom: com - GAP_BELOW, gap_top: Math.max(com + GAP_ABOVE, r.road ? road_top(r, d) - y : 0) };
     if (kind === "pillars") {
       c.gap_bottom = 0;
       c.gap_top = Math.max(PILLAR_TOP, com + GAP_ABOVE);
