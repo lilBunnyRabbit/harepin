@@ -1,13 +1,13 @@
-import { DECALS, DECAL_NAMES, DEFAULT_PARTS, MAX_NUMBER, MAX_PAINT, NEONS, NEON_NAMES, NEON_TONES, NEON_TONE_NAMES, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Neon, type Slot, type SlotView } from "../car/build";
+import { DECALS, DECAL_NAMES, DEFAULT_PARTS, FINISHES, FINISH_NAMES, MAX_NUMBER, MAX_PAINT, NEONS, NEON_NAMES, NEON_TONES, NEON_TONE_NAMES, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type FinishName, type Neon, type Slot, type SlotView } from "../car/build";
 import { TIERS } from "../career/career";
-import { DECAL_PRICE, NEON_PRICE, decal_id, neon_id, type Cosmetic } from "../career/prices";
+import { DECAL_PRICE, FINISH_PRICE, NEON_PRICE, decal_id, finish_id, neon_id, type Cosmetic } from "../career/prices";
 import { REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
 import type { PartPick } from "../career/wallet";
 import { NEUTRAL_INKS, car_paints, decal_inks } from "../theme/palette";
 
 const SIDE_VIEW: SlotView = { yaw: -0.87 };
 
-type Kind = "part" | "paint" | "ink" | "decal" | "number" | "neon" | "glow";
+type Kind = "part" | "paint" | "finish" | "ink" | "decal" | "number" | "neon" | "glow";
 
 /** The two rows of slot chips: what the car drives with, and what it wears. */
 export type ItemGroup = "parts" | "look";
@@ -140,6 +140,27 @@ const NEON_ITEM: Item = {
   cosmetic: (i) => (NEON_PRICE[NEONS[i]] ? neon_id(NEONS[i]) : null),
 };
 
+const FINISH_BLURBS: Record<FinishName, string> = {
+  standard: "Flat colour, as it comes",
+  satin: "A soft sheen that catches the sky",
+  metallic: "Flake that lights the paint's own colour",
+  pearl: "A deep gloss with a bright edge",
+};
+
+const FINISH_ITEM: Item = {
+  id: "finish",
+  label: "Finish",
+  kind: "finish",
+  group: "look",
+  view: WHOLE_CAR,
+  count: FINISHES.length,
+  at: (b) => b.finish,
+  with: (b, i) => ({ ...b, finish: i }),
+  name: (i) => FINISH_NAMES[FINISHES[i]],
+  blurb: (i) => FINISH_BLURBS[FINISHES[i]],
+  cosmetic: (i) => (FINISH_PRICE[FINISHES[i]] ? finish_id(FINISHES[i]) : null),
+};
+
 const GLOW_ITEM: Item = {
   id: "glow",
   label: "Neon colour",
@@ -153,15 +174,17 @@ const GLOW_ITEM: Item = {
   blurb: () => "",
 };
 
-/** A build for the player's own car less the sold decal and neon they haven't bought, with the names of what came off. */
+/** A build for the player's own car less the sold decal, neon and finish they haven't bought, with the names of what came off. */
 export function strip_unowned(build: Build, has: (id: Cosmetic) => boolean): { build: Build; dropped: string[] } {
   const decal = DECALS[build.decal];
   const neon = NEONS[build.neon];
+  const finish = build.paint > MAX_PAINT ? "standard" : FINISHES[build.finish];
   const off_decal = DECAL_PRICE[decal] !== undefined && !has(decal_id(decal));
   const off_neon = NEON_PRICE[neon] !== undefined && !has(neon_id(neon));
-  const dropped = [...(off_decal ? [DECAL_NAMES[decal]] : []), ...(off_neon ? [`${NEON_NAMES[neon]} neon`] : [])];
+  const off_finish = FINISH_PRICE[finish] !== undefined && !has(finish_id(finish));
+  const dropped = [...(off_decal ? [DECAL_NAMES[decal]] : []), ...(off_neon ? [`${NEON_NAMES[neon]} neon`] : []), ...(off_finish ? [`${FINISH_NAMES[finish]} finish`] : [])];
   if (!dropped.length) return { build, dropped };
-  return { build: { ...build, ...(off_decal ? { decal: 0 } : {}), ...(off_neon ? { neon: 0, neon_tone: 0 } : {}) }, dropped };
+  return { build: { ...build, ...(off_decal ? { decal: 0 } : {}), ...(off_neon ? { neon: 0, neon_tone: 0 } : {}), ...(off_finish ? { finish: 0 } : {}) }, dropped };
 }
 
 // "GT kit" on the aero kit reads "GT kit", not "GT kit aero kit".
@@ -195,13 +218,16 @@ export function own_parts(build: Build, owns: (pick: PartPick) => boolean): { bu
   return { build: { ...build, parts }, missing };
 }
 
-/** Every slot of the garage, parts first: the reward paints and decals earned, and the number, decal colour and neon colour only while a decal or a neon shows them. */
+/**
+ * Every slot of the garage, parts first: the reward paints and decals earned, the finish only over a plain paint (a reward
+ * paint wears its own), and the number, decal colour and neon colour only while a decal or a neon shows them.
+ */
 export function garage_items(build: Build, unlocks: Unlocks): Item[] {
   const decal = DECALS[build.decal];
-  return [...PART_ITEMS, paint_item(build, unlocks), decal_item(build, unlocks), ...(decal === "number" ? [NUMBER_ITEM] : []), ...(decal === "none" ? [] : [INK_ITEM]), NEON_ITEM, ...(NEONS[build.neon] === "none" ? [] : [GLOW_ITEM])];
+  return [...PART_ITEMS, paint_item(build, unlocks), ...(build.paint > MAX_PAINT ? [] : [FINISH_ITEM]), decal_item(build, unlocks), ...(decal === "number" ? [NUMBER_ITEM] : []), ...(decal === "none" ? [] : [INK_ITEM]), NEON_ITEM, ...(NEONS[build.neon] === "none" ? [] : [GLOW_ITEM])];
 }
 
 const SLOT_ICONS = new Set(["engine", "tyres", "aero", "suspension", "brakes", "weight", "bias", "nitro", "decal", "number", "ink", "neon", "glow"]);
 
 /** The sprite icon for a slot or option kind. */
-export const slot_icon = (id: string) => (id === "paint" ? "icon-paint" : `icon-slot-${SLOT_ICONS.has(id) ? id : "part"}`);
+export const slot_icon = (id: string) => (id === "paint" || id === "finish" ? "icon-paint" : `icon-slot-${SLOT_ICONS.has(id) ? id : "part"}`);

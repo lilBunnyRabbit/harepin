@@ -3,7 +3,7 @@ import { KINDS, plain_map } from "../worldgen/kinds/kinds";
 import { map_code, parse_map_code } from "../worldgen/kinds/map-code";
 import type { WorldKind } from "../worldgen/types";
 
-export const SHEETS = ["cars", "lineup", "paints", "decals", "biomes", "track", "carbon", "neon"] as const;
+export const SHEETS = ["cars", "lineup", "paints", "decals", "biomes", "track", "carbon", "neon", "finish"] as const;
 export type Sheet = (typeof SHEETS)[number];
 
 export const VIEWS = ["start", "q1", "q2", "q3", "gate", "overlook", "shore", "town", "street", "square", "roofs", "cabin", "aerial", "crest", "bowl", "rim", "ice", "grid", "hairpin", "pits", "trap"] as const;

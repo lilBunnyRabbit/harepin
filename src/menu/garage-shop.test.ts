@@ -1,7 +1,7 @@
 import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { render } from "svelte/server";
-import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, NEONS, build_code } from "../car/build";
+import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, FINISHES, MAX_PAINT, NEONS, build_code } from "../car/build";
 import { part_price } from "../career/prices";
 import type { PartPick } from "../career/wallet";
 import { own_parts } from "./garage-items";
@@ -48,6 +48,38 @@ test("a neon style short of credits stays unbought", () => {
   expect(wallet.credits).toBe(5000);
   expect(garage.buy(NEONS.indexOf("pool"))).toBe(true);
   expect(wallet.has("neon.pool")).toBe(true);
+});
+
+test("a paint finish is sold once for any colour; a reward paint shows no finish to buy", () => {
+  const { wallet, garage } = shop(9_000);
+  pick(garage, "finish");
+  const pearl = FINISHES.indexOf("pearl");
+  expect(garage.price(FINISHES.indexOf("standard"))).toBeNull();
+  expect(garage.price(FINISHES.indexOf("satin"))).toBe(3_000);
+  expect(garage.price(pearl)).toBe(8_000);
+  garage.fit(pearl);
+  expect(garage.current.finish).toBe(0);
+  expect(garage.buy(pearl)).toBe(true);
+  expect(FINISHES[garage.current.finish]).toBe("pearl");
+  expect(wallet.credits).toBe(1_000);
+  expect(wallet.has("finish.pearl")).toBe(true);
+  garage.use_code(build_code({ ...garage.current, paint: 2 }), false);
+  pick(garage, "finish");
+  expect(garage.price(pearl)).toBeNull();
+  garage.use_code(build_code({ ...garage.current, paint: MAX_PAINT + 1 }), false);
+  expect(garage.items.some((item) => item.id === "finish")).toBe(false);
+});
+
+test("a build code wearing a finish not bought loads without it, with a note", async () => {
+  const { wallet, garage } = shop(0);
+  await wallet.load();
+  const notes: string[] = [];
+  garage.on_notice = (text) => notes.push(text);
+  garage.use_code(build_code({ ...DEFAULT_BUILD, finish: FINISHES.indexOf("metallic") }));
+  expect(garage.current.finish).toBe(0);
+  expect(notes).toEqual(["Metallic finish not owned: removed"]);
+  garage.use_code(build_code({ ...DEFAULT_BUILD, paint: MAX_PAINT + 1, finish: FINISHES.indexOf("pearl") }));
+  expect(notes.length).toBe(1);
 });
 
 test("an extra body on an owned frame is bought from the garage; a locked frame's is not for sale", () => {

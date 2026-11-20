@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { DECALS, type Build, type Decal } from "./build";
-import { paint_finish, paint_lab } from "./paint";
+import { build_finish, paint_lab } from "./paint";
 import { NEUTRAL_INKS, color, dark, decal_inks } from "../theme/palette";
 import type { Lab } from "../theme/theme";
 
@@ -609,6 +609,8 @@ const DUSK_SHADE = 0.4;
 // By day a metal paint's faces mirror the sky, so it shows this far toward white from its token: a light ink that
 // clears the token still washes out on it.
 const METAL_SHEEN = 0.5;
+// Satin and pearl are mostly paint: they show their token, so only a finish this metal counts as a mirror.
+const MIRROR_METALNESS = 0.5;
 
 const distance = (a: Lab, b: Lab) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 const seen = (paint: Lab, metal: boolean) => (dark ? paint[0] * DUSK_SHADE : metal ? paint[0] + (1 - paint[0]) * METAL_SHEEN : paint[0]);
@@ -621,8 +623,8 @@ function far_neutral(from: number): Lab {
 /** Decal colours for a build: the chosen ink unless it would vanish on the paint as the light shows it, then the neutral that stands out. */
 export function livery_of(build: Build): Livery {
   const paint = paint_lab(build.paint);
-  const finish = paint_finish(build.paint);
-  const shown = seen(paint, finish !== null && finish.weave === null);
+  const finish = build_finish(build);
+  const shown = seen(paint, finish !== null && finish.weave === null && finish.metalness >= MIRROR_METALNESS);
   const chosen = decal_inks[build.ink % decal_inks.length];
   const neutral = build.ink % decal_inks.length < NEUTRAL_INKS;
   const vanishes = neutral ? Math.abs(chosen[0] - shown) < NEUTRAL_CONTRAST : distance(chosen, paint) < INK_CLASH;

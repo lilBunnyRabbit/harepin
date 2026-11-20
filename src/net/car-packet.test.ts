@@ -154,3 +154,19 @@ test("neon: a byte that names none reads as none, and bytes after it are ignored
   expect(with_tail(25, 7, 7)).toBe(`${state.b}+25`);
   expect(with_tail(0)).toBe(state.b);
 });
+
+test("finish: a byte after the neon, which goes out as 0 under it; older peers read the build and neon without it", () => {
+  const plain = bytes_of(state);
+  const pearl = bytes_of({ ...state, b: `${state.b}~3` });
+  expect(pearl.length).toBe(plain.length + 2);
+  expect([...pearl.subarray(plain.length)]).toEqual([0, 3]);
+  expect(pearl.subarray(0, plain.length)).toEqual(plain);
+  expect(decode_car(pearl, "x")?.b).toBe(`${state.b}~3`);
+  const lit = bytes_of({ ...state, b: `${state.b}+13~1` });
+  expect([...lit.subarray(plain.length)]).toEqual([13, 1]);
+  expect(decode_car(lit, "x")?.b).toBe(`${state.b}+13~1`);
+  expect(decode_car(lit.subarray(0, plain.length + 1), "x")?.b).toBe(`${state.b}+13`);
+  const with_tail = (...tail: number[]) => decode_car(new Uint8Array([...plain, ...tail]), "x")?.b;
+  for (const bad of [4, 9, 255]) expect(with_tail(0, bad)).toBe(state.b);
+  expect(with_tail(0, 2, 7)).toBe(`${state.b}~2`);
+});

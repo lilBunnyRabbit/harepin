@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, MAX_PAINT, NEONS, NEON_TONES, REWARD_PAINTS, SLOT_NAMES, SLOTS, build_spec, part_of, type Build, type Slot } from "../car/build";
+import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, FINISHES, MAX_PAINT, NEONS, NEON_TONES, REWARD_PAINTS, SLOT_NAMES, SLOTS, build_spec, part_of, type Build, type Slot } from "../car/build";
 import { CARS, is_car, type CarId } from "../car/cars";
 import { contact_shadow, fit_contact_shadow } from "../car/contact-shadow";
 import { build_view, rest_wheels } from "../car/models";
@@ -201,4 +201,12 @@ function neon(): SheetLayout {
   return { tiles, columns: NEON_CARS.length, same_scale: true, margin: 0.62 };
 }
 
-export const SHEET_LAYOUTS: Record<Sheet, () => SheetLayout> = { cars, lineup, paints, decals, biomes, track, carbon: carbons, neon };
+// Each shop finish over three paints, side by side.
+const FINISH_PAINTS = [1, 4, 6];
+
+function finishes(): SheetLayout {
+  const tiles = FINISH_PAINTS.flatMap((paint) => FINISHES.map((finish, index) => ({ label: `paint ${paint} · ${finish}`, object: car({ car: SHOWROOM, paint, finish: index }), ground: tones.asphalt, ...FRONT_34 })));
+  return { tiles, columns: FINISHES.length, same_scale: false };
+}
+
+export const SHEET_LAYOUTS: Record<Sheet, () => SheetLayout> = { cars, lineup, paints, decals, biomes, track, carbon: carbons, neon, finish: finishes };

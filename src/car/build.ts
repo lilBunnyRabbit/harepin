@@ -201,6 +201,8 @@ export interface Build {
   number: number;
   neon: number;
   neon_tone: number;
+  /** Index into `FINISHES`, over a `car_paints` colour; a reward paint keeps its own. */
+  finish: number;
   /** Index into `SLOTS[slot].parts` per slot. */
   parts: Record<Slot, number>;
 }
@@ -237,6 +239,11 @@ export const NEON_NAMES: Record<Neon, string> = { none: "None", pool: "Pool", ri
 export const NEON_TONES = ["accent", "primary", "secondary", "tertiary", "cottontail", "paint"] as const;
 export type NeonTone = (typeof NEON_TONES)[number];
 export const NEON_TONE_NAMES: Record<NeonTone, string> = { accent: "Accent", primary: "Primary", secondary: "Secondary", tertiary: "Tertiary", cottontail: "Cottontail", paint: "Match paint" };
+// Append-only: build codes and the car packet carry the index.
+export const FINISHES = ["standard", "satin", "metallic", "pearl"] as const;
+export type FinishName = (typeof FINISHES)[number];
+export const FINISH_NAMES: Record<FinishName, string> = { standard: "Standard", satin: "Satin", metallic: "Metallic", pearl: "Pearl" };
+export const finish_of = (index: number): number => (Number.isInteger(index) && index >= 0 && index < FINISHES.length ? index : 0);
 const NEON_BASE = 10;
 const NO_NEON = { neon: 0, neon_tone: 0 };
 
@@ -251,25 +258,32 @@ export function neon_of(byte: number): Pick<Build, "neon" | "neon_tone"> {
 
 export const DEFAULT_PARTS: Record<Slot, number> = { engine: 0, tyres: 0, aero: 0, suspension: 1, brakes: 0, weight: 0, bias: 1, nitro: 0 };
 // A new player's car, in the info paint: blue stands clear of grass, dirt and sand in both themes. The wing's rear grip takes the stock hatch's lift-off tuck at 80 km/h from 16 to 4 degrees of slip.
-export const DEFAULT_BUILD: Build = { car: "hatch", paint: 4, decal: 0, ink: 0, number: 7, ...NO_NEON, parts: { ...DEFAULT_PARTS, aero: 2 } };
+export const DEFAULT_BUILD: Build = { car: "hatch", paint: 4, decal: 0, ink: 0, number: 7, ...NO_NEON, finish: 0, parts: { ...DEFAULT_PARTS, aero: 2 } };
 
 const HEAD: readonly Slot[] = ["aero", "suspension", "engine"];
 const TAIL = SLOT_NAMES.filter((slot) => !HEAD.includes(slot));
 const NEON_MARK = "+";
-const MAX_CODE = 43;
+const FINISH_MARK = "~";
+const MAX_CODE = 45;
 
 // Ink and number, then the tail slots, ride as optional tails, so a build that keeps their defaults has the code it had
-// before them and older peers still read it. Neon rides last behind its own mark: `split_neon` cuts it off for them.
-const CODE = new RegExp(`^(${Object.keys(CARS).join("|")})\\.(\\d{1,2})\\.(\\d{1,2})\\.(\\d)\\.(\\d)\\.(\\d)(?:\\.(\\d)\\.(\\d{1,2})((?:\\.\\d){0,${TAIL.length}}))?(?:\\${NEON_MARK}(\\d\\d))?$`);
+// before them and older peers still read it. Neon, then the finish, ride last behind their own marks: `split_finish` and
+// `split_neon` cut them off for them.
+const CODE = new RegExp(`^(${Object.keys(CARS).join("|")})\\.(\\d{1,2})\\.(\\d{1,2})\\.(\\d)\\.(\\d)\\.(\\d)(?:\\.(\\d)\\.(\\d{1,2})((?:\\.\\d){0,${TAIL.length}}))?(?:\\${NEON_MARK}(\\d\\d))?(?:${FINISH_MARK}(\\d))?$`);
 
 export function build_code(build: Build): string {
   const code = `${build.car}.${build.paint}.${build.decal}.${HEAD.map((slot) => build.parts[slot]).join(".")}`;
   const tail = TAIL.map((slot) => build.parts[slot]);
   while (tail.length && tail[tail.length - 1] === DEFAULT_PARTS[TAIL[tail.length - 1]]) tail.pop();
   const byte = neon_byte(build);
-  const neon = byte ? NEON_MARK + String(byte).padStart(2, "0") : "";
-  if (!tail.length && build.ink === DEFAULT_BUILD.ink && build.number === DEFAULT_BUILD.number) return code + neon;
-  return [code, build.ink, build.number, ...tail].join(".") + neon;
+  const marks = (byte ? NEON_MARK + String(byte).padStart(2, "0") : "") + (build.finish ? FINISH_MARK + build.finish : "");
+  if (!tail.length && build.ink === DEFAULT_BUILD.ink && build.number === DEFAULT_BUILD.number) return code + marks;
+  return [code, build.ink, build.number, ...tail].join(".") + marks;
+}
+
+export function split_finish(code: string): { code: string; finish: number } {
+  const at = code.indexOf(FINISH_MARK);
+  return at < 0 ? { code, finish: 0 } : { code: code.slice(0, at), finish: finish_of(Number(code.slice(at + 1))) };
 }
 
 export function split_neon(code: string): { code: string; neon: number } {
@@ -291,7 +305,7 @@ export function parse_build(code: unknown): Build | null {
   HEAD.forEach((slot, i) => (parts[slot] = Number(m[4 + i])));
   TAIL.forEach((slot, i) => (parts[slot] = tail[i] ?? DEFAULT_PARTS[slot]));
   if (SLOT_NAMES.some((slot) => parts[slot] >= SLOTS[slot].parts.length)) return null;
-  return { car: m[1], paint, decal, ink, number, ...neon_of(m[10] === undefined ? 0 : Number(m[10])), parts };
+  return { car: m[1], paint, decal, ink, number, ...neon_of(m[10] === undefined ? 0 : Number(m[10])), finish: finish_of(m[11] === undefined ? 0 : Number(m[11])), parts };
 }
 
 function fold(mods: readonly Mod[], field: Field, base: number): number {
