@@ -51,6 +51,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.79.1",
+    date: "2026-11-20",
+    title: "Kicker headroom",
+    changes: [
+      { kind: FIXED, text: "Lifted, tuned cars no longer clip the top bar of island kicker frames at full speed" },
+      { kind: IMPROVED, text: "Island, Desert, Alpine and Tundra kicker frames resized, so records on those maps start fresh" },
+    ],
+  },
+  {
     version: "0.79.0",
     date: "2026-11-20",
     title: "Tuned rivals",
