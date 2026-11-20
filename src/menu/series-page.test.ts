@@ -10,7 +10,7 @@ import { series_list } from "../career/series-store";
 import { series_map } from "../career/series-run";
 import { Wallet } from "../career/wallet";
 import { start_view } from "./events-view";
-import { car_note, season_lock, season_tabs, start_card } from "./series-view";
+import { car_line, car_note, season_lock, season_tabs, start_card } from "./series-view";
 import { BASE_CAR, fresh_wallet } from "../career/wallet";
 import SeriesEvents from "./SeriesEvents.svelte";
 import SeriesFlow from "./SeriesFlow.svelte";
@@ -69,7 +69,8 @@ test("the coverflow shows the player's credits, the class cap, the replay round 
   const props = { season, progress, states: event_states(season, progress), table: standings(season, progress), done: false, onstart: () => {}, onreset: () => {}, ...switcher };
   const fresh = render(SeriesFlow, { props: { ...props, wallet: { ...fresh_wallet(), credits: 12500 } } }).body;
   expect(fresh).toContain("12,500 cr");
-  expect(fresh).toContain("Class C · your own cars");
+  expect(fresh).toContain("Your own car up to class C vs tuned rivals");
+  expect(fresh).toContain("6 events · points by finishing place");
   expect(fresh).toContain("Run 2");
   expect(fresh).not.toContain("sc-reward");
 });
@@ -98,7 +99,7 @@ test("the Rally Trial leads the switcher as a beginner's cup: its loaner named, 
   expect(out).toContain("Rally Trial");
   expect(out).not.toContain("Rally Trial series");
   expect(out).toContain("data-beginner");
-  expect(out).toContain("3 rounds · finish every round to keep the Rally · Loaner: stock Rally for everyone");
+  expect(out).toMatch(/"sh-terms[^"]*">Everyone in a stock Rally, lent to you(<!--[^>]*-->)?<span class="sh-more[^"]*"> · (<!---->)?3 rounds · finish every round to keep the Rally/);
   expect(out.match(/Finish the round before to open/g)?.length).toBe(2);
   expect(out).toContain('<span class="sc-reward');
   expect(out).toContain("Rally + 3,000 cr</span>");
@@ -138,4 +139,10 @@ test("the flow opens on the next race to run, or the last one run once none is l
   const opened = event_states(season, slow).filter((s) => s === "open").length;
   const all_run = { ...slow, results: Object.fromEntries(season.events.slice(0, opened).map((e) => [e.id, slow.results[season.events[0].id]])) };
   expect(at(all_run)).toBe(opened - 1);
+});
+
+test("the head says what car a season races: a cup lends everyone the same stock car, a season takes the player's own up to its cap", () => {
+  expect(car_line(RALLY_TRIAL)).toBe("Everyone in a stock Rally, lent to you");
+  expect(car_line(SEASON_1)).toBe("Your own car up to class C vs tuned rivals");
+  expect(CUPS.every((cup) => car_line(cup).includes("lent to you"))).toBe(true);
 });

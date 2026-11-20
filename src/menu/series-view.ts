@@ -94,6 +94,9 @@ export const loaner_line = (car: CarId) => `Loaner: stock ${CARS[car].name}`;
 
 export const cap_line = (season: Season) => (season.loaner ? `${loaner_line(season.loaner)} for everyone` : `Class ${CLASS_LABELS[season.cap]} · your own cars`);
 
+/** What the player drives in this season, leading the Series page's head: a cup lends one stock car to the whole grid. */
+export const car_line = (season: Season) => (season.loaner ? `Everyone in a stock ${CARS[season.loaner].name}, lent to you` : `Your own car up to class ${CLASS_LABELS[season.cap]} vs tuned rivals`);
+
 export const goal_line = (season: Season) => (season.gate === Gate.FINISH && season.reward.car ? `finish every round to keep the ${CARS[season.reward.car].name}` : "points by finishing place");
 
 export const round_line = (progress: SeriesProgress) => (progress.round ? `Run ${progress.round + 1}` : null);
@@ -114,7 +117,7 @@ export function rival_gap(season: Season, table: readonly Standing[]): { rival: 
 
 export const duel_text = (gap: number) => (gap > 0 ? `You lead by ${gap}` : gap < 0 ? `You trail by ${-gap}` : "Level");
 
-export const terms_line = (season: Season) => `${season.events.length} ${season.gate === Gate.FINISH ? "rounds" : "events"} · ${goal_line(season)} · ${cap_line(season)}`;
+export const terms_line = (season: Season) => `${season.events.length} ${season.gate === Gate.FINISH ? "rounds" : "events"} · ${goal_line(season)}`;
 
 export const step_focus = (focus: number, dir: 1 | -1, count: number) => Math.min(Math.max(focus + dir, 0), count - 1);
 

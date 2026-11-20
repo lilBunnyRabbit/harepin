@@ -2,7 +2,7 @@
   import type { Snippet } from "svelte";
   import { ordinal, trophy_of, type Season, type SeriesProgress, type Standing } from "../career/series";
   import { credits_text } from "../career/wallet";
-  import { duel_text, rival_gap, season_title } from "./series-view";
+  import { car_line, duel_text, rival_gap, season_title } from "./series-view";
 
   interface Props {
     season: Season;
@@ -26,7 +26,7 @@
 <header class="sh">
   <div class="sh-title">
     {#if title}{@render title()}{:else}<h2>{season_title(season)}</h2>{/if}
-    {#if children}<p class="sh-terms">{@render children()}</p>{/if}
+    <p class="sh-terms">{car_line(season)}{#if children}<span class="sh-more">{" · "}{@render children()}</span>{/if}</p>
   </div>
   <dl class="sh-stats" aria-label="Your season">
     <div>
@@ -136,8 +136,9 @@
     color: var(--primary);
   }
 
+  /* A short screen keeps the car line only: what the player drives is the one term a start can't show them first. */
   @media (max-height: 500px) {
-    .sh-terms {
+    .sh-more {
       display: none;
     }
   }
