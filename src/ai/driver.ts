@@ -44,11 +44,11 @@ const COAST_DECEL = 1;
 /**
  * m/s a car keeps over a kicker's toe and run under a car ahead: under it, it falls short into the frame. At 20 the run's
  * climb left a hatch 17 m/s at the lip and it hung on the frame's low bar (seed 20); at the kicker's design 24 the field
- * reached the next bends in another order and a coupe slid off in one (seed 48). A car ahead making under KICK_YIELD
- * along the road is stopped or wedged there, and the floor gives way to it rather than run into it.
+ * reached the next bends in another order and a coupe slid off in one (seed 48). It holds under a car stopped or wedged
+ * ahead too: let down to it, followers rolled onto the run, stopped against the frame under its opening and were put back
+ * to the run-up in a loop (island seed 44, 140 resets).
  */
 const KICK_MIN = 22;
-const KICK_YIELD = 8;
 /** Metres off the path it drives (the line, `aside` off it, or its grid lane) past which it slows for the arc back to its aim. */
 const AIM_OFF = 2;
 
@@ -102,8 +102,6 @@ export class Driver {
   late = false;
   /** Speed (m/s) it may not pass, set by the awareness behind a car it cannot get by. */
   cap = Infinity;
-  /** m/s along the road of the slowest car that sets `cap`; Infinity with none. */
-  ahead_speed = Infinity;
   /** m/s it aims at this step, cap included: what a follower reads as the speed this car is about to hold. */
   target = 0;
   /** Metres along the road's right normal the aim moves at once, past `aside`'s easing: set by the awareness to pull off a car overlapping alongside. */
@@ -329,7 +327,7 @@ export class Driver {
     const kicker = line.ramp[this.index] >= 0;
     // Pinned onto a kicker's run, a car keeps KICK_MIN under any car ahead: held to a follower's gap, a car met the lip at
     // 16 m/s, fell into the frame and the field piled up behind it (seed 28, 90 m off the grid).
-    const floor = kicker && line.room[this.index] === 0 && this.ahead_speed >= KICK_YIELD ? Math.min(KICK_MIN, line.speed[this.index]) : 0;
+    const floor = kicker && line.room[this.index] === 0 ? Math.min(KICK_MIN, line.speed[this.index]) : 0;
     const want_speed = Math.max(floor, Math.min(this.cap, kicker ? Math.min(held, line.speed[this.index]) : held));
     const look = want_speed < AI_TUNING.hairpin_pace ? AI_TUNING.aim_hairpin : AI_TUNING.aim_base + Math.floor(speed / AI_TUNING.aim_per);
     const at = (this.index + look) % n;

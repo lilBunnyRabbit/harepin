@@ -82,7 +82,7 @@ describe("AI driver", () => {
   });
 
   /** A driver placed at road point `at` of seed 44's circuit, its car parked there, after one step. */
-  function placed(at: (line: ReturnType<typeof race_line>) => number, pace: number, cap = Infinity, ahead_speed = Infinity) {
+  function placed(at: (line: ReturnType<typeof race_line>) => number, pace: number, cap = Infinity) {
     const world = new World(44);
     const route = world.routes.find((r) => r.kind === RouteKind.CIRCUIT);
     if (!route) throw new Error("island seed 44 has no circuit");
@@ -90,7 +90,6 @@ describe("AI driver", () => {
     const driver = new Driver(line, { pace, brake_margin: 1.5, aggression: 1, dive_reach: 2, keep_lead: 2, mistakes: 0 });
     driver.push = 1.2;
     driver.cap = cap;
-    driver.ahead_speed = ahead_speed;
     driver.place(at(line));
     const car = new Car(COUPE);
     const p = route.points[driver.index];
@@ -106,12 +105,11 @@ describe("AI driver", () => {
     expect(line.speed[driver.index] * 1.1 * 1.2).toBeGreaterThan(line.late[driver.index]);
   });
 
-  test("on a kicker's pinned run a moving car ahead never holds it under the speed that clears the lip; a stopped one does", () => {
+  test("on a kicker's pinned run no car ahead holds it under the speed that clears the lip", () => {
     const pinned = (l: ReturnType<typeof race_line>) => l.ramp.findIndex((r, i) => r >= 0 && l.room[i] === 0);
-    // Tucked up behind a car making 16 m/s, the follow cap drops to 3: the floor still holds.
-    const { driver, line } = placed(pinned, 1, 3, 16);
+    // Tucked up behind a car ahead, moving or wedged in the frame, the follow cap drops to 3: the floor still holds.
+    const { driver, line } = placed(pinned, 1, 3);
     expect(driver.target).toBeGreaterThanOrEqual(Math.min(22, line.speed[driver.index]));
-    expect(placed(pinned, 1, 3, 2).driver.target).toBe(3);
   });
 
   test("in a lane beside the line, the step onto a kicker's pin is no bend to slow for", () => {

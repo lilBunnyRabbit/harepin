@@ -230,7 +230,6 @@ export class Awareness {
     let cover = -1;
     let cover_gap = Infinity;
     driver.cap = Infinity;
-    driver.ahead_speed = Infinity;
     const keep = this.keep(driver);
     for (let j = 0; j < this.cars.length; j++) {
       if (j === i) continue;
@@ -252,7 +251,7 @@ export class Awareness {
       }
       if (gap > 0 && gap < LOOK + LOOK_PER * v && across < width) {
         // Every car ahead in its lane caps it, not the nearest alone: behind two cars a row apart, it ran into the slower one past the first.
-        this.hold(driver, j, this.follow(j, gap, j === this.passing[i] ? PASS_FOLLOW : keep));
+        this.hold(driver, this.follow(j, gap, j === this.passing[i] ? PASS_FOLLOW : keep));
         if (gap < blocker_gap) {
           blocker = j;
           blocker_gap = gap;
@@ -295,10 +294,10 @@ export class Awareness {
         driver.hold = wait ? NaN : hold;
         driver.push = 1 + PUSH * aggression;
         driver.late = diving;
-        if (wait) this.hold(driver, target, this.follow(target, gap, PASS_FOLLOW));
+        if (wait) this.hold(driver, this.follow(target, gap, PASS_FOLLOW));
         this.waited[i] = wait ? this.waited[i] + this.dt : 0;
         if (this.waited[i] > PASS_WAIT) this.end_pass(i);
-        if (this.trouble[target] && gap > -ALONGSIDE) this.hold(driver, target, Math.max(0, this.along[target]) + TROUBLE_CLOSE);
+        if (this.trouble[target] && gap > -ALONGSIDE) this.hold(driver, Math.max(0, this.along[target]) + TROUBLE_CLOSE);
         return;
       }
       this.end_pass(i);
@@ -366,7 +365,7 @@ export class Awareness {
       const at = this.flank_hold(i, beside, -Math.sign(dl) || -1, SIDE_GAP, Math.abs(dl) < SIDE_GAP + 0.5 ? PASS_KEEP : BESIDE_LOOK);
       driver.hold = at;
       // Squeezed against the edge: the car with its nose behind gives the corner up rather than leaning on the other.
-      if (Math.abs(base + at) > room && this.gap(i, beside) > 0) this.hold(driver, beside, Math.max(0, this.speed[beside] - YIELD));
+      if (Math.abs(base + at) > room && this.gap(i, beside) > 0) this.hold(driver, Math.max(0, this.speed[beside] - YIELD));
       return;
     }
     if (!Number.isNaN(driver.launch)) {
@@ -488,13 +487,11 @@ export class Awareness {
     driver.nudge = away * give * Math.min(NUDGE_MAX, near_in + NUDGE_MARGIN);
     if (gap <= 0) return;
     const yield_to = this.kicker_ahead(driver) ? this.follow(near, gap, FOLLOW) : this.speed[near] - YIELD;
-    this.hold(driver, near, Math.max(0, yield_to));
+    this.hold(driver, Math.max(0, yield_to));
   }
 
-  /** Caps the driver at `cap` for car j, and keeps the slowest such car's speed along the road: a kicker's floor gives way to it. */
-  private hold(driver: Driver, j: number, cap: number) {
+  private hold(driver: Driver, cap: number) {
     driver.cap = Math.min(driver.cap, cap);
-    driver.ahead_speed = Math.min(driver.ahead_speed, Math.max(0, this.along[j]));
   }
 
   /** A car passing driver i with its nose alongside and the pace to get by: the less aggressive i is, the more it lifts. */
@@ -509,7 +506,7 @@ export class Awareness {
       // A passer still in i's lane is held behind i (`decide`'s blocker): lifting for it, each capped to the other
       // slowed the pair to a stop side by side (seed 18).
       if (Math.abs(this.lateral[j] - this.lateral[i]) < (this.trouble[i] ? TROUBLE_FLANK : IN_LANE)) continue;
-      this.hold(driver, j, Math.max(0, this.speed[j] - give));
+      this.hold(driver, Math.max(0, this.speed[j] - give));
     }
   }
 
