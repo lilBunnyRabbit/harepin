@@ -75,8 +75,10 @@ export class Garage {
   // `rewards` reads career stars outside the runes, so each open bumps this to relist reward paints and decals.
   private relist = $state(0);
   private view: GarageView | null = null;
-  /** The player's own car while a meet has lent them another. */
+  /** The player's own car while a meet or a cup has lent them another. */
   private own_code: string | null = null;
+  /** The lent car is the meet's, so `take_back` may return it; a cup's loaner goes back only when its run ends. */
+  private meet_lent = false;
   private stage: GarageStage | null = null;
 
   constructor(build: Build) {
@@ -202,7 +204,10 @@ export class Garage {
   }
 
   use_code(code: string, save = true) {
-    if (save) this.own_code = null;
+    if (save) {
+      this.own_code = null;
+      this.meet_lent = false;
+    }
     const build = parse_build(code);
     if (build) this.apply(build, save);
   }
@@ -213,9 +218,11 @@ export class Garage {
     if (!build) return;
     if (!this.locks[build.car]) {
       this.own_code = null;
+      this.meet_lent = false;
       return this.apply(build);
     }
     this.lend(code);
+    this.meet_lent = true;
   }
 
   /** A car lent over the player's own (a meet's, a cup's loaner): unsaved, tuned free, until their own comes back. */
@@ -226,8 +233,10 @@ export class Garage {
     this.apply(build, false);
   }
 
+  /** The meet's lent car goes back; a cup's loaner stays on for its run. */
   take_back() {
-    if (this.own_code === null) return;
+    if (!this.meet_lent || this.own_code === null) return;
+    this.meet_lent = false;
     const code = this.own_code;
     this.own_code = null;
     this.use_code(code, false);
