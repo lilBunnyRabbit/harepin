@@ -36,6 +36,8 @@ export class Replay {
   private moving = false;
   /** The car jumped this frame (a seek, a cut on the tape): the sound jumps with it, no blip. */
   private cut = false;
+  /** m/s the wind last heard: the velocity differenced across a cut is the jump, not the drive. */
+  private heard_speed = 0;
   private readonly clock = new Playback();
   private readonly fly: FreeCamera;
   private readonly pose = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), vel: new THREE.Vector3() };
@@ -164,7 +166,9 @@ export class Replay {
   hear(frame: SoundFrame, idle: number): SoundFrame {
     const { tape, pose } = this;
     if (!tape || !this.moving) return idle_sound(frame, idle);
-    const speed = pose.vel.length();
+    const moved = pose.vel.length();
+    const speed = moved > TELEPORT_MPS ? this.heard_speed : moved;
+    this.heard_speed = speed;
     const offroad = !this.world.on_road(pose.pos.x, pose.pos.z);
     frame.speed = speed;
     frame.offroad = offroad;

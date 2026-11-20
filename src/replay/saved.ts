@@ -4,7 +4,7 @@ import { SOUND_STRIDE, type Watched } from "./run-tape";
 
 export const REPLAYS_PAGE = "replays";
 export const MAX_REPLAYS = 6;
-/** Numbers one replay may hold: a ten minute run with six AI cars is 336 000. */
+/** Numbers one replay may hold: a ten minute run with six AI cars and its sound is 360 000. */
 export const MAX_REPLAY_NUMBERS = 400_000;
 /** Numbers every saved replay may hold together, about 8 MB: past it the oldest go. */
 export const MAX_SAVED_NUMBERS = 1_000_000;

@@ -226,7 +226,7 @@ export class Audio {
     } else if (!boost) this.boost_since = null;
     const aim = rush_target(this.boost_since === null ? null : t - this.boost_since, this.rush_aim);
     this.rush?.gain.setTargetAtTime(aim.level, t, aim.tau);
-    if (this.last_rpm - rpm > 1200 && throttle > 0.3) this.blip(0.05);
+    if (!held && this.last_rpm - rpm > 1200 && throttle > 0.3) this.blip(0.05);
     this.last_rpm = rpm;
   }
 
