@@ -3,6 +3,7 @@ import { writeFileSync } from "node:fs";
 import { World } from "../../src/world/world";
 import type { WorldKind } from "../../src/worldgen/types";
 import { race_line } from "../../src/ai/line";
+import { UNIT_SCALE } from "../../src/ai/capability";
 import { COUPE, car_spec } from "../../src/car/cars";
 import { circuits } from "../ai-race";
 import { cma_init, cma_sample, type Cma } from "../ai-tune/cma";
@@ -90,7 +91,7 @@ export async function run_oracle(path: string, jobs: number) {
     const world = new World(config.seed, world_data(config.seed, config.world));
     const route = circuits(world).find((r) => r.id === config.route);
     if (!route) throw new Error(`seed ${config.seed} has no circuit ${config.route}`);
-    const line = race_line(route.points, world.ramps, (config.car === COUPE.id ? COUPE : car_spec(config.car)).radius, world);
+    const line = race_line(route.points, world.ramps, (config.car === COUPE.id ? COUPE : car_spec(config.car)).radius, world, UNIT_SCALE, world.challenges);
     delete ai.trace;
     state = { config, hash: AI_HASH, auto: auto.laps[config.route], ai, cma: cma_init(unit_init(knot_count(line, config.knot)), config.sigma), best: null, gens: [] };
     write_json(state_path, state);
@@ -123,7 +124,7 @@ export async function run_oracle(path: string, jobs: number) {
   const world = new World(config.seed, world_data(config.seed, config.world));
   const route = circuits(world).find((r) => r.id === config.route);
   if (!route) throw new Error(`no circuit ${config.route}`);
-  const line = race_line(route.points, world.ramps, (config.car === COUPE.id ? COUPE : car_spec(config.car)).radius, world);
+  const line = race_line(route.points, world.ramps, (config.car === COUPE.id ? COUPE : car_spec(config.car)).radius, world, UNIT_SCALE, world.challenges);
   const cs = corners(line);
   const result: OracleResult = {
     kind: "oracle",

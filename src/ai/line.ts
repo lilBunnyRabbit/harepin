@@ -1,5 +1,6 @@
 import { GRAVITY } from "../car/rigid-body";
-import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
+import { ROAD_HALF, type Challenge, type Ramp, type RoadPoint } from "../worldgen/types";
+import { flight, ramp_local } from "../worldgen/jumps";
 import { hazards, type LineGround } from "./hazards";
 import { AI_TUNING } from "./tuning";
 import { trim_of, UNIT_SCALE, type Capability, type PlanScale } from "./capability";
@@ -34,6 +35,15 @@ const CREST_SPAN = 10;
 /** Fastest pace over a circuit kicker, and how far before its toe (m) the line slows for it: as the autopilot takes them. */
 const JUMP_PACE = 32;
 const RAMP_LOOK = 120;
+/**
+ * Metres a car's roof flies over the flight model at a kicker's lip (springs unloading off the ramp, the ride the model leaves
+ * out), and the metres it clears the opening's top by: a tuned rally on 0.12 m more ride flew 0.95 m over the model at 32
+ * m/s and hung on a wall's top bar (island seed 44).
+ */
+const LAUNCH_SLACK = 0.95;
+const JUMP_CLEAR = 0.3;
+/** m/s steps a kicker's take-off is searched down in for one that clears its opening. */
+const JUMP_STEP = 0.5;
 /** Metres either side of a kicker's run the line keeps to the centre, lined up with the ramp. */
 const RAMP_PIN = 20;
 /** Least share of its braking or pull the profile gives a car at the limit of a bend: at none, a bend's apex could never be braked into. */
@@ -62,6 +72,8 @@ export interface RaceLine {
   /** Signed 1/radius (1/m) of the line at each point; positive bends away from the right normal. */
   readonly bend: Float64Array;
   readonly ramp: Int16Array;
+  /** By ramp id: the opening a road kicker flies through, absent for a kicker with none. */
+  readonly gaps: readonly (JumpGap | undefined)[];
   /** Metres between point i and i + 1. */
   readonly step: Float64Array;
   /** How far the line may stray off the centre at each point (m). */
@@ -69,6 +81,34 @@ export interface RaceLine {
   /** Metres off the centre (along the right normal) a car's centre keeps between to stay off the steps and solids on the road: the line, a pass or a defence. */
   readonly lo: Float64Array;
   readonly hi: Float64Array;
+}
+
+/** A challenge's opening over a road kicker's flight: `d` metres past the lip, its top `top` (m, world height). */
+export interface JumpGap {
+  readonly ramp: Ramp;
+  readonly d: number;
+  readonly top: number;
+}
+
+/** Each road kicker's opening, by ramp id. */
+function jump_gaps(ramps: readonly Ramp[], challenges: readonly Challenge[]): (JumpGap | undefined)[] {
+  const gaps: (JumpGap | undefined)[] = [];
+  for (const c of challenges) {
+    const ramp = ramps[c.ramp];
+    if (!ramp?.road) continue;
+    const top = c.y + c.gap_top;
+    if (gaps[c.ramp] && gaps[c.ramp]!.top <= top) continue;
+    gaps[c.ramp] = { ramp, d: ramp_local(ramp, c.x, c.z)[1] - ramp.length, top };
+  }
+  return gaps;
+}
+
+/** m/s at most a car of `roof` takes a kicker at so it clears the opening's top, never under the kicker's design speed. */
+function jump_cap(gap: JumpGap, roof: number): number {
+  const { ramp, d, top } = gap;
+  let v = JUMP_PACE;
+  while (v > ramp.speed && flight(ramp, v, d) + roof + LAUNCH_SLACK + JUMP_CLEAR > top) v -= JUMP_STEP;
+  return Math.max(v, ramp.speed);
 }
 
 const wrap = (i: number, n: number) => ((i % n) + n) % n;
@@ -258,7 +298,7 @@ function relax(road: readonly RoadPoint[], offset: Float64Array, x: Float64Array
  * width (`half_width`, m) and kept off what `ground` shows on the road. The plain midpoint (shortest path) is slower:
  * it bunches a bend's turn at the apex.
  */
-export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], half_width: number, ground?: LineGround, scale: PlanScale = UNIT_SCALE): RaceLine {
+export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], half_width: number, ground?: LineGround, scale: PlanScale = UNIT_SCALE, challenges: readonly Challenge[] = []): RaceLine {
   const n = road.length;
   const step = new Float64Array(n);
   for (let i = 0; i < n; i++) step[i] = hypot(road[wrap(i + 1, n)].x - road[i].x, road[wrap(i + 1, n)].z - road[i].z);
@@ -307,21 +347,23 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
     kick[i] = ramp[i] >= 0 || steps?.[i] ? 1 : 0;
   }
   const empty = new Float64Array(0);
-  return plan_for({ road, offset, x, z, speed: empty, late: empty, scale, lift, kick, bend, ramp, step, room, lo, hi }, scale);
+  return plan_for({ road, offset, x, z, speed: empty, late: empty, scale, lift, kick, bend, ramp, gaps: jump_gaps(ramps, challenges), step, room, lo, hi }, scale);
 }
 
 /** `line` with its speeds planned anew for a car of `scale` over the coupe: the path and everything else shared. */
 export function plan_for(line: RaceLine, scale: PlanScale): RaceLine {
-  const { bend, lift, kick, step } = line;
+  const { bend, lift, kick, step, ramp, gaps } = line;
   const n = bend.length;
   const car = scale.car;
   const trim = trim_of(scale);
+  const caps = gaps.map((gap) => (gap ? Math.min(scale.jump, jump_cap(gap, scale.roof)) : scale.jump));
   const speed = new Float64Array(n);
   const hold = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     const radius = 1 / Math.max(1e-9, Math.abs(bend[i]));
-    speed[i] = corner_speed(Math.sqrt(grip_at(bend[i], scale) * radius), lift[i], kick[i], scale.jump);
-    hold[i] = corner_speed(trimmed_hold(radius, car, trim), lift[i], kick[i], scale.jump);
+    const jump = ramp[i] >= 0 ? (caps[ramp[i]] ?? scale.jump) : scale.jump;
+    speed[i] = corner_speed(Math.sqrt(grip_at(bend[i], scale) * radius), lift[i], kick[i], jump);
+    hold[i] = corner_speed(trimmed_hold(radius, car, trim), lift[i], kick[i], jump);
   }
   const brake = new Float64Array(n).fill(AI_TUNING.line_brake * scale.brake);
   model_corners(speed, hold, brake, line, scale, car);

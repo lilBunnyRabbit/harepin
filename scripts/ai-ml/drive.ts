@@ -193,7 +193,7 @@ export interface Track {
 }
 
 export function track_of(world: World, route: Route, spec: CarSpec, assists = true): Track {
-  const line = race_line(route.points, world.ramps, spec.radius, world, plan_scale(spec));
+  const line = race_line(route.points, world.ramps, spec.radius, world, plan_scale(spec), world.challenges);
   return { world, route, spec, line, base: base_plan(line), assists };
 }
 

@@ -26,7 +26,7 @@ export interface SoloRun {
 }
 
 export function solo_run(world: World, route: Route, spec: CarSpec, flying: number): Omit<SoloRun, "oracle"> {
-  const line = race_line(route.points, world.ramps, spec.radius, world, plan_scale(spec));
+  const line = race_line(route.points, world.ramps, spec.radius, world, plan_scale(spec), world.challenges);
   const driver = new Driver(line);
   const car = new Car(spec);
   const p = route.points[0];

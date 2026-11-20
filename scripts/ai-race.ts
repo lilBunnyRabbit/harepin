@@ -40,7 +40,7 @@ export function circuits(world: World): Route[] {
 }
 
 export function solo(world: World, route: Route, spec: CarSpec, limit = 400, assists = true): Solo {
-  const line = race_line(route.points, world.ramps, spec.radius, world, plan_scale(spec));
+  const line = race_line(route.points, world.ramps, spec.radius, world, plan_scale(spec), world.challenges);
   const driver = new Driver(line);
   const car = new Car(spec);
   car.assist = car.stability = assists;

@@ -8,7 +8,7 @@ import type { Route } from "../worldgen/types";
 import { Awareness } from "./awareness";
 import { Driver, OFF_ROAD, STEADY, type Personality } from "./driver";
 import { plan_for, race_line, type RaceLine } from "./line";
-import { plan_scale } from "./capability";
+import { plan_scale, UNIT_SCALE } from "./capability";
 import { AI_TUNING } from "./tuning";
 import { atan2, cos, hypot, sin } from "../sim-math";
 
@@ -162,7 +162,7 @@ export class Field {
   ) {
     const radius = Math.max(...specs.map((s) => s.radius));
     // A chunk not in yet reads as flat ground with no solids: half a row at height 0 is a step that is not there.
-    this.line = race_line(route.points, world.ramps, radius, world.tiles.complete ? world : undefined);
+    this.line = race_line(route.points, world.ramps, radius, world.tiles.complete ? world : undefined, UNIT_SCALE, world.challenges);
     // One path for the field, its speeds planned per car on what that car measures (`capability.ts`).
     const plans = new Map<CarSpec, RaceLine>();
     const plan = (spec: CarSpec) => plans.get(spec) ?? plans.set(spec, plan_for(this.line, plan_scale(spec))).get(spec)!;
@@ -416,7 +416,7 @@ export class Field {
   }
 
   /** The road point a car at `index` is put back at: `index` itself, or RESET_RUNUP metres before the kicker run it is on. */
-  private reset_point(index: number): number {
+  reset_point(index: number): number {
     const { room, step } = this.line;
     const n = room.length;
     if (room[index] !== 0) return index;

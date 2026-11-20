@@ -5,7 +5,9 @@ import { hold_speed } from "./corners";
 import { UNIT_SCALE } from "./capability";
 import { AI_TUNING } from "./tuning";
 import type { LineGround } from "./hazards";
-import { ROAD_HALF, type RoadPoint } from "../worldgen/types";
+import { ROAD_HALF, RouteKind, type RoadPoint } from "../worldgen/types";
+import { World } from "../world/world";
+import { flight } from "../worldgen/jumps";
 
 /** A closed stadium: two straights joined by half circles, points 2 m apart, driven anticlockwise. */
 function stadium(straight: number, radius: number): RoadPoint[] {
@@ -143,5 +145,26 @@ describe("race line", () => {
     const ground: LineGround = { ...flat, touches: (car, gap) => (Math.hypot(car.pos.x - post.x, car.pos.z - post.z) < car.spec.radius + 0.3 + gap ? 1 : 0) };
     const posted = race_line(road, [], 1, ground);
     for (let i = at - 1; i <= at + 1; i++) expect(Math.abs(30 + posted.offset[i] - post.x)).toBeGreaterThan(1 + 0.3);
+  });
+
+  test("a road kicker is planned at a take-off whose flight clears its opening's top, lower for a car that rides taller", () => {
+    const world = new World(44);
+    const route = world.routes.find((r) => r.kind === RouteKind.CIRCUIT);
+    if (!route) throw new Error("island seed 44 has no circuit");
+    const line = race_line(route.points, world.ramps, 1, undefined, UNIT_SCALE, world.challenges);
+    const k = line.gaps.findIndex((g) => g !== undefined);
+    const gap = line.gaps[k];
+    if (!gap) throw new Error("island seed 44's circuit has no kicker with an opening");
+    const toe = (roof: number) => {
+      const plan = plan_for(line, { ...UNIT_SCALE, roof });
+      let v = Infinity;
+      for (let i = 0; i < plan.ramp.length; i++) if (plan.ramp[i] === k && plan.kick[i]) v = Math.min(v, plan.speed[i]);
+      return v;
+    };
+    const low = toe(UNIT_SCALE.roof);
+    const tall = toe(UNIT_SCALE.roof + 0.3);
+    expect(tall).toBeLessThan(low);
+    expect(tall).toBeGreaterThanOrEqual(gap.ramp.speed);
+    expect(flight(gap.ramp, low, gap.d) + UNIT_SCALE.roof).toBeLessThan(gap.top);
   });
 });
