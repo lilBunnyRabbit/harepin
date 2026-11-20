@@ -10,9 +10,9 @@ const LOOK_PER = 1.2;
 /** Road points apart under which a gap is measured from the car positions. */
 const NEAR_POINTS = 20;
 /**
- * Most seconds ahead a car's drift off its line is carried to where a follower closing on it gets there, and the m/s of
- * closing under which it is not: slower, the 20 Hz look sees it come over in time, and carried anyway the stock coupe
- * lost passes and ran off more (island seeds 24, 33).
+ * Most seconds ahead the player's drift off its line is carried to where a follower closing on it gets there, and the m/s
+ * of closing under which it is not: slower, the 20 Hz look sees it come over in time. Carried for the field's own cars too,
+ * whose drift is a pass or a nudge that ends, the stock coupe lost passes and ran off more (island seeds 24, 33, 34).
  */
 const DRIFT_LEAD = 1.5;
 const DRIFT_CLOSING = 4;
@@ -251,7 +251,7 @@ export class Awareness {
       if (gap > 0) {
         const path = driver.lateral_at(this.cars[i], this.drivers[j].index);
         const closing = v - this.along[j];
-        const lead = closing > DRIFT_CLOSING ? Math.min(DRIFT_LEAD, gap / closing) : 0;
+        const lead = j >= this.driven && closing > DRIFT_CLOSING ? Math.min(DRIFT_LEAD, gap / closing) : 0;
         across = Math.min(across, Math.abs(this.lateral[j] - path), Math.abs(this.lateral[j] + this.drift[j] * lead - path));
       }
       if (gap > 0 && gap < LOOK + LOOK_PER * v && across < width) {
