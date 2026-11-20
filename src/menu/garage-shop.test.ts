@@ -78,6 +78,8 @@ test("a build code wearing a finish not bought loads without it, with a note", a
   garage.use_code(build_code({ ...DEFAULT_BUILD, finish: FINISHES.indexOf("metallic") }));
   expect(garage.current.finish).toBe(0);
   expect(notes).toEqual(["Metallic finish not owned: removed"]);
+  garage.use_code(build_code({ ...DEFAULT_BUILD, paint: MAX_PAINT + 1, finish: FINISHES.indexOf("pearl") }));
+  expect(notes.length).toBe(1);
 });
 
 test("an extra body on an owned frame is bought from the garage; a locked frame's is not for sale", () => {

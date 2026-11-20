@@ -178,7 +178,7 @@ const GLOW_ITEM: Item = {
 export function strip_unowned(build: Build, has: (id: Cosmetic) => boolean): { build: Build; dropped: string[] } {
   const decal = DECALS[build.decal];
   const neon = NEONS[build.neon];
-  const finish = FINISHES[build.finish];
+  const finish = build.paint > MAX_PAINT ? "standard" : FINISHES[build.finish];
   const off_decal = DECAL_PRICE[decal] !== undefined && !has(decal_id(decal));
   const off_neon = NEON_PRICE[neon] !== undefined && !has(neon_id(neon));
   const off_finish = FINISH_PRICE[finish] !== undefined && !has(finish_id(finish));
