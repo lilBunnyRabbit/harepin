@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, MAX_PAINT, NEONS, NEON_TONES, REWARD_PAINTS, SLOTS, SLOT_NAMES, STATS, apply_build, build_code, build_spec, neon_of, parse_build, split_neon, stat_range, stats, type Build } from "./build";
+import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, FINISHES, MAX_PAINT, NEONS, NEON_TONES, REWARD_PAINTS, SLOTS, SLOT_NAMES, STATS, apply_build, build_code, build_spec, neon_of, parse_build, split_finish, split_neon, stat_range, stats, type Build } from "./build";
 import { CARS, COUPE, HATCH, RALLY, car_sized, type CarId, type CarSpec } from "./cars";
 import { surface_grip as tyre_share } from "./car";
 import { LAND_GRIP, SAND_GRIP } from "../worldgen/kinds/kind-def";
@@ -349,4 +349,20 @@ test("neon rides behind its own mark, left off at none, and a bad one falls back
   expect(split_neon(build_code(all))).toEqual({ code: build_code({ ...all, neon: 0, neon_tone: 0 }), neon: 25 });
   expect(split_neon("coupe.0.0.0.1.0")).toEqual({ code: "coupe.0.0.0.1.0", neon: 0 });
   expect(split_neon("coupe.0.0.0.1.0+99")).toEqual({ code: "coupe.0.0.0.1.0", neon: 0 });
+});
+
+test("a finish rides last behind its own mark, left off at standard; older codes read as standard", () => {
+  expect(FINISHES.slice(0, 4)).toEqual(["standard", "satin", "metallic", "pearl"]);
+  expect(build_code(with_parts({}, { finish: 2 }))).toBe("coupe.0.0.0.1.0~2");
+  expect(parse_build("coupe.0.0.0.1.0~2")).toEqual(with_parts({}, { finish: 2 }));
+  expect(build_code(with_parts({}, { neon: 1, finish: 3 }))).toBe("coupe.0.0.0.1.0+10~3");
+  expect(parse_build("coupe.0.0.0.1.0+10~3")).toEqual(with_parts({}, { neon: 1, finish: 3 }));
+  expect(parse_build("rally.12.3.2.0.1")).toEqual(with_parts({ aero: 2, suspension: 0, engine: 1 }, { car: "rally", paint: 12, decal: 3, finish: 0 }));
+  expect(parse_build("coupe.0.0.0.1.0~9")).toEqual(with_parts({}));
+  for (const bad of ["~", "~12", "~a", "~1+10"]) expect(parse_build(`coupe.0.0.0.1.0${bad}`)).toBeNull();
+  const longest = Object.keys(CARS).reduce((a, b) => (b.length > a.length ? b : a)) as CarId;
+  const all = with_parts({ tyres: 1, brakes: 2, weight: 1, bias: 2, nitro: 2, aero: 2, suspension: 3, engine: 2 }, { car: longest, paint: MAX_PAINT + REWARD_PAINTS, decal: 13, ink: 8, number: 99, neon: 2, neon_tone: 5, finish: 3 });
+  expect(parse_build(build_code(all))).toEqual(all);
+  expect(split_finish(build_code(all))).toEqual({ code: build_code({ ...all, finish: 0 }), finish: 3 });
+  expect(split_finish("coupe.0.0.0.1.0")).toEqual({ code: "coupe.0.0.0.1.0", finish: 0 });
 });

@@ -15,7 +15,7 @@ import { dispose_neon, neon_look, neon_view, type NeonLook, type NeonView } from
 import { nitro_flame, type Jet } from "./nitro-look";
 import { aero_of, aero_parts, kit_parts, rear_wing } from "./part-looks";
 import { STOCK_CALIPER, STOCK_TYRE, brake_geometry, chrome_tone, wheel_geometry } from "./wheels";
-import { paint_finish, paint_lab, type Finish } from "./paint";
+import { build_finish, paint_lab, type Finish } from "./paint";
 import { WEAVE_KEY, weave_shader } from "./carbon";
 import { brand, color, dark, mix, tones } from "../theme/palette";
 import { sky_ceiling } from "../render/sky";
@@ -78,7 +78,7 @@ export function build_view(build: Build, spec: CarSpec = build_spec(build)): Car
 
 /** `build_view` in steps, for a caller that spreads the build over frames: a whole car is a long task on a phone. */
 export function view_steps(build: Build, spec: CarSpec = build_spec(build)): Steps<CarView> {
-  return car_view_steps(color(paint_lab(build.paint)), spec, build.parts, livery_of(build), paint_finish(build.paint), neon_look(build));
+  return car_view_steps(color(paint_lab(build.paint)), spec, build.parts, livery_of(build), build_finish(build), neon_look(build));
 }
 
 const TONE_MATCH = 1e-4;

@@ -1,4 +1,4 @@
-import type { Decal, Neon, Slot } from "../car/build";
+import type { Decal, FinishName, Neon, Slot } from "../car/build";
 import type { FrameId } from "../car/cars";
 import type { CarClass } from "../car/pi";
 
@@ -58,15 +58,20 @@ export const DECAL_PRICE: Readonly<Partial<Record<Decal, number>>> = { flames: 2
 /** A neon style; it opens every tone. */
 export const NEON_PRICE: Readonly<Partial<Record<Neon, number>>> = { pool: 4_000, ring: 6_000 };
 
-/** A cosmetic bought once, account-wide: `decal.flames`, `neon.ring`. */
-export type Cosmetic = `decal.${Decal}` | `neon.${Neon}`;
+/** A paint finish over any `car_paints` colour; the career reward paints keep their own and are never sold. */
+export const FINISH_PRICE: Readonly<Partial<Record<FinishName, number>>> = { satin: 3_000, metallic: 5_000, pearl: 8_000 };
+
+/** A cosmetic bought once, account-wide: `decal.flames`, `neon.ring`, `finish.pearl`. */
+export type Cosmetic = `decal.${Decal}` | `neon.${Neon}` | `finish.${FinishName}`;
 
 export const decal_id = (decal: Decal): Cosmetic => `decal.${decal}`;
 export const neon_id = (neon: Neon): Cosmetic => `neon.${neon}`;
+export const finish_id = (finish: FinishName): Cosmetic => `finish.${finish}`;
 
 export const COSMETIC_PRICE: Readonly<Partial<Record<Cosmetic, number>>> = Object.fromEntries([
   ...Object.entries(DECAL_PRICE).map(([decal, price]) => [decal_id(decal as Decal), price]),
   ...Object.entries(NEON_PRICE).map(([neon, price]) => [neon_id(neon as Neon), price]),
+  ...Object.entries(FINISH_PRICE).map(([finish, price]) => [finish_id(finish as FinishName), price]),
 ]);
 
 export const is_cosmetic = (id: unknown): id is Cosmetic => typeof id === "string" && Object.hasOwn(COSMETIC_PRICE, id);

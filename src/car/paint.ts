@@ -1,4 +1,4 @@
-import { MAX_PAINT } from "./build";
+import { FINISHES, MAX_PAINT, type Build, type FinishName } from "./build";
 import { car_paints, carbon, tier_metals } from "../theme/palette";
 import type { Lab } from "../theme/theme";
 import type { Weave } from "./carbon";
@@ -38,4 +38,17 @@ export function paint_lab(paint: number): Lab {
 
 export function paint_finish(paint: number): Finish | null {
   return reward_paints[paint - MAX_PAINT - 1]?.finish ?? null;
+}
+
+// Shop finishes on the metal hull's material, by `FINISHES` index; standard keeps the matte hull and its one draw.
+const SHOP_FINISHES: Readonly<Record<FinishName, Finish | null>> = {
+  standard: null,
+  satin: { metalness: 0.15, roughness: 0.6, reflect: 0.7, weave: null },
+  metallic: { metalness: 0.6, roughness: 0.35, reflect: 1.2, weave: null },
+  pearl: { metalness: 0.3, roughness: 0.2, reflect: 1.6, weave: null },
+};
+
+/** A reward paint wears its own finish; a plain one the build's shop finish. */
+export function build_finish(build: Pick<Build, "paint" | "finish">): Finish | null {
+  return paint_finish(build.paint) ?? SHOP_FINISHES[FINISHES[build.finish] ?? "standard"];
 }

@@ -29,7 +29,7 @@
   const fitted = $derived(item.at(garage.current));
   const livery = $derived(livery_of(shown));
   const fitted_class = $derived(rating(garage.current).class);
-  const carded = $derived(item.kind === "part" || item.kind === "neon");
+  const carded = $derived(item.kind === "part" || item.kind === "neon" || item.kind === "finish");
   const options = $derived(
     Array.from({ length: item.kind === "number" ? 0 : item.count }, (_, index) => {
       const build = item.with(garage.current, index);
