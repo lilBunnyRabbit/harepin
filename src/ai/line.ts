@@ -51,13 +51,16 @@ const GRIP_FLOOR = 0.25;
 /** Most of the car's weight (share of g) a crest may take off it at the planned speed: past 1 it leaves the road. */
 const CREST_HOLD = 0.8;
 /**
- * Most the downforce raises a bend's planned grip over `grip_at` (share), and the vertical curvature (1/m) of a crest at
- * which it raises none. Planned flat, smooth Raceway sweepers ran 7 m/s under the car's hold and the oracle's pace. At
- * 1.2 the coupe at 46 m/s cut 2.4 m inside its line onto a gate post (Raceway seed 1); at a flat 10.5 m/s² in every fast
- * bend a coupe left the road over an island crest (seed 1).
+ * Most the downforce raises a bend's planned grip over `grip_at` (share), the vertical curvature (1/m) of a crest at
+ * which it raises none, and the grade at which it raises none (full under half of it). Planned flat, smooth Raceway
+ * sweepers ran 7 m/s under the car's hold and the oracle's pace. At 1.2 the coupe at 46 m/s cut 2.4 m inside its line
+ * onto a gate post (Raceway seed 1); at a flat 10.5 m/s² in every fast bend a coupe left the road over an island crest
+ * (seed 1). On the island's hills, where 4 of 5 road points climb over 4%, the raise reshuffled traffic into hard
+ * touches on the player in tight bends it never reached (sturm ugly 2.78 to 4.17 per 50); the level Raceway keeps most of it.
  */
 const AERO_MAX = 1.1;
 const SMOOTH_LIFT = 1e-3;
+const SMOOTH_GRADE = 0.05;
 
 /**
  * A closed racing line over a circuit, built once at the start: per road point a signed lateral offset (along the
@@ -179,11 +182,12 @@ function pull_pass(speed: Float64Array, step: Float64Array, bend: Float64Array, 
   }
 }
 
-function aero_grip(flat: number, radius: number, lift: number, car: Capability): number {
+function aero_grip(flat: number, radius: number, lift: number, slope: number, car: Capability): number {
   const per = downforce_per(car);
   const share = flat / car.fast;
   const v2 = (radius * share * (car.slow - per * SLOW_AT * SLOW_AT)) / (1 - Math.min(DOWNFORCE_HOLD, radius * share * per));
-  return flat + Math.max(0, Math.min(flat * AERO_MAX, v2 / radius) - flat) * Math.max(0, 1 - lift / SMOOTH_LIFT);
+  const level = Math.max(0, Math.min(1, 2 - (2 * slope) / SMOOTH_GRADE));
+  return flat + Math.max(0, Math.min(flat * AERO_MAX, v2 / radius) - flat) * Math.max(0, 1 - lift / SMOOTH_LIFT) * level;
 }
 
 /** m/s a bend held at `hold` m/s on the flat holds over a crest of `lift` and on a kick, taken at most at `jump`: the line's corner speed. */
@@ -247,8 +251,8 @@ function model_corners(speed: Float64Array, hold: Float64Array, brake: Float64Ar
   });
 }
 
-/** Vertical curvature (1/m) of the road at point i, positive over a crest, 0 in a dip. */
-function crest(road: readonly RoadPoint[], step: Float64Array, i: number): number {
+/** The road's grade (rise per metre) over CREST_SPAN points into point i and out of it, and the mean metres they span: none on a degenerate span. */
+function slopes(road: readonly RoadPoint[], step: Float64Array, i: number): { up: number; down: number; span: number } | undefined {
   const n = road.length;
   let before = 0;
   let after = 0;
@@ -256,10 +260,20 @@ function crest(road: readonly RoadPoint[], step: Float64Array, i: number): numbe
     before += step[wrap(i - k, n)];
     after += step[wrap(i + k - 1, n)];
   }
-  if (before < 1e-9 || after < 1e-9) return 0;
-  const up = (road[i].y - road[wrap(i - CREST_SPAN, n)].y) / before;
-  const down = (road[wrap(i + CREST_SPAN, n)].y - road[i].y) / after;
-  return Math.max(0, (up - down) / ((before + after) / 2));
+  if (before < 1e-9 || after < 1e-9) return undefined;
+  return { up: (road[i].y - road[wrap(i - CREST_SPAN, n)].y) / before, down: (road[wrap(i + CREST_SPAN, n)].y - road[i].y) / after, span: (before + after) / 2 };
+}
+
+/** Vertical curvature (1/m) of the road at point i, positive over a crest, 0 in a dip. */
+function crest(road: readonly RoadPoint[], step: Float64Array, i: number): number {
+  const s = slopes(road, step, i);
+  return s ? Math.max(0, (s.up - s.down) / s.span) : 0;
+}
+
+/** The road's mean grade (rise per metre, unsigned) through point i. */
+function grade(road: readonly RoadPoint[], step: Float64Array, i: number): number {
+  const s = slopes(road, step, i);
+  return s ? Math.abs(s.up + s.down) / 2 : 0;
 }
 
 /**
@@ -378,7 +392,7 @@ export function plan_for(line: RaceLine, scale: PlanScale): RaceLine {
   for (let i = 0; i < n; i++) {
     const radius = 1 / Math.max(1e-9, Math.abs(bend[i]));
     const jump = ramp[i] >= 0 ? (caps[ramp[i]] ?? scale.jump) : scale.jump;
-    grip[i] = aero_grip(grip_at(bend[i], scale), radius, lift[i], car);
+    grip[i] = aero_grip(grip_at(bend[i], scale), radius, lift[i], grade(line.road, step, i), car);
     speed[i] = corner_speed(Math.sqrt(grip[i] * radius), lift[i], kick[i], jump);
     hold[i] = corner_speed(trimmed_hold(radius, car, trim), lift[i], kick[i], jump);
   }
