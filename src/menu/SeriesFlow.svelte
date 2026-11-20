@@ -20,7 +20,9 @@
   let focus = $state(0);
   const last = $derived(season.events.length);
 
+  // Focus moves with the ask, not the landing: a press before the last scroll snaps steps on from where it is headed.
   function show(i: number, behavior: ScrollBehavior = "smooth") {
+    focus = i;
     strip?.children[i]?.scrollIntoView({ inline: "center", block: "nearest", behavior });
   }
 
@@ -78,8 +80,8 @@
   </SeriesHead>
 
   <div class="fl-stage">
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions, a11y_click_events_have_key_events: the strip is the pad's focus stop; its cards' buttons are click targets only -->
-    <ol class="fl-strip" aria-label="Events" tabindex="0" data-adjust bind:this={strip} use:swipe={step} onclick={pressed} onkeydown={key}>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions, a11y_click_events_have_key_events, a11y_autofocus: the strip is the pad's focus stop and the first one, ahead of the season steps; its cards' and the rail's buttons are click targets only -->
+    <ol class="fl-strip" aria-label="Events" tabindex="0" autofocus data-adjust bind:this={strip} use:swipe={step} onclick={pressed} onkeydown={key}>
       {#each season.events as event, i (event.id)}
         <li data-i={i}>
           <div class="fl-card">
@@ -102,13 +104,13 @@
     {#each season.events as event, i (event.id)}
       {@const score = event_score(season, progress, event)}
       <li data-state={states[i]} aria-current={i === focus}>
-        <button type="button" onclick={() => show(i)} aria-label={event.name}>
+        <button type="button" tabindex="-1" onclick={() => show(i)} aria-label={event.name}>
           {#if states[i] === "locked"}<Icon name="icon-lock" />{:else}{score ? place_text(score) : i + 1}{/if}
         </button>
       </li>
     {/each}
     <li class="fl-rail-table" aria-current={focus === last}>
-      <button type="button" onclick={() => show(last)}>Table</button>
+      <button type="button" tabindex="-1" onclick={() => show(last)}>Table</button>
     </li>
   </ol>
 </div>

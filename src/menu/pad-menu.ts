@@ -41,9 +41,10 @@ function candidates(roots: Element[]): HTMLElement[] {
     .filter((el): el is HTMLElement => el instanceof HTMLElement && el.matches(FOCUSABLE) && !el.matches(":disabled") && !el.closest("[inert]") && el.checkVisibility({ visibilityProperty: true }));
 }
 
+// A page's autofocus control leads, as in a modal: the Series strip, so left / right turn cards from the first press.
 function first_of(...roots: Element[]): HTMLElement | null {
   const items = candidates(roots);
-  return items[first_spot(spots(items))] ?? null;
+  return items.find((item) => item.autofocus) ?? items[first_spot(spots(items))] ?? null;
 }
 
 function spots(items: HTMLElement[]): Spot[] {

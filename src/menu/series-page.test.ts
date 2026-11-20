@@ -50,6 +50,14 @@ test("the series rail ends on a standings card, the front card is the one that r
   expect(out).toContain("data-adjust");
 });
 
+test("the strip is the flow's one focus stop and the first one, so left / right turn cards rather than walk the rail", () => {
+  const props = { season, progress: won, states: event_states(season, won), table: standings(season, won), done: false, wallet: fresh_wallet(), onstart: () => {}, onreset: () => {}, ...switcher };
+  const out = render(SeriesFlow, { props }).body;
+  expect(out).toMatch(/<ol class="fl-strip[^"]*"[^>]* autofocus/);
+  const rail = out.slice(out.indexOf('aria-label="Season progress"'));
+  expect(rail.match(/<button[^>]*>/g)?.every((button) => button.includes('tabindex="-1"'))).toBe(true);
+});
+
 test("the coverflow shows the player's credits, the class cap, the replay round and the final's reward", () => {
   const first = empty_progress(season);
   const base = { season, states: event_states(season, first), table: standings(season, first), done: false, onstart: () => {}, onreset: () => {}, ...switcher };
