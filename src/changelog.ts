@@ -51,6 +51,18 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.80.0",
+    date: "2026-11-21",
+    title: "Replays you can hear",
+    changes: [
+      { kind: IMPROVED, text: "Replays play your engine, tyres and nitro back" },
+      { kind: IMPROVED, text: "The Series says what car each season races: a stock loaner in cups, your own car in seasons" },
+      { kind: FIXED, text: "Left and right turn the Series cards from the first press" },
+      { kind: FIXED, text: "Pausing mid cup no longer swaps the loaned car and ends the run" },
+      { kind: FIXED, text: "The view holds still behind the pause instead of stuttering" },
+    ],
+  },
+  {
     version: "0.79.2",
     date: "2026-11-20",
     title: "Faster on the Raceway",
