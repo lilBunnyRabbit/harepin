@@ -286,7 +286,7 @@ const HATCH_FRAME: FrameSpec = {
 
 const MUSCLE_FRAME: FrameSpec = {
   ...COUPE_FRAME,
-  ai: { slow: 0.9661, fast: 1, brake: 0.9897, stop: 11.3 },
+  ai: { slow: 0.9661, fast: 1, brake: 0.9897, stop: 11.6 },
   mass: 1650,
   // Pitch is low for the mass on purpose: at ~3300 the car lands rocking when dropped on a 20% slope and rolls away,
   // because the parking hold is divided by the tyre solve's stiffness. Revisit when the P2 parking task fixes that.
