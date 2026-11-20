@@ -51,6 +51,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.79.0",
+    date: "2026-11-20",
+    title: "Tuned rivals",
+    changes: [
+      { kind: IMPROVED, text: "Rival fields now bring tuned builds, from your own rating down to the middle of your class" },
+      { kind: IMPROVED, text: "Rivals touch you less on kickers and when they close in beside you" },
+    ],
+  },
+  {
     version: "0.78.0",
     date: "2026-11-20",
     title: "Paint finishes",
