@@ -2,7 +2,9 @@
   import type { CarChoice } from "../car/car-pick";
   import { CARS } from "../car/cars";
   import { CLASS_FLOORS, type CarClass } from "../car/pi";
+  import { buy_line, frame_of, lock_line } from "../career/frames";
   import { CAR_PAGE, type CarPicker } from "./car-pick.svelte";
+  import CarLock from "./CarLock.svelte";
   import { aim_or_go, bare_enter } from "./drive-picks";
   import { car_facts } from "./car-facts";
   import CarFactsLine from "./CarFactsLine.svelte";
@@ -18,9 +20,10 @@
 
   interface Props extends PageProps {
     picker: CarPicker;
+    onround: (id: string) => void;
   }
 
-  let { menu, picker, shown }: Props = $props();
+  let { menu, picker, shown, onround }: Props = $props();
 
   const rank = (name: CarClass) => CLASS_FLOORS.findIndex(([floor]) => floor === name);
 
@@ -33,6 +36,13 @@
 
   const pick = $derived(cars.find((c) => c.code === chosen) ?? null);
   const facts = $derived(pick && car_facts(pick.build));
+  const garage = $derived(menu.host.garage);
+  // Only when the sale is all that blocks it: a buy then takes the car straight away.
+  const for_sale = $derived(pick && pick.blocked === buy_line(pick.build.car) ? garage.car_price(pick.build.car) : null);
+
+  function buy() {
+    if (pick && garage.buy_car(pick.build.car)) picker.end(pick.code);
+  }
 
   $effect(() => {
     if (!shown) return picker.end(null);
@@ -139,7 +149,11 @@
             <b class="pick-title">{pick.title}</b>
             {#if pick.sub}<span class="pick-sub">{pick.sub}</span>{/if}
             <span class="pick-facts"><ClassBadge rating={pick.rating} /><CarFactsLine {facts} words /></span>
-            {#if pick.blocked}<span class="pick-why"><Icon name="icon-lock" />{pick.blocked}</span>{/if}
+            {#if for_sale !== null}
+              <CarLock {menu} car={pick.build.car} why={pick.blocked ?? ""} {onround} price={for_sale} credits={garage.credits} onbuy={buy} />
+            {:else if pick.blocked && pick.blocked === lock_line(frame_of(pick.build.car))}
+              <CarLock {menu} car={pick.build.car} why={pick.blocked} {onround} />
+            {:else if pick.blocked}<span class="pick-why"><Icon name="icon-lock" />{pick.blocked}</span>{/if}
           </div>
           <div class="pick-meters">
             {#each facts.meters as m (m.key)}

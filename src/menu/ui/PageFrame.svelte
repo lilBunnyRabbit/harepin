@@ -20,10 +20,12 @@
     /** 0 to 1: how far the scene behind the frame dims, for a page of cards rather than a stage. */
     veil?: number;
     floor?: boolean;
+    /** The body neither scrolls nor clips: a page that fits itself and runs to the screen's edge. */
+    bleed?: boolean;
     children: Snippet;
   }
 
-  let { eyebrow, title, stations, chips, back, links, note, primary, veil = 0, floor = false, children }: Props = $props();
+  let { eyebrow, title, stations, chips, back, links, note, primary, veil = 0, floor = false, bleed = false, children }: Props = $props();
 </script>
 
 <div class="ui-frame">
@@ -40,7 +42,7 @@
       <div class="ui-frame-stations">{@render stations?.()}</div>
       <div class="ui-frame-chips">{@render chips?.()}</div>
     </header>
-    <ScrollArea class="ui-frame-body">{@render children()}</ScrollArea>
+    <ScrollArea class={bleed ? "ui-frame-body ui-frame-bleed" : "ui-frame-body"}>{@render children()}</ScrollArea>
     <footer class="ui-frame-bottom">
       <div class="ui-frame-links">
         {#if back}<BackPill to={back.to} onclick={back.go} />{/if}
@@ -162,6 +164,12 @@
       padding: 0;
       mask-image: none;
     }
+  }
+
+  .ui-frame-rows > :global(.ui-frame-bleed) {
+    overflow: visible;
+    padding: 0;
+    mask-image: none;
   }
 
   .ui-frame-bottom {

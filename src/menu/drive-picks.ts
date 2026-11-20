@@ -15,7 +15,7 @@ import { plain_map, type MapSpec } from "../worldgen/kinds/kinds";
 import type { WorldKind } from "../worldgen/types";
 import { free_enter } from "./enter-key";
 import type { SettingsHost } from "./page";
-import { car_note, event_art, next_event, rival_gap } from "./series-view";
+import { car_note, event_art, loaner_line, next_event, rival_gap } from "./series-view";
 
 const MINUTE_MS = 60_000;
 
@@ -90,7 +90,7 @@ export function series_pick(season: Season, progress: SeriesProgress, build: Bui
   const fault = car_note(season, build, owned);
   const reasons = [
     ...(duel ? [duel.gap < 0 ? `${-duel.gap} pts behind ${duel.rival.name}` : duel.gap > 0 ? `${duel.gap} pts ahead of ${duel.rival.name}` : `Level with ${duel.rival.name}`] : []),
-    fault ? fault.why : `${CARS[build.car].name} fits class ${CLASS_LABELS[season.cap]}`,
+    season.loaner ? loaner_line(season.loaner) : fault ? fault.why : `${CARS[build.car].name} fits class ${CLASS_LABELS[season.cap]}`,
     ...(event.limit_ms ? [minutes(event.limit_ms)] : []),
   ];
   return {

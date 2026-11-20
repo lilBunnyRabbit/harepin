@@ -11,11 +11,11 @@ const FIRST_NUMBER = 2;
 /** The slowest rival's rating, as a share of the class over its floor: a maxed player meets tuned rivals, not the class's bottom. */
 const FIELD_LOW = 0.35;
 
-export const RivalPick = { CLASS: "class", ANY: "any", PICKED: "picked" } as const;
+export const RivalPick = { CLASS: "class", ANY: "any", PICKED: "picked", ONE_MAKE: "one-make" } as const;
 export type RivalPick = (typeof RivalPick)[keyof typeof RivalPick];
 
-/** Which presets a field drives: the player's class, a spread over every class, or the presets named. */
-export type RivalCars = { pick: typeof RivalPick.CLASS } | { pick: typeof RivalPick.ANY } | { pick: typeof RivalPick.PICKED; presets: readonly string[] };
+/** Which presets a field drives: the player's class, a spread over every class, the presets named, or the player's own build (a one-make cup's loaner). */
+export type RivalCars = { pick: typeof RivalPick.CLASS } | { pick: typeof RivalPick.ANY } | { pick: typeof RivalPick.PICKED; presets: readonly string[] } | { pick: typeof RivalPick.ONE_MAKE };
 
 const OWN_CLASS: RivalCars = { pick: RivalPick.CLASS };
 
@@ -65,7 +65,8 @@ function any_pool(eligible: readonly Rival[], count: number): Build[] {
   return Array.from({ length: take }, (_, i) => sorted[Math.floor((i * sorted.length) / take)].build);
 }
 
-function pool_of(eligible: readonly Rival[], own: Rating, count: number, rivals: RivalCars): Build[] {
+function pool_of(eligible: readonly Rival[], player: Build, own: Rating, count: number, rivals: RivalCars): Build[] {
+  if (rivals.pick === RivalPick.ONE_MAKE) return [player];
   if (rivals.pick === RivalPick.ANY) return any_pool(eligible, count);
   if (rivals.pick === RivalPick.PICKED) {
     const picked = eligible.filter((p) => rivals.presets.includes(p.name));
@@ -82,7 +83,7 @@ function pool_of(eligible: readonly Rival[], own: Rating, count: number, rivals:
 export function field_builds(player: Build, own: Rating, count: number, excludes: readonly string[] = [], rivals: RivalCars = OWN_CLASS): Build[] {
   const eligible = field_presets(excludes);
   if (!eligible.length || count <= 0) return [];
-  const pool = pool_of(eligible, own, count, rivals);
+  const pool = pool_of(eligible, player, own, count, rivals);
   const free = Array.from({ length: MAX_PAINT + 1 }, (_, k) => (k * PAINT_STRIDE) % (MAX_PAINT + 1)).filter((paint) => paint !== player.paint);
   const numbers = Array.from({ length: count + 1 }, (_, i) => FIRST_NUMBER + i).filter((n) => n !== player.number);
   return Array.from({ length: count }, (_, i) => ({ ...pool[i % pool.length], paint: free[i % free.length], number: numbers[i], neon: 0, neon_tone: 0 }));

@@ -1,14 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { CARS } from "../car/cars";
+  import { credits_text } from "../career/wallet";
   import { rating } from "../car/pi";
   import type { CarPicker } from "./car-pick.svelte";
+  import CarLock from "./CarLock.svelte";
   import type { Garage } from "./garage.svelte";
   import GarageBuilds from "./GarageBuilds.svelte";
-  import { slot_icon, type Item, type ItemGroup } from "./garage-items";
+  import { part_label, slot_icon, type Item, type ItemGroup } from "./garage-items";
   import GarageMeters from "./GarageMeters.svelte";
   import { change_own_car } from "./own-car";
   import GarageParts from "./GarageParts.svelte";
+  import PartsMissing from "./PartsMissing.svelte";
   import MenuFrame from "./MenuFrame.svelte";
   import { MenuTab } from "./page";
   import Card from "./ui/Card.svelte";
@@ -23,9 +26,10 @@
   interface Props extends PageProps {
     garage: Garage;
     picker: CarPicker;
+    onround: (id: string) => void;
   }
 
-  let { menu, garage, picker, shown }: Props = $props();
+  let { menu, garage, picker, shown, onround }: Props = $props();
 
   const GROUPS: readonly ItemGroup[] = ["parts", "look"];
 
@@ -33,12 +37,15 @@
 
   const item = $derived(garage.item);
   const car = $derived(CARS[garage.current.car].name);
+  const lock = $derived(garage.locks[garage.current.car] ?? null);
   const fitted = $derived(item.at(garage.current));
   const tried = $derived(garage.cursor !== fitted);
   const now = $derived(rating(garage.current));
   const next = $derived(rating(garage.shown));
   const groups = $derived(GROUPS.map((group) => garage.items.filter((one) => one.group === group)));
-  const action = $derived(item.kind === "part" ? fit_text(item.name(garage.cursor), item.label.toLowerCase()) : `Use ${item.label.toLowerCase()} ${item.name(garage.cursor)}`);
+  const price = $derived(garage.on_builds ? null : garage.price(garage.cursor));
+  const short = $derived(price === null ? 0 : price - garage.credits);
+  const action = $derived(item.kind === "part" ? fit_text(item.name(garage.cursor), item.label) : `Use ${item.label.toLowerCase()} ${item.name(garage.cursor)}`);
 
   onMount(() => {
     garage.attach({ sheet: () => side });
@@ -61,10 +68,8 @@
     return true;
   }
 
-  // "GT kit" on the aero kit is "Fit GT kit", not "Fit GT kit aero kit"; the empty option takes the part off.
-  function fit_text(name: string, part: string): string {
-    if (name === "None") return `Remove ${part}`;
-    return name.toLowerCase().endsWith(part.split(" ").at(-1) ?? part) ? `Fit ${name}` : `Fit ${name} ${part}`;
+  function fit_text(name: string, label: string): string {
+    return name === "None" ? `Remove ${label.toLowerCase()}` : `Fit ${part_label(name, label)}`;
   }
 
   const change_car = () => void change_own_car(menu, picker, "Garage");
@@ -80,7 +85,11 @@
 {/snippet}
 
 {#snippet primary()}
-  {#if !garage.on_builds}
+  {#if garage.on_builds}
+    <!-- The builds card has its own buttons. -->
+  {:else if price !== null}
+    <PrimaryAction disabled={short > 0} onclick={() => garage.buy(garage.cursor)}>{short > 0 ? `Need ${credits_text(short)} more` : `Buy ${item.name(garage.cursor)} · ${credits_text(price)}`}</PrimaryAction>
+  {:else}
     <PrimaryAction disabled={!tried} onclick={() => garage.fit(garage.cursor)}>{tried ? action : "Fitted"}</PrimaryAction>
   {/if}
 {/snippet}
@@ -110,6 +119,8 @@
             {/if}
           </span>
         </header>
+        {#if lock}<CarLock {menu} car={garage.current.car} why={lock} {onround} price={garage.body_price} credits={garage.credits} onbuy={() => garage.buy_body()} />{/if}
+        {#if garage.missing}<PartsMissing parts={garage.missing.parts} price={garage.missing.price} credits={garage.credits} onbuy={() => garage.buy_missing()} />{/if}
         <!-- Keyed: the builds open at their top, not where the parts list was scrolled to. -->
         {#key garage.on_builds}
           <ScrollArea class="garage-scroll">

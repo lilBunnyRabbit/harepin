@@ -1,6 +1,8 @@
-import { DECALS, DECAL_NAMES, MAX_NUMBER, MAX_PAINT, NEONS, NEON_NAMES, NEON_TONES, NEON_TONE_NAMES, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Neon, type Slot, type SlotView } from "../car/build";
+import { DECALS, DECAL_NAMES, DEFAULT_PARTS, MAX_NUMBER, MAX_PAINT, NEONS, NEON_NAMES, NEON_TONES, NEON_TONE_NAMES, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Neon, type Slot, type SlotView } from "../car/build";
 import { TIERS } from "../career/career";
+import { DECAL_PRICE, NEON_PRICE, decal_id, neon_id, type Cosmetic } from "../career/prices";
 import { REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
+import type { PartPick } from "../career/wallet";
 import { NEUTRAL_INKS, car_paints, decal_inks } from "../theme/palette";
 
 const SIDE_VIEW: SlotView = { yaw: -0.87 };
@@ -24,10 +26,14 @@ export interface Item {
   with(build: Build, option: number): Build;
   name(option: number): string;
   blurb(option: number): string;
+  /** The option's shop id, when it is sold rather than free. */
+  cosmetic?(option: number): Cosmetic | null;
+  slot?: Slot;
 }
 
 const part_item = (slot: Slot): Item => ({
   id: slot,
+  slot,
   label: SLOTS[slot].label,
   kind: "part",
   group: "parts",
@@ -55,7 +61,7 @@ function decal_item(build: Build, unlocks: Unlocks): Item {
     id: "decal",
     label: "Decal",
     kind: "decal",
-  group: "look",
+    group: "look",
     view: SIDE_VIEW,
     count: values.length,
     values,
@@ -63,6 +69,7 @@ function decal_item(build: Build, unlocks: Unlocks): Item {
     with: (b, i) => ({ ...b, decal: values[i] }),
     name: (i) => DECAL_NAMES[DECALS[values[i]]],
     blurb: () => "",
+    cosmetic: (i) => (DECAL_PRICE[DECALS[values[i]]] ? decal_id(DECALS[values[i]]) : null),
   };
 }
 
@@ -88,7 +95,7 @@ function paint_item(build: Build, unlocks: Unlocks): Item {
     id: "paint",
     label: "Paint",
     kind: "paint",
-  group: "look",
+    group: "look",
     view: WHOLE_CAR,
     count: values.length,
     values,
@@ -130,6 +137,7 @@ const NEON_ITEM: Item = {
   with: (b, i) => ({ ...b, neon: i }),
   name: (i) => NEON_NAMES[NEONS[i]],
   blurb: (i) => NEON_BLURBS[NEONS[i]],
+  cosmetic: (i) => (NEON_PRICE[NEONS[i]] ? neon_id(NEONS[i]) : null),
 };
 
 const GLOW_ITEM: Item = {
@@ -144,6 +152,48 @@ const GLOW_ITEM: Item = {
   name: (i) => NEON_TONE_NAMES[NEON_TONES[i]],
   blurb: () => "",
 };
+
+/** A build for the player's own car less the sold decal and neon they haven't bought, with the names of what came off. */
+export function strip_unowned(build: Build, has: (id: Cosmetic) => boolean): { build: Build; dropped: string[] } {
+  const decal = DECALS[build.decal];
+  const neon = NEONS[build.neon];
+  const off_decal = DECAL_PRICE[decal] !== undefined && !has(decal_id(decal));
+  const off_neon = NEON_PRICE[neon] !== undefined && !has(neon_id(neon));
+  const dropped = [...(off_decal ? [DECAL_NAMES[decal]] : []), ...(off_neon ? [`${NEON_NAMES[neon]} neon`] : [])];
+  if (!dropped.length) return { build, dropped };
+  return { build: { ...build, ...(off_decal ? { decal: 0 } : {}), ...(off_neon ? { neon: 0, neon_tone: 0 } : {}) }, dropped };
+}
+
+// "GT kit" on the aero kit reads "GT kit", not "GT kit aero kit".
+export function part_label(name: string, slot_label: string): string {
+  const part = slot_label.toLowerCase();
+  return name.toLowerCase().endsWith(part.split(" ").at(-1) ?? part) ? name : `${name} ${part}`;
+}
+
+export const pick_label = ({ slot, index }: PartPick) => part_label(part_of(slot, index).name, SLOTS[slot].label);
+
+/** Slots whose parts are kinds, not levels: Rally tyres are no step down from Slicks. */
+const KIND_SLOTS: ReadonlySet<Slot> = new Set(["tyres", "suspension"]);
+
+/**
+ * A build for the player's own car on only the parts bought for it, and the parts it wanted as `missing`. A part not owned
+ * drops to the nearest owned one below it in a levelled slot (part 0 is free in every slot), to stock in a slot of kinds.
+ */
+export function own_parts(build: Build, owns: (pick: PartPick) => boolean): { build: Build; missing: PartPick[] } {
+  const missing = SLOT_NAMES.map((slot) => ({ slot, index: build.parts[slot] })).filter((pick) => !owns(pick));
+  if (!missing.length) return { build, missing };
+  const parts = { ...build.parts };
+  for (const { slot, index } of missing) {
+    if (KIND_SLOTS.has(slot)) {
+      parts[slot] = DEFAULT_PARTS[slot];
+      continue;
+    }
+    let at = index - 1;
+    while (at > 0 && !owns({ slot, index: at })) at--;
+    parts[slot] = Math.max(0, at);
+  }
+  return { build: { ...build, parts }, missing };
+}
 
 /** Every slot of the garage, parts first: the reward paints and decals earned, and the number, decal colour and neon colour only while a decal or a neon shows them. */
 export function garage_items(build: Build, unlocks: Unlocks): Item[] {

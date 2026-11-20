@@ -6,6 +6,7 @@ import { SERIES_PAGE, SERIES_PARAM, is_open, next_open, season_done } from "./ca
 import { series_event } from "./career/series-seasons";
 import { Wallet } from "./career/wallet";
 import { WalletDb } from "./career/wallet-db";
+import { frame_locks } from "./career/frames";
 import { series_list, series_open } from "./career/series-store";
 import { SeriesDb } from "./career/series-db";
 import { on_series_map, series_host, series_map, series_ticket } from "./career/series-run";
@@ -23,6 +24,7 @@ import { Driver } from "./car/driver";
 import { Directory, load_lock } from "./net/directory";
 import { LOBBY_ROOM, clean_room } from "./net/room-name";
 import { own_country } from "./net/country";
+import { BUILD_PARAM } from "./net/build-link";
 import { Chat } from "./net/chat";
 import { Skids, Smoke } from "./render/effects";
 import { Sparks } from "./render/sparks";
@@ -32,7 +34,7 @@ import { build_code, build_spec, parse_build } from "./car/build";
 import { load_builds } from "./car/builds";
 import { car_shelves, limit_text, type CarLimit, type CarShelf } from "./car/car-pick";
 import { Garage } from "./menu/garage.svelte";
-import { load_build, save_build } from "./menu/garage-builds";
+import { load_build, save_build, saved_builds } from "./menu/garage-builds";
 import { Ghost } from "./car/ghost";
 import { sweep_ghosts } from "./car/ghost-store";
 import { load_records } from "./store/records";
@@ -152,7 +154,7 @@ const random_name = kept_random_name();
 
 show_version($("loading"));
 const travelling = travel_here(params, saved_pick);
-const brief = travelling && new Brief($("loading"), travelling, load_build(params.get("car")));
+const brief = travelling && new Brief($("loading"), travelling, load_build(params.get(BUILD_PARAM)));
 brief?.step("Building the map", 0.3);
 const audio = new Audio();
 // Each client beeps its lobby start off its own clock, on the frame its countdown digit changes.
@@ -263,9 +265,12 @@ const directory = new Directory(
 );
 const chat = new Chat(net);
 chat.start();
-const build = load_build(params.get("car"));
+const build = load_build(params.get(BUILD_PARAM));
 const career = new Career(local_store());
-const series = series_list(new SeriesDb(), new Wallet(new WalletDb()));
+// Parts cost credits from P2: a wallet saved before keeps the parts on the saved builds of the cars the player owns.
+const wallet = new Wallet(new WalletDb(), (cars) => saved_builds().filter((saved) => !frame_locks([...cars, ...unlocks(career.stars).cars])[saved.car]));
+void wallet.load();
+const series = series_list(new SeriesDb(), wallet);
 const runs = new Runs(local_store());
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
@@ -287,6 +292,10 @@ if (!quality.mobile) mirror_frame.start();
 
 const garage = new Garage(build);
 garage.rewards = () => unlocks(career.stars);
+garage.given = () => [...wallet.state.cars, ...unlocks(career.stars).cars];
+garage.wallet = wallet;
+garage.on_notice = (text) => hud.toast(text);
+void wallet.load().then(() => garage.check_owned());
 const input = new Input($("touch"), render.renderer.domElement);
 const rumble = new Rumble();
 const rumble_sense: RumbleSense = { scrub: 0, speed: 0, loose: 0, kerb: 0, airborne: false, vy: 0, impact: 0, x: 0, y: 0, z: 0 };
@@ -378,6 +387,7 @@ lobby.on_sit_out = () => {
 };
 lobby.car = () => driver.car.spec.id;
 race.on_start = () => ghost.start();
+lobby.on_end = () => garage.take_back();
 
 const run_busy = () => lobby.busy || modes.active || lab_id !== null;
 const updater = new Updater({ busy: run_busy, menu_open: () => settings.is_open, show_notes: () => settings.open_changes() });
@@ -542,16 +552,19 @@ modes.try_reward = (reward) => {
   settings.open(MenuTab.GARAGE);
   garage.try_reward(reward);
 };
-const shelves_for = (limit: CarLimit, own = garage.code) => car_shelves(parse_build(own) ?? garage.build, load_builds(), open_presets(unlocks(career.stars).cars), limit, garage.code);
+const shelves_for = (limit: CarLimit, own = garage.code) => car_shelves(parse_build(own) ?? garage.build, load_builds(), open_presets(unlocks(career.stars).cars), { ...limit, locked: limit.locked ?? garage.locks }, garage.code);
 const pick_in = (title: string, limit: CarLimit, shelves: readonly CarShelf[], signal: AbortSignal) => settings.pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", shelves, signal);
 // The car taken on the start sheet or picked on a flag's card runs its event when it fits the route; the picker opens only when it does not.
 let taken: string | null = null;
 modes.pick_car = (title, limit, own, signal) => {
   const shelves = shelves_for(limit, own);
   const pre = taken ?? markers.card.pick;
-  return pre !== null && fits(shelves, pre) ? Promise.resolve(pre) : pick_in(title, limit, shelves, signal);
+  const picked = pre !== null && fits(shelves, pre) ? Promise.resolve(pre) : pick_in(title, limit, shelves, signal);
+  // A picked saved build or preset is the player's car: it races only on what they've bought.
+  return picked.then((code) => (code === null ? null : garage.owned_code(code)));
 };
 modes.fit_car = (code, save) => garage.use_code(code, save);
+modes.lend_car = (code) => garage.lend(code);
 modes.car_code = () => garage.code;
 modes.save_car = (code) => {
   const build = parse_build(code);
@@ -617,6 +630,19 @@ garage.on_change = (next) => {
   apply_car_settings(settings.state);
 };
 
+// A build from chat fits at once only with no run or lobby race up; otherwise the garage's own Load fits it, under that run's rules.
+chat.use_build = (code) => {
+  if (code === garage.code) return hud.toast("That build is already on your car");
+  if (lobby.busy || modes.engaged) {
+    chat.close();
+    settings.open(MenuTab.GARAGE);
+    garage.offer(code);
+    return hud.toast("Run in progress: Load it from Builds");
+  }
+  garage.use_code(code);
+  hud.toast("Build fitted");
+};
+
 const on_this_map = (to: CareerEvent) => place_of(event_map(to), built).here;
 
 /** `car` is the one taken on the start sheet, null when the event brings its own or nothing was picked yet. */
@@ -678,7 +704,8 @@ function start_series(id: string, car: string | null = null) {
     go() {
       const up = after();
       if (up) settings.open_round(up.id);
-      else settings.open(won() ? FINAL_PAGE : SERIES_PAGE);
+      else if (won()) settings.open_final(one.base.id);
+      else settings.open(SERIES_PAGE);
     },
   };
   const host = series_host(base, one, to, next);
@@ -706,7 +733,7 @@ function start_run(id: string, car: string | null = null) {
 }
 
 function play_run(to: RunPick) {
-  const play = run_play(to, world, runs, (next) => start_run(next));
+  const play = run_play(to, world, runs, (credits) => wallet.earn(credits), (next) => start_run(next));
   modes.play_event(play.event, play);
 }
 const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), {

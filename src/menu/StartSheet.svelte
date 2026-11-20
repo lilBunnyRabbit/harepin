@@ -6,12 +6,13 @@
   import { open_presets } from "../career/rewards";
   import { CAR_PAGE, type CarPicker } from "./car-pick.svelte";
   import CarStill from "./CarStill.svelte";
-  import { bare_enter } from "./drive-picks";
-  import { go_line, start_target, start_view, target_name, type StartTarget } from "./events-view";
+  import { bare_enter, link_key } from "./drive-picks";
+  import { car_fit, go_line, start_target, start_view, target_name, type StartTarget } from "./events-view";
   import type { Menu } from "./page";
   import Card from "./ui/Card.svelte";
   import Chip from "./ui/Chip.svelte";
   import ClassBadge from "./ui/ClassBadge.svelte";
+  import KeyLink from "./ui/KeyLink.svelte";
   import PageFrame from "./ui/PageFrame.svelte";
   import PlaceLine from "./ui/PlaceLine.svelte";
   import PrimaryAction from "./ui/PrimaryAction.svelte";
@@ -26,9 +27,11 @@
     title: string;
     shown: boolean;
     onclose: () => void;
+    /** Opens the Garage, whose Back returns to this sheet; unset, the sheet offers no way there. */
+    ongarage?: () => void;
   }
 
-  let { menu, picker, target, eyebrow, title, shown, onclose }: Props = $props();
+  let { menu, picker, target, eyebrow, title, shown, onclose, ongarage }: Props = $props();
 
   const live = $derived(menu_state(menu));
   const host = $derived(menu.host);
@@ -37,9 +40,11 @@
   const go = $derived(go_line(view, target_name(target)));
 
   const build = $derived(live.live(() => host.garage.build));
-  const shelves = $derived(view.limit ? car_shelves(build, load_builds(), open_presets(host.garage.held_cars), view.limit) : []);
+  const shelves = $derived(view.limit ? car_shelves(build, load_builds(), open_presets(host.garage.held_cars), { ...view.limit, locked: view.limit.locked ?? host.garage.locks }) : []);
   const mine = $derived(shelves.flatMap((shelf) => shelf.choices).find((choice) => choice.fitted) ?? null);
-  const car_line = $derived(view.lent ? "The event lends it" : mine?.blocked ? `${mine.blocked}: pick another next` : "Your car fits");
+  const rated = $derived(rating(build));
+  const fit = $derived(car_fit(rated, view.limit, mine?.blocked ?? null));
+  const garage = $derived(view.lent ? undefined : ongarage);
 
   async function start() {
     if (!view.limit) return finish(null);
@@ -57,7 +62,9 @@
   }
 
   function key(event: KeyboardEvent) {
-    if (!shown || event.defaultPrevented || !bare_enter(event)) return;
+    if (!shown || event.defaultPrevented) return;
+    if (garage && link_key(event) === "g") return garage();
+    if (!bare_enter(event)) return;
     event.preventDefault();
     void start();
   }
@@ -69,11 +76,15 @@
   <PrimaryAction onclick={start}>{go.verb}</PrimaryAction>
 {/snippet}
 
+{#snippet links()}
+  {#if garage}<KeyLink keys={{ key: "G" }} onclick={garage}>Garage</KeyLink>{/if}
+{/snippet}
+
 {#snippet shot()}
   <img class="ev-pic" src={view.img} alt="" />
 {/snippet}
 
-<PageFrame {eyebrow} {title} back={{ to: title, go: onclose }} veil={0.82} note={go.note} {primary}>
+<PageFrame {eyebrow} {title} back={{ to: title, go: onclose }} {links} veil={0.82} note={go.note} {primary}>
   <div class="sheet start-sheet">
     <Card picture={shot} wide class="sheet-card" label={view.title}>
       <div class="ev-head">
@@ -91,15 +102,23 @@
       {#if view.facts}<span class="ev-small">{view.facts}</span>{/if}
       <div class="sheet-car">
         {#if view.lent}
-          <span class="sheet-lent ev-h3">{view.lent} car</span>
+          <span class="sheet-lent ev-h3">Loaner: {view.lent}</span>
+          <span class="ev-small sheet-fit">The event lends it</span>
         {:else}
           <span class="sheet-still"><CarStill car={build.car} {build} /></span>
-          <span class="sheet-name">
-            <b class="ev-h3 ev-nowrap">{CARS[build.car].name}</b>
-            <ClassBadge rating={rating(build)} />
+          <span class="sheet-who">
+            <span class="sheet-name">
+              <b class="ev-h3 ev-nowrap">{CARS[build.car].name}</b>
+              <ClassBadge rating={rated} />
+              {#if view.limit?.cap}<span class="ev-small">cap</span><ClassBadge cap={view.limit.cap} />{/if}
+            </span>
+            {#if garage && fit.tune}
+              <button type="button" class="ev-small sheet-fit sheet-tune" data-off={fit.off ? "" : undefined} onclick={garage}>{fit.text}</button>
+            {:else}
+              <span class="ev-small sheet-fit" data-off={fit.off ? "" : undefined}>{fit.text}</span>
+            {/if}
           </span>
         {/if}
-        <span class="ev-small sheet-fit" data-off={mine?.blocked ? "" : undefined}>{car_line}</span>
       </div>
     </Card>
   </div>
@@ -163,22 +182,54 @@
     aspect-ratio: auto;
   }
 
+  .sheet-who {
+    display: grid;
+    flex: 1;
+    justify-items: start;
+    gap: var(--gap-xs);
+    min-width: 0;
+  }
+
   .sheet-name {
     display: flex;
-    flex: 1;
     align-items: center;
     gap: var(--gap-sm);
     min-width: 0;
   }
 
-  .sheet-lent {
-    flex: 1;
-    padding-left: var(--gap-xs);
+  .sheet-car:has(.sheet-lent) {
+    flex-wrap: wrap;
+    row-gap: var(--gap-xs);
   }
 
-  .sheet-fit {
+  .sheet-lent {
+    flex: 1 0 auto;
+    padding-left: var(--gap-xs);
+    white-space: nowrap;
+  }
+
+  .sheet-lent + .sheet-fit {
     flex: none;
+    margin-left: auto;
+    padding-left: var(--gap-xs);
     text-align: right;
+  }
+
+  .sheet-who > .sheet-fit {
+    text-align: left;
+  }
+
+  :root .sheet-tune {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--foreground);
+    font: inherit;
+    font-size: var(--type-small);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    cursor: pointer;
   }
 
   .sheet-fit[data-off] {

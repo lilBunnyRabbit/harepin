@@ -88,6 +88,7 @@ function mark_chars(el: HTMLElement, text: string) {
 }
 const NO_CAPTIONS: StatusCaptions = {};
 const LENT_CAR = `Practice: that car is a career reward, so the ${PRESETS[0].name} runs it and no times or stars keep`;
+const LOANER_TUNED = "A loaner races stock: its parts stay as they are";
 const STREAMED = "This mode is not on this world yet";
 const NO_EVENT = "This event is not on this map";
 const NEXT_LEVEL = "Next level";
@@ -214,6 +215,7 @@ export class Modes implements CarHooks {
   closed: string | null = null;
   pick_car: CarHooks["pick_car"] = null;
   fit_car: CarHooks["fit_car"] = null;
+  lend_car: CarHooks["lend_car"] = null;
   car_code: CarHooks["car_code"] = null;
   save_car: CarHooks["save_car"] = null;
   private readonly car = new EventCar(this);
@@ -370,10 +372,12 @@ export class Modes implements CarHooks {
     const level = mode?.levels.find((l) => l.id === id);
     const refusal = this.series_refusal(id);
     if (!mode || !level || refusal) return this.notice(refusal ?? NO_EVENT);
-    if (this.too_big(mode)) return this.notice(TOO_BIG);
-    if (this.left_out(id)) return this.notice(NOT_THIS_CAR);
     this.clear();
-    this.car.give_back();
+    const loaner = field.event?.loaner;
+    if (loaner) this.car.lend(loaner);
+    else this.car.give_back();
+    if (this.too_big(mode)) return this.refuse(TOO_BIG);
+    if (this.left_out(id)) return this.refuse(NOT_THIS_CAR);
     this.begin(mode, level, mode.track, null, null, null, 1, field);
   }
 
@@ -485,6 +489,8 @@ export class Modes implements CarHooks {
    */
   car_changed() {
     if (this.car.fitting) return;
+    const loaner = this.current?.series?.event?.loaner;
+    if (loaner) return this.loaner_changed(loaner);
     const active = this.current?.run ? this.current : null;
     const event = active?.event ?? null;
     if (!active || !event) {
@@ -499,6 +505,16 @@ export class Modes implements CarHooks {
     this.car.release();
     this.exit();
     this.notice(why);
+  }
+
+  // A loaner never becomes the player's car: a tune on it is undone with the run, while another car picked is theirs.
+  private loaner_changed(loaner: string) {
+    if (this.car.on_machine(loaner)) return this.car.save_kept();
+    const tuned = this.car.on_car(loaner);
+    const name = this.current?.series?.event?.name;
+    if (!tuned) this.car.release();
+    this.exit();
+    this.notice(tuned ? LOANER_TUNED : `${name}: the loaner only`);
   }
 
   private too_big(mode: Mode): boolean {
@@ -625,6 +641,8 @@ export class Modes implements CarHooks {
     active.run?.dispose();
     active.run = null;
     this.car.wear_preset(active.event);
+    const loaner = active.series?.event?.loaner;
+    if (loaner) this.car.lend(loaner);
     this.launch(active);
   }
 

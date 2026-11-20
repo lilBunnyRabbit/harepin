@@ -186,6 +186,28 @@ test("a request nobody answers tells the caller once; a start in time doesn't", 
 
 const READY: ReadyMsg = { ready: true, laps: 2, route: "circuit" };
 
+test("a race ends once for its player, by results running out or by leaving; leaving while idle is no end", () => {
+  const { lobby } = lobby_on("m");
+  let ends = 0;
+  lobby.on_end = () => ends++;
+  lobby.leave();
+  expect(ends).toBe(0);
+  lobby.set_ready({ laps: 1, route: "circuit" });
+  lobby.tick(performance.now());
+  expect(lobby.busy).toBe(true);
+  lobby.leave();
+  expect(ends).toBe(1);
+  lobby.set_ready({ laps: 1, route: "circuit" });
+  lobby.tick(performance.now());
+  const go = (lobby.state as { go: number }).go;
+  lobby.update(go);
+  lobby.lap(go + 60_000);
+  expect(lobby.state.kind).toBe("done");
+  lobby.update(go + 60_000 + 60_000);
+  expect(lobby.state.kind).toBe("idle");
+  expect(ends).toBe(2);
+});
+
 test("a lone player who readies just starts", () => {
   const { net, lobby } = lobby_on("m");
   lobby.set_ready({ laps: 2, route: "circuit" });

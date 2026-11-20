@@ -1,6 +1,6 @@
 <script lang="ts">
   import { KIND_NAMES, KIND_RULES, type EventState, type SeriesEvent } from "../career/series";
-  import { event_art, lock_line, place_text, type EventScore } from "./series-view";
+  import { event_art, place_text, type EventScore } from "./series-view";
   import Icon from "./ui/Icon.svelte";
 
   interface Props {
@@ -11,12 +11,12 @@
     front: boolean;
     /** The final's prize line; null on every other event. */
     reward?: string | null;
-    /** Shown on a locked card in place of what opens the event: a shut season's reason. */
-    lock?: string | null;
+    /** Shown on a locked card: what opens the event, or a shut season's reason. */
+    lock: string;
     onpick?: () => void;
   }
 
-  let { event, n, state, score, front, reward = null, lock = null, onpick }: Props = $props();
+  let { event, n, state, score, front, reward = null, lock, onpick }: Props = $props();
 </script>
 
 <article class="sc" data-state={state} data-front={front} data-final={event.final === true}>
@@ -32,7 +32,7 @@
     {#if reward}<span class="sc-reward"><Icon name="icon-car" />{reward}</span>{/if}
     <p class="sc-front">{KIND_RULES[event.kind]}</p>
     {#if state === "locked"}
-      <span class="sc-lock"><Icon name="icon-lock" />{lock ?? lock_line(event)}</span>
+      <span class="sc-lock"><Icon name="icon-lock" />{lock}</span>
     {:else if score}
       <span class="sc-pts">{score.points} pts</span>
     {/if}
@@ -88,6 +88,7 @@
 
   header {
     display: flex;
+    flex-wrap: wrap;
     align-items: start;
     justify-content: space-between;
     gap: var(--gap-sm);

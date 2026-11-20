@@ -30,7 +30,7 @@ test("a series round on another map says what the button loads", () => {
 });
 
 test("a car the season refuses is the reason shown, not a fit", () => {
-  const pick = series_pick(SEASON_1, empty_progress(SEASON_1), DEFAULT_BUILD, [], island)!;
+  const pick = series_pick(SEASON_1, empty_progress(SEASON_1), { ...DEFAULT_BUILD, car: "sajin" }, [DEFAULT_BUILD.car], island)!;
   expect(pick.reasons.some((line) => line.includes("isn't yours"))).toBe(true);
 });
 

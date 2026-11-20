@@ -13,6 +13,7 @@
   import Chip from "./ui/Chip.svelte";
   import Icon from "./ui/Icon.svelte";
   import IconButton from "./ui/IconButton.svelte";
+  import PriceTag from "./ui/PriceTag.svelte";
   import TextField from "./ui/TextField.svelte";
 
   interface Props {
@@ -40,6 +41,8 @@
         swatch: item.kind === "paint" ? rgba(paint_lab(build.paint)) : item.kind === "ink" ? rgba(decal_inks[index]) : item.kind === "glow" ? rgba(neon_look(build)?.tone ?? paint_lab(build.paint)) : null,
         finish: item.kind === "paint" ? paint_finish(build.paint) : null,
         decal: DECALS[build.decal],
+        price: garage.price(index),
+        bought: garage.bought(index),
       };
     }),
   );
@@ -119,13 +122,18 @@
               </span>
               {#if option.index === fitted}
                 <Chip inner icon="icon-check">Fitted</Chip>
+              {:else if option.price !== null}
+                <PriceTag price={option.price} />
               {:else if option.over}
                 <Chip inner>Over class</Chip>
+              {:else if option.bought}
+                <Chip inner>Owned</Chip>
               {:else if item.kind === "part"}
                 <Chip inner>Fits</Chip>
               {/if}
             {:else if item.kind === "decal"}
               <DecalTile decal={option.decal} number={shown.number} />
+              {#if option.price !== null && option.index !== fitted}<span class="garage-price"><PriceTag price={option.price} /></span>{/if}
             {:else}
               <i
                 class="garage-swatch"
@@ -235,6 +243,17 @@
 
   :root :is([data-kind="paint"], [data-kind="ink"], [data-kind="glow"], [data-kind="decal"]) .garage-part[aria-pressed="true"] {
     box-shadow: inset 0 0 0 var(--mark-w) var(--primary);
+  }
+
+  :root [data-kind="decal"] .garage-part {
+    position: relative;
+  }
+
+  .garage-price {
+    position: absolute;
+    right: var(--gap-xs);
+    bottom: var(--gap-xs);
+    display: flex;
   }
 
   .garage-part :global(.garage-decal) {

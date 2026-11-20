@@ -286,11 +286,13 @@
   }
 }
 
-/* The toast hangs under the event title, or under the mode status that takes its place. */
-:root :is(#strip, #mode-status) {
+/* The toast hangs under the event title, or under the mode status that takes its place. This rule outranks the
+   status's own `--mode-status` in modes.css, so it names both: the gate arrow and the wrong-way card hang under it,
+   and without the name they fall to the top left corner. */
+:root #strip {
   anchor-name: --top-centre;
 }
 
-:root[data-hud="classic"] #mode-status {
+:root #mode-status {
   anchor-name: --top-centre, --mode-status;
 }

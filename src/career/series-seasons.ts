@@ -1,12 +1,15 @@
 import { WorldKind } from "../worldgen/types";
-import { event_of, season_done, SeriesKind, type Season, type SeriesEvent, type SeriesProgress } from "./series";
+import { rating } from "../car/pi";
+import { CUP_CLEAR } from "./prices";
+import { event_of, Gate, season_done, SeriesKind, stock_build, type Season, type SeriesEvent, type SeriesProgress } from "./series";
 
 export const SEASON_1: Season = {
   id: "s1",
   name: "Island",
   world: WorldKind.ISLAND,
   cap: "c",
-  reward: { car: "sajin", credits: 5000 },
+  gate: Gate.PODIUM,
+  reward: { credits: 8_000 },
   replays: [6, 7, 16, 33, 34, 36, 38, 46, 52, 58, 59],
   field: [
     { name: "Kai Moreno", aggression: 4, mistakes: 2 },
@@ -33,7 +36,8 @@ export const SEASON_2: Season = {
   name: "Alpine",
   world: WorldKind.ALPINE,
   cap: "b",
-  reward: { car: "rally", credits: 7500 },
+  gate: Gate.PODIUM,
+  reward: { credits: 12_000 },
   replays: [11, 15, 21, 28, 30, 32, 33, 37],
   field: [
     { name: "Elsa Brandt", aggression: 4, mistakes: 2 },
@@ -60,7 +64,8 @@ export const SEASON_3: Season = {
   name: "Dunes",
   world: WorldKind.DESERT,
   cap: "b",
-  reward: { car: "sturm", credits: 10_000 },
+  gate: Gate.PODIUM,
+  reward: { credits: 15_000 },
   replays: [3, 8, 13, 18, 23, 24, 29, 30, 39],
   field: [
     { name: "Omar Haddad", aggression: 5, mistakes: 2 },
@@ -87,7 +92,8 @@ export const SEASON_4: Season = {
   name: "Mainland",
   world: WorldKind.MAINLAND,
   cap: "a",
-  reward: { car: "formula", credits: 15_000 },
+  gate: Gate.PODIUM,
+  reward: { credits: 20_000 },
   replays: [31, 34, 36, 37, 72, 85, 93, 99],
   field: [
     { name: "Vera Lund", aggression: 5, mistakes: 1 },
@@ -110,14 +116,182 @@ export const SEASON_4: Season = {
 
 export const SEASONS: readonly Season[] = [SEASON_1, SEASON_2, SEASON_3, SEASON_4];
 
+export const RALLY_TRIAL: Season = {
+  id: "rt",
+  name: "Rally Trial",
+  world: WorldKind.ALPINE,
+  cap: rating(stock_build("rally")).class,
+  gate: Gate.FINISH,
+  loaner: "rally",
+  always_open: true,
+  beginner: true,
+  reward: { car: "rally", credits: CUP_CLEAR },
+  replays: [15, 28, 32, 33, 37, 6],
+  field: [
+    { name: "Juno Pike", aggression: 2, mistakes: 4 },
+    { name: "Edda Holm", aggression: 2, mistakes: 3 },
+    { name: "Remy Calder", aggression: 3, mistakes: 4 },
+    { name: "Noor Saleh", aggression: 2, mistakes: 4 },
+    { name: "Bo Strand", aggression: 3, mistakes: 3 },
+  ],
+  rival: 0,
+  events: [
+    { id: "rt-opener", name: "Gravel opener", kind: SeriesKind.RACE, seed: 11, route: "circuit" },
+    { id: "rt-duel", name: "Pike duel", kind: SeriesKind.HEAD_TO_HEAD, seed: 21, route: "circuit" },
+    { id: "rt-final", name: "Four minutes on the pass", kind: SeriesKind.ENDURANCE, seed: 30, route: "circuit", limit_ms: 240_000, final: true },
+  ],
+};
+
+export const MUSCLE_CUP: Season = {
+  id: "mu",
+  name: "Muscle Cup",
+  world: WorldKind.ISLAND,
+  cap: rating(stock_build("muscle")).class,
+  gate: Gate.FINISH,
+  loaner: "muscle",
+  always_open: true,
+  beginner: true,
+  reward: { car: "muscle", credits: CUP_CLEAR },
+  replays: [33, 34, 36, 38, 46, 52],
+  field: [
+    { name: "Dex Harlan", aggression: 3, mistakes: 4 },
+    { name: "Rosa Vint", aggression: 2, mistakes: 3 },
+    { name: "Cal Benton", aggression: 3, mistakes: 4 },
+    { name: "Mae Quill", aggression: 2, mistakes: 4 },
+    { name: "Gus Okafor", aggression: 2, mistakes: 3 },
+  ],
+  rival: 0,
+  events: [
+    { id: "mu-opener", name: "Coast road opener", kind: SeriesKind.RACE, seed: 6, route: "circuit" },
+    { id: "mu-knockout", name: "V8 knockout", kind: SeriesKind.KNOCKOUT, seed: 7, route: "circuit" },
+    { id: "mu-final", name: "Four minutes of thunder", kind: SeriesKind.ENDURANCE, seed: 16, route: "circuit", limit_ms: 240_000, final: true },
+  ],
+};
+
+export const SAJIN_CUP: Season = {
+  id: "sj",
+  name: "Sajin Cup",
+  world: WorldKind.DESERT,
+  cap: rating(stock_build("sajin")).class,
+  gate: Gate.FINISH,
+  loaner: "sajin",
+  always_open: true,
+  reward: { car: "sajin", credits: CUP_CLEAR },
+  replays: [18, 23, 24, 29, 30, 39],
+  field: [
+    { name: "Zara Kell", aggression: 3, mistakes: 3 },
+    { name: "Tomas Rhee", aggression: 2, mistakes: 4 },
+    { name: "Ada Mensah", aggression: 3, mistakes: 3 },
+    { name: "Fen Doyle", aggression: 2, mistakes: 3 },
+    { name: "Lio Sarr", aggression: 3, mistakes: 4 },
+  ],
+  rival: 0,
+  events: [
+    { id: "sj-opener", name: "Buggy dash", kind: SeriesKind.RACE, seed: 3, route: "circuit" },
+    { id: "sj-duel", name: "Kell duel", kind: SeriesKind.HEAD_TO_HEAD, seed: 8, route: "circuit" },
+    { id: "sj-final", name: "Four minutes in the dust", kind: SeriesKind.ENDURANCE, seed: 13, route: "circuit", limit_ms: 240_000, final: true },
+  ],
+};
+
+export const RAIJIN_CUP: Season = {
+  id: "rj",
+  name: "Raijin Cup",
+  world: WorldKind.ALPINE,
+  cap: rating(stock_build("raijin")).class,
+  gate: Gate.FINISH,
+  loaner: "raijin",
+  always_open: true,
+  reward: { car: "raijin", credits: CUP_CLEAR },
+  replays: [6, 11, 15, 21, 28, 32],
+  field: [
+    { name: "Signe Falk", aggression: 3, mistakes: 3 },
+    { name: "Arvo Lahti", aggression: 3, mistakes: 2 },
+    { name: "Kit Moreau", aggression: 2, mistakes: 3 },
+    { name: "Ola Dahl", aggression: 3, mistakes: 3 },
+    { name: "Ivo Petrov", aggression: 2, mistakes: 3 },
+  ],
+  rival: 0,
+  events: [
+    { id: "rj-opener", name: "Snowline race", kind: SeriesKind.RACE, seed: 20, route: "circuit" },
+    { id: "rj-knockout", name: "Hairpin knockout", kind: SeriesKind.KNOCKOUT, seed: 24, route: "circuit" },
+    { id: "rj-final", name: "Four minutes over the pass", kind: SeriesKind.ENDURANCE, seed: 27, route: "circuit", limit_ms: 240_000, final: true },
+  ],
+};
+
+export const STURM_CUP: Season = {
+  id: "st",
+  name: "Sturm Cup",
+  world: WorldKind.ISLAND,
+  cap: rating(stock_build("sturm")).class,
+  gate: Gate.FINISH,
+  loaner: "sturm",
+  always_open: true,
+  reward: { car: "sturm", credits: CUP_CLEAR },
+  replays: [33, 36, 38, 46, 52, 7],
+  field: [
+    { name: "Vik Aalto", aggression: 4, mistakes: 2 },
+    { name: "Nell Sterne", aggression: 3, mistakes: 2 },
+    { name: "Bruno Kass", aggression: 4, mistakes: 3 },
+    { name: "Anouk Ries", aggression: 3, mistakes: 2 },
+    { name: "Ezra Lowe", aggression: 3, mistakes: 3 },
+  ],
+  rival: 0,
+  events: [
+    { id: "st-knockout", name: "Cliff road knockout", kind: SeriesKind.KNOCKOUT, seed: 58, route: "circuit" },
+    { id: "st-duel", name: "Aalto duel", kind: SeriesKind.HEAD_TO_HEAD, seed: 59, route: "circuit" },
+    { id: "st-final", name: "Reverse coast run", kind: SeriesKind.RACE, seed: 34, route: "circuit-rev", final: true },
+  ],
+};
+
+export const FORMULA_CUP: Season = {
+  id: "fc",
+  name: "Formula Cup",
+  world: WorldKind.RACEWAY,
+  cap: rating(stock_build("formula")).class,
+  gate: Gate.FINISH,
+  loaner: "formula",
+  always_open: true,
+  reward: { car: "formula", credits: CUP_CLEAR },
+  replays: [14, 15, 16, 20, 22, 25],
+  field: [
+    { name: "Livia Marchetti", aggression: 4, mistakes: 2 },
+    { name: "Henrik Vos", aggression: 4, mistakes: 1 },
+    { name: "Mika Tanaka", aggression: 3, mistakes: 2 },
+    { name: "Chloe Abara", aggression: 4, mistakes: 2 },
+    { name: "Dario Pinto", aggression: 3, mistakes: 1 },
+  ],
+  rival: 0,
+  events: [
+    { id: "fc-opener", name: "Grand prix opener", kind: SeriesKind.RACE, seed: 2, route: "circuit" },
+    { id: "fc-knockout", name: "Pit lane knockout", kind: SeriesKind.KNOCKOUT, seed: 5, route: "circuit" },
+    { id: "fc-final", name: "Reverse grand prix", kind: SeriesKind.RACE, seed: 12, route: "circuit-rev", final: true },
+  ],
+};
+
+/** Every one-make cup opens at once (sf1118a); Rally and Muscle lead, marked for beginners, the rest by stock class. */
+export const CUPS: readonly Season[] = [RALLY_TRIAL, MUSCLE_CUP, SAJIN_CUP, RAIJIN_CUP, STURM_CUP, FORMULA_CUP];
+
+/** The Series page's list: the cups lead, so a new player's first pick is a cup that hands over a car. */
+export const SERIES_LIST: readonly Season[] = [...CUPS, ...SEASONS];
+
 /** A season has been finished once: its final podiumed now, or a replay begun (a reset only counts up a finished season). */
 export const completed = (season: Season, progress: SeriesProgress) => progress.round > 0 || season_done(season, progress);
 
-/** Which seasons open, in `SEASONS` order: the first always, each next once the one before has been completed. */
-export const seasons_open = (done: readonly boolean[]): boolean[] => done.map((_, i) => i === 0 || done[i - 1]);
+export function chain_before(seasons: readonly Season[], at: number): Season | null {
+  if (seasons[at]?.always_open) return null;
+  return seasons.slice(0, at).findLast((season) => !season.always_open) ?? null;
+}
+
+/** Which seasons open, in list order: a cup always, a season once the one before it in the chain has been completed. */
+export function seasons_open(seasons: readonly Season[], done: readonly boolean[]): boolean[] {
+  return seasons.map((_, i) => {
+    const before = chain_before(seasons, i);
+    return before === null || done[seasons.indexOf(before)];
+  });
+}
 
 export function series_event(id: string | null): { season: Season; event: SeriesEvent } | null {
-  for (const season of SEASONS) {
+  for (const season of SERIES_LIST) {
     const event = event_of(season, id);
     if (event) return { season, event };
   }

@@ -86,7 +86,7 @@ export function parse_custom_race(raw: unknown): CustomRace {
     limits: typeof stored.limits === "boolean" ? stored.limits : d.limits,
     slipstream: typeof stored.slipstream === "boolean" ? stored.slipstream : d.slipstream,
     grid: whole(stored.grid, 0, MAX_RIVALS, d.grid),
-    cars: among(stored.cars, Object.values(RivalPick), d.cars),
+    cars: among(stored.cars, [RivalPick.CLASS, RivalPick.ANY, RivalPick.PICKED], d.cars),
     picked: Array.isArray(stored.picked) ? stored.picked.filter((name): name is string => typeof name === "string" && name.length <= MAX_NAME).slice(0, MAX_RIVALS) : d.picked,
   };
 }

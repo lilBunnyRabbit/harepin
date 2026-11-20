@@ -51,6 +51,89 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.77.0",
+    date: "2026-11-20",
+    title: "Earn your parts",
+    changes: [
+      { kind: NEW, text: "Performance parts cost credits: buy each once per car and keep it; your current cars keep what they have fitted" },
+      { kind: IMPROVED, text: "A build that uses parts you don't own drops them and offers Buy missing parts" },
+      { kind: IMPROVED, text: "Cup loaners tune for free" },
+    ],
+  },
+  {
+    version: "0.76.0",
+    date: "2026-11-20",
+    title: "Credits to spend",
+    changes: [
+      { kind: NEW, text: "Shop: buy extra bodies, neon styles and decals with the credits you earn" },
+      { kind: IMPROVED, text: "Races pay more in higher classes, a daily first-podium bonus, and cup clears pay out; reruns of a podiumed race pay half" },
+      { kind: NEW, text: "Runs pay credits for each new season star" },
+      { kind: FIXED, text: "A car borrowed at a race meet goes back after the meet and is never saved as yours" },
+    ],
+  },
+  {
+    version: "0.75.0",
+    date: "2026-11-19",
+    title: "Frame cups",
+    changes: [
+      { kind: NEW, text: "Five more one-make cups: Muscle, Sajin, Raijin, Sturm and Formula, each in a lent stock car; finish one and its frame is yours" },
+      { kind: NEW, text: "You start with the Hatch, Coupe, Tsumuji and Bus; other frames unlock from their cups" },
+      { kind: IMPROVED, text: "Series seasons pay credits instead of cars" },
+    ],
+  },
+  {
+    version: "0.74.0",
+    date: "2026-11-19",
+    title: "Rally Trial",
+    changes: [
+      { kind: NEW, text: "Rally Trial: three rounds in a lent stock Rally; finish them all and the Rally is yours, podium for a trophy" },
+    ],
+  },
+  {
+    version: "0.73.3",
+    date: "2026-11-19",
+    title: "Signs in place",
+    changes: [
+      { kind: FIXED, text: "The WRONG WAY sign and the turn hint show in full on desktop" },
+    ],
+  },
+  {
+    version: "0.73.2",
+    date: "2026-11-19",
+    title: "Rivals rejoin cleanly",
+    changes: [
+      { kind: FIXED, text: "AI rivals far behind no longer spin off when they come back into view" },
+    ],
+  },
+  {
+    version: "0.73.1",
+    date: "2026-11-19",
+    title: "Garage from anywhere",
+    changes: [
+      { kind: IMPROVED, text: "The Events screen's series sheet opens the Garage too, and Back still finds the series after changing car" },
+      { kind: FIXED, text: "Closing the Garage while a car loads no longer leaves work running in the race" },
+    ],
+  },
+  {
+    version: "0.73.0",
+    date: "2026-11-19",
+    title: "Share builds in chat",
+    changes: [
+      { kind: NEW, text: "Build codes and links in chat show a card with the car, its rating and parts, and a Use build button" },
+    ],
+  },
+  {
+    version: "0.72.0",
+    date: "2026-11-19",
+    title: "Series, sorted",
+    changes: [
+      { kind: IMPROVED, text: "Series cards run to the edge of the screen, and a series opens on your next race" },
+      { kind: NEW, text: "The race start sheet shows your car against the class cap, with a Garage link" },
+      { kind: FIXED, text: "Season arrows stay in one spot" },
+      { kind: FIXED, text: "The dial speedometer shows the gear inside the dial" },
+    ],
+  },
+  {
     version: "0.71.5",
     date: "2026-11-19",
     title: "Steady car",

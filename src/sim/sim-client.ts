@@ -19,6 +19,8 @@ export interface ReplyWait {
   frames: number;
 }
 const REPLY_WAIT: ReplyWait = { ms: 2_000, frames: 20 };
+/** Steps (1/15 s) a late reply's pose is carried on along its last step at most: past that a stalled worker shows as a stall, not a car running off. */
+const AHEAD_CAP = 24;
 
 export type SimPort = Pick<Worker, "postMessage" | "terminate" | "addEventListener">;
 
@@ -133,6 +135,10 @@ export class WorkerSim implements Sim {
   private readonly read: FrameOut = { kind: FrameKind.FREE, steps: 0, stepped: 0, impact: 0, blend: 0, touches: 0 };
   private readonly commands: SimCommand[] = [];
   private replies: Float64Array[] = [];
+  private readonly unread: number[] = [];
+  private reply_blend = 0;
+  private request_blend = 0;
+  private reply_epoch = -1;
   private epoch = 0;
   private field: FieldStart | null = null;
   private failure: string | null = null;
@@ -229,6 +235,9 @@ export class WorkerSim implements Sim {
     const { out, read } = this;
     this.worker.postMessage({ type: "frame", epoch: this.epoch, commands: this.commands, frame: request } satisfies SimRequest);
     this.commands.length = 0;
+    const draws = this.request_blend;
+    this.request_blend = request.blend;
+    this.unread.push(request.kind === FrameKind.STEP ? request.steps : -1);
     if (Number.isNaN(this.waiting_since)) this.waiting_since = performance.now();
     this.unanswered++;
     out.steps = 0;
@@ -236,6 +245,7 @@ export class WorkerSim implements Sim {
     out.impact = 0;
     let fresh = false;
     for (const reply of this.replies) {
+      this.unread.shift();
       if (packet_epoch(reply) < this.epoch) continue;
       read_packet(reply, read, this.mirror, this.mirror_from, this.mirror_field, this.mirror_field_from, this.mirror_progress);
       if (!fresh || read.kind === FrameKind.STEP) out.kind = read.kind;
@@ -243,16 +253,35 @@ export class WorkerSim implements Sim {
       out.steps += read.steps;
       out.stepped += read.stepped;
       out.impact = Math.max(out.impact, read.impact);
-      out.blend = read.blend;
+      this.reply_blend = read.blend;
+      this.reply_epoch = this.epoch;
       out.touches = read.touches;
     }
     this.replies.length = 0;
+    out.blend = this.drawn_blend(draws);
     this.mirror.nitro.barred = this.mirror_field.length > 0;
     return out;
   }
 
   stop() {
     this.worker.terminate();
+  }
+
+  /**
+   * Main draws frame N from the reply to frame N-1. A reply that misses its frame (the worker busy, or its message
+   * landing just after the frame starts) left the car standing for a frame and then jumping two: against a chase cam
+   * moving on, it snapped back and forth. While replies are late, the last one read is carried on along its last step
+   * to where frame N-1 asked the sim to be, so the car moves with main's clock and the next reply lands where this one
+   * drew it, give or take a frame's change of speed. `previous`: frame N-1's blend.
+   */
+  private drawn_blend(previous: number): number {
+    if (this.unread.length < 2 || this.reply_epoch !== this.epoch) return this.reply_blend;
+    let steps = 0;
+    for (let i = 0; i < this.unread.length - 1; i++) {
+      if (this.unread[i] < 0) return this.reply_blend;
+      steps += this.unread[i];
+    }
+    return steps > AHEAD_CAP ? this.reply_blend + AHEAD_CAP : previous + steps;
   }
 
   /**
